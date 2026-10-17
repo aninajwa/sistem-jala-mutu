@@ -1,0 +1,218 @@
+{
+  "info": {
+    "_postman_id": "f302c6d2-4c61-48e1-bd03-564e95bd7405",
+    "name": "Jala Mutu - Versi Dokumen",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Isi Variables lokal, Login, Baca dokumen, kemudian pilih fail dan Upload versi baharu SEKALI. Jangan run seluruh koleksi kerana upload menambah versi sebenar. Template tidak mengandungi credentials. Jangan kongsi eksport selepas diisi token/password."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "dokumen_id",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "expected_version",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login Supabase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "description": "Isi email/password akaun Auth dalam Variables. Token login berjaya disimpan automatik. Jangan hantar respons login ke chat.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get(\"email\"), password: pm.variables.get(\"password\") }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "let data = {}; try { data = pm.response.json(); } catch (_) {}",
+              "if (pm.response.code === 200 && typeof data.access_token === \"string\") {",
+              "  pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "} else { pm.collectionVariables.unset(\"access_token\"); }",
+              "pm.test(\"Token diterima\", function () { pm.expect(data.access_token).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Baca dokumen dan versi aktif",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/dokumen",
+        "description": "Pilih dokumen_id dalam Variables. Request ini mengambil versi_aktif untuk dokumen itu sahaja."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "pm.collectionVariables.unset(\"expected_version\");",
+              "if (pm.response.code === 200) {",
+              " const d = pm.response.json().data.find(x => String(x.dokumen_id) === String(pm.collectionVariables.get(\"dokumen_id\")));",
+              " if (d) pm.collectionVariables.set(\"expected_version\", String(d.versi_aktif));",
+              " pm.test(\"Dokumen pilihan ditemukan\", () => pm.expect(Boolean(d)).to.eql(true));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Upload versi baharu - mengubah data",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/dokumen/{{dokumen_id}}/versi",
+        "description": "Jalankan selepas Baca dokumen. Pilih fail PDF pada baris file. Jangan hantar judul atau jenis_dokumen. Checklist yang memaut dokumen akan mendapat versi baharu juga.",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "expected_version",
+              "value": "{{expected_version}}",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get(\"expected_version\")) { pm.execution.skipRequest(); throw new Error(\"Jalankan Baca dokumen dahulu\"); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 201\", () => pm.response.to.have.status(201));",
+              "if (pm.response.code === 201) { const d = pm.response.json().data; pm.collectionVariables.set(\"expected_version\", String(d.dokumen.versi_aktif)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Download versi aktif",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/dokumen/{{dokumen_id}}/download",
+        "description": "Mengambil fail versi aktif. Save Response jika mahu simpan di laptop."
+      },
+      "response": []
+    },
+    {
+      "name": "Download versi 1 - pilihan",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/dokumen/{{dokumen_id}}/versi/1/download",
+        "description": "Mengambil versi pertama, mengikut akses paket yang sama."
+      },
+      "response": []
+    }
+  ]
+}

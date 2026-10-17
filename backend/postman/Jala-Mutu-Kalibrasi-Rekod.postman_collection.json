@@ -1,0 +1,270 @@
+{
+  "info": {
+    "_postman_id": "14c6ec23-8d8f-4535-abe4-e9e058f44f8d",
+    "name": "Jala Mutu - Rekod Kalibrasi dan Sijil",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Jalankan satu request pada satu masa. POST 02 mencipta rekod baharu setiap kali; jangan Run All. Contoh UJIAN sahaja, bukan standard teknikal rasmi. Sijil memerlukan bucket private dokumen-kalibrasi. expected_version ialah versi REKOD kalibrasi, bukan versi PDF. Isi credentials sendiri; jangan kongsi eksport yang mengandungi credentials."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "kalibrasi_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "expected_version",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Login Penyedia",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Buat rekod kalibrasi UJIAN",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"alat_id\": 7,\n  \"jenis\": \"RELATIF\",\n  \"standar\": \"UJIAN - Standard berdasarkan sijil\",\n  \"komponen\": \"UJIAN - Transduser jarak\",\n  \"tgl_kalibrasi\": \"2026-10-17\",\n  \"berlaku_sd\": null,\n  \"pelaksana\": \"UJIAN - Pelaksana kalibrasi\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              " const d = pm.response.json().data;",
+              " const k = d.kalibrasi || d;",
+              " pm.collectionVariables.set(\"kalibrasi_id\", String(k.kalibrasi_id));",
+              " pm.collectionVariables.set(\"expected_version\", String(k.versi));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Senarai rekod kalibrasi",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat"
+      }
+    },
+    {
+      "name": "04 - Detail rekod dan versi semasa",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat/{{kalibrasi_id}}"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              " const d = pm.response.json().data;",
+              " const k = d.kalibrasi || d;",
+              " pm.collectionVariables.set(\"kalibrasi_id\", String(k.kalibrasi_id));",
+              " pm.collectionVariables.set(\"expected_version\", String(k.versi));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Ubah rekod draft",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat/{{kalibrasi_id}}",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expected_version\": {{expected_version}},\n  \"pelaksana\": \"UJIAN - Pelaksana dikemas kini\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              " const d = pm.response.json().data;",
+              " const k = d.kalibrasi || d;",
+              " pm.collectionVariables.set(\"kalibrasi_id\", String(k.kalibrasi_id));",
+              " pm.collectionVariables.set(\"expected_version\", String(k.versi));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 - Upload sijil PDF atau versi pengganti",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat/{{kalibrasi_id}}/sertifikat",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "expected_version",
+              "value": "{{expected_version}}",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              " const d = pm.response.json().data;",
+              " const k = d.kalibrasi || d;",
+              " pm.collectionVariables.set(\"kalibrasi_id\", String(k.kalibrasi_id));",
+              " pm.collectionVariables.set(\"expected_version\", String(k.versi));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 - Download sijil aktif",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat/{{kalibrasi_id}}/sertifikat/download"
+      }
+    },
+    {
+      "name": "08 - Download sijil versi 1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/kalibrasi-alat/{{kalibrasi_id}}/sertifikat/versi/1/download"
+      }
+    }
+  ]
+}

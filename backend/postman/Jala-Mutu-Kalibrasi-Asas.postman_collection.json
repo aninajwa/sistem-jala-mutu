@@ -1,0 +1,340 @@
+{
+  "info": {
+    "_postman_id": "ef2c7ece-94ed-47ff-b118-737eeba7f597",
+    "name": "Jala Mutu - Asas Kalibrasi - Tim dan Alat",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Daftar jenis, organisasi penyedia, tim dan alat. POST mengubah data; jangan run seluruh koleksi. Login Penyedia untuk POST; PIC hanya membaca mengikut scope. Isi nama organisasi sendiri. Tiada credentials sebenar dalam template; jangan kongsi eksport selepas diisi credentials."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "penyedia_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "jenis_survei_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "tim_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nama_penyedia",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "nama_tim",
+      "value": "UJIAN - Tim IRI",
+      "type": "string"
+    },
+    {
+      "key": "nama_alat",
+      "value": "UJIAN - Alat IRI",
+      "type": "string"
+    },
+    {
+      "key": "nomor_seri",
+      "value": "UJIAN-IRI-001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login Supabase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "description": "Isi email/password akaun Auth dalam Variables. Token login berjaya disimpan automatik. Jangan hantar respons login ke chat.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get(\"email\"), password: pm.variables.get(\"password\") }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "let data = {}; try { data = pm.response.json(); } catch (_) {}",
+              "if (pm.response.code === 200 && typeof data.access_token === \"string\") {",
+              "  pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "} else { pm.collectionVariables.unset(\"access_token\"); }",
+              "pm.test(\"Token diterima\", function () { pm.expect(data.access_token).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET Jenis survei",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/jenis-survei",
+        "description": "Katalog lapan nama; ID IRI diambil daripada respons."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code===200) { const iri=pm.response.json().data.find(x=>x.kode===\"IRI\"); if(iri)pm.collectionVariables.set(\"jenis_survei_id\",String(iri.jenis_survei_id)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET Organisasi penyedia",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/penyedia",
+        "description": "Daftar baru hanya jika tiada organisasi. Akaun PIC yang belum ditugaskan mungkin menerima senarai kosong."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(pm.response.code===200) { const d=pm.response.json().data[0]; if(d)pm.collectionVariables.set(\"penyedia_id\",String(d.penyedia_id)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST Daftar organisasi - sekali sahaja",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/penyedia",
+        "description": "Isi nama_penyedia dahulu. Tiada nama syarikat sebenar direka; untuk data dummy, gunakan nama berlabel UJIAN. Sistem menyokong satu organisasi sahaja.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nama\":{{nama_penyedia_json}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "const name=pm.collectionVariables.get(\"nama_penyedia\");",
+              "if(!name?.trim()) { pm.execution.skipRequest(); throw new Error(\"Isi nama_penyedia dahulu\"); }",
+              "pm.variables.set(\"nama_penyedia_json\",JSON.stringify(name));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(pm.response.code===201)pm.collectionVariables.set(\"penyedia_id\",String(pm.response.json().data.penyedia_id));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST Daftar tim paket",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim",
+        "description": "Perlu persiapan DISETUJUI. ID penyedia dan jenis mesti daripada respons sebenar. Mengaitkan penyedia kepada paket jika belum diisi.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"penyedia_id\":{{penyedia_id}},\"jenis_survei_id\":{{jenis_survei_id}},\"nama_tim\":{{nama_tim_json}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(!pm.collectionVariables.get(\"penyedia_id\")||!pm.collectionVariables.get(\"jenis_survei_id\")){pm.execution.skipRequest();throw new Error(\"Baca/daftar penyedia dan baca jenis survei dahulu\");}",
+              "pm.variables.set(\"nama_tim_json\",JSON.stringify(pm.collectionVariables.get(\"nama_tim\")));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(pm.response.code===201)pm.collectionVariables.set(\"tim_id\",String(pm.response.json().data.tim_id));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "POST Daftar alat baharu pada tim",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/alat",
+        "description": "Nilai adalah ujian; pendaftaran bukan kelulusan kalibrasi. Jenis survei dan penyedia alat ditentukan server daripada tim/paket. Serial mesti unik.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"nama_alat\":{{nama_alat_json}},\"nomor_seri\":{{nomor_seri_json}},\"kondisi\":\"Belum diperiksa\",\"milik_djbm\":false}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if(!pm.collectionVariables.get(\"tim_id\")){pm.execution.skipRequest();throw new Error(\"Daftar tim dahulu\");}",
+              "for(const key of [\"nama_alat\",\"nomor_seri\"])pm.variables.set(key+\"_json\",JSON.stringify(pm.collectionVariables.get(key)));"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET Tim paket",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim",
+        "description": "Membaca tim dalam paket yang dibenarkan."
+      },
+      "response": []
+    },
+    {
+      "name": "GET Alat tim",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/alat",
+        "description": "Membaca penugasan dengan metadata alat, bukan keputusan kalibrasi."
+      },
+      "response": []
+    }
+  ]
+}

@@ -17,3 +17,12 @@ export const checklistEvidenceSchema = z.object({
   item_id: z.number().int().positive().max(2147483647),
   bukti_dokumen_id: z.number().int().positive().max(2147483647).nullable(),
 }).strict();
+
+export const preparationSubmitSchema = z.object({
+  expected_version: z.number().int().min(0).max(2147483646),
+}).strict();
+
+export const preparationReviewSchema = preparationSubmitSchema.extend({
+  keputusan: z.enum(['PERLU_REVISI', 'DISETUJUI']),
+  catatan: z.string().trim().max(2000).default(''),
+}).strict().refine(value => value.keputusan !== 'PERLU_REVISI' || value.catatan.length > 0, 'Catatan diperlukan untuk meminta revisi');
