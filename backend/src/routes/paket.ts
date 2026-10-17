@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import dokumenRouter from './dokumen';
-import { checklistDraftSchema, checklistEvidenceSchema } from '../schemas/checklist';
+import kalibrasiAsasRouter from './kalibrasi-asas';
+import kalibrasiRouter from './kalibrasi';
+import { checklistDraftSchema, checklistEvidenceSchema, preparationSubmitSchema, preparationReviewSchema } from '../schemas/checklist';
 import { requireAuth } from '../middleware/auth';
 import { ApiError, supabaseRequest } from '../services/supabase';
 import { paketDraftSchema, paketPatchSchema, paketIdSchema } from '../schemas/paket';
@@ -53,6 +55,15 @@ router.patch('/paket/:id', async (req, res) => {
   });
   res.json({ data });
 });
+router.get('/paket/:id/ringkasan-persiapan', async (req, res) => {
+  const id = paketIdSchema.safeParse(req.params.id);
+  if (!id.success) throw new ApiError(400, 'ID paket tidak valid');
+  const data = await supabaseRequest('/rest/v1/rpc/baca_ringkasan_persiapan', res.locals.identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: id.data }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data });
+});
 router.get('/paket/:id/checklist-persiapan', async (req, res) => {
   const id = paketIdSchema.safeParse(req.params.id);
   if (!id.success) throw new ApiError(400, 'ID paket tidak valid');
@@ -85,5 +96,42 @@ router.patch('/paket/:id/checklist-persiapan/bukti', async (req, res) => {
   });
   res.json({ data });
 });
+router.get('/paket/:id/pengajuan-persiapan', async (req, res) => {
+  const id = paketIdSchema.safeParse(req.params.id);
+  if (!id.success) throw new ApiError(400, 'ID paket tidak valid');
+  const data = await supabaseRequest('/rest/v1/rpc/baca_pengajuan_persiapan', res.locals.identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: id.data }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data });
+});
+router.post('/paket/:id/pengajuan-persiapan', async (req, res) => {
+  const { identity } = res.locals;
+  if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh menghantar persiapan');
+  const id = paketIdSchema.safeParse(req.params.id);
+  if (!id.success) throw new ApiError(400, 'ID paket tidak valid');
+  const parsed = preparationSubmitSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Pengajuan tidak valid', details: parsed.error.flatten() }); return; }
+  const data = await supabaseRequest('/rest/v1/rpc/ajukan_persiapan', identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: id.data, p_expected_version: parsed.data.expected_version }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.status(201).json({ data });
+});
+router.post('/paket/:id/pengajuan-persiapan/review', async (req, res) => {
+  const { identity } = res.locals;
+  if (!identity.roles.some(role => role.nama === 'pic_balai')) throw new ApiError(403, 'Hanya PIC Balai boleh menyemak persiapan');
+  const id = paketIdSchema.safeParse(req.params.id);
+  if (!id.success) throw new ApiError(400, 'ID paket tidak valid');
+  const parsed = preparationReviewSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Keputusan tidak valid', details: parsed.error.flatten() }); return; }
+  const data = await supabaseRequest('/rest/v1/rpc/review_persiapan', identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: id.data, p_expected_version: parsed.data.expected_version, p_keputusan: parsed.data.keputusan, p_catatan: parsed.data.catatan }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data });
+});
 router.use(dokumenRouter);
+router.use(kalibrasiAsasRouter);
+router.use(kalibrasiRouter);
 export default router;

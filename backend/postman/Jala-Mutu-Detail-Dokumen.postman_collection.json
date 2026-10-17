@@ -1,0 +1,152 @@
+{
+  "info": {
+    "_postman_id": "de3baee4-1e21-41e1-a0c6-3a2b0e49c4af",
+    "name": "Jala Mutu - Detail Dokumen",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Dua request: Login dan GET Detail dokumen. Metadata dan sejarah versi sahaja; tiada upload atau perubahan data. Isi Variables lokal. Jangan kongsi eksport selepas diisi credentials."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "dokumen_id",
+      "value": "2",
+      "type": "string"
+    },
+    {
+      "key": "page",
+      "value": "1",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login Supabase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "description": "Isi email/password akaun Auth dalam Variables. Token login berjaya disimpan automatik. Jangan hantar respons login ke chat.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get(\"email\"), password: pm.variables.get(\"password\") }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "let data = {}; try { data = pm.response.json(); } catch (_) {}",
+              "if (pm.response.code === 200 && typeof data.access_token === \"string\") {",
+              "  pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "} else { pm.collectionVariables.unset(\"access_token\"); }",
+              "pm.test(\"Token diterima\", function () { pm.expect(data.access_token).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET Detail dokumen dan sejarah versi",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/dokumen/{{dokumen_id}}?page={{page}}",
+        "description": "Metadata dokumen, versi aktif dan sejarah 50 versi setiap halaman, terbaru dahulu. Body none. Akses mengikut RLS paket."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              " const d = pm.response.json().data;",
+              " pm.test(\"Dokumen pilihan\", () => pm.expect(String(d.dokumen.dokumen_id)).to.eql(String(pm.collectionVariables.get(\"dokumen_id\"))));",
+              " pm.test(\"Sejarah berupa senarai\", () => pm.expect(d.riwayat_versi).to.be.an(\"array\"));",
+              " pm.test(\"Halaman maksimum 50 versi\", () => pm.expect(d.riwayat_versi.length).to.be.at.most(50));",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

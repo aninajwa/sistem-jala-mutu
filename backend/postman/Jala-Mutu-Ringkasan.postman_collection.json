@@ -1,0 +1,141 @@
+{
+  "info": {
+    "_postman_id": "34a1e145-cf76-4e6b-b0fa-1467028d9c2c",
+    "name": "Jala Mutu - Ringkasan Persiapan",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Dua request sahaja: Login Supabase, kemudian GET Ringkasan persiapan paket. Isi Variables lokal. Tiada password atau token sebenar dalam fail ini. Jangan kongsi eksport yang sudah diisi credentials. Login tidak mencipta paket atau dokumen. Ringkasan tidak menentukan kelayakan submit."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login Supabase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "description": "Isi email/password akaun Auth dalam Variables. Token login berjaya disimpan automatik. Jangan hantar respons login ke chat.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get(\"email\"), password: pm.variables.get(\"password\") }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "let data = {}; try { data = pm.response.json(); } catch (_) {}",
+              "if (pm.response.code === 200 && typeof data.access_token === \"string\") {",
+              "  pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "} else { pm.collectionVariables.unset(\"access_token\"); }",
+              "pm.test(\"Token diterima\", function () { pm.expect(data.access_token).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "GET Ringkasan persiapan paket",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/ringkasan-persiapan",
+        "description": "Hanya membaca kiraan semasa. Tiada Body. Gunakan token pengguna aktif; akses mengikut RLS paket. Bilangan pautan tidak bermaksud jawapan Ya atau kelulusan."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              " const d = pm.response.json().data;",
+              " pm.test(\"Jumlah jawapan konsisten\", () => pm.expect(d.checklist.jumlah_ya + d.checklist.jumlah_tidak + d.checklist.jumlah_belum_dijawab).to.eql(d.checklist.jumlah_item));",
+              " pm.test(\"Aturan submit belum aktif\", () => pm.expect(d.syarat_submit_aktif).to.eql(false));",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}

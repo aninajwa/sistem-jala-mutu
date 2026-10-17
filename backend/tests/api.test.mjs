@@ -8,6 +8,13 @@ let mock, child, base, lastRpc;
 const storageFiles = new Map();
 let registeredDocument;
 let cleanupCalls = 0;
+let organisation = null;
+const calibrationRows = [];
+let calibrationCertificate = null;
+const teamRows = [];
+const equipmentRows = [];
+const assignmentRows = [];
+let preparationState = { paket_id: 3, pengisian_id: 2, status: 'DRAFT', versi: 3, pengajuan: null, review: null, aturan: { mode: 'SEMAKAN_MANUAL_PIC', validasi_kelengkapan_resmi_aktif: false } };
 const profile = { pengguna_id: 3, auth_user_id: 'provider-id', username: 'penyedia.jasa', email: 'provider@example.test', terkunci: false };
 async function request(path, token, body, method) {
   const r = await fetch(base + path, { method: method ?? (body === undefined ? 'GET' : 'POST'), headers: { ...(token ? { Authorization: `Bearer ${token}` } : {}), 'Content-Type': 'application/json' }, ...(body === undefined ? {} : { body: JSON.stringify(body) }) });
@@ -25,6 +32,105 @@ before(async () => {
     if (url.pathname === '/rest/v1/pengguna_peran') return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
     if (url.pathname === '/rest/v1/peran') return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, nama: token?.includes('reviewer') ? 'pic_balai' : 'penyedia_jasa' }]);
     if (url.pathname === '/rest/v1/balai') return send([{ balai_id: 1, nama: 'Balai Ujian', aktif: true }]);
+    if(url.pathname === '/rest/v1/kalibrasi_alat') {
+      if(token==='foreign-reviewer')return send([]);
+      return send(calibrationRows.filter(k=>url.searchParams.get('paket_id')===`eq.${k.paket_id}` && (!url.searchParams.has('kalibrasi_id')||url.searchParams.get('kalibrasi_id')===`eq.${k.kalibrasi_id}`)).map(k=>({...k,dokumen:k.dokumen_id ? {dokumen_id:k.dokumen_id,versi_aktif:calibrationCertificate.versi_aktif}:null})));
+    }
+    if(url.pathname==='/rest/v1/dokumen_versi') {
+      const versions=calibrationCertificate?.dokumen_versi.filter(v=>url.searchParams.get('dokumen_id')===`eq.${calibrationCertificate.dokumen_id}`&&url.searchParams.get('versi_ke')===`eq.${v.versi_ke}`)??[];
+      return send(token==='bad-cert-hash' ? versions.map(v=>({...v,hash_file:'bad'})) : versions);
+    }
+    if(url.pathname==='/rest/v1/rpc/simpan_kalibrasi_alat') {
+      let raw='';for await(const c of req)raw+=c;lastRpc=JSON.parse(raw);
+      if(lastRpc.p_paket_id===999)return send({code:'P0002'},404);
+      if(lastRpc.p_paket_id!==3)return send({code:'55000',message:'Persiapan perlu disetujui'},400);
+      if(lastRpc.p_kalibrasi_id===null) {
+        if(lastRpc.p_data.alat_id!==7)return send({code:'22023',message:'Alat belum ditugaskan'},400);
+        const k={...lastRpc.p_data,kalibrasi_id:17+calibrationRows.length,paket_id:3,dokumen_id:null,versi:1,status:'DRAFT',created_by:3};calibrationRows.push(k);return send(k);
+      }
+      const k=calibrationRows.find(k=>k.kalibrasi_id===lastRpc.p_kalibrasi_id);if(!k)return send({code:'P0002'},404);
+      if(k.versi!==lastRpc.p_expected_version)return send({code:'40001'},409);
+      const next={...k,...lastRpc.p_data};
+      if(next.berlaku_sd && next.berlaku_sd<next.tgl_kalibrasi)return send({code:'22023',message:'Tarikh tamat tidak boleh lebih awal'},400);
+      if(Object.keys(lastRpc.p_data).some(key=>k[key]!==lastRpc.p_data[key])){Object.assign(k,lastRpc.p_data);k.versi++;}return send(k);
+    }
+    if(url.pathname.startsWith('/storage/v1/object/authenticated/dokumen-kalibrasi/')) {
+      const path=decodeURIComponent(url.pathname.split('/dokumen-kalibrasi/')[1]);const bytes=storageFiles.get(path);if(!bytes)return send({message:'Object not found'},404);
+      res.setHeader('Content-Type','application/pdf');return res.end(bytes);
+    }
+    if(url.pathname==='/storage/v1/object/dokumen-kalibrasi' && req.method==='DELETE') {
+      let raw='';for await(const c of req)raw+=c;cleanupCalls++;for(const path of JSON.parse(raw).prefixes)storageFiles.delete(path);return send([]);
+    }
+    if(url.pathname.startsWith('/storage/v1/object/dokumen-kalibrasi/') && req.method==='POST') {
+      if(token==='no-calibration-bucket')return send({message:'Bucket not found'},404);
+      const chunks=[];for await(const c of req)chunks.push(c);const path=decodeURIComponent(url.pathname.split('/dokumen-kalibrasi/')[1]);
+      assert.match(path,/^3\/17\/[0-9a-f-]{36}\.pdf$/);assert.equal(req.headers['x-upsert'],'false');storageFiles.set(path,Buffer.concat(chunks));return send({Key:path});
+    }
+    if(url.pathname==='/rest/v1/rpc/daftar_sertifikat_kalibrasi') {
+      let raw='';for await(const c of req)raw+=c;lastRpc=JSON.parse(raw);
+      if(token==='race-calibration')return send({code:'40001'},409);
+      if(lastRpc.p_nama_file==='reject.pdf')return send({code:'22023',message:'Metadata rejected'},400);
+      if(lastRpc.p_nama_file==='uncertain.pdf')return send({error:'Unknown upstream failure'},500);
+      const k=calibrationRows.find(k=>k.kalibrasi_id===lastRpc.p_kalibrasi_id);
+      if(k.versi!==lastRpc.p_expected_version)return send({code:'40001'},409);
+      const bytes=storageFiles.get(lastRpc.p_object_path);assert.equal(lastRpc.p_sha256,createHash('sha256').update(bytes).digest('hex'));assert.equal(lastRpc.p_ukuran,bytes.length);
+      const v={bucket_id:'dokumen-kalibrasi',object_path:lastRpc.p_object_path,nama_file:lastRpc.p_nama_file,hash_file:lastRpc.p_sha256,ukuran_byte:bytes.length,versi_ke:calibrationCertificate?calibrationCertificate.versi_aktif+1:1};
+      calibrationCertificate={dokumen_id:77,paket_id:3,sumber_tipe:'KALIBRASI',sumber_id:k.kalibrasi_id,versi_aktif:v.versi_ke,dokumen_versi:[...(calibrationCertificate?.dokumen_versi??[]),v]};k.dokumen_id=77;k.versi++;
+      return send({kalibrasi:k,dokumen:calibrationCertificate,versi:v});
+    }
+    if (url.pathname === '/rest/v1/jenis_survei') return send(['IRI','PCI','LENDUTAN','JEMBATAN','LERENG','DRAINASE','LALU_LINTAS','RNI'].map((kode,i)=>({jenis_survei_id:i+1,kode,nama:kode,aktif:true})));
+    if (url.pathname === '/rest/v1/penyedia_jasa') return send(organisation && token !== 'foreign-reviewer' ? [organisation] : []);
+    if (url.pathname === '/rest/v1/tim_survei') {
+      return send(token === 'foreign-reviewer' ? [] : teamRows.filter(t=>url.searchParams.get('paket_id') === `eq.${t.paket_id}` && (!url.searchParams.has('tim_id') || url.searchParams.get('tim_id') === `eq.${t.tim_id}`)));
+    }
+    if (url.pathname === '/rest/v1/penugasan_alat') return send(assignmentRows.filter(a=>url.searchParams.get('tim_id') === `eq.${a.tim_id}`).map(a=>({...a,alat_survei:equipmentRows.find(e=>e.alat_id===a.alat_id)})));
+    if (['/rest/v1/rpc/daftar_penyedia_tunggal','/rest/v1/rpc/daftar_tim_survei','/rest/v1/rpc/daftar_alat_tim'].includes(url.pathname)) {
+      let raw='';for await(const chunk of req) raw+=chunk;lastRpc=JSON.parse(raw);
+      if (url.pathname.endsWith('/daftar_penyedia_tunggal')) {
+        if (organisation) return send({code:'23505'},409);
+        organisation={penyedia_id:8,nama:lastRpc.p_nama};return send(organisation);
+      }
+      if(lastRpc.p_paket_id===999) return send({code:'P0002'},404);
+      if(lastRpc.p_paket_id!==3 || preparationState.status!=='DISETUJUI') return send({code:'55000',message:'Persiapan perlu disetujui'},400);
+      if(url.pathname.endsWith('/daftar_tim_survei')) {
+        if(lastRpc.p_penyedia_id!==8 || ![1,2].includes(lastRpc.p_jenis_survei_id)) return send({code:'22023'},400);
+        if(teamRows.some(t=>t.nama_tim.toLowerCase()===lastRpc.p_nama_tim.toLowerCase() && t.jenis_survei_id===lastRpc.p_jenis_survei_id)) return send({code:'23505'},409);
+        const t={tim_id:21+teamRows.length,paket_id:3,jenis_survei_id:lastRpc.p_jenis_survei_id,nama_tim:lastRpc.p_nama_tim};teamRows.push(t);return send(t);
+      }
+      const team=teamRows.find(t=>t.tim_id===lastRpc.p_tim_id && t.paket_id===lastRpc.p_paket_id);
+      if(!team) return send({code:'P0002'},404);
+      const d=lastRpc.p_data;let e;
+      if(d.alat_id) { e=equipmentRows.find(e=>e.alat_id===d.alat_id && e.jenis_survei_id===team.jenis_survei_id);if(!e)return send({code:'22023'},400); }
+      else {
+        if(equipmentRows.some(e=>e.nomor_seri===d.nomor_seri))return send({code:'23505'},409);
+        e={alat_id:7+equipmentRows.length,penyedia_id:8,jenis_survei_id:team.jenis_survei_id,nama_alat:d.nama_alat,nomor_seri:d.nomor_seri,kondisi:d.kondisi,milik_djbm:d.milik_djbm};equipmentRows.push(e);
+      }
+      if(assignmentRows.some(a=>a.tim_id===team.tim_id && a.alat_id===e.alat_id && a.mulai===(d.mulai??null) && a.selesai===(d.selesai??null))) return send({code:'23505'},409);
+      const a={penugasan_id:31+assignmentRows.length,tim_id:team.tim_id,alat_id:e.alat_id,kendaraan:d.kendaraan??null,mulai:d.mulai??null,selesai:d.selesai??null};assignmentRows.push(a);
+      return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
+    }
+
+    if (url.pathname === '/rest/v1/rpc/baca_pengajuan_persiapan' || url.pathname === '/rest/v1/rpc/ajukan_persiapan' || url.pathname === '/rest/v1/rpc/review_persiapan') {
+      let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id !== 3) return send({ code: 'P0002' }, 404);
+      const isRead = url.pathname.endsWith('/baca_pengajuan_persiapan');
+      if (token === 'foreign-reviewer') return send({ code: isRead ? 'P0002' : '42501' }, isRead ? 404 : 403);
+      if (isRead) return send(preparationState);
+      if (lastRpc.p_expected_version !== preparationState.versi) return send({ code: '40001' }, 409);
+      if (url.pathname.endsWith('/ajukan_persiapan')) {
+        if (!['DRAFT','PERLU_REVISI'].includes(preparationState.status)) return send({ code: '55000', message: 'Persiapan dikunci' }, 400);
+        const snapshot = { laporan_dokumen_id: 51, laporan_dok_versi_id: registeredDocument.dokumen_versi.find(v => v.versi_ke === registeredDocument.versi_aktif).versi_ke, dokumen: structuredClone(registeredDocument.dokumen_versi), versi_saat_dikirim: preparationState.versi+1 };
+        preparationState = { ...preparationState, status: 'DIAJUKAN', versi: preparationState.versi+1, pengajuan: { pengajuan_id: preparationState.versi, snapshot }, review: null };
+      } else {
+        if (preparationState.status !== 'DIAJUKAN') return send({ code: '55000', message: 'Persiapan sudah diputuskan' }, 400);
+        preparationState = { ...preparationState, status: lastRpc.p_keputusan, versi: preparationState.versi+1, review: { keputusan: lastRpc.p_keputusan, catatan: lastRpc.p_catatan, dokumen_id: 51, dok_versi_id: preparationState.pengajuan.snapshot.laporan_dok_versi_id } };
+      }
+      return send(preparationState);
+    }
+    if (['DIAJUKAN','DISETUJUI'].includes(preparationState.status) && ['/rest/v1/rpc/ubah_paket_draft','/rest/v1/rpc/simpan_checklist_persiapan','/rest/v1/rpc/tautkan_bukti_persiapan','/rest/v1/rpc/daftar_dokumen_persiapan','/rest/v1/rpc/tambah_versi_dokumen_persiapan'].includes(url.pathname)) {
+      for await (const chunk of req) {} return send({ code: '55000', message: 'Persiapan dikunci' }, 400);
+    }
+
     if (url.pathname === '/rest/v1/paket_kontrak') {
       const filter = url.searchParams.get('paket_id');
       if (!filter) return send([]);
@@ -32,6 +138,7 @@ before(async () => {
     }
     if (url.pathname === '/rest/v1/jenis_dokumen') return send([{ jenis_dokumen_id: 1, kode: 'LAPORAN_PENDAHULUAN', nama: 'Laporan Pendahuluan' }]);
     if (url.pathname === '/rest/v1/dokumen') {
+      if(url.searchParams.get('sumber_tipe')==='eq.KALIBRASI') return send(calibrationCertificate ? [calibrationCertificate] : []);
       const id = url.searchParams.get('dokumen_id');
       if (id === 'eq.998') return send([]);
       if (id === 'eq.999' && registeredDocument) return send([{ ...registeredDocument, dokumen_versi: [{ ...registeredDocument.dokumen_versi[0], hash_file: 'bad' }] }]);
@@ -56,6 +163,28 @@ before(async () => {
       const path = decodeURIComponent(url.pathname.split('/dokumen-persiapan/')[1]);
       storageFiles.set(path, Buffer.concat(chunks)); return send({ Key: path });
     }
+    if (url.pathname === '/rest/v1/rpc/baca_detail_dokumen_persiapan') {
+      let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id !== 3 || lastRpc.p_dokumen_id !== 51 || token === 'foreign-reviewer') return send({ code: 'P0002' }, 404);
+      const history = [...registeredDocument.dokumen_versi].sort((a,b) => b.versi_ke-a.versi_ke).map(v => ({ ...v, aktif: v.versi_ke === registeredDocument.versi_aktif }));
+      return send({ dokumen: { dokumen_id: 51, paket_id: 3, versi_aktif: registeredDocument.versi_aktif }, versi_aktif: history.find(v => v.aktif), riwayat_versi: history.slice((lastRpc.p_page-1)*50,lastRpc.p_page*50), pagination: { page: lastRpc.p_page, page_size: 50, total: history.length, total_pages: 1, has_next: false } });
+    }
+    if (url.pathname === '/rest/v1/rpc/tambah_versi_dokumen_persiapan') {
+      let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (token === 'reject-version') return send({ code: '22023' }, 400);
+      if (token === 'uncertain-version') return send({ error: 'Unknown upstream failure' }, 500);
+      if (token === 'submitted-version') return send({ code: '55000', message: 'Bukti checklist bukan DRAFT tidak boleh diganti' }, 400);
+      if (token === 'racing-version' || lastRpc.p_expected_version !== registeredDocument.versi_aktif) return send({ code: '40001' }, 409);
+      assert.equal(lastRpc.p_dokumen_id, registeredDocument.dokumen_id);
+      assert.equal('p_jenis' in lastRpc, false);
+      assert.equal('p_judul' in lastRpc, false);
+      const bytes = storageFiles.get(lastRpc.p_object_path);
+      assert.equal(lastRpc.p_ukuran, bytes.length);
+      assert.equal(lastRpc.p_sha256, createHash('sha256').update(bytes).digest('hex'));
+      const version = { bucket_id: 'dokumen-persiapan', object_path: lastRpc.p_object_path, nama_file: lastRpc.p_nama_file, ukuran_byte: bytes.length, hash_file: lastRpc.p_sha256, versi_ke: lastRpc.p_expected_version + 1 };
+      registeredDocument = { ...registeredDocument, versi_aktif: version.versi_ke, dokumen_versi: [...registeredDocument.dokumen_versi, version] };
+      return send({ dokumen: registeredDocument, versi: version, checklist_dikemas_kini: [{ pengisian_id: 2, versi: 3 }] });
+    }
     if (url.pathname === '/rest/v1/rpc/daftar_dokumen_persiapan') {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (lastRpc.p_judul === 'REJECT') return send({ code: '22023', message: 'Metadata rejected' }, 400);
@@ -66,6 +195,13 @@ before(async () => {
       const version = { bucket_id: 'dokumen-persiapan', object_path: lastRpc.p_object_path, nama_file: lastRpc.p_nama_file, ukuran_byte: data.length, hash_file: lastRpc.p_sha256, versi_ke: 1 };
       registeredDocument = { dokumen_id: 51, paket_id: 3, judul: lastRpc.p_judul, status: 'TERSEDIA', versi_aktif: 1, dokumen_versi: [version] };
       return send({ dokumen: registeredDocument, versi: version });
+    }
+    if (url.pathname === '/rest/v1/rpc/baca_ringkasan_persiapan') {
+      let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id === 999 || token === 'foreign-reviewer') return send({ code: 'P0002' }, 404);
+      assert.equal(req.method, 'POST');
+      assert.deepEqual(lastRpc, { p_paket_id: 3 });
+      return send({ paket_id: 3, pengisian: { status: 'DRAFT', versi: 2 }, checklist: { jumlah_item: 25, jumlah_ya: 1, jumlah_tidak: 1, jumlah_terjawab: 2, jumlah_belum_dijawab: 23, persen_terisi: 8, jumlah_item_dengan_pautan_bukti: 1 }, dokumen: { jumlah_tersedia: 1 }, syarat_submit_aktif: false });
     }
     if (url.pathname === '/rest/v1/rpc/tautkan_bukti_persiapan') {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
@@ -189,3 +325,316 @@ test('evidence unlinked with null', async () => { const r = await request(eviden
 test('wrong-type or unavailable evidence rejected', async () => { assert.equal((await request(evidencePath, 'provider', { ...evidenceBody, item_id: 23 }, 'PATCH')).status, 400); assert.equal((await request(evidencePath, 'provider', { ...evidenceBody, bukti_dokumen_id: 999 }, 'PATCH')).status, 400); });
 test('stale evidence version rejected', async () => assert.equal((await request(evidencePath, 'provider', { ...evidenceBody, expected_version: 42 }, 'PATCH')).status, 409));
 test('submitted or missing evidence target rejected', async () => { assert.equal((await request('/paket/4/checklist-persiapan/bukti', 'provider', evidenceBody, 'PATCH')).status, 409); assert.equal((await request('/paket/999/checklist-persiapan/bukti', 'provider', evidenceBody, 'PATCH')).status, 404); });
+
+const summaryPath = '/paket/3/ringkasan-persiapan';
+test('preparation summary requires authentication', async () => {
+  assert.equal((await request(summaryPath)).status, 401);
+  assert.equal((await request(summaryPath, 'expired')).status, 401);
+  assert.equal((await request(summaryPath, 'locked')).status, 403);
+});
+test('summary forwards caller context and returns separate answer, evidence and document counts', async () => {
+  const r = await request(summaryPath, 'provider');
+  assert.equal(r.status, 200);
+  assert.equal(r.body.data.checklist.jumlah_belum_dijawab, 23);
+  assert.equal(r.body.data.checklist.jumlah_tidak, 1);
+  assert.equal(r.body.data.checklist.jumlah_item_dengan_pautan_bukti, 1);
+  assert.equal(r.body.data.dokumen.jumlah_tersedia, 1);
+  assert.equal(r.body.data.syarat_submit_aktif, false);
+  const response = await fetch(base + summaryPath, { headers: { Authorization: 'Bearer provider' } });
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  await response.arrayBuffer();
+});
+test('authorized PIC can read summary while other Balai and missing package return 404', async () => {
+  assert.equal((await request(summaryPath, 'reviewer')).status, 200);
+  assert.equal((await request(summaryPath, 'foreign-reviewer')).status, 404);
+  assert.equal((await request('/paket/999/ringkasan-persiapan', 'provider')).status, 404);
+});
+test('summary rejects malformed package identifiers', async () => {
+  for (const id of ['0', '-1', '3abc', '2147483648']) assert.equal((await request(`/paket/${id}/ringkasan-persiapan`, 'provider')).status, 400);
+});
+
+const versionPath = '/paket/3/dokumen/51/versi';
+const revisedPdf = Buffer.from('%PDF-1.4\n1 0 obj << /Type /Catalog /Revision 2 >> endobj\n%%EOF\n');
+function versionForm(expected = '1', bytes = revisedPdf, extra = {}) {
+  const f = new FormData();
+  if (expected !== null) f.set('expected_version', expected);
+  if (bytes !== null) f.set('file', new Blob([bytes], { type: 'application/pdf' }), 'revisi.pdf');
+  for (const [key, value] of Object.entries(extra)) f.set(key, value);
+  return f;
+}
+async function uploadVersion(form = versionForm(), token = 'provider', path = versionPath) {
+  const r = await fetch(base + path, { method: 'POST', headers: token ? { Authorization: `Bearer ${token}` } : {}, body: form });
+  return { status: r.status, body: await r.json() };
+}
+test('version upload requires login and rejects PIC before Storage upload', async () => {
+  const n = storageFiles.size;
+  assert.equal((await uploadVersion(versionForm(), null)).status, 401);
+  assert.equal((await uploadVersion(versionForm(), 'reviewer')).status, 403);
+  assert.equal(storageFiles.size, n);
+});
+test('version upload validates required version, file and forbids title/type changes', async () => {
+  for (const v of [null, '0', '-1', '1.5', '1abc', '2147483647']) assert.equal((await uploadVersion(versionForm(v))).status, 400);
+  assert.equal((await uploadVersion(versionForm('1', null))).status, 400);
+  assert.equal((await uploadVersion(versionForm('1', Buffer.from('not PDF')))).status, 400);
+  assert.equal((await uploadVersion(versionForm('1', revisedPdf, { judul: 'Spoof' }))).status, 400);
+});
+test('version upload rejects missing or foreign document before Storage write', async () => {
+  const n = storageFiles.size;
+  assert.equal((await uploadVersion(versionForm(), 'provider', '/paket/3/dokumen/998/versi')).status, 404);
+  assert.equal((await uploadVersion(versionForm(), 'provider', '/paket/999/dokumen/51/versi')).status, 404);
+  assert.equal(storageFiles.size, n);
+});
+test('version conflict or locked checklist after upload cleans up only new object', async () => {
+  for (const token of ['racing-version', 'submitted-version', 'reject-version']) {
+    const n = storageFiles.size; const cleanups = cleanupCalls;
+    const r = await uploadVersion(versionForm(), token);
+    assert.equal(r.status, token === 'reject-version' ? 400 : 409);
+    if (token === 'racing-version') assert.match(r.body.error, /Versi dokumen/);
+    assert.equal(storageFiles.size, n);
+    assert.equal(cleanupCalls, cleanups + 1);
+  }
+});
+test('uncertain version registration failure retains possibly registered object', async () => {
+  const cleanups = cleanupCalls;
+  assert.equal((await uploadVersion(versionForm(), 'uncertain-version')).status, 502);
+  assert.equal(cleanupCalls, cleanups);
+});
+test('new version retains old file and document identity, active download uses new bytes', async () => {
+  const old = registeredDocument.dokumen_versi[0];
+  const r = await uploadVersion();
+  assert.equal(r.status, 201);
+  assert.equal(r.body.data.dokumen.dokumen_id, 51);
+  assert.equal(r.body.data.dokumen.versi_aktif, 2);
+  assert.equal(r.body.data.dokumen.dokumen_versi.length, 2);
+  assert.equal(r.body.data.versi.versi_ke, 2);
+  assert.deepEqual(r.body.data.checklist_dikemas_kini, [{ pengisian_id: 2, versi: 3 }]);
+  assert.deepEqual(storageFiles.get(old.object_path), pdfBytes);
+  const current = await fetch(base + '/paket/3/dokumen/51/download', { headers: { Authorization: 'Bearer reviewer' } });
+  assert.equal(current.status, 200);
+  assert.deepEqual(Buffer.from(await current.arrayBuffer()), revisedPdf);
+  const previous = await fetch(base + '/paket/3/dokumen/51/versi/1/download', { headers: { Authorization: 'Bearer reviewer' } });
+  assert.equal(previous.status, 200);
+  assert.deepEqual(Buffer.from(await previous.arrayBuffer()), pdfBytes);
+});
+test('stale expected document version rejected without Storage write', async () => {
+  const n = storageFiles.size;
+  assert.equal((await uploadVersion()).status, 409);
+  assert.equal(storageFiles.size, n);
+});
+test('historical download enforces scope and version validation', async () => {
+  assert.equal((await request('/paket/3/dokumen/51/versi/1/download', 'foreign-reviewer')).status, 404);
+  assert.equal((await request('/paket/3/dokumen/51/versi/999/download', 'provider')).status, 404);
+  assert.equal((await request('/paket/3/dokumen/51/versi/0/download', 'provider')).status, 400);
+});
+
+const documentDetailPath = '/paket/3/dokumen/51';
+test('document detail requires authentication and active profile', async () => {
+  assert.equal((await request(documentDetailPath)).status, 401);
+  assert.equal((await request(documentDetailPath, 'expired')).status, 401);
+  assert.equal((await request(documentDetailPath, 'locked')).status, 403);
+});
+test('document detail returns current metadata and ordered history without changing versions', async () => {
+  const r = await request(documentDetailPath, 'provider');
+  assert.equal(r.status, 200);
+  assert.equal(r.body.data.dokumen.versi_aktif, 2);
+  assert.equal(r.body.data.versi_aktif.versi_ke, 2);
+  assert.deepEqual(r.body.data.riwayat_versi.map(v => [v.versi_ke,v.aktif]), [[2,true],[1,false]]);
+  assert.deepEqual(lastRpc, { p_paket_id: 3, p_dokumen_id: 51, p_page: 1 });
+  assert.equal(r.body.data.pagination.total, 2);
+  const response = await fetch(base + documentDetailPath, { headers: { Authorization: 'Bearer provider' } });
+  assert.equal(response.headers.get('cache-control'), 'private, no-store');
+  await response.arrayBuffer();
+});
+test('document detail allows scoped PIC and rejects foreign, missing and mismatched IDs', async () => {
+  assert.equal((await request(documentDetailPath, 'reviewer')).status, 200);
+  assert.equal((await request(documentDetailPath, 'foreign-reviewer')).status, 404);
+  assert.equal((await request('/paket/3/dokumen/998', 'provider')).status, 404);
+  assert.equal((await request('/paket/999/dokumen/51', 'provider')).status, 404);
+});
+test('document detail validates page and IDs', async () => {
+  for (const query of ['page=0','page=-1','page=1.5','page=1abc','page=','page=1000001','page=1&page=2','page[x]=1']) assert.equal((await request(documentDetailPath+'?'+query,'provider')).status,400);
+  for (const path of ['/paket/0/dokumen/51','/paket/3/dokumen/0','/paket/3/dokumen/51abc','/paket/3/dokumen/2147483648']) assert.equal((await request(path,'provider')).status,400);
+});
+test('document history page beyond end is empty while active version remains available', async () => {
+  const r = await request(documentDetailPath+'?page=2','provider');
+  assert.equal(r.status,200);
+  assert.deepEqual(r.body.data.riwayat_versi,[]);
+  assert.equal(r.body.data.versi_aktif.versi_ke,2);
+  assert.equal(r.body.data.pagination.total,2);
+  assert.equal(lastRpc.p_page,2);
+});
+
+const preparationPath = '/paket/3/pengajuan-persiapan';
+test('submission state requires login and foreign PIC cannot read it', async () => {
+  assert.equal((await request(preparationPath)).status,401);
+  assert.equal((await request(preparationPath,'foreign-reviewer')).status,404);
+  assert.equal((await request('/paket/999/pengajuan-persiapan','provider')).status,404);
+  const r=await request(preparationPath,'provider');
+  assert.equal(r.status,200);assert.equal(r.body.data.pengajuan,null);
+});
+test('submission rejects PIC and spoofed/missing fields', async () => {
+  assert.equal((await request(preparationPath,'reviewer',{expected_version:3})).status,403);
+  for(const body of [{},{expected_version:-1},{expected_version:'3'},{expected_version:3,status:'DISETUJUI'},{expected_version:3,dokumen_id:51}]) assert.equal((await request(preparationPath,'provider',body)).status,400);
+  assert.equal((await request(preparationPath,'provider',{expected_version:2})).status,409);
+});
+test('provider submits manual review with a server-created evidence snapshot', async () => {
+  const r=await request(preparationPath,'provider',{expected_version:3});
+  assert.equal(r.status,201);assert.equal(r.body.data.status,'DIAJUKAN');assert.equal(r.body.data.versi,4);
+  assert.equal(r.body.data.pengajuan.snapshot.laporan_dokumen_id,51);
+  assert.equal(r.body.data.aturan.validasi_kelengkapan_resmi_aktif,false);
+  assert.deepEqual(lastRpc,{p_paket_id:3,p_expected_version:3});
+  assert.equal((await request(preparationPath,'provider',{expected_version:4})).status,409);
+});
+test('pending submission locks changes and rejects upload before Storage is touched', async () => {
+  assert.equal((await request('/paket/3','provider',{nama_ppk:'Blocked'},'PATCH')).status,409);
+  assert.equal((await request(checklistPath,'provider',{expected_version:4,jawaban:[{item_id:1,jawaban:'Ya'}]},'PATCH')).status,409);
+  assert.equal((await request(evidencePath,'provider',{expected_version:4,item_id:15,bukti_dokumen_id:null},'PATCH')).status,409);
+  const n=storageFiles.size;
+  assert.equal((await uploadDocument()).status,409);
+  assert.equal((await uploadVersion(versionForm('2'))).status,409);
+  assert.equal(storageFiles.size,n);
+});
+test('review requires scoped PIC, valid decision and a revision note', async () => {
+  const path=preparationPath+'/review';
+  assert.equal((await request(path,'provider',{expected_version:4,keputusan:'DISETUJUI'})).status,403);
+  assert.equal((await request(path,'foreign-reviewer',{expected_version:4,keputusan:'DISETUJUI'})).status,403);
+  for(const body of [{expected_version:4,keputusan:'PERLU_REVISI'},{expected_version:4,keputusan:'PERLU_REVISI',catatan:' '},{expected_version:4,keputusan:'DITOLAK'},{expected_version:4,keputusan:'DISETUJUI',pengguna_id:1},{expected_version:4,keputusan:'PERLU_REVISI',catatan:'x'.repeat(2001)}]) assert.equal((await request(path,'reviewer',body)).status,400);
+  assert.equal((await request(path,'reviewer',{expected_version:3,keputusan:'DISETUJUI'})).status,409);
+});
+test('revision keeps frozen snapshot and returns trimmed notes', async () => {
+  const before=(await request(preparationPath,'reviewer')).body.data;
+  const r=await request(preparationPath+'/review','reviewer',{expected_version:4,keputusan:'PERLU_REVISI',catatan:' Betulkan laporan '});
+  assert.equal(r.status,200);assert.equal(r.body.data.status,'PERLU_REVISI');assert.equal(r.body.data.versi,5);
+  assert.equal(r.body.data.review.catatan,'Betulkan laporan');
+  assert.deepEqual(r.body.data.pengajuan,before.pengajuan);
+});
+test('resubmission clears current decision, approval binds submitted evidence and prevents another decision', async () => {
+  const old=(await request(preparationPath,'provider')).body.data.pengajuan;
+  const sent=await request(preparationPath,'provider',{expected_version:5});
+  assert.equal(sent.status,201);assert.equal(sent.body.data.versi,6);assert.equal(sent.body.data.review,null);
+  assert.notEqual(sent.body.data.pengajuan.pengajuan_id,old.pengajuan_id);
+  const approved=await request(preparationPath+'/review','reviewer',{expected_version:6,keputusan:'DISETUJUI'});
+  assert.equal(approved.status,200);assert.equal(approved.body.data.status,'DISETUJUI');assert.equal(approved.body.data.versi,7);
+  assert.equal(approved.body.data.review.dok_versi_id,sent.body.data.pengajuan.snapshot.laporan_dok_versi_id);
+  assert.equal((await request(preparationPath+'/review','reviewer',{expected_version:7,keputusan:'DISETUJUI'})).status,409);
+  assert.equal((await request('/paket/3','provider',{nama_ppk:'Still blocked'},'PATCH')).status,409);
+});
+
+test('survey catalog and provider registry require login and expose only available metadata', async () => {
+  assert.equal((await request('/jenis-survei')).status,401);
+  const types=await request('/jenis-survei','provider');assert.equal(types.status,200);assert.equal(types.body.data.length,8);
+  assert.deepEqual((await request('/penyedia','provider')).body.data,[]);
+});
+test('single organisation registration validates fields, role and duplicates', async () => {
+  assert.equal((await request('/penyedia','reviewer',{nama:'Org'})).status,403);
+  assert.equal((await request('/penyedia','provider',{nama:' ',pengguna_id:3})).status,400);
+  const r=await request('/penyedia','provider',{nama:' UJIAN - Organisasi '});assert.equal(r.status,201);assert.equal(r.body.data.nama,'UJIAN - Organisasi');
+  assert.deepEqual(lastRpc,{p_nama:'UJIAN - Organisasi'});
+  assert.equal((await request('/penyedia','provider',{nama:'Second'})).status,409);
+});
+const teamBody={penyedia_id:8,jenis_survei_id:1,nama_tim:' Tim IRI Ujian '};
+test('team registration enforces provider role, approved preparation and server-bound package', async () => {
+  assert.equal((await request('/paket/3/tim','reviewer',teamBody)).status,403);
+  assert.equal((await request('/paket/4/tim','provider',teamBody)).status,409);
+  assert.equal((await request('/paket/3/tim','provider',{...teamBody,paket_id:99})).status,400);
+  assert.equal((await request('/paket/3/tim','provider',{...teamBody,jenis_survei_id:999})).status,400);
+  const r=await request('/paket/3/tim','provider',teamBody);assert.equal(r.status,201);assert.equal(r.body.data.tim_id,21);
+  assert.deepEqual(lastRpc,{p_paket_id:3,p_penyedia_id:8,p_jenis_survei_id:1,p_nama_tim:'Tim IRI Ujian'});
+  assert.equal((await request('/paket/3/tim','provider',teamBody)).status,409);
+});
+test('team reads enforce package visibility and pagination', async () => {
+  assert.equal((await request('/paket/3/tim','reviewer')).status,200);
+  assert.equal((await request('/paket/3/tim','foreign-reviewer')).status,404);
+  assert.equal((await request('/paket/3/tim?page=-1','provider')).status,400);
+  assert.equal((await request('/paket/0/tim','provider')).status,400);
+  assert.equal((await request('/paket/3/tim/999/alat','provider')).status,404);
+});
+const equipmentPath='/paket/3/tim/21/alat';
+const equipmentBody={nama_alat:' Alat IRI Ujian ',nomor_seri:'UJIAN-ALAT-001',kondisi:'Belum diperiksa',milik_djbm:false,mulai:'2026-10-18'};
+test('equipment registration rejects PIC, spoofed decisions, invalid fields and dates', async () => {
+  assert.equal((await request(equipmentPath,'reviewer',equipmentBody)).status,403);
+  for(const extra of [{status:'LULUS'},{penyedia_id:8},{jenis_survei_id:1},{mulai:'2026-02-30'},{tahun_perolehan:2026.5},{milik_djbm:'false'},{selesai:'2026-10-01'},{alat_id:7}]) assert.equal((await request(equipmentPath,'provider',{...equipmentBody,...extra})).status,400);
+  assert.equal((await request(equipmentPath,'provider',{nama_alat:'Missing serial'})).status,400);
+});
+test('equipment and assignment created together without claiming calibration success', async () => {
+  const r=await request(equipmentPath,'provider',equipmentBody);assert.equal(r.status,201);
+  assert.equal(r.body.data.alat.penyedia_id,8);assert.equal(r.body.data.alat.jenis_survei_id,1);
+  assert.equal(r.body.data.alat.nama_alat,'Alat IRI Ujian');assert.equal(r.body.data.kalibrasi_belum_dinilai,true);
+  assert.equal('status' in r.body.data.alat,false);
+  assert.equal((await request(equipmentPath,'provider',equipmentBody)).status,409);
+});
+test('existing equipment can be assigned to another matching team, duplicate periods rejected', async () => {
+  const team=await request('/paket/3/tim','provider',{...teamBody,nama_tim:'Tim IRI Kedua'});const path=`/paket/3/tim/${team.body.data.tim_id}/alat`;
+  const r=await request(path,'provider',{alat_id:7});assert.equal(r.status,201);assert.equal(r.body.data.alat.alat_id,7);
+  assert.equal((await request(path,'provider',{alat_id:7})).status,409);
+  assert.equal((await request(path,'provider',{alat_id:999})).status,400);
+});
+test('equipment reads respect team and package scopes without exposing another Balai', async () => {
+  const r=await request(equipmentPath,'reviewer');assert.equal(r.status,200);assert.equal(r.body.data[0].alat_survei.alat_id,7);
+  assert.equal((await request(equipmentPath,'foreign-reviewer')).status,404);
+  assert.equal((await request('/paket/999/tim/21/alat','provider')).status,404);
+  assert.equal((await request(equipmentPath+'?page=0','provider')).status,400);
+});
+
+const calibrationPath='/paket/3/kalibrasi-alat';
+const calibrationBody={alat_id:7,jenis:'RELATIF',standar:' UJIAN - standard sijil ',komponen:'Transduser jarak',tgl_kalibrasi:'2026-10-18',berlaku_sd:null,pelaksana:'UJIAN - pelaksana'};
+test('calibration requires login and PIC cannot create or edit',async()=>{
+ assert.equal((await request(calibrationPath)).status,401);
+ assert.equal((await request(calibrationPath,'reviewer',calibrationBody)).status,403);
+ assert.equal((await request(calibrationPath+'/17','reviewer',{expected_version:1,pelaksana:'Edit'},'PATCH')).status,403);
+});
+test('calibration input rejects result spoofing, invalid dates and identifiers',async()=>{
+ for(const extra of [{status:'LULUS'},{paket_id:3},{dokumen_id:2},{jenis:'AUTO'},{tgl_kalibrasi:'2026-02-30'},{berlaku_sd:'2026-10-01'},{alat_id:'7'},{standar:' '}]) assert.equal((await request(calibrationPath,'provider',{...calibrationBody,...extra})).status,400);
+ assert.equal((await request('/paket/4/kalibrasi-alat','provider',calibrationBody)).status,409);
+ assert.equal((await request(calibrationPath,'provider',{...calibrationBody,alat_id:999})).status,400);
+});
+test('calibration creates draft with null expiry and no fabricated certificate',async()=>{
+ const r=await request(calibrationPath,'provider',calibrationBody);assert.equal(r.status,201);assert.equal(r.body.data.status,'DRAFT');assert.equal(r.body.data.versi,1);assert.equal(r.body.data.berlaku_sd,null);assert.equal(r.body.data.dokumen_id,null);
+ assert.equal(lastRpc.p_data.standar,'UJIAN - standard sijil');assert.equal(lastRpc.p_kalibrasi_id,null);
+});
+test('calibration list/detail enforces package scope and pagination',async()=>{
+ assert.equal((await request(calibrationPath,'reviewer')).body.data.length,1);
+ assert.equal((await request(calibrationPath+'/17','reviewer')).status,200);
+ assert.equal((await request(calibrationPath,'foreign-reviewer')).status,404);
+ assert.equal((await request(calibrationPath+'/17','foreign-reviewer')).status,404);
+ assert.equal((await request(calibrationPath+'?page=-1','provider')).status,400);
+});
+test('calibration edit checks expected version, final dates and protected fields',async()=>{
+ const path=calibrationPath+'/17';
+ for(const body of [{expected_version:1},{expected_version:1,status:'LULUS'},{expected_version:1,alat_id:8},{expected_version:1,pelaksana:null}])assert.equal((await request(path,'provider',body,'PATCH')).status,400);
+ assert.equal((await request(path,'provider',{expected_version:42,pelaksana:'Stale'},'PATCH')).status,409);
+ assert.equal((await request(path,'provider',{expected_version:1,berlaku_sd:'2026-10-01'},'PATCH')).status,400);
+ const r=await request(path,'provider',{expected_version:1,pelaksana:' UJIAN - pembetulan '},'PATCH');assert.equal(r.status,200);assert.equal(r.body.data.versi,2);assert.equal(r.body.data.pelaksana,'UJIAN - pembetulan');
+ assert.equal((await request(path,'provider',{expected_version:2,pelaksana:'UJIAN - pembetulan'},'PATCH')).body.data.versi,2);
+});
+const certificatePath=calibrationPath+'/17/sertifikat';
+function certificateForm(expected='2',filename='sertifikat.pdf',bytes=pdfBytes){const f=new FormData();f.set('expected_version',expected);if(bytes!==null)f.set('file',new Blob([bytes],{type:'application/pdf'}),filename);return f;}
+async function uploadCertificate(form=certificateForm(),token='provider'){const r=await fetch(base+certificatePath,{method:'POST',headers:{Authorization:`Bearer ${token}`},body:form});return {status:r.status,body:await r.json()};}
+test('certificate upload checks role, record version, file and missing bucket',async()=>{
+ assert.equal((await uploadCertificate(certificateForm(),'reviewer')).status,403);
+ assert.equal((await uploadCertificate(certificateForm('1'))).status,409);
+ assert.equal((await uploadCertificate(certificateForm('2','bad.pdf',Buffer.from('Not PDF')))).status,400);
+ assert.equal((await uploadCertificate(certificateForm('2','none.pdf',null))).status,400);
+ const missing=await uploadCertificate(certificateForm(),'no-calibration-bucket');assert.equal(missing.status,503);assert.match(missing.body.error,/dokumen-kalibrasi/);
+ assert.equal((await request(certificatePath+'/download','provider')).status,404);
+});
+test('certificate failure and concurrent record change clean up only definitively rejected objects',async()=>{
+ for(const [token,name,code] of [['provider','reject.pdf',400],['race-calibration','sertifikat.pdf',409]]){
+  const n=storageFiles.size,cleanups=cleanupCalls;const r=await uploadCertificate(certificateForm('2',name),token);assert.equal(r.status,code);assert.equal(storageFiles.size,n);assert.equal(cleanupCalls,cleanups+1);
+  if(token==='race-calibration')assert.match(r.body.error,/kalibrasi/);
+ }
+ const n=cleanupCalls;assert.equal((await uploadCertificate(certificateForm('2','uncertain.pdf'))).status,502);assert.equal(cleanupCalls,n);
+});
+test('certificate first and replacement uploads retain old versions and keep calibration DRAFT',async()=>{
+ const first=await uploadCertificate();assert.equal(first.status,201);assert.equal(first.body.data.kalibrasi.versi,3);assert.equal(first.body.data.kalibrasi.status,'DRAFT');assert.equal(first.body.data.versi.versi_ke,1);
+ const oldPath=first.body.data.versi.object_path;
+ const second=await uploadCertificate(certificateForm('3','sertifikat-revisi.pdf',revisedPdf));assert.equal(second.status,201);assert.equal(second.body.data.kalibrasi.versi,4);assert.equal(second.body.data.versi.versi_ke,2);assert.equal(second.body.data.dokumen.dokumen_id,first.body.data.dokumen.dokumen_id);
+ assert.deepEqual(storageFiles.get(oldPath),pdfBytes);
+});
+test('certificate active/old downloads verify bytes, scope and integrity',async()=>{
+ const current=await fetch(base+certificatePath+'/download',{headers:{Authorization:'Bearer reviewer'}});assert.equal(current.status,200);assert.deepEqual(Buffer.from(await current.arrayBuffer()),revisedPdf);
+ const old=await fetch(base+certificatePath+'/versi/1/download',{headers:{Authorization:'Bearer reviewer'}});assert.equal(old.status,200);assert.deepEqual(Buffer.from(await old.arrayBuffer()),pdfBytes);
+ assert.equal((await request(certificatePath+'/download','foreign-reviewer')).status,404);
+ assert.equal((await request(certificatePath+'/download','bad-cert-hash')).status,502);
+ assert.equal((await request(certificatePath+'/versi/99/download','provider')).status,404);
+});

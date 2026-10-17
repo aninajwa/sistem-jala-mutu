@@ -1,0 +1,288 @@
+{
+  "info": {
+    "_postman_id": "f971162d-4773-477b-8201-7fa110a41f7f",
+    "name": "Jala Mutu - Pengajuan dan Semakan Persiapan",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "MOD SEMAKAN MANUAL PIC: tidak mewajibkan semua 25 jawapan atau semua Ya. Penyedia menghantar checklist dengan PDF Laporan Pendahuluan dipautkan. PIC mengikut Balai/paket memberi revisi atau persetujuan versi laporan yang dihantar. POST mengubah data dan mengunci/membuka suntingan; jangan run seluruh koleksi. Baca profil selepas setiap pertukaran login. Semua credentials/token dalam template kosong; jangan kongsi eksport yang telah diisi."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "pengajuan_expected_version",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "catatan_revisi",
+      "value": "UJIAN - Sila betulkan laporan sebelum dihantar semula",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Login Supabase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "description": "Isi email/password akaun Auth dalam Variables. Token login berjaya disimpan automatik. Jangan hantar respons login ke chat.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get(\"email\"), password: pm.variables.get(\"password\") }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "let data = {}; try { data = pm.response.json(); } catch (_) {}",
+              "if (pm.response.code === 200 && typeof data.access_token === \"string\") {",
+              "  pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "} else { pm.collectionVariables.unset(\"access_token\"); }",
+              "pm.test(\"Token diterima\", function () { pm.expect(data.access_token).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Semak profil akaun semasa",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/me"
+      },
+      "response": []
+    },
+    {
+      "name": "Baca pengajuan dan versi checklist",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/pengajuan-persiapan",
+        "description": "Snapshot penghantaran terakhir, status, versi checklist dan keputusan. Jalankan sebelum POST."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d=pm.response.json().data; pm.collectionVariables.set(\"pengajuan_expected_version\", String(d.versi)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "Penyedia - Hantar persiapan",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/pengajuan-persiapan",
+        "description": "Mengunci perubahan. Semakan kelengkapan rasmi belum aktif. Perlu PDF laporan dipautkan pada DOK-01.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expected_version\": {{pengajuan_expected_version}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get(\"pengajuan_expected_version\")) { pm.execution.skipRequest(); throw new Error(\"Baca pengajuan dahulu\"); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d=pm.response.json().data; pm.collectionVariables.set(\"pengajuan_expected_version\", String(d.versi)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PIC - Minta revisi",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/pengajuan-persiapan/review",
+        "description": "Login PIC Balai paket yang betul dahulu. Membuka suntingan Penyedia dan menyimpan keputusan pada versi laporan yang dihantar.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expected_version\": {{pengajuan_expected_version}}, \"keputusan\": \"PERLU_REVISI\", \"catatan\": {{catatan_revisi_json}}}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get(\"pengajuan_expected_version\")) { pm.execution.skipRequest(); throw new Error(\"Baca pengajuan dahulu\"); }",
+              "pm.variables.set(\"catatan_revisi_json\", JSON.stringify(pm.collectionVariables.get(\"catatan_revisi\") || \"\"));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d=pm.response.json().data; pm.collectionVariables.set(\"pengajuan_expected_version\", String(d.versi)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "PIC - Setujui persiapan",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/pengajuan-persiapan/review",
+        "description": "Jalankan hanya selepas membaca snapshot dan laporan. Status mesti DIAJUKAN. Persetujuan mengunci persiapan.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"expected_version\": {{pengajuan_expected_version}}, \"keputusan\": \"DISETUJUI\", \"catatan\": \"UJIAN - Persetujuan untuk menguji alur backend\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (!pm.collectionVariables.get(\"pengajuan_expected_version\")) { pm.execution.skipRequest(); throw new Error(\"Baca pengajuan dahulu\"); }"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) { const d=pm.response.json().data; pm.collectionVariables.set(\"pengajuan_expected_version\", String(d.versi)); }"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
