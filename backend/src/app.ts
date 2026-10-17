@@ -1,5 +1,6 @@
 import express, { type Express } from "express";
 import cors from "cors";
+import { errorHandler } from "./middleware/error";
 import pinoHttp from "pino-http";
 import router from "./routes";
 import { logger } from "./lib/logger";
@@ -25,10 +26,12 @@ app.use(
     },
   }),
 );
-app.use(cors());
-app.use(express.json());
+app.use(cors({ origin: process.env.FRONTEND_ORIGIN ?? "http://localhost:5173" }));
+app.use(express.json({ limit: "100kb" }));
 app.use(express.urlencoded({ extended: true }));
 
 app.use("/api", router);
+
+app.use(errorHandler);
 
 export default app;

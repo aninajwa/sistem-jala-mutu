@@ -1,0 +1,453 @@
+{
+  "info": {
+    "_postman_id": "4a949f18-158a-4050-a5c2-44f1ddf1c6fc",
+    "name": "Jala Mutu — Backend Anin — Langkah 3",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Koleksi ujian backend Express + Supabase Jala-Mutu.\n\nCARA GUNA:\n1. Backend mesti berjalan pada port 5000.\n2. Pada Variables koleksi, isi supabase_publishable_key, email dan password secara lokal. Gunakan publishable/anon key, bukan service_role atau secret key.\n3. Jalankan 01 Health, kemudian 02 Login. Login menyimpan access_token secara automatik dalam variable koleksi apabila berjaya.\n4. Jalankan 03 Profil, 04 Balai dan 05 Senarai Paket.\n5. 06 Cipta Draft hanya dijalankan sengaja dengan akaun Penyedia Jasa. Ia menyimpan rekod sebenar; jangan run seluruh koleksi tanpa menilai request POST ini. Nomor kontrak mesti unik; ubah nomor_kontrak_ujian jika mahu cipta paket lain.\n6. Untuk uji PIC, ubah email/password kepada akaun PIC lalu jalankan Login, Profil dan Senarai Paket semula.\n\nAKSES: Penyedia/Admin/Direktorat membaca semua paket. PIC membaca mengikut scope Balai/paket. Hanya Penyedia mencipta draft.\n\nKESELAMATAN: Template ini tidak mengandungi password atau token sebenar. Selepas mengisi credentials/login, jangan commit atau kongsi eksport yang masih mengandungi nilainya. Request 11 mengosongkan credentials dan token lokal tanpa memanggil server atau membatalkan sesi Auth.\n\nFrontend belum disambungkan. Respons 401 boleh menunjukkan token tamat: jalankan Login semula.\n\nLANGKAH 2: Isi paket_id (default 3). Login sebagai Penyedia, jalankan 07 Detail, 08 Edit Draft dan 07 sekali lagi. Request 08 mengubah data sebenar. PIC boleh membaca paket yang diizinkan, tetapi edit ditolak. Balai, status dan pencipta tidak boleh diubah. Untuk keserentakan, edit ketika satu pengguna bekerja: jika dua edit menyentuh field sama, simpanan terakhir menang.\n\nLANGKAH 3: Checklist Tahap 0 draft. Login Penyedia, jalankan 09 Baca Checklist kemudian 10 Simpan Draft. Item ID dan versi diambil automatik daripada GET. Ulang 09 untuk semak simpanan. 25 item ini template kerja dari frontend; syarat wajib/bersyarat belum dimuktamadkan. Ya/Tidak/null diterima. Peratus terisi bukan pematuhan atau izin submit. Bukti fail dan submit belum tersedia."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "balai_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "nomor_kontrak_ujian",
+      "value": "UJIAN-2026-002",
+      "type": "string"
+    },
+    {
+      "key": "paket_id_terakhir",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "checklist_version",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "checklist_item_1",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "checklist_item_2",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "checklist_paket_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 — Health backend",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/healthz",
+        "description": "",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Server hidup\", function () { pm.expect(pm.response.json().status).to.eql(\"ok\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 — Login Supabase",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}",
+            "type": "text"
+          },
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "description": "Isi email/password akaun Auth dalam Variables. Token login berjaya disimpan automatik. Jangan hantar respons login ke chat.",
+        "auth": {
+          "type": "noauth"
+        },
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.request.body.update(JSON.stringify({ email: pm.variables.get(\"email\"), password: pm.variables.get(\"password\") }));"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "let data = {}; try { data = pm.response.json(); } catch (_) {}",
+              "if (pm.response.code === 200 && typeof data.access_token === \"string\") {",
+              "  pm.collectionVariables.set(\"access_token\", data.access_token);",
+              "} else { pm.collectionVariables.unset(\"access_token\"); }",
+              "pm.test(\"Token diterima\", function () { pm.expect(data.access_token).to.be.a(\"string\").and.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 — Profil dan peran sendiri",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/me",
+        "description": ""
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Profil dan peran diterima\", function () { const d = pm.response.json().data; pm.expect(d.username).to.be.a(\"string\"); pm.expect(d.peran).to.be.an(\"array\").that.is.not.empty; });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 — Senarai Balai aktif",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/balai",
+        "description": "Pilih balai_id daripada respons dan isi Variables sebelum mencipta draft."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Senarai Balai diterima\", function () { pm.expect(pm.response.json().data).to.be.an(\"array\"); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 — Senarai paket mengikut akses",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket?page=1",
+        "description": "Selepas login PIC Kalteng, paket DKI-Jabar tidak patut muncul. Selepas login PIC DKI-Jabar, paket DKI-Jabar patut muncul. Senarai kosong boleh menjadi hasil yang betul."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", function () { pm.response.to.have.status(200); });",
+              "pm.test(\"Senarai paket diterima\", function () { const d = pm.response.json(); pm.expect(d.data).to.be.an(\"array\"); pm.expect(d.page).to.eql(1); });"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "06 — Cipta paket DRAFT (simpan data sebenar)",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/paket",
+        "description": "Penyedia Jasa sahaja. Klik Send sekali. Rekod sebenar disimpan dalam paket_kontrak dan audit_trail. Pengulangan nomor kontrak menghasilkan 409. Akaun PIC/Admin/Direktorat dijangka menerima 403; ujian 201 untuk request ini akan gagal bagi peran tersebut.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nama_paket\": \"UJIAN - Paket API Postman\",\n  \"nomor_kontrak\": \"{{nomor_kontrak_ujian}}\",\n  \"tahun_anggaran\": 2026,\n  \"balai_id\": {{balai_id}}\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 201\", function () { pm.response.to.have.status(201); });",
+              "if (pm.response.code === 201) {",
+              "  const d = pm.response.json().data;",
+              "  pm.collectionVariables.set(\"paket_id_terakhir\", String(d.paket_id));",
+              "  pm.test(\"Status DRAFT\", function () { pm.expect(d.status).to.eql(\"DRAFT\"); });",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "07 — Detail paket",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}",
+        "description": "Pilih paket_id pada Variables. 404 bermaksud paket tidak wujud atau tidak boleh dibaca oleh akaun login."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { pm.test(\"Detail paket diterima\", () => pm.expect(pm.response.json().data.paket_id).to.eql(Number(pm.variables.get(\"paket_id\")))); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "08 — Edit draft (ubah data sebenar)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}",
+        "description": "Login Penyedia diperlukan. Ubah field yang diperlukan sahaja. Field dibenarkan: nama_paket, nomor_kontrak, tahun_anggaran, nama_ppk, tgl_spmk. nama_ppk/tgl_spmk boleh null untuk dikosongkan. Status mesti DRAFT. Kolum lain ditolak.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nama_ppk\": \"PPK Ujian DKI-Jabar\",\n  \"tgl_spmk\": \"2026-10-17\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) { pm.test(\"Masih DRAFT\", () => pm.expect(pm.response.json().data.status).to.eql(\"DRAFT\")); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "09 — Baca checklist persiapan",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/checklist-persiapan",
+        "description": "Baca template dan jawapan. GET tidak mencipta rekod. Menyimpan versi dan dua item ID untuk ujian simpan berikutnya."
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              " const d = pm.response.json().data;",
+              " pm.collectionVariables.set(\"checklist_version\", String(d.pengisian.versi));",
+              " pm.collectionVariables.set(\"checklist_paket_id\", String(d.paket_id));",
+              " pm.collectionVariables.set(\"checklist_item_1\", String(d.items[0]?.item_id ?? \"\"));",
+              " pm.collectionVariables.set(\"checklist_item_2\", String(d.items[1]?.item_id ?? \"\"));",
+              " pm.test(\"25 item tersedia\", () => pm.expect(d.items.length).to.eql(25));",
+              "} else { pm.collectionVariables.unset(\"checklist_paket_id\"); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "10 — Simpan jawapan checklist DRAFT (data sebenar)",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json",
+            "type": "text"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/checklist-persiapan",
+        "description": "Jalankan 09 dahulu. Hanya dua item dihantar; item lain kekal. Ya atau Tidak ialah jawapan, null mengosongkan jawapan. Jika keterangan tidak dihantar, catatan lama kekal. Versi lapuk memberi 409: baca semula melalui 09. Request ini menyimpan data sebenar, bukan simulasi.",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"expected_version\": {{checklist_version}},\n  \"jawaban\": [\n    {\n      \"item_id\": {{checklist_item_1}},\n      \"jawaban\": \"Ya\",\n      \"keterangan\": \"UJIAN - Semakan sumber data awal\"\n    },\n    {\n      \"item_id\": {{checklist_item_2}},\n      \"jawaban\": \"Tidak\",\n      \"keterangan\": \"UJIAN - Masih menunggu dokumen\"\n    }\n  ]\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (String(pm.variables.get(\"checklist_paket_id\")) !== String(pm.variables.get(\"paket_id\")) || pm.variables.get(\"checklist_version\") === \"\" || !pm.variables.get(\"checklist_item_1\") || !pm.variables.get(\"checklist_item_2\")) {",
+              " pm.execution.skipRequest();",
+              " throw new Error(\"Jalankan 09 — Baca checklist persiapan untuk paket ini dahulu.\");",
+              "}"
+            ]
+          }
+        },
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"Status 200\", () => pm.response.to.have.status(200));",
+              "if (pm.response.code === 200) {",
+              " const d = pm.response.json().data;",
+              " pm.collectionVariables.set(\"checklist_version\", String(d.pengisian.versi));",
+              " pm.test(\"Kekal DRAFT\", () => pm.expect(d.pengisian.status).to.eql(\"DRAFT\"));",
+              " pm.test(\"Belum ada kelulusan submit\", () => pm.expect(d.ringkasan.syarat_submit_aktif).to.eql(false));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "11 — Kosongkan credentials dan token lokal",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/healthz",
+        "description": "Klik Send untuk mengosongkan variable credentials/token koleksi, environment dan local override. Request rangkaian dilangkau. Ini bukan logout Supabase dan tidak membatalkan sesi. Jangan kongsi history respons login.",
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "response": [],
+      "event": [
+        {
+          "listen": "prerequest",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "for (const key of [\"password\", \"access_token\", \"email\", \"supabase_publishable_key\"]) {",
+              "  pm.collectionVariables.set(key, \"\");",
+              "  pm.environment.unset(key);",
+              "  pm.variables.unset(key);",
+              "}",
+              "pm.execution.skipRequest();"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
