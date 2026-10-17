@@ -1,0 +1,89 @@
+---
+title: "01 - Persiapan, Kalibrasi & Validasi Produksi Data (KAK SKJ 2027: Bab 3, 11.1-11.9, 11.10.1, 11.10.8 butir 1-5, Bab 19)"
+---
+flowchart TD
+    S(["SPMK terbit"]) --> MD["Master Data: pilih Balai, paket, ruas (Lampiran A-F),<br/>jenis survei: IRI / PCI / Lendutan / Jembatan /<br/>Lereng / Drainase / Lalu Lintas / RNI"]
+
+    subgraph P0["TAHAP 0 - Survei Pendahuluan & Laporan Pendahuluan"]
+        direction TB
+        A1["Telaah data awal: survei tahun lalu, BA verval jembatan<br/>2024-2026, PHO/FHO penanganan, peta & dataset lereng"]
+        A2["Pendataan kondisi umum ruas: konstruksi berjalan,<br/>perubahan geometri/trase, titik awal-akhir, POI"]
+        A3["Identifikasi kebutuhan survei detail: lendutan, lereng,<br/>drainase, RNI, lalu lintas padat, prioritas jembatan (B-1),<br/>lokasi survei manual PCI"]
+        A4["Verifikasi akses & koordinasi: Satker P2JN, Satker PJN,<br/>Penilik Jalan, BKJTK (jembatan khusus)"]
+        A5["Uji coba singkat peralatan: aplikasi AI smartphone,<br/>GPS, penyimpanan data"]
+        A6["Susun dokumen: Program Mutu / RMPK, RKK (SMKK),<br/>RMLLP (min. 1 minggu sebelum kegiatan),<br/>rencana validasi per 200 km, metode tindakan perbaikan"]
+        A7{"Laporan Pendahuluan disetujui<br/>(maks. 30 hari sejak SPMK)?"}
+        A1 --> A2 --> A3 --> A4 --> A5 --> A6 --> A7
+        A7 -- "Tidak, revisi" --> A6
+    end
+    MD --> A1
+
+    subgraph P1["TAHAP 1 - Kalibrasi Alat & Personil"]
+        direction TB
+        K1["Entry Data alat: nama, nomor seri, tahun, kondisi,<br/>sertifikat kalibrasi; entry personil & SKA/SKK,<br/>bukti pelatihan QA-QC DJBM"]
+        K2{"Jenis kalibrasi"}
+        K3["Kalibrasi Referensi tahunan masih berlaku<br/>(FWD: AASHTO R32, LWD: ASTM E2835)"]
+        K4["Kalibrasi Relatif berkala<br/>(sensor lendutan, transduser jarak min. 1 km,<br/>accelerometer / laser sesuai pabrikan)"]
+        K5["Kalibrasi personil penilai (rater):<br/>terlatih, membawa pedoman penilaian"]
+        K6["Isi Checklist Kalibrasi & Validasi per jenis survei"]
+        K7{"Alat & personil<br/>sesuai standar?"}
+        K8["Kalibrasi ulang / servis /<br/>ganti komponen / ganti personil"]
+        K1 --> K2
+        K2 -- "Referensi" --> K3 --> K5
+        K2 -- "Relatif" --> K4 --> K5
+        K5 --> K6 --> K7
+        K7 -- "Tidak" --> K8 --> K7
+    end
+    A7 -- "Ya" --> K1
+
+    subgraph P2["TAHAP 2 - Validasi Produksi Data (Uji Coba)"]
+        direction TB
+        V0{"Jenis survei"}
+        V1["IRI: survei validasi 10 km +<br/>5 seksi x 0,5 km, 5 kali pada 40/50/>60 km/jam"]
+        V2["PCI: uji coba min. 5 km<br/>(AI: 6 seksi benchmark Baik/Rusak Ringan/Rusak Berat)"]
+        V3["Lendutan: min. 1 lokasi per tim"]
+        V4["Jembatan: uji percobaan pemeriksaan inventarisasi &<br/>detail per tim + Laporan Uji Coba (Bab I-IV)"]
+        V5["Lereng: min. 1 lokasi per tim"]
+        V6["Drainase: min. 5 km"]
+        V7["Lalu Lintas: min. 1 lokasi TC (1x24 jam)"]
+        V8["RNI: min. 5 km"]
+        V0 --> V1 & V2 & V3 & V4 & V5 & V6 & V7 & V8
+
+        H["Sistem hitung otomatis & bandingkan ambang"]
+        V1 & V2 & V3 & V4 & V5 & V6 & V7 & V8 --> H
+
+        H1["IRI: 0,95 ≤ A ≤ 1,05; -0,25 ≤ B ≤ 0,25 m/km;<br/>R² ≥ 0,95; CV ≤ 5%"]
+        H2["PCI AI: F1 ≥ 0,8 (sebelum QA) / ≥ 0,9 (sesudah QA);<br/>mAP ≥ 0,9; >50% segmen selisih ≤ 5 poin;<br/>≤12% segmen selisih ≥ 15 poin; SD ≤ 8 (5x uji)"]
+        H3["Lendutan: beban FWD 40 ± 4 kN,<br/>deflection bowl D0 > D1 > ... > D8"]
+        H4["Visual (PCI manual, jembatan, lereng, drainase):<br/>rating dinilai silang oleh rater lain,<br/>konsisten dengan LRS"]
+        H --> H1 & H2 & H3 & H4
+
+        D{"Memenuhi ambang<br/>jenis survei?"}
+        H1 & H2 & H3 & H4 --> D
+        R["Periksa metode kerja / kemampuan personil,<br/>ulangi uji coba"]
+        D -- "Tidak (pertama)" --> R --> V0
+    end
+    K7 -- "Ya" --> V0
+
+    CA{{"Buka kasus Tindakan Perbaikan<br/>(diagram 04)"}}
+    D -- "Tidak (berulang)" --> CA
+    JB{"Jembatan: hasil uji coba<br/>personel sesuai?"}
+    D -- "Ya" --> JB
+    JB -- "Tidak" --> GP["Ganti personel & uji coba ulang<br/>(Subpasal 6.5.1 Pedoman Verval Jembatan 2023)"] --> V4
+    JB -- "Ya / bukan jembatan" --> SUB["Penyedia Jasa serahkan dokumen kalibrasi &<br/>validasi produksi data ke Pengguna Jasa"]
+
+    SUB --> CEK{"Pengguna Jasa periksa<br/>dokumen & penjelasan proses"}
+    CEK -- "Perlu klarifikasi" --> SUB
+    CEK -- "Diterima" --> BA["Terbit BA Persetujuan Penggunaan Alat & Metode Kerja<br/>+ Surat Izin Pemeriksaan Jembatan<br/>(unggah ke Dokumen Mutu)"]
+    BA --> NEXT(["Lanjut ke Pengumpulan Data (diagram 02)"])
+
+    classDef decision fill:#FFF4D6,stroke:#C98A00,color:#3A2A00
+    classDef fail fill:#FDE7E7,stroke:#C0392B,color:#5A1010
+    classDef ok fill:#E6F6EC,stroke:#1E8449,color:#0B3D20
+    classDef term fill:#0B2545,stroke:#0B2545,color:#FFFFFF
+    classDef rule fill:#F4F6F8,stroke:#7A8793,color:#1C2833
+    class A7,K2,K7,V0,D,JB,CEK decision
+    class K8,R,CA,GP fail
+    class BA ok
+    class S,NEXT term
+    class H1,H2,H3,H4 rule

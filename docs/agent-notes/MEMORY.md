@@ -1,0 +1,4 @@
+- [Ruang kerja sub-modul](submodule-workspaces.md) — setiap item sub-menu harus membuka tampilan dan alur kerja khusus, bukan hanya menggulir atau memfilter halaman modul.
+- [Presisi sampling panjang](sampling-precision.md) — total panjang rekaman hanya mendukung estimasi sampling, bukan bukti cakupan STA/segmen yang presisi.
+- [Urutan audit diagram](audit-diagram-order.md) — diagram rinci 03 membedakan audit internal sebelum upload dari audit Pengguna Jasa/Direktorat setelah VALID.
+- [Acuan teknis survei](survey-reference-scope.md) — pemeriksaan per kegiatan/metode, aturan kontrak terpisah, kekurangan referensi drainase dan batas bukti pada simulasi lokal.

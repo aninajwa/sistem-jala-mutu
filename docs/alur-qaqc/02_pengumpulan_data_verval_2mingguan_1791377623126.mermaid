@@ -1,0 +1,77 @@
+---
+title: "02 - Pengumpulan Data & Verifikasi-Validasi Berkala 14 Hari (KAK SKJ 2027: 11.10.4, 11.10.5, 11.10.8 butir 6-10)"
+---
+flowchart TD
+    S(["BA Persetujuan Alat & Metode Kerja terbit"]) --> PD
+
+    subgraph HARIAN["Pengumpulan Data Harian"]
+        direction TB
+        PD["Survei utama sesuai lingkup, metode & jadwal"]
+        PH["Pemeriksaan harian alat<br/>(bounce test kelas I, cek GPS, baterai, penyimpanan)"]
+        SY{"Kondisi survei memenuhi syarat?<br/>cuaca cerah, permukaan kering, tidak menghadap<br/>matahari, kecepatan & lajur sesuai"}
+        TND["Hentikan / tandai segmen,<br/>jadwalkan survei ulang"]
+        EN["Entry Data: ruas, lajur, arah (normal/opposite),<br/>tanggal-jam, cuaca, alat, operator, pengemudi,<br/>POI, faktor pengganggu, catatan event"]
+        BK["Backup data mentah & terproses<br/>di beberapa media (11.10.3)"]
+        LM["Laporan mingguan & display progres<br/>(Sistem Monitoring 11.10.2)"]
+        PD --> PH --> SY
+        SY -- "Tidak" --> TND --> PD
+        SY -- "Ya" --> EN --> BK --> LM
+    end
+
+    LM --> CYC{"Sudah 14 hari<br/>sejak verval terakhir?"}
+    CYC -- "Belum" --> PD
+
+    subgraph VERVAL["Verval Berkala Mandiri Penyedia Jasa (tiap 14 hari)"]
+        direction TB
+        U0{"Uji konsistensi<br/>(repeatability) per jenis"}
+        U1["IRI: 3 lokasi kontrol (IRI rendah/sedang/tinggi)<br/>≥ 300 m atau 10 km x3 lintasan - hitung KV"]
+        U2["PCI: 5 km x3 oleh rater berbeda, lokasi berbeda<br/>tiap siklus - hitung KV antar rater"]
+        U3["Lendutan: 1 lokasi/tim, 3x3 tumbukan beruntun<br/>(+ repeatability sensor tiap 30 hari)"]
+        U4["Jembatan: 1 jembatan/tim, 2x"]
+        U5["Lereng: 1 lokasi/tim, 2x"]
+        U6["Drainase: 5 km x3, rater berbeda"]
+        U7["Lalu Lintas: 1 lokasi TC 1x24 jam, 2x"]
+        U8["RNI: 5 km x3"]
+        U9["Validasi berjalan: survei ulang segmen ≥ 5 km<br/>(3 lintasan) + penilaian ulang visual ≥ 1 km per rater"]
+        U0 --> U1 & U2 & U3 & U4 & U5 & U6 & U7 & U8
+        U1 & U2 & U3 & U4 & U5 & U6 & U7 & U8 --> U9
+        CL["Checklist: Verval Internal, Verval Bertahap,<br/>Konsistensi, Verval 2 Mingguan (per jenis survei)"]
+        U9 --> CL
+        BAV["Ketua Tim terbitkan BA Verval 2-Mingguan<br/>(template Lampiran G)"]
+        CL --> BAV
+    end
+    CYC -- "Ya" --> U0
+
+    BAV --> KS{"Hasil konsisten?<br/>(IRI CV ≤ 5%, PCI AI SD ≤ 8,<br/>penilaian ulang sesuai)"}
+    KS -- "Tidak" --> HOLD["Data 14 hari terakhir oleh alat/rater terkait<br/>DITAHAN, periksa lebih lanjut"]
+    HOLD --> CA{{"Tindakan Perbaikan (diagram 04)"}}
+    CA -. "lulus uji ulang" .-> U0
+
+    KS -- "Ya" --> PJ["Data 14 hari diterima internal"]
+    PJ --> PGJ{"Pengguna Jasa periksa proses &<br/>hasil verval (boleh kapan saja)"}
+    PGJ -- "Temuan" --> CA
+    PGJ -- "Sesuai" --> JV{"Survei jembatan?"}
+    JV -- "Ya" --> VL["Pengguna Jasa validasi lapangan min. 10%<br/>pemeriksaan rutin & detail + Laporan Validasi<br/>Lapangan (Lampiran B-2, FRM-02/SOP/UPM/DJBM-209)"]
+    JV -- "Tidak" --> FIN
+    VL --> FIN{"Periode survei<br/>sudah selesai?"}
+    FIN -- "Belum" --> PD
+    FIN -- "Ya" --> END1["Ulangi uji di lokasi validasi akhir<br/>(pastikan alat tidak berubah)"] --> NEXT(["Penyiapan & Penyerahan Data (diagram 03)"])
+
+    subgraph NOTIF["Notifikasi & Alert"]
+        direction TB
+        N1["Pantau jatuh tempo siklus 14 hari,<br/>temuan terbuka & batas termin"]
+        N2["H-30 & H-7: PIC Balai → Atasan → Pusat"]
+        N3["H+0 tanpa tindak lanjut:<br/>eskalasi & buka kasus otomatis"]
+        N1 --> N2 --> N3
+    end
+    CYC -.-> N1
+    N3 -.-> CA
+
+    classDef decision fill:#FFF4D6,stroke:#C98A00,color:#3A2A00
+    classDef fail fill:#FDE7E7,stroke:#C0392B,color:#5A1010
+    classDef ok fill:#E6F6EC,stroke:#1E8449,color:#0B3D20
+    classDef term fill:#0B2545,stroke:#0B2545,color:#FFFFFF
+    class SY,CYC,U0,KS,PGJ,JV,FIN decision
+    class TND,HOLD,CA,N3 fail
+    class BAV,PJ ok
+    class S,NEXT term

@@ -1,0 +1,86 @@
+---
+title: "03 - Penyiapan, Upload, Audit Berjenjang & Penerimaan Data (KAK SKJ 2027: Bab 3, 11.9.7, 11.10.5, 11.10.8 butir 11-15, Bab 18)"
+---
+flowchart TD
+    S(["Periode survei selesai"]) --> PS
+
+    subgraph SIAP["Penyiapan Data (Penyedia Jasa)"]
+        direction TB
+        PS["Periksa format, kelengkapan, ketelitian, kewajaran;<br/>pastikan semua data berkoordinat & terikat LRS"]
+        PS2["Cek penyimpangan data; data raw disimpan<br/>terpisah dari data cleaned"]
+        PS3["Lengkapi Dokumen Mutu: kalibrasi, validasi,<br/>verval mandiri, tindakan perbaikan, log koreksi,<br/>faktor pengganggu"]
+        CK{"Checklist dokumen<br/>mutu lengkap 100%?"}
+        PS --> PS2 --> PS3 --> CK
+        CK -- "Tidak, lengkapi" --> PS3
+    end
+
+    subgraph RNI["Gerbang RNI / LRS (wajib lolos dulu)"]
+        direction TB
+        R0{"Ada perubahan trase /<br/>panjang ruas?"}
+        R1["Kriteria penerimaan LRS:<br/>deviasi panjang ≤ 30 m per ruas;<br/>SHP/GeoJSON sesuai Format Kode & Glossary DJBM;<br/>nol kesalahan topologi;<br/>STA konsisten di IRI, PCI, Lendutan"]
+        R2{"Semua kriteria<br/>terpenuhi?"}
+        R3["Data LRS DITOLAK,<br/>dikembalikan untuk proses ulang"]
+        R4["RNI VALID ≥ 1 minggu sebelum<br/>upload data survei lainnya"]
+        R0 -- "Ya" --> R1 --> R2
+        R2 -- "Tidak" --> R3 --> R1
+        R2 -- "Ya" --> R4
+        R0 -- "Tidak" --> R4
+    end
+    CK -- "Ya" --> R0
+
+    subgraph AUD1["Audit Tingkat 1 - Penyedia Jasa (100% data)"]
+        direction TB
+        B1["Validasi awal & audit mutu: format, kelengkapan,<br/>ketelitian, kewajaran, tanggal-waktu, ruas & arah,<br/>cuaca & permukaan, alat, personil"]
+        B2["Audit gambar/video: cerah & kering, lensa bersih,<br/>tidak melawan matahari, bayangan tidak mengganggu;<br/>foto defect PCI sesuai spesifikasi dataset AI"]
+        B3["Checklist Audit Data per jenis survei<br/>+ BA Audit Internal (Lampiran G)"]
+        B1 --> B2 --> B3
+    end
+    R4 --> B1
+
+    B3 --> UP["Upload data raw & terverval ke sistem:<br/>SMD Jalan (IRI, PCI, Lendutan, Lalin, RNI) / INVI-J (Jembatan) /<br/>InSlope (Lereng) / InDrain (Drainase) + link video HD"]
+    UP --> SV{"Status validasi<br/>sistem = VALID?"}
+    SV -- "Tidak (error)" --> CA{{"Tindakan Perbaikan /<br/>Koreksi Data (diagram 04)"}}
+
+    subgraph AUD2["Audit Tingkat 2 - Pengguna Jasa (BBPJN/BPJN)"]
+        direction TB
+        C1["Periksa dokumen mutu & proses kalibrasi/verval"]
+        C2["Penilaian ulang acak (penilai tanpa data awal):<br/>maks. 5% panjang jalan | 10% jembatan |<br/>10% lereng per jenis keruntuhan | 10% titik lendutan |<br/>10 menit/hari durasi survei lalu lintas"]
+        C3["Cek acak gambar/video: ruas, arah, kualitas"]
+        C4["Minta klarifikasi atas setiap ketidaksesuaian"]
+        C1 --> C2 --> C3 --> C4
+        C5{"Lulus / klarifikasi<br/>diterima?"}
+        C4 --> C5
+        C6["BA Verval Pengguna Jasa"]
+        C5 -- "Ya" --> C6
+    end
+    SV -- "Ya" --> C1
+    C5 -- "Tidak: TOLAK + alasan" --> CA
+
+    subgraph AUD3["Audit Tingkat 3 - Direktorat"]
+        direction TB
+        D1["Periksa data di SMD Jalan / INVI-J dll:<br/>format, kelengkapan, ketelitian, kewajaran"]
+        D2["Penilaian ulang acak min. 1%<br/>(jembatan: Penilaian Tingkat Kepercayaan Data,<br/>FRM-01/SOP/UPM/DJBM-209)"]
+        D3{"Lulus?"}
+        D1 --> D2 --> D3
+        D4["BA Verval Direktorat"]
+        D3 -- "Ya" --> D4
+    end
+    C6 --> D1
+    D3 -- "Tidak: TOLAK + alasan<br/>(Pengguna Jasa wajib perbaiki)" --> CA
+    CA -. "data diserahkan ulang<br/>(biaya pemeriksaan ulang ditanggung Penyedia Jasa)" .-> B1
+
+    D4 --> BAP["BA Penerimaan Data (parsial/bertahap atau akhir)<br/>Status: SELESAI"]
+    BAP --> TRM{"Termin"}
+    TRM -- "T1 30% s.d. Feb" --> TA["Mobilisasi, kalibrasi & validasi, survei pendahuluan,<br/>Laporan Pendahuluan, Laporan SMKK"]
+    TRM -- "T2 30% s.d. Mei mg-3" --> TB["Pengumpulan & pengolahan data Sem. I,<br/>BA Hasil Validasi Sem. I"]
+    TRM -- "T3 20% s.d. Juni mg-1/mg-2" --> TC["Upload s.d. VALID (batas mg-1 Juni, sanggah s.d. mg-2),<br/>Laporan Hasil Survei Sem. I, BA Verval Direktorat & Pengguna Jasa"]
+    TRM -- "T4 20% Okt s.d. Nov mg-4" --> TD["IRI Sem. II (upload mg-3 Nov, sanggah mg-4),<br/>BA Validasi IRI Sem. II, Laporan Akhir"]
+
+    classDef decision fill:#FFF4D6,stroke:#C98A00,color:#3A2A00
+    classDef fail fill:#FDE7E7,stroke:#C0392B,color:#5A1010
+    classDef ok fill:#E6F6EC,stroke:#1E8449,color:#0B3D20
+    classDef term fill:#0B2545,stroke:#0B2545,color:#FFFFFF
+    class CK,R0,R2,SV,C5,D3,TRM decision
+    class R3,CA fail
+    class R4,C6,D4,BAP ok
+    class S term

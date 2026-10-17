@@ -1,0 +1,118 @@
+---
+title: "05 - Modul Dashboard Monitoring Mutu & Aliran Data Antar Modul"
+---
+flowchart LR
+    LOGIN(["Login"]) --> AUTH{"Autentikasi &<br/>hak akses (RBAC)"}
+    AUTH -- "Gagal" --> LF["Catat percobaan gagal,<br/>kunci akun bila berulang"] --> LOGIN
+    AUTH -- "Berhasil" --> ROLE{"Peran"}
+    ROLE -- "Penyedia Jasa / Ketua Tim" --> M2
+    ROLE -- "PIC Balai / Pengguna Jasa" --> M5
+    ROLE -- "Direktorat / Pusat" --> M9
+    ROLE -- "Admin" --> M1
+
+    subgraph M1["Master Data"]
+        direction TB
+        M1a["Balai, Satker, PPK, paket kontrak"]
+        M1b["Ruas & LRS (Lampiran A-F), jembatan, lereng"]
+        M1c["Jenis survei + ambang batas & target uji<br/>(panjang uji coba, CV, R², F1, sampling %)"]
+        M1d["Alat, personil, kualifikasi, template checklist & BA"]
+        M1a --> M1b --> M1c --> M1d
+    end
+
+    subgraph M2["Entry Data Survei"]
+        direction TB
+        M2a["Pengajuan kegiatan & jadwal"]
+        M2b["Input kalibrasi, uji coba, uji konsistensi"]
+        M2c["Input metadata survei harian & faktor pengganggu"]
+        M2d["Validasi isian otomatis (format, rentang nilai, wajib isi)"]
+        M2a --> M2b --> M2c --> M2d
+    end
+
+    subgraph M3["Kalibrasi & Validasi"]
+        direction TB
+        M3a["Hitung A / B / R² / CV / F1 / SD otomatis"]
+        M3b{"Status: Lulus / Gagal"}
+        M3a --> M3b
+    end
+
+    subgraph M4["Verifikasi & Validasi Berkala"]
+        direction TB
+        M4a["Kalender siklus 14 hari per paket"]
+        M4b["Checklist Internal / Bertahap / 2-Mingguan / Konsistensi"]
+        M4c["BA Verval 2-Mingguan"]
+        M4a --> M4b --> M4c
+    end
+
+    subgraph M5["Audit Berjenjang"]
+        direction TB
+        M5a["Tingkat 1 Penyedia Jasa 100%"]
+        M5b["Tingkat 2 Pengguna Jasa: generator sampel acak<br/>5% jalan / 10% jembatan / 10% lereng / 10% lendutan / 10 mnt lalin"]
+        M5c["Tingkat 3 Direktorat: sampel min. 1%"]
+        M5a --> M5b --> M5c
+    end
+
+    subgraph M6["Tindakan Perbaikan"]
+        direction TB
+        M6a["Daftar kasus: Kritis / Mayor / Minor"]
+        M6b["Usulan → persetujuan → pelaksanaan → uji ulang → tutup"]
+        M6c["Log Koreksi Data (raw vs cleaned)"]
+        M6a --> M6b --> M6c
+    end
+
+    subgraph M7["Dokumen Mutu (Document Control)"]
+        direction TB
+        M7a["Program Mutu, RKK, RMLLP, Laporan Pendahuluan"]
+        M7b["Sertifikat kalibrasi, BA Persetujuan Alat, BA Verval, BA Audit"]
+        M7c["BA Penerimaan Data, Laporan Semester & Akhir"]
+        M7d["Versi, status persetujuan, % kelengkapan"]
+        M7a --> M7b --> M7c --> M7d
+    end
+
+    subgraph M8["Notifikasi & Alert"]
+        direction TB
+        M8a["Pengingat H-30 / H-7 siklus & termin"]
+        M8b["Eskalasi PIC Balai → Atasan → Pusat"]
+        M8c["H+0 terlewat → buka kasus otomatis"]
+        M8a --> M8b --> M8c
+    end
+
+    subgraph M9["Ringkasan & Analisis Kepatuhan"]
+        direction TB
+        M9a["KPI: target vs progres km, % lulus validasi,<br/>temuan terbuka, % tindak lanjut selesai"]
+        M9b["Peta status QA/QC: Lulus / Perlu Verifikasi / Perlu Perbaikan"]
+        M9c["Kepatuhan per jenis survei & per Balai<br/>(uji produksi vs uji konsistensi), tren bulanan"]
+        M9d["Status audit Tingkat 1-2-3 & ruas prioritas tindak lanjut"]
+        M9e["Ekspor laporan (filter Balai / Periode / Jenis Survei)"]
+        M9a --> M9b --> M9c --> M9d --> M9e
+    end
+
+    subgraph M10["Keamanan & Audit Trail"]
+        direction TB
+        M10a["Log semua entry, persetujuan, perubahan data & dokumen<br/>(siapa, kapan, nilai lama → baru)"]
+        M10b["Backup terjadwal & multi-media penyimpanan"]
+        M10a --> M10b
+    end
+
+    EXT[("Sistem DJBM:<br/>SMD Jalan / INVI-J / InSlope / InDrain")]
+
+    M1 --> M2
+    M2 --> M3
+    M3b -- "Lulus" --> M4
+    M3b -- "Gagal" --> M6
+    M4 --> M5
+    M4 -- "Tidak konsisten" --> M6
+    M5 -- "Ditolak" --> M6
+    M5 <--> EXT
+    M6 -- "Kasus ditutup" --> M4
+    M3 & M4 & M5 & M6 --> M7
+    M4 & M6 & M7 --> M8
+    M8 --> M6
+    M2 & M3 & M4 & M5 & M6 & M7 --> M9
+    M1 & M2 & M3 & M4 & M5 & M6 & M7 -.-> M10
+
+    classDef decision fill:#FFF4D6,stroke:#C98A00,color:#3A2A00
+    classDef fail fill:#FDE7E7,stroke:#C0392B,color:#5A1010
+    classDef term fill:#0B2545,stroke:#0B2545,color:#FFFFFF
+    class AUTH,ROLE,M3b decision
+    class LF fail
+    class LOGIN term

@@ -1,0 +1,45 @@
+---
+title: "00 - Ringkasan Alur Dashboard QA/QC Survei Kondisi Jalan (Acuan KAK SKJ TA 2027, Bab 11.10)"
+---
+flowchart TD
+    START(["Mulai: SPMK terbit"]) --> T0
+
+    T0["TAHAP 0 - Persiapan<br/>Survei Pendahuluan, Program Mutu,<br/>RMLLP & SMKK, Laporan Pendahuluan<br/>(detail: diagram 01)"]
+    T1["TAHAP 1 - Kalibrasi Alat & Personil<br/>Kalibrasi Referensi / Relatif<br/>(detail: diagram 01)"]
+    T2["TAHAP 2 - Validasi Produksi Data<br/>Uji coba per jenis survei, hitung ambang,<br/>BA Persetujuan Alat & Metode Kerja<br/>(detail: diagram 01)"]
+    T3["TAHAP 3 - Pengumpulan Data &<br/>Verval Berkala Mandiri tiap 14 hari<br/>(detail: diagram 02)"]
+    T4["TAHAP 4 - Penyiapan & Penyerahan Data<br/>Gerbang RNI/LRS, upload SMD Jalan /<br/>INVI-J / InSlope / InDrain s.d. VALID<br/>(detail: diagram 03)"]
+    T5["TAHAP 5 - Verval & Audit Berjenjang<br/>Penyedia Jasa 100% - Pengguna Jasa sampling -<br/>Direktorat min. 1%<br/>(detail: diagram 03)"]
+    T6["TAHAP 6 - Penerimaan Data<br/>BA Penerimaan parsial/akhir = syarat termin<br/>(detail: diagram 03)"]
+
+    T0 --> T1 --> T2 --> T3 --> T4 --> T5 --> T6
+
+    CA{{"TINDAKAN PERBAIKAN & KOREKSI DATA<br/>(detail: diagram 04)"}}
+    T2 -- "Tidak lulus ambang" --> CA
+    T3 -- "Tidak konsisten" --> CA
+    T4 -- "Ditolak validasi sistem / LRS" --> CA
+    T5 -- "Ditolak + alasan" --> CA
+    CA -. "kembali ke tahap tertahan" .-> T2
+    CA -.-> T3
+    CA -.-> T4
+    CA -.-> T5
+
+    DASH[["DASHBOARD MONITORING MUTU (detail: diagram 05)<br/>Master Data | Entry Data | Kalibrasi | Verval | Audit Berjenjang |<br/>Tindakan Perbaikan | Dokumen Mutu | Notifikasi | Analisis Kepatuhan | Audit Trail"]]
+    T0 & T1 & T2 & T3 & T4 & T5 & T6 -.-> DASH
+    CA -.-> DASH
+
+    T6 --> SEM{"Semester?"}
+    SEM -- "Sem. I selesai<br/>(minggu ke-2 Juni)" --> SEM2["Semester II: kalibrasi & validasi ulang alat IRI,<br/>survei IRI Sem. II, upload s.d. minggu ke-3 Nov,<br/>sanggah s.d. minggu ke-4 Nov"]
+    SEM2 --> T1
+    SEM -- "Sem. II selesai" --> END(["Laporan Akhir & BA Penerimaan Data Akhir"])
+
+    classDef phase fill:#E8F1FB,stroke:#2E6DB4,color:#0B2545
+    classDef fail fill:#FDE7E7,stroke:#C0392B,color:#5A1010
+    classDef dash fill:#EEE8FB,stroke:#5B3FB4,color:#1F1245
+    classDef term fill:#0B2545,stroke:#0B2545,color:#FFFFFF
+    classDef decision fill:#FFF4D6,stroke:#C98A00,color:#3A2A00
+    class T0,T1,T2,T3,T4,T5,T6,SEM2 phase
+    class CA fail
+    class DASH dash
+    class START,END term
+    class SEM decision

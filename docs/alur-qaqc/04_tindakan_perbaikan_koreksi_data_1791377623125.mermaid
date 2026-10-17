@@ -1,0 +1,82 @@
+---
+title: "04 - Tindakan Perbaikan & Koreksi Data (KAK SKJ 2027: 11.10.7, 11.10.8 butir 15, Mekanisme Koreksi IRI/PCI/Lendutan)"
+---
+flowchart TD
+    IN(["Kasus masuk dari: uji coba gagal | konsistensi gagal |<br/>validasi sistem error | penolakan Pengguna Jasa / Direktorat |<br/>notifikasi H+0 terlewat"]) --> OPEN
+
+    OPEN["Buka kasus: catat sumber, tahap tertahan, ruas/STA,<br/>alasan penolakan, tingkat temuan (Kritis / Mayor / Minor),<br/>PIC & tenggat"]
+    OPEN --> RC["Identifikasi akar masalah<br/>(alat, personil, metode, kondisi lapangan, pemrosesan)"]
+    RC --> VAL{"Data lapangan<br/>valid?"}
+
+    VAL -- "Ya: masalah di pemrosesan/penyajian" --> KOR
+    VAL -- "Tidak" --> TP
+
+    subgraph TPB["Tindakan Perbaikan (metode disepakati di rapat Laporan Pendahuluan)"]
+        direction TB
+        TP{"Pilih jenis tindakan"}
+        TP1["Survei ulang (sebagian / seluruh ruas)"]
+        TP2["Penilaian ulang (re-rating)"]
+        TP3["Pelatihan ulang personil"]
+        TP4["Kalibrasi ulang alat"]
+        TP5["Penggantian komponen alat"]
+        TP6["Penggantian personel"]
+        TP --> TP1 & TP2 & TP3 & TP4 & TP5 & TP6
+    end
+
+    subgraph KOREKSI["Koreksi Data (hanya dengan bukti)"]
+        direction TB
+        KOR{"Jenis survei"}
+        KI["IRI - Aturan Dasar:<br/>- Lajur melenceng: toleransi radius 20 m untuk data per 100 m<br/>  (kondisi jalan seragam, raw sesuai video) → tidak perlu koreksi<br/>- Kehilangan data valid > 20 m dalam 100 m → WAJIB survei ulang<br/>  saat lalu lintas normal<br/>- Underspeed macet/parkir → survei ulang saat normal<br/>- Segmen hilang setelah 1x survei ulang → koreksi berbasis bukti"]
+        KIN1>"CATATAN IRI - Speedhump / Oprit / Jembatan:<br/>eliminasi sub-segmen maks. 40 m per 100 m;<br/>sisa data valid < 60 m → tandai 'Speedhump/Jembatan',<br/>tidak dirata-ratakan; raw 10 m tetap utuh"]
+        KIN2>"CATATAN IRI - Segmen Longsor / Terputus:<br/>raw IRI tidak diubah; segmen ditandai Rusak Berat (> 12 m/km)<br/>dengan keterangan 'tidak dapat dilewati';<br/>panjang longsor diukur via GIS"]
+        KI -.- KIN1
+        KI -.- KIN2
+        KP["PCI - Aturan Dasar:<br/>- Hujan/genangan: tidak boleh dikoreksi, tunggu kering<br/>- Alur & amblas: wajib ukur fisik (straight edge / laser),<br/>  tidak boleh dari foto/perkiraan<br/>- Foto defect tidak sesuai spesifikasi → ambil ulang"]
+        KPN>"CATATAN INTERVENSI PCI - Macet / Kendaraan Parkir:<br/>koreksi hanya atas keputusan Pengguna Jasa (BBPJN/BPJN);<br/>Penyedia Jasa wajib rekam ulang di luar jam sibuk /<br/>inspeksi visual manual; perbandingan dengan IRI hanya<br/>sebagai acuan pendukung + wajib diberi catatan"]
+        KP -.- KPN
+        KPI{"Intervensi Pengguna Jasa:<br/>setujui koreksi?"}
+        KPN --> KPI
+        KPI -- "Tidak" --> KPR["Rekam ulang / inspeksi manual"]
+        KPI -- "Ya + catatan" --> KB
+        KPR --> KLOG
+        KL["Lendutan:<br/>- Gradien > 10% / geofon menggantung: pindah ke titik rata,<br/>  STA disesuaikan + catatan alasan<br/>- Bukan deflection bowl: uji ulang, cek permukaan/geofon/sistem<br/>- Beban di luar 40 ± 4 kN: uji ulang / cek alat<br/>- Nilai ekstrem: konfirmasi min. 3x, simpan semua + foto<br/>- Data temperatur disimpan tanpa modifikasi"]
+        KJ["Jembatan: pemutakhiran pasca verval Direktorat<br/>(bencana / FHO) via BA Pemutakhiran Data Provinsi<br/>(Lampiran C Pedoman Verval Jembatan 2023)"]
+        KOR --> KI & KP & KL & KJ
+        KB["Batasan: tanpa bukti verifikasi = tidak sah;<br/>dilarang mengubah demi target; raw tetap utuh;<br/>hanya Pengguna Jasa (BBPJN/BPJN) & Penyedia Jasa yang boleh mengubah"]
+        KI & KP & KL & KJ --> KB
+        KV["Verifikasi berlapis:<br/>Surveyor → Team Leader → Balai"]
+        KLOG["Catat di Log Koreksi Data (dapat diaudit)<br/>+ foto/video, posisi alat, peta lokasi"]
+        KB --> KV --> KLOG
+    end
+
+    TP1 & TP2 & TP3 & TP4 & TP5 & TP6 --> USUL["Penyedia Jasa ajukan usulan tindakan<br/>+ penjelasan & bukti"]
+    KLOG --> USUL
+    USUL --> APP{"Pengguna Jasa<br/>menyetujui usulan?"}
+    APP -- "Tidak, revisi" --> RC
+    APP -- "Ya" --> EXE["Laksanakan tindakan / koreksi"]
+    EXE --> RT["Uji ulang / verifikasi ulang hasil"]
+    RT --> PASS{"Lulus pengujian ulang?"}
+    PASS -- "Tidak, ulangi" --> TP
+    PASS -- "Ya" --> CLOSE["Kasus DITUTUP<br/>Dokumentasikan di Dokumen Mutu & Audit Trail"]
+
+    CLOSE --> BACK{"Kembali ke tahap<br/>yang tertahan"}
+    BACK --> B1(["Tahap 1-2: Kalibrasi / Validasi Produksi (diagram 01)"])
+    BACK --> B2(["Tahap 3: Verval 14 hari (diagram 02)"])
+    BACK --> B3(["Tahap 4-5: Upload / Audit berjenjang (diagram 03)"])
+
+    classDef decision fill:#FFF4D6,stroke:#C98A00,color:#3A2A00
+    classDef fail fill:#FDE7E7,stroke:#C0392B,color:#5A1010
+    classDef ok fill:#E6F6EC,stroke:#1E8449,color:#0B3D20
+    classDef term fill:#0B2545,stroke:#0B2545,color:#FFFFFF
+    classDef rule fill:#F4F6F8,stroke:#7A8793,color:#1C2833
+    class VAL,TP,KOR,APP,PASS,BACK decision
+    class OPEN,RC fail
+    class CLOSE ok
+    class IN,B1,B2,B3 term
+    class KI,KP,KL,KJ,KB rule
+    classDef note fill:#FFFBEA,stroke:#B7950B,color:#4D3B00,stroke-dasharray: 4 3
+    classDef intervensi fill:#FDEDEC,stroke:#C0392B,color:#5A1010,stroke-dasharray: 4 3
+    class KIN1,KIN2 note
+    class KPN intervensi
+    class KPI decision
+    class KPR fail

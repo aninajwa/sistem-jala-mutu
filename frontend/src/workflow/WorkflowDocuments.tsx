@@ -1,0 +1,7 @@
+import type { OperationalWorkflowState } from './model';
+import { workflowDocumentReferences } from './flowRules';
+import { SOURCE_ARTIFACTS } from './sourceArtifacts';
+export function WorkflowDocuments({state}:{state:OperationalWorkflowState}) {
+  const rows=workflowDocumentReferences(state);
+  return <section className="wf-panel"><div className="wf-panel-head"><h3>Referensi dokumen dari workflow aktif</h3><span className="wf-status info">{rows.length} referensi</span></div><div className="wf-body"><div className="wf-callout">Status mengikuti modul asal; referensi lama dapat tetap tercatat tetapi berstatus Draft setelah data berubah. Nomor BA, sertifikat dan bukti adalah simulasi, bukan file yang diterbitkan.</div><div className="wf-table"><table data-testid="table-workflow-documents"><thead><tr><th>Dokumen</th><th>Referensi aktif</th><th>Status sumber</th></tr></thead><tbody>{rows.map((row,index)=><tr key={`${row.name}-${index}`}><td>{row.name}</td><td>{row.reference}</td><td>{row.status}</td></tr>)}</tbody></table>{!rows.length&&<div className="wf-empty">Belum ada referensi dokumen workflow.</div>}</div><div className="wf-table" style={{marginTop:12}}><table><thead><tr><th>Format sumber</th><th>Tahap</th><th>Actor utama</th></tr></thead><tbody>{SOURCE_ARTIFACTS.map(item=><tr key={item.name}><td><strong>{item.name}</strong><div className="wf-note">{item.sourceFile}</div></td><td>{item.stage}</td><td>{item.actor}</td></tr>)}</tbody></table></div></div></section>;
+}
