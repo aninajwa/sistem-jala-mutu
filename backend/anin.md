@@ -1,1 +1,0 @@
-hai aku anin mahasiswa akhir di upnvj yang sedang magang
