@@ -1,0 +1,2660 @@
+{
+  "documents": [
+    {
+      "survey": "Lalu Lintas",
+      "file": "CHECKLIST KONSISTENSI CHECKLIST VERIFIKASI DAN VALIDASI 2 MINGGUAN.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 42,
+      "tables": 20,
+      "headings": [
+        {
+          "block_index": 5,
+          "heading": "A. INFORMASI UMUM SURVEI"
+        },
+        {
+          "block_index": 6,
+          "heading": "1. Kegiatan Survei yang Dilakukan"
+        },
+        {
+          "block_index": 8,
+          "heading": "2. Rekap Jumlah Survei 2 Mingguan"
+        },
+        {
+          "block_index": 10,
+          "heading": "B. VERIFIKASI KELENGKAPAN ADMINISTRASI"
+        },
+        {
+          "block_index": 11,
+          "heading": "1. Kelengkapan Dokumentasi Administrasi"
+        },
+        {
+          "block_index": 13,
+          "heading": "2. Verifikasi Administrasi Personil"
+        },
+        {
+          "block_index": 15,
+          "heading": "C. VERIFIKASI METODE PELAKSANAAN"
+        },
+        {
+          "block_index": 16,
+          "heading": "1. Kesesuaian Metode"
+        },
+        {
+          "block_index": 18,
+          "heading": "2. Verifikasi Peralatan Survei"
+        },
+        {
+          "block_index": 20,
+          "heading": "D. VALIDASI DATA SURVEI"
+        },
+        {
+          "block_index": 21,
+          "heading": "1. Kelengkapan Data"
+        },
+        {
+          "block_index": 23,
+          "heading": "2. Validasi Kualitas Data"
+        },
+        {
+          "block_index": 25,
+          "heading": "3. Validasi Khusus Sampel Data"
+        },
+        {
+          "block_index": 27,
+          "heading": "E. VERIFIKASI PENGOLAHAN DATA"
+        },
+        {
+          "block_index": 28,
+          "heading": "1. Format Data"
+        },
+        {
+          "block_index": 30,
+          "heading": "2. Metode Analisis"
+        },
+        {
+          "block_index": 32,
+          "heading": "F. VERIFIKASI PENYAJIAN DATA"
+        },
+        {
+          "block_index": 33,
+          "heading": "1. Kelengkapan Laporan"
+        },
+        {
+          "block_index": 35,
+          "heading": "2. Kualitas Penyajian"
+        },
+        {
+          "block_index": 37,
+          "heading": "G. IDENTIFIKASI RISIKO DAN PERMASALAHAN"
+        },
+        {
+          "block_index": 38,
+          "heading": "1. Permasalahan yang Ditemukan Selama 2 Minggu"
+        },
+        {
+          "block_index": 40,
+          "heading": "2. Identifikasi Risiko untuk 2 Minggu Kedepan"
+        },
+        {
+          "block_index": 42,
+          "heading": "H. TINDAKAN PERBAIKAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 43,
+          "heading": "1. Tindakan Perbaikan untuk Temuan"
+        },
+        {
+          "block_index": 45,
+          "heading": "2. Rekomendasi untuk Peningkatan"
+        },
+        {
+          "block_index": 47,
+          "heading": "I. RENCANA SURVEI 2 MINGGU KEDEPAN"
+        },
+        {
+          "block_index": 48,
+          "heading": "1. Jadwal Survei"
+        },
+        {
+          "block_index": 50,
+          "heading": "2. Alokasi Sumber Daya"
+        },
+        {
+          "block_index": 52,
+          "heading": "J. PERSETUJUAN VERIFIKASI DAN VALIDASI"
+        },
+        {
+          "block_index": 54,
+          "heading": "K. LAMPIRAN"
+        }
+      ]
+    },
+    {
+      "survey": "Lalu Lintas",
+      "file": "CHECKLIST KONSISTENSI SURVEY LALU LINTAS.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 39,
+      "tables": 19,
+      "headings": [
+        {
+          "block_index": 4,
+          "heading": "A. KONSISTENSI PERALATAN"
+        },
+        {
+          "block_index": 5,
+          "heading": "1. Konsistensi Kamera Perekam"
+        },
+        {
+          "block_index": 7,
+          "heading": "2. Konsistensi Perangkat Penunjang"
+        },
+        {
+          "block_index": 9,
+          "heading": "B. KONSISTENSI LOKASI DAN WAKTU"
+        },
+        {
+          "block_index": 10,
+          "heading": "1. Konsistensi Lokasi"
+        },
+        {
+          "block_index": 12,
+          "heading": "2. Konsistensi Waktu"
+        },
+        {
+          "block_index": 14,
+          "heading": "C. KONSISTENSI METODE PENCACAHAN"
+        },
+        {
+          "block_index": 15,
+          "heading": "1. Konsistensi Metode Manual"
+        },
+        {
+          "block_index": 17,
+          "heading": "2. Konsistensi Metode Tidak Langsung (Rekaman)"
+        },
+        {
+          "block_index": 19,
+          "heading": "D. KONSISTENSI KLASIFIKASI KENDARAAN"
+        },
+        {
+          "block_index": 20,
+          "heading": "1. Konsistensi Identifikasi Jenis Kendaraan"
+        },
+        {
+          "block_index": 22,
+          "heading": "2. Konsistensi Antar Operator"
+        },
+        {
+          "block_index": 24,
+          "heading": "E. KONSISTENSI HASIL SURVEI (REPEATABILITY)"
+        },
+        {
+          "block_index": 25,
+          "heading": "1. Konsistensi Harian"
+        },
+        {
+          "block_index": 27,
+          "heading": "2. Konsistensi Sampel (Uji Repeatability)"
+        },
+        {
+          "block_index": 29,
+          "heading": "F. KONSISTENSI PENGOLAHAN DATA"
+        },
+        {
+          "block_index": 30,
+          "heading": "1. Konsistensi Format Data"
+        },
+        {
+          "block_index": 32,
+          "heading": "2. Konsistensi Analisis"
+        },
+        {
+          "block_index": 34,
+          "heading": "G. KONSISTENSI DENGAN DATA EKSTERNAL"
+        },
+        {
+          "block_index": 35,
+          "heading": "1. Konsistensi dengan Data Historis"
+        },
+        {
+          "block_index": 37,
+          "heading": "2. Konsistensi dengan Data Sekitar"
+        },
+        {
+          "block_index": 39,
+          "heading": "H. UJI KONSISTENSI PEMROSESAN DATA"
+        },
+        {
+          "block_index": 40,
+          "heading": "1. Pengulangan Pemrosesan"
+        },
+        {
+          "block_index": 42,
+          "heading": "2. Uji Cross-check"
+        },
+        {
+          "block_index": 44,
+          "heading": "I. ASESMEN KONSISTENSI AKHIR"
+        },
+        {
+          "block_index": 45,
+          "heading": "1. Konsistensi Total"
+        },
+        {
+          "block_index": 47,
+          "heading": "2. Temuan Inkonsistensi dan Mitigasi"
+        },
+        {
+          "block_index": 49,
+          "heading": "J. VALIDASI KONSISTENSI"
+        },
+        {
+          "block_index": 51,
+          "heading": "K. LAMPIRAN"
+        },
+        {
+          "block_index": 55,
+          "heading": "Dokumentasi uji konsistensi"
+        },
+        {
+          "block_index": 57,
+          "heading": "Dokumentasi tindakan mitigasi untuk inkonsistensi yang ditemukan"
+        }
+      ]
+    },
+    {
+      "survey": "Lalu Lintas",
+      "file": "CHECKLIST VALIDASI INTERNAL SURVEY LALU LINTAS.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 53,
+      "tables": 22,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL"
+        },
+        {
+          "block_index": 8,
+          "heading": "A. PERSIAPAN PRA SURVEI"
+        },
+        {
+          "block_index": 9,
+          "heading": "1. Persiapan Administrasi"
+        },
+        {
+          "block_index": 11,
+          "heading": "2. Persiapan Tim Survei"
+        },
+        {
+          "block_index": 13,
+          "heading": "3. Persiapan Peralatan"
+        },
+        {
+          "block_index": 15,
+          "heading": "4. Survei Pendahuluan"
+        },
+        {
+          "block_index": 17,
+          "heading": "B. PELAKSANAAN SURVEI"
+        },
+        {
+          "block_index": 18,
+          "heading": "1. Verifikasi Pemasangan Peralatan"
+        },
+        {
+          "block_index": 20,
+          "heading": "2. Verifikasi Proses Pengambilan Data"
+        },
+        {
+          "block_index": 22,
+          "heading": "3. Verifikasi Pengumpulan Data Harian"
+        },
+        {
+          "block_index": 24,
+          "heading": "C. VALIDASI DATA MENTAH"
+        },
+        {
+          "block_index": 25,
+          "heading": "1. Validasi Kelengkapan Data"
+        },
+        {
+          "block_index": 27,
+          "heading": "2. Validasi Kualitas Data Mentah"
+        },
+        {
+          "block_index": 29,
+          "heading": "D. PROSES PENCACAHAN LALU LINTAS"
+        },
+        {
+          "block_index": 30,
+          "heading": "1. Verifikasi Metode Pencacahan"
+        },
+        {
+          "block_index": 32,
+          "heading": "2. Validasi Hasil Pencacahan"
+        },
+        {
+          "block_index": 34,
+          "heading": "3. Validasi Sampling Internal"
+        },
+        {
+          "block_index": 36,
+          "heading": "E. PENGOLAHAN DATA"
+        },
+        {
+          "block_index": 37,
+          "heading": "1. Verifikasi Metode Pengolahan"
+        },
+        {
+          "block_index": 39,
+          "heading": "2. Validasi Hasil Pengolahan"
+        },
+        {
+          "block_index": 41,
+          "heading": "F. FORMAT DAN PENYAJIAN"
+        },
+        {
+          "block_index": 42,
+          "heading": "1. Verifikasi Format Data"
+        },
+        {
+          "block_index": 44,
+          "heading": "2. Verifikasi Penyajian Laporan"
+        },
+        {
+          "block_index": 46,
+          "heading": "G. BACKUP DAN KEAMANAN DATA"
+        },
+        {
+          "block_index": 47,
+          "heading": "1. Verifikasi Backup Data"
+        },
+        {
+          "block_index": 49,
+          "heading": "2. Verifikasi Keamanan Data"
+        },
+        {
+          "block_index": 51,
+          "heading": "H. PERMASALAHAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 52,
+          "heading": "1. Permasalahan yang Teridentifikasi"
+        },
+        {
+          "block_index": 54,
+          "heading": "2. Tindakan Perbaikan"
+        },
+        {
+          "block_index": 56,
+          "heading": "I. VALIDASI AKHIR"
+        },
+        {
+          "block_index": 57,
+          "heading": "1. Validasi Kelengkapan Final"
+        },
+        {
+          "block_index": 59,
+          "heading": "2. Komentar dan Rekomendasi Internal"
+        },
+        {
+          "block_index": 65,
+          "heading": "J. PERSETUJUAN INTERNAL"
+        },
+        {
+          "block_index": 67,
+          "heading": "K. LAMPIRAN"
+        }
+      ]
+    },
+    {
+      "survey": "Lereng",
+      "file": "CHECKLIST KONSISTENSI SURVEI LERENG.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 36,
+      "tables": 20,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "Dokumen No.: SLOPE-CONS-001Revisi: 00Tanggal: [DD/MM/YYYY]Lokasi Uji Konsistensi: [Nama Ruas/Segmen Jalan]"
+        },
+        {
+          "block_index": 4,
+          "heading": "BAGIAN 2: KONSISTENSI PERALATAN"
+        },
+        {
+          "block_index": 5,
+          "heading": "2.1 Pengujian Konsistensi GPS"
+        },
+        {
+          "block_index": 7,
+          "heading": "2.2 Pengujian Konsistensi Clinometer/Inclinometer"
+        },
+        {
+          "block_index": 9,
+          "heading": "2.3 Pengujian Konsistensi Distance Meter/Roll Meter"
+        },
+        {
+          "block_index": 11,
+          "heading": "2.4 Pengujian Konsistensi Drone (jika digunakan)"
+        },
+        {
+          "block_index": 13,
+          "heading": "BAGIAN 3: KONSISTENSI PENGUKURAN ANTAR OPERATOR"
+        },
+        {
+          "block_index": 14,
+          "heading": "3.1 Pengukuran Geometri Lereng"
+        },
+        {
+          "block_index": 16,
+          "heading": "3.2 Identifikasi Material Penyusun Lereng"
+        },
+        {
+          "block_index": 18,
+          "heading": "3.3 Identifikasi Gejala Keruntuhan"
+        },
+        {
+          "block_index": 20,
+          "heading": "3.4 Penilaian Kondisi dan Risiko Lereng"
+        },
+        {
+          "block_index": 22,
+          "heading": "BAGIAN 4: KONSISTENSI TEMPORAL (PENGUKURAN BERULANG)"
+        },
+        {
+          "block_index": 23,
+          "heading": "4.1 Pengukuran Ulang Pada Lokasi Yang Sama (Interval 2 Minggu)"
+        },
+        {
+          "block_index": 26,
+          "heading": "BAGIAN 5: KONSISTENSI DOKUMENTASI"
+        },
+        {
+          "block_index": 27,
+          "heading": "5.1 Dokumentasi Visual"
+        },
+        {
+          "block_index": 29,
+          "heading": "5.2 Sketsa dan Gambar"
+        },
+        {
+          "block_index": 31,
+          "heading": "BAGIAN 6: KONSISTENSI DATA DIGITAL"
+        },
+        {
+          "block_index": 33,
+          "heading": "BAGIAN 7: KONSISTENSI METODE KERJA"
+        },
+        {
+          "block_index": 35,
+          "heading": "BAGIAN 8: EVALUASI AKHIR KONSISTENSI"
+        },
+        {
+          "block_index": 36,
+          "heading": "8.1 Ringkasan Hasil Konsistensi"
+        },
+        {
+          "block_index": 38,
+          "heading": "8.2 Status Konsistensi"
+        },
+        {
+          "block_index": 40,
+          "heading": "8.3 Temuan Ketidakkonsistenan dan Tindakan Perbaikan"
+        },
+        {
+          "block_index": 43,
+          "heading": "9.1 Kesimpulan"
+        },
+        {
+          "block_index": 44,
+          "heading": "[Isi dengan kesimpulan singkat tentang hasil uji konsistensi secara keseluruhan]"
+        },
+        {
+          "block_index": 45,
+          "heading": "9.2 Rekomendasi"
+        },
+        {
+          "block_index": 46,
+          "heading": "[Isi dengan rekomendasi untuk mempertahankan atau meningkatkan konsistensi survei]"
+        },
+        {
+          "block_index": 47,
+          "heading": "9.3 Jadwal Uji Konsistensi Berikutnya"
+        },
+        {
+          "block_index": 52,
+          "heading": "Dokumentasi proses uji konsistensi"
+        },
+        {
+          "block_index": 53,
+          "heading": "Data hasil pengukuran konsistensi"
+        },
+        {
+          "block_index": 55,
+          "heading": "Berita acara uji konsistensi"
+        }
+      ]
+    },
+    {
+      "survey": "Lereng",
+      "file": "CHECKLIST VALIDASI DAN VERIFIKASI INTERNAL SURVEI LERENG.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 46,
+      "tables": 25,
+      "headings": [
+        {
+          "block_index": 4,
+          "heading": "2.1 Dokumen Persiapan"
+        },
+        {
+          "block_index": 6,
+          "heading": "2.2 Kesiapan Tim"
+        },
+        {
+          "block_index": 9,
+          "heading": "3.1 Kelengkapan dan Kondisi Peralatan"
+        },
+        {
+          "block_index": 11,
+          "heading": "3.2 Verifikasi Hasil Kalibrasi Peralatan"
+        },
+        {
+          "block_index": 14,
+          "heading": "4.1 Kesesuaian Metode Survei"
+        },
+        {
+          "block_index": 16,
+          "heading": "4.2 Penerapan Protokol K3"
+        },
+        {
+          "block_index": 19,
+          "heading": "5.1 Validasi Sampling Data (Minimum 10%)"
+        },
+        {
+          "block_index": 21,
+          "heading": "5.2 Validasi Kelengkapan Data Administrasi"
+        },
+        {
+          "block_index": 23,
+          "heading": "5.3 Validasi Kelengkapan Data Geometri Lereng"
+        },
+        {
+          "block_index": 25,
+          "heading": "5.4 Validasi Kelengkapan Data Material Penyusun"
+        },
+        {
+          "block_index": 27,
+          "heading": "5.5 Validasi Kelengkapan Data Gejala Keruntuhan"
+        },
+        {
+          "block_index": 29,
+          "heading": "5.6 Validasi Kelengkapan Penilaian Risiko"
+        },
+        {
+          "block_index": 31,
+          "heading": "5.7 Validasi Dokumentasi Visual"
+        },
+        {
+          "block_index": 34,
+          "heading": "6.1 Verifikasi Input Data"
+        },
+        {
+          "block_index": 36,
+          "heading": "6.2 Verifikasi Perhitungan dan Analisis"
+        },
+        {
+          "block_index": 38,
+          "heading": "6.3 Verifikasi Format Data untuk Sistem InSlope"
+        },
+        {
+          "block_index": 41,
+          "heading": "7.1 Verifikasi Kelengkapan Laporan"
+        },
+        {
+          "block_index": 43,
+          "heading": "7.2 Verifikasi Dokumentasi Pendukung"
+        },
+        {
+          "block_index": 46,
+          "heading": "8.1 Daftar Temuan Internal"
+        },
+        {
+          "block_index": 49,
+          "heading": "8.2 Tindakan Perbaikan dan Pencegahan"
+        },
+        {
+          "block_index": 52,
+          "heading": "9.1 Status Validasi Data"
+        },
+        {
+          "block_index": 54,
+          "heading": "9.2 Kendala dan Risiko"
+        },
+        {
+          "block_index": 57,
+          "heading": "10.1 Kesimpulan"
+        },
+        {
+          "block_index": 59,
+          "heading": "10.2 Rekomendasi Internal"
+        },
+        {
+          "block_index": 61,
+          "heading": "10.3 Rencana Validasi dan Verifikasi Selanjutnya"
+        }
+      ]
+    },
+    {
+      "survey": "Lereng",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI 2 MINGGUAN SURVEI LERENG.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 29,
+      "tables": 15,
+      "headings": [
+        {
+          "block_index": 7,
+          "heading": "3.1 Verifikasi Personil"
+        },
+        {
+          "block_index": 9,
+          "heading": "3.2 Verifikasi Peralatan"
+        },
+        {
+          "block_index": 14,
+          "heading": "5.1 Validasi Kelengkapan Data"
+        },
+        {
+          "block_index": 16,
+          "heading": "5.2 Validasi Akurasi Data (Cek Silang dengan Data Lapangan)"
+        },
+        {
+          "block_index": 18,
+          "heading": "5.3 Validasi Konsistensi Data (Perbandingan Antar Surveyor)"
+        },
+        {
+          "block_index": 23,
+          "heading": "7.1 Temuan dan Deviasi"
+        },
+        {
+          "block_index": 26,
+          "heading": "7.2 Identifikasi Risiko dan Mitigasi"
+        },
+        {
+          "block_index": 29,
+          "heading": "8.1 Status Verifikasi dan Validasi"
+        },
+        {
+          "block_index": 31,
+          "heading": "8.2 Rekomendasi Tindak Lanjut"
+        },
+        {
+          "block_index": 33,
+          "heading": "8.3 Rencana Verifikasi Berikutnya"
+        }
+      ]
+    },
+    {
+      "survey": "Drainase",
+      "file": "KONSISTENSI SURVEI KONDISI DRAINASE.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 22,
+      "tables": 13,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "KEGIATAN QA/QC KONSISTENSI SURVEI DRAINASE"
+        },
+        {
+          "block_index": 1,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 3,
+          "heading": "B. INFORMASI LOKASI UJI KONSISTENSI"
+        },
+        {
+          "block_index": 5,
+          "heading": "C. KONSISTENSI PENGUKURAN ANTAR SURVEYOR"
+        },
+        {
+          "block_index": 7,
+          "heading": "D. KONSISTENSI PENGUKURAN BERULANG (REPEATABILITY)"
+        },
+        {
+          "block_index": 9,
+          "heading": "E. KONSISTENSI PENGGUNAAN APLIKASI INDRAIN"
+        },
+        {
+          "block_index": 11,
+          "heading": "F. KONSISTENSI DENGAN STANDAR DAN PEDOMAN"
+        },
+        {
+          "block_index": 13,
+          "heading": "G. KONSISTENSI DOKUMENTASI"
+        },
+        {
+          "block_index": 15,
+          "heading": "H. HASIL UJI KONSISTENSI PENGUKURAN ANTAR SURVEYOR"
+        },
+        {
+          "block_index": 18,
+          "heading": "I. HASIL UJI KONSISTENSI PENGUKURAN BERULANG"
+        },
+        {
+          "block_index": 21,
+          "heading": "J. ANALISIS HASIL UJI KONSISTENSI"
+        },
+        {
+          "block_index": 23,
+          "heading": "K. TEMUAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 25,
+          "heading": "L. KESIMPULAN UJI KONSISTENSI"
+        },
+        {
+          "block_index": 27,
+          "heading": "M. PERSETUJUAN HASIL UJI KONSISTENSI"
+        },
+        {
+          "block_index": 30,
+          "heading": "Dokumentasi foto lokasi uji konsistensi"
+        },
+        {
+          "block_index": 34,
+          "heading": "Dokumentasi kegiatan uji konsistensi"
+        }
+      ]
+    },
+    {
+      "survey": "Drainase",
+      "file": "VERIVIKASI DAN VALIDASI 2 MINGGUAN SURVEI KONDISI DRAINASE.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 22,
+      "tables": 14,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. INFORMASI PROGRESS SURVEI"
+        },
+        {
+          "block_index": 4,
+          "heading": "C. VERIFIKASI KELENGKAPAN DATA"
+        },
+        {
+          "block_index": 6,
+          "heading": "D. VALIDASI KONSISTENSI PELAKSANAAN SURVEI"
+        },
+        {
+          "block_index": 8,
+          "heading": "E. VALIDASI SAMPLING ULANG"
+        },
+        {
+          "block_index": 10,
+          "heading": "F. VALIDASI KUALITAS DATA"
+        },
+        {
+          "block_index": 12,
+          "heading": "G. VERIFIKASI KONSISTENSI PERALATAN"
+        },
+        {
+          "block_index": 14,
+          "heading": "H. VERIFIKASI PROSES UNGGAH DATA"
+        },
+        {
+          "block_index": 16,
+          "heading": "I. HASIL SAMPLING ULANG"
+        },
+        {
+          "block_index": 19,
+          "heading": "J. DISTRIBUSI KONDISI DRAINASE (2 MINGGU TERAKHIR)"
+        },
+        {
+          "block_index": 21,
+          "heading": "K. ANALISIS TEMUAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 23,
+          "heading": "L. ANALISIS KENDALA DAN SOLUSI"
+        },
+        {
+          "block_index": 25,
+          "heading": "M. KESIMPULAN VERIFIKASI DAN VALIDASI 2-MINGGUAN"
+        },
+        {
+          "block_index": 27,
+          "heading": "N. REKOMENDASI UNTUK 2 MINGGU MENDATANG"
+        },
+        {
+          "block_index": 28,
+          "heading": "O. PERSETUJUAN HASIL VERIFIKASI DAN VALIDASI 2-MINGGUAN"
+        }
+      ]
+    },
+    {
+      "survey": "Drainase",
+      "file": "VERIVIKASI DAN VALIDASI INTERNAL SURVEI KONDISI DRAINASE.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 22,
+      "tables": 14,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. INFORMASI PROGRESS SURVEI"
+        },
+        {
+          "block_index": 4,
+          "heading": "C. VERIFIKASI PERSIAPAN SURVEI"
+        },
+        {
+          "block_index": 6,
+          "heading": "D. VERIFIKASI PELAKSANAAN SURVEI"
+        },
+        {
+          "block_index": 8,
+          "heading": "E. VALIDASI KELENGKAPAN DATA"
+        },
+        {
+          "block_index": 10,
+          "heading": "F. VALIDASI KUALITAS DATA"
+        },
+        {
+          "block_index": 12,
+          "heading": "G. VALIDASI KONSISTENSI DATA"
+        },
+        {
+          "block_index": 14,
+          "heading": "H. VALIDASI KEWAJARAN DATA"
+        },
+        {
+          "block_index": 16,
+          "heading": "I. VALIDASI PENGELOLAAN DATA"
+        },
+        {
+          "block_index": 18,
+          "heading": "J. UJI SAMPLING INTERNAL"
+        },
+        {
+          "block_index": 21,
+          "heading": "K. DISTRIBUSI KONDISI DRAINASE"
+        },
+        {
+          "block_index": 23,
+          "heading": "L. TEMUAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 25,
+          "heading": "M. KESIMPULAN VERIFIKASI DAN VALIDASI INTERNAL"
+        },
+        {
+          "block_index": 27,
+          "heading": "N. REKOMENDASI PENINGKATAN"
+        },
+        {
+          "block_index": 28,
+          "heading": "O. PERSETUJUAN HASIL VERIFIKASI DAN VALIDASI INTERNAL"
+        },
+        {
+          "block_index": 31,
+          "heading": "Dokumentasi foto kegiatan verifikasi dan validasi internal"
+        }
+      ]
+    },
+    {
+      "survey": "IRI",
+      "file": "CHECKLIST KALIBRASI DAN VALIDASI.docx",
+      "phase": null,
+      "combined": true,
+      "paragraphs": 17,
+      "tables": 15,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. CHECKLIST KALIBRASI DAN VALIDASI ALAT"
+        },
+        {
+          "block_index": 1,
+          "heading": "1. Informasi Umum"
+        },
+        {
+          "block_index": 3,
+          "heading": "2. Kalibrasi Alat"
+        },
+        {
+          "block_index": 5,
+          "heading": "3. Validasi Alat"
+        },
+        {
+          "block_index": 7,
+          "heading": "4. GPS dan Pengukuran Jarak"
+        },
+        {
+          "block_index": 9,
+          "heading": "5. Dokumentasi Kalibrasi"
+        },
+        {
+          "block_index": 11,
+          "heading": "6. Hasil Validasi"
+        },
+        {
+          "block_index": 13,
+          "heading": "B. CHECKLIST KONSISTENSI"
+        },
+        {
+          "block_index": 14,
+          "heading": "1. Informasi Umum"
+        },
+        {
+          "block_index": 16,
+          "heading": "2. Keterulangan (Repeatability)"
+        },
+        {
+          "block_index": 18,
+          "heading": "3. Kondisi Operasional"
+        },
+        {
+          "block_index": 20,
+          "heading": "4. Format dan Kualitas Data"
+        },
+        {
+          "block_index": 22,
+          "heading": "5. Dokumentasi Konsistensi"
+        },
+        {
+          "block_index": 24,
+          "heading": "6. Hasil Konsistensi"
+        },
+        {
+          "block_index": 26,
+          "heading": "7. Faktor-faktor yang Mempengaruhi Pengukuran"
+        },
+        {
+          "block_index": 28,
+          "heading": "8. Tindakan Perbaikan"
+        }
+      ]
+    },
+    {
+      "survey": "IRI",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 29,
+      "tables": 16,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. TIM PELAKSANA VERIFIKASI DAN VALIDASI"
+        },
+        {
+          "block_index": 4,
+          "heading": "C. RUAS JALAN YANG DIEVALUASI (PERIODE 2 MINGGUAN)"
+        },
+        {
+          "block_index": 6,
+          "heading": "D. VERIFIKASI DAN VALIDASI ALAT"
+        },
+        {
+          "block_index": 8,
+          "heading": "E. VERIFIKASI PROSEDUR SURVEI"
+        },
+        {
+          "block_index": 10,
+          "heading": "F. VERIFIKASI KELENGKAPAN DAN KUALITAS DATA"
+        },
+        {
+          "block_index": 12,
+          "heading": "G. VALIDASI KEWAJARAN DATA"
+        },
+        {
+          "block_index": 14,
+          "heading": "H. HASIL SAMPLING VERIFIKASI (MIN 5% DARI TOTAL PANJANG)"
+        },
+        {
+          "block_index": 17,
+          "heading": "I. ANALISIS STATISTIK HASIL SAMPLING"
+        },
+        {
+          "block_index": 19,
+          "heading": "J. DOKUMENTASI MASALAH DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 21,
+          "heading": "K. FAKTOR-FAKTOR YANG MEMPENGARUHI KUALITAS PENGUKURAN"
+        },
+        {
+          "block_index": 23,
+          "heading": "L. EVALUASI PROGRESS SURVEI"
+        },
+        {
+          "block_index": 25,
+          "heading": "M. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 33,
+          "heading": "N. RENCANA TINDAK LANJUT"
+        },
+        {
+          "block_index": 35,
+          "heading": "O. PERSETUJUAN"
+        },
+        {
+          "block_index": 42,
+          "heading": "Hasil pengujian konsistensi (repeatability)"
+        }
+      ]
+    },
+    {
+      "survey": "IRI",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 20,
+      "tables": 11,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. PERSIAPAN VERIFIKASI DAN VALIDASI"
+        },
+        {
+          "block_index": 4,
+          "heading": "C. VERIFIKASI KELENGKAPAN DATA"
+        },
+        {
+          "block_index": 6,
+          "heading": "D. VERIFIKASI KEWAJARAN DATA"
+        },
+        {
+          "block_index": 8,
+          "heading": "E. VALIDASI KEAKURATAN DATA"
+        },
+        {
+          "block_index": 10,
+          "heading": "F. VALIDASI FORMAT DATA"
+        },
+        {
+          "block_index": 12,
+          "heading": "G. HASIL SPOT CHECK / SAMPLING"
+        },
+        {
+          "block_index": 15,
+          "heading": "H. STATISTIK VALIDASI DATA"
+        },
+        {
+          "block_index": 17,
+          "heading": "I. TEMUAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 19,
+          "heading": "J. KESIMPULAN VERIFIKASI DAN VALIDASI"
+        },
+        {
+          "block_index": 21,
+          "heading": "K. CATATAN DAN REKOMENDASI"
+        }
+      ]
+    },
+    {
+      "survey": "Jembatan",
+      "file": "CHECKLIST KONSISTENSI.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 30,
+      "tables": 18,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. DAFTAR JEMBATAN YANG DIEVALUASI KONSISTENSINYA"
+        },
+        {
+          "block_index": 5,
+          "heading": "C. KONSISTENSI PERSONIL PEMERIKSAAN"
+        },
+        {
+          "block_index": 7,
+          "heading": "D. KONSISTENSI PERALATAN PEMERIKSAAN"
+        },
+        {
+          "block_index": 9,
+          "heading": "E. KONSISTENSI PROSEDUR PEMERIKSAAN INVENTARISASI"
+        },
+        {
+          "block_index": 11,
+          "heading": "F. KONSISTENSI PROSEDUR PEMERIKSAAN DETAIL"
+        },
+        {
+          "block_index": 13,
+          "heading": "G. KONSISTENSI PROSEDUR PEMERIKSAAN RUTIN"
+        },
+        {
+          "block_index": 15,
+          "heading": "H. KONSISTENSI DOKUMENTASI VISUAL"
+        },
+        {
+          "block_index": 17,
+          "heading": "I. KONSISTENSI PENILAIAN TINGKAT KERUSAKAN"
+        },
+        {
+          "block_index": 19,
+          "heading": "J. KONSISTENSI PENILAIAN NILAI KONDISI (NK)"
+        },
+        {
+          "block_index": 21,
+          "heading": "K. KONSISTENSI PENILAIAN SRKFP"
+        },
+        {
+          "block_index": 23,
+          "heading": "L. KONSISTENSI PENGUNGGAHAN DATA KE SISTEM"
+        },
+        {
+          "block_index": 25,
+          "heading": "M. HASIL UJI KONSISTENSI ANTAR INSPEKTOR"
+        },
+        {
+          "block_index": 28,
+          "heading": "N. HASIL UJI KONSISTENSI TERHADAP REFERENSI"
+        },
+        {
+          "block_index": 31,
+          "heading": "O. ANALISIS STATISTIK KONSISTENSI"
+        },
+        {
+          "block_index": 33,
+          "heading": "P. TEMUAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 36,
+          "heading": "Q.1. Kesimpulan Evaluasi Konsistensi"
+        },
+        {
+          "block_index": 38,
+          "heading": "Q.2. Rekomendasi Peningkatan Konsistensi"
+        },
+        {
+          "block_index": 39,
+          "heading": "[Tuliskan rekomendasi untuk meningkatkan konsistensi pemeriksaan jembatan]"
+        },
+        {
+          "block_index": 43,
+          "heading": "Grafik analisis statistik konsistensi"
+        },
+        {
+          "block_index": 44,
+          "heading": "Dokumentasi uji konsistensi antar inspektor"
+        },
+        {
+          "block_index": 45,
+          "heading": "Dokumentasi uji konsistensi terhadap referensi"
+        }
+      ]
+    },
+    {
+      "survey": "Jembatan",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 28,
+      "tables": 17,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. JEMBATAN YANG DIPERIKSA DALAM PERIODE 2 MINGGUAN"
+        },
+        {
+          "block_index": 5,
+          "heading": "C. VERIFIKASI RENCANA VS REALISASI"
+        },
+        {
+          "block_index": 7,
+          "heading": "D. VERIFIKASI KELENGKAPAN DOKUMENTASI PENDUKUNG"
+        },
+        {
+          "block_index": 9,
+          "heading": "E. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN INVENTARISASI"
+        },
+        {
+          "block_index": 11,
+          "heading": "F. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN DETAIL"
+        },
+        {
+          "block_index": 13,
+          "heading": "G. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN RUTIN"
+        },
+        {
+          "block_index": 15,
+          "heading": "H. VALIDASI KUALITAS DATA"
+        },
+        {
+          "block_index": 17,
+          "heading": "I. HASIL SAMPLING VERIFIKASI"
+        },
+        {
+          "block_index": 20,
+          "heading": "J. EVALUASI METODE PEMERIKSAAN"
+        },
+        {
+          "block_index": 22,
+          "heading": "K. KENDALA DAN SOLUSI SELAMA PERIODE 2 MINGGUAN"
+        },
+        {
+          "block_index": 24,
+          "heading": "L. TEMUAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 26,
+          "heading": "M. EVALUASI PROGRESS PEKERJAAN"
+        },
+        {
+          "block_index": 28,
+          "heading": "N. ANALISIS STATISTIK PENILAIAN KONDISI"
+        },
+        {
+          "block_index": 30,
+          "heading": "O. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 31,
+          "heading": "O.1. Kesimpulan Verifikasi dan Validasi 2-Mingguan"
+        },
+        {
+          "block_index": 33,
+          "heading": "O.2. Rekomendasi"
+        },
+        {
+          "block_index": 35,
+          "heading": "P. RENCANA KERJA PERIODE BERIKUTNYA"
+        }
+      ]
+    },
+    {
+      "survey": "Jembatan",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 27,
+      "tables": 16,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "B. INFORMASI JEMBATAN YANG DIVERIFIKASI"
+        },
+        {
+          "block_index": 4,
+          "heading": "C. VERIFIKASI KELENGKAPAN DATA JEMBATAN"
+        },
+        {
+          "block_index": 6,
+          "heading": "D. VERIFIKASI DOKUMENTASI VISUAL"
+        },
+        {
+          "block_index": 8,
+          "heading": "E. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN INVENTARISASI"
+        },
+        {
+          "block_index": 10,
+          "heading": "F. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN DETAIL"
+        },
+        {
+          "block_index": 12,
+          "heading": "G. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN RUTIN"
+        },
+        {
+          "block_index": 14,
+          "heading": "H. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN KHUSUS (JIKA DILAKUKAN)"
+        },
+        {
+          "block_index": 16,
+          "heading": "I. VALIDASI KEWAJARAN DATA"
+        },
+        {
+          "block_index": 18,
+          "heading": "J. VALIDASI KONSISTENSI DATA"
+        },
+        {
+          "block_index": 20,
+          "heading": "K. VALIDASI FORMAT DATA"
+        },
+        {
+          "block_index": 22,
+          "heading": "L. VERIFIKASI PENGUNGGAHAN DATA KE SISTEM"
+        },
+        {
+          "block_index": 24,
+          "heading": "M. ANALISIS KERUSAKAN STRUKTURAL"
+        },
+        {
+          "block_index": 26,
+          "heading": "N. TEMUAN DAN PERBAIKAN YANG DIPERLUKAN"
+        },
+        {
+          "block_index": 28,
+          "heading": "O. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 29,
+          "heading": "O.1. Kesimpulan Verifikasi dan Validasi Internal"
+        },
+        {
+          "block_index": 31,
+          "heading": "O.2. Status Data Jembatan"
+        },
+        {
+          "block_index": 33,
+          "heading": "O.3. Rekomendasi"
+        },
+        {
+          "block_index": 34,
+          "heading": "[Tuliskan rekomendasi untuk perbaikan atau tindak lanjut berdasarkan hasil verifikasi dan validasi internal]"
+        },
+        {
+          "block_index": 35,
+          "heading": "P. PERSETUJUAN INTERNAL"
+        }
+      ]
+    },
+    {
+      "survey": "Lendutan",
+      "file": "CHECKLIST KALIBRASI dan VALIDASI LENDUTAN.docx",
+      "phase": null,
+      "combined": true,
+      "paragraphs": 114,
+      "tables": 52,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 2,
+          "heading": "II. INFORMASI PERALATAN"
+        },
+        {
+          "block_index": 4,
+          "heading": "III. KALIBRASI REFERENSI TAHUNAN"
+        },
+        {
+          "block_index": 6,
+          "heading": "IV. KALIBRASI RELATIF"
+        },
+        {
+          "block_index": 8,
+          "heading": "V. PENGUKURAN KONSISTENSI (REPEATABILITY)"
+        },
+        {
+          "block_index": 10,
+          "heading": "VI. MONITORING SENSOR LENDUTAN"
+        },
+        {
+          "block_index": 12,
+          "heading": "VII. VALIDASI SISTEM"
+        },
+        {
+          "block_index": 14,
+          "heading": "VIII. UJI COBA PENGUKURAN"
+        },
+        {
+          "block_index": 16,
+          "heading": "IX. DOKUMENTASI HASIL UJI"
+        },
+        {
+          "block_index": 18,
+          "heading": "X. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 22,
+          "heading": "XI. TANDA TANGAN"
+        },
+        {
+          "block_index": 28,
+          "heading": "BERITA ACARA VALIDASI BERJALAN (ON-GOING VALIDATION)"
+        },
+        {
+          "block_index": 31,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 33,
+          "heading": "II. INFORMASI PERALATAN"
+        },
+        {
+          "block_index": 35,
+          "heading": "III. PELAKSANAAN VALIDASI BERJALAN"
+        },
+        {
+          "block_index": 37,
+          "heading": "IV. PENGUKURAN KONSISTENSI (REPEATABILITY)"
+        },
+        {
+          "block_index": 39,
+          "heading": "V. MONITORING KONDISI ALAT"
+        },
+        {
+          "block_index": 41,
+          "heading": "VI. DOKUMENTASI HASIL VALIDASI BERJALAN"
+        },
+        {
+          "block_index": 43,
+          "heading": "VII. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 47,
+          "heading": "VIII. TANDA TANGAN"
+        },
+        {
+          "block_index": 50,
+          "heading": "Data Hasil Validasi Berjalan"
+        },
+        {
+          "block_index": 51,
+          "heading": "Dokumentasi Validasi Berjalan"
+        },
+        {
+          "block_index": 52,
+          "heading": "BERITA ACARA AUDIT INTERNAL PENYEDIA JASA"
+        },
+        {
+          "block_index": 55,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 57,
+          "heading": "II. INFORMASI PERALATAN DAN PERSONIL"
+        },
+        {
+          "block_index": 59,
+          "heading": "III. AUDIT PERSIAPAN DAN PELAKSANAAN SURVEI"
+        },
+        {
+          "block_index": 61,
+          "heading": "IV. AUDIT PENGUMPULAN DAN PENGOLAHAN DATA"
+        },
+        {
+          "block_index": 63,
+          "heading": "V. AUDIT PENCATATAN DAN DOKUMENTASI"
+        },
+        {
+          "block_index": 65,
+          "heading": "VI. AUDIT HASIL SURVEI"
+        },
+        {
+          "block_index": 67,
+          "heading": "VII. TEMUAN DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 69,
+          "heading": "VIII. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 74,
+          "heading": "IX. TANDA TANGAN"
+        },
+        {
+          "block_index": 78,
+          "heading": "Dokumentasi Pelaksanaan Audit Internal"
+        },
+        {
+          "block_index": 83,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 85,
+          "heading": "II. INFORMASI PERALATAN DAN PERSONIL"
+        },
+        {
+          "block_index": 87,
+          "heading": "III. AUDIT DOKUMEN MANAJEMEN MUTU"
+        },
+        {
+          "block_index": 89,
+          "heading": "IV. AUDIT PENGAMBILAN SAMPEL DATA (5% DARI TOTAL DATA)"
+        },
+        {
+          "block_index": 91,
+          "heading": "V. AUDIT PELAKSANAAN SURVEI"
+        },
+        {
+          "block_index": 93,
+          "heading": "VI. AUDIT HASIL SURVEI"
+        },
+        {
+          "block_index": 95,
+          "heading": "VII. PERBANDINGAN HASIL AUDIT DENGAN DATA PENYEDIA JASA"
+        },
+        {
+          "block_index": 97,
+          "heading": "VIII. TEMUAN DAN TINDAKAN PERBAIKAN YANG DISARANKAN"
+        },
+        {
+          "block_index": 99,
+          "heading": "IX. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 104,
+          "heading": "X. PENERIMAAN DATA"
+        },
+        {
+          "block_index": 106,
+          "heading": "XI. TANDA TANGAN"
+        },
+        {
+          "block_index": 116,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 118,
+          "heading": "II. INFORMASI PERALATAN DAN PERSONIL"
+        },
+        {
+          "block_index": 120,
+          "heading": "III. AUDIT DOKUMEN MANAJEMEN MUTU"
+        },
+        {
+          "block_index": 122,
+          "heading": "IV. AUDIT PENGAMBILAN SAMPEL DATA (1% DARI TOTAL DATA)"
+        },
+        {
+          "block_index": 124,
+          "heading": "V. AUDIT HASIL SURVEI"
+        },
+        {
+          "block_index": 126,
+          "heading": "VI. TEMUAN DAN TINDAKAN PERBAIKAN YANG DISARANKAN"
+        },
+        {
+          "block_index": 128,
+          "heading": "VII. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 133,
+          "heading": "VIII. PENERIMAAN DATA"
+        },
+        {
+          "block_index": 135,
+          "heading": "IX. TANDA TANGAN"
+        },
+        {
+          "block_index": 145,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 147,
+          "heading": "II. INFORMASI PERALATAN"
+        },
+        {
+          "block_index": 149,
+          "heading": "III. RINCIAN DATA YANG DITERIMA"
+        },
+        {
+          "block_index": 151,
+          "heading": "IV. VERIFIKASI PROSES AUDIT"
+        },
+        {
+          "block_index": 153,
+          "heading": "V. VERIFIKASI KUALITAS DATA"
+        },
+        {
+          "block_index": 155,
+          "heading": "VI. STATUS PENERIMAAN"
+        },
+        {
+          "block_index": 157,
+          "heading": "VII. CATATAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 159,
+          "heading": "VIII. TANDA TANGAN"
+        }
+      ]
+    },
+    {
+      "survey": "PCI AI",
+      "file": "CHECKLIST KONSISTENSI SURVEI PCI BERBASIS AI.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 32,
+      "tables": 17,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "CHECKLIST KONSISTENSI SURVEI PCI BERBASIS AI"
+        },
+        {
+          "block_index": 1,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 3,
+          "heading": "II. KONSISTENSI AKUISISI DATA"
+        },
+        {
+          "block_index": 4,
+          "heading": "A. Konsistensi Perangkat"
+        },
+        {
+          "block_index": 6,
+          "heading": "B. Konsistensi Metode Akuisisi"
+        },
+        {
+          "block_index": 8,
+          "heading": "III. KONSISTENSI PENGOLAHAN DATA"
+        },
+        {
+          "block_index": 9,
+          "heading": "A. Konsistensi Proses Pengolahan"
+        },
+        {
+          "block_index": 11,
+          "heading": "B. Konsistensi Format Data Hasil"
+        },
+        {
+          "block_index": 13,
+          "heading": "IV. KONSISTENSI KINERJA MODEL AI"
+        },
+        {
+          "block_index": 14,
+          "heading": "A. Uji Konsistensi Berkala"
+        },
+        {
+          "block_index": 16,
+          "heading": "B. Evaluasi Stabilitas Deteksi"
+        },
+        {
+          "block_index": 18,
+          "heading": "V. VERIFIKASI KONSISTENSI HASIL"
+        },
+        {
+          "block_index": 19,
+          "heading": "A. Verifikasi Internal (Penyedia Jasa)"
+        },
+        {
+          "block_index": 21,
+          "heading": "B. Verifikasi Eksternal (Pengguna Jasa)"
+        },
+        {
+          "block_index": 23,
+          "heading": "VI. ANALISIS KONSISTENSI DETEKSI KERUSAKAN"
+        },
+        {
+          "block_index": 24,
+          "heading": "A. Analisis Konsistensi Per Jenis Kerusakan"
+        },
+        {
+          "block_index": 26,
+          "heading": "B. Analisis Konsistensi Dimensi Kerusakan"
+        },
+        {
+          "block_index": 28,
+          "heading": "C. Analisis Konsistensi Klasifikasi Kerusakan"
+        },
+        {
+          "block_index": 30,
+          "heading": "VII. TINDAKAN KOREKSI UNTUK MENJAGA KONSISTENSI"
+        },
+        {
+          "block_index": 31,
+          "heading": "A. Identifikasi Faktor Penyebab Inkonsistensi"
+        },
+        {
+          "block_index": 33,
+          "heading": "B. Implementasi Tindakan Koreksi"
+        },
+        {
+          "block_index": 35,
+          "heading": "VIII. DOKUMENTASI UJI KONSISTENSI"
+        },
+        {
+          "block_index": 36,
+          "heading": "A. Hasil Uji Konsistensi pada Ruas Referensi"
+        },
+        {
+          "block_index": 38,
+          "heading": "B. Dokumentasi Visual"
+        },
+        {
+          "block_index": 40,
+          "heading": "IX. KESIMPULAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 41,
+          "heading": "A. Kesimpulan Hasil Uji Konsistensi"
+        },
+        {
+          "block_index": 42,
+          "heading": "[Tuliskan kesimpulan dari hasil evaluasi konsistensi survei PCI berbasis AI]"
+        },
+        {
+          "block_index": 43,
+          "heading": "B. Rekomendasi untuk Peningkatan Konsistensi"
+        },
+        {
+          "block_index": 44,
+          "heading": "[Tuliskan rekomendasi untuk meningkatkan konsistensi pada survei PCI berbasis AI]"
+        },
+        {
+          "block_index": 45,
+          "heading": "BERITA ACARA UJI KONSISTENSI"
+        }
+      ]
+    },
+    {
+      "survey": "PCI AI",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI 2 MINGGUAN.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 40,
+      "tables": 23,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 3,
+          "heading": "II. HASIL VERIFIKASI & VALIDASI 2-MINGGUAN SEBELUMNYA"
+        },
+        {
+          "block_index": 4,
+          "heading": "A. Status Tindak Lanjut Temuan Sebelumnya"
+        },
+        {
+          "block_index": 6,
+          "heading": "B. Perkembangan Tindakan Perbaikan"
+        },
+        {
+          "block_index": 8,
+          "heading": "III. VERIFIKASI KONDISI PERANGKAT"
+        },
+        {
+          "block_index": 9,
+          "heading": "A. Pemeriksaan Rutin Perangkat"
+        },
+        {
+          "block_index": 11,
+          "heading": "B. Pemeriksaan Kalibrasi"
+        },
+        {
+          "block_index": 13,
+          "heading": "IV. VALIDASI UJI KONSISTENSI"
+        },
+        {
+          "block_index": 14,
+          "heading": "A. Uji Konsistensi 2-Mingguan"
+        },
+        {
+          "block_index": 16,
+          "heading": "B. Hasil Uji Konsistensi"
+        },
+        {
+          "block_index": 18,
+          "heading": "V. VALIDASI PROGRES SURVEI 2-MINGGUAN"
+        },
+        {
+          "block_index": 19,
+          "heading": "A. Progres Pengambilan Data"
+        },
+        {
+          "block_index": 21,
+          "heading": "B. Progres Pengolahan Data"
+        },
+        {
+          "block_index": 23,
+          "heading": "C. Kesesuaian dengan Jadwal"
+        },
+        {
+          "block_index": 25,
+          "heading": "VI. VALIDASI SAMPLING DATA PERIODE INI"
+        },
+        {
+          "block_index": 26,
+          "heading": "A. Sampling Acak Data"
+        },
+        {
+          "block_index": 28,
+          "heading": "B. Validasi Sampling oleh Tim QA/QC"
+        },
+        {
+          "block_index": 30,
+          "heading": "C. Hasil Validasi Sampling"
+        },
+        {
+          "block_index": 32,
+          "heading": "VII. VALIDASI KINERJA MODEL AI PERIODE INI"
+        },
+        {
+          "block_index": 33,
+          "heading": "A. Evaluasi Performa Model AI"
+        },
+        {
+          "block_index": 35,
+          "heading": "B. Evaluasi per Jenis Kerusakan (Top 5 Jenis Kerusakan Terdeteksi)"
+        },
+        {
+          "block_index": 37,
+          "heading": "C. Identifikasi Pola Kesalahan"
+        },
+        {
+          "block_index": 39,
+          "heading": "VIII. VERIFIKASI KESIAPAN DATA UNTUK PENGUNGGAHAN"
+        },
+        {
+          "block_index": 40,
+          "heading": "A. Kelengkapan Data"
+        },
+        {
+          "block_index": 42,
+          "heading": "B. Kesiapan Format Data untuk SMD Jalan"
+        },
+        {
+          "block_index": 44,
+          "heading": "C. Uji Coba Pengunggahan"
+        },
+        {
+          "block_index": 46,
+          "heading": "IX. TEMUAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 47,
+          "heading": "A. Temuan Utama"
+        },
+        {
+          "block_index": 49,
+          "heading": "B. Rekomendasi Tindakan Perbaikan"
+        },
+        {
+          "block_index": 51,
+          "heading": "X. KESIMPULAN VERIFIKASI DAN VALIDASI 2-MINGGUAN"
+        },
+        {
+          "block_index": 52,
+          "heading": "A. Ringkasan Status"
+        },
+        {
+          "block_index": 54,
+          "heading": "B. Hasil Verifikasi dan Validasi 2-Mingguan"
+        },
+        {
+          "block_index": 58,
+          "heading": "C. Catatan Tambahan"
+        }
+      ]
+    },
+    {
+      "survey": "PCI AI",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL SURVEI PCI BERBASIS AI.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 40,
+      "tables": 23,
+      "headings": [
+        {
+          "block_index": 0,
+          "heading": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL SURVEI PCI BERBASIS AI"
+        },
+        {
+          "block_index": 1,
+          "heading": "I. INFORMASI UMUM"
+        },
+        {
+          "block_index": 3,
+          "heading": "II. VERIFIKASI PERANGKAT DAN LINGKUNGAN"
+        },
+        {
+          "block_index": 4,
+          "heading": "A. Verifikasi Perangkat Pengambilan Data"
+        },
+        {
+          "block_index": 6,
+          "heading": "B. Verifikasi Aplikasi Smartphone"
+        },
+        {
+          "block_index": 8,
+          "heading": "C. Verifikasi Kondisi Lingkungan"
+        },
+        {
+          "block_index": 10,
+          "heading": "III. VALIDASI PROSEDUR PENGAMBILAN DATA"
+        },
+        {
+          "block_index": 11,
+          "heading": "A. Persiapan Pengambilan Data"
+        },
+        {
+          "block_index": 13,
+          "heading": "B. Proses Pengambilan Data"
+        },
+        {
+          "block_index": 15,
+          "heading": "C. Pengunggahan dan Penyimpanan Data"
+        },
+        {
+          "block_index": 17,
+          "heading": "IV. VALIDASI KUALITAS DATA VIDEO"
+        },
+        {
+          "block_index": 18,
+          "heading": "A. Kualitas Visual"
+        },
+        {
+          "block_index": 20,
+          "heading": "B. Stabilitas Video"
+        },
+        {
+          "block_index": 22,
+          "heading": "C. Kelengkapan Cakupan"
+        },
+        {
+          "block_index": 24,
+          "heading": "V. VALIDASI PENGOLAHAN DATA AI"
+        },
+        {
+          "block_index": 25,
+          "heading": "A. Proses Pengolahan"
+        },
+        {
+          "block_index": 27,
+          "heading": "B. Validasi Deteksi Kerusakan"
+        },
+        {
+          "block_index": 29,
+          "heading": "C. Validasi Pengukuran Dimensi"
+        },
+        {
+          "block_index": 31,
+          "heading": "VI. VALIDASI HASIL DAN METRIK MODEL AI"
+        },
+        {
+          "block_index": 32,
+          "heading": "A. Validasi Sampling Internal"
+        },
+        {
+          "block_index": 34,
+          "heading": "B. Validasi Per Jenis Kerusakan"
+        },
+        {
+          "block_index": 36,
+          "heading": "C. Validasi Hasil PCI"
+        },
+        {
+          "block_index": 38,
+          "heading": "VII. VERIFIKASI OUTPUT DATA"
+        },
+        {
+          "block_index": 39,
+          "heading": "A. Format Data"
+        },
+        {
+          "block_index": 41,
+          "heading": "B. Kelengkapan Data"
+        },
+        {
+          "block_index": 43,
+          "heading": "C. Validasi Data"
+        },
+        {
+          "block_index": 45,
+          "heading": "VIII. TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 46,
+          "heading": "A. Temuan Masalah dan Solusi"
+        },
+        {
+          "block_index": 48,
+          "heading": "B. Tindak Lanjut"
+        },
+        {
+          "block_index": 50,
+          "heading": "IX. KESIMPULAN VERIFIKASI DAN VALIDASI INTERNAL"
+        },
+        {
+          "block_index": 51,
+          "heading": "A. Ringkasan Hasil"
+        },
+        {
+          "block_index": 53,
+          "heading": "B. Hasil Verifikasi dan Validasi Internal"
+        },
+        {
+          "block_index": 57,
+          "heading": "C. Catatan Tambahan"
+        },
+        {
+          "block_index": 58,
+          "heading": "BERITA ACARA VERIFIKASI DAN VALIDASI INTERNAL"
+        }
+      ]
+    },
+    {
+      "survey": "PCI Manual",
+      "file": "CHECKLIST PENGUJIAN KONSISTENSI.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 20,
+      "tables": 8,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "A. INFORMASI PENGUJIAN"
+        },
+        {
+          "block_index": 3,
+          "heading": "B. KONDISI PENGUJIAN"
+        },
+        {
+          "block_index": 5,
+          "heading": "C. HASIL PENGUJIAN KONSISTENSI - PENILAIAN ULANG"
+        },
+        {
+          "block_index": 6,
+          "heading": "1. Perbandingan Nilai PCI Rata-rata"
+        },
+        {
+          "block_index": 8,
+          "heading": "2. Konsistensi Identifikasi Jenis Kerusakan"
+        },
+        {
+          "block_index": 10,
+          "heading": "3. Konsistensi Penilaian Tingkat Keparahan"
+        },
+        {
+          "block_index": 12,
+          "heading": "4. Konsistensi Pengukuran Dimensi Kerusakan"
+        },
+        {
+          "block_index": 14,
+          "heading": "D. ANALISIS STATISTIK KONSISTENSI"
+        },
+        {
+          "block_index": 16,
+          "heading": "E. EVALUASI KHUSUS PENILAI"
+        },
+        {
+          "block_index": 18,
+          "heading": "F. HASIL PENGUJIAN KONSISTENSI"
+        },
+        {
+          "block_index": 22,
+          "heading": "Petugas Pengujian Konsistensi:"
+        }
+      ]
+    },
+    {
+      "survey": "PCI Manual",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 27,
+      "tables": 14,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 3,
+          "heading": "B. PERSONEL DAN PERALATAN YANG DIVERIFIKASI"
+        },
+        {
+          "block_index": 5,
+          "heading": "C. VERIFIKASI PROSES PENGAMBILAN DATA"
+        },
+        {
+          "block_index": 7,
+          "heading": "D. VALIDASI KONSISTENSI DATA ANTAR TIM"
+        },
+        {
+          "block_index": 8,
+          "heading": "1. Perbandingan Hasil Nilai PCI"
+        },
+        {
+          "block_index": 10,
+          "heading": "2. Perbandingan Identifikasi Jenis Kerusakan"
+        },
+        {
+          "block_index": 12,
+          "heading": "3. Perbandingan Penilaian Tingkat Keparahan"
+        },
+        {
+          "block_index": 14,
+          "heading": "4. Perbandingan Pengukuran Dimensi"
+        },
+        {
+          "block_index": 16,
+          "heading": "E. VALIDASI KUALITAS DOKUMENTASI"
+        },
+        {
+          "block_index": 18,
+          "heading": "F. VALIDASI KEWAJARAN DATA 2-MINGGUAN"
+        },
+        {
+          "block_index": 20,
+          "heading": "G. VALIDASI BERDASARKAN JENIS KERUSAKAN"
+        },
+        {
+          "block_index": 22,
+          "heading": "H. EVALUASI TIM SURVEI"
+        },
+        {
+          "block_index": 24,
+          "heading": "I. TEMUAN VERIFIKASI DAN TINDAKAN PERBAIKAN"
+        },
+        {
+          "block_index": 26,
+          "heading": "J. RINGKASAN HASIL VERIFIKASI 2-MINGGUAN"
+        },
+        {
+          "block_index": 28,
+          "heading": "K. TREN KINERJA 2-MINGGUAN"
+        },
+        {
+          "block_index": 30,
+          "heading": "L. KESIMPULAN DAN REKOMENDASI"
+        }
+      ]
+    },
+    {
+      "survey": "PCI Manual",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 21,
+      "tables": 9,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "A. INFORMASI UMUM"
+        },
+        {
+          "block_index": 3,
+          "heading": "B. VERIFIKASI KELENGKAPAN DATA"
+        },
+        {
+          "block_index": 5,
+          "heading": "C. VERIFIKASI KUALITAS DATA DOKUMENTASI"
+        },
+        {
+          "block_index": 7,
+          "heading": "D. VALIDASI AKURASI DATA PENGUKURAN"
+        },
+        {
+          "block_index": 9,
+          "heading": "E. VALIDASI KEWAJARAN DATA"
+        },
+        {
+          "block_index": 11,
+          "heading": "F. VERIFIKASI KEPATUHAN TERHADAP PROSEDUR"
+        },
+        {
+          "block_index": 13,
+          "heading": "G. VERIFIKASI FORMAT PELAPORAN"
+        },
+        {
+          "block_index": 15,
+          "heading": "H. TEMUAN DAN REKOMENDASI"
+        },
+        {
+          "block_index": 17,
+          "heading": "I. RINGKASAN HASIL VERIFIKASI DAN VALIDASI"
+        },
+        {
+          "block_index": 19,
+          "heading": "J. KESIMPULAN"
+        },
+        {
+          "block_index": 20,
+          "heading": "Hasil Verifikasi dan Validasi Internal:"
+        }
+      ]
+    },
+    {
+      "survey": "RNI",
+      "file": "CHECKLIST KONSISTENSI SURVEY RNI.docx",
+      "phase": "consistency",
+      "combined": false,
+      "paragraphs": 31,
+      "tables": 19,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "A. DATA KONSISTENSI AWAL"
+        },
+        {
+          "block_index": 2,
+          "heading": "1. Penetapan Ruas Uji Konsistensi"
+        },
+        {
+          "block_index": 4,
+          "heading": "2. Metode Pengujian Konsistensi Awal"
+        },
+        {
+          "block_index": 6,
+          "heading": "3. Jaminan Kualitas Pengukuran Awal"
+        },
+        {
+          "block_index": 8,
+          "heading": "B. PENGUJIAN KONSISTENSI BERKALA"
+        },
+        {
+          "block_index": 9,
+          "heading": "1. Jadwal Pengujian Konsistensi"
+        },
+        {
+          "block_index": 11,
+          "heading": "2. Metode Pengujian Konsistensi Berkala"
+        },
+        {
+          "block_index": 13,
+          "heading": "3. Pemeriksaan Parameter Konsistensi"
+        },
+        {
+          "block_index": 15,
+          "heading": "C. ANALISIS HASIL KONSISTENSI"
+        },
+        {
+          "block_index": 16,
+          "heading": "1. Pengukuran Jarak"
+        },
+        {
+          "block_index": 18,
+          "heading": "2. Pengukuran Koordinat"
+        },
+        {
+          "block_index": 20,
+          "heading": "3. Data Inventori Jalan"
+        },
+        {
+          "block_index": 22,
+          "heading": "D. DOKUMENTASI HASIL KONSISTENSI"
+        },
+        {
+          "block_index": 23,
+          "heading": "1. Format Laporan Konsistensi"
+        },
+        {
+          "block_index": 25,
+          "heading": "2. Pemantauan Tren Konsistensi"
+        },
+        {
+          "block_index": 27,
+          "heading": "3. Pengelolaan Data Konsistensi"
+        },
+        {
+          "block_index": 29,
+          "heading": "E. TINDAKAN KOREKSI DAN PENCEGAHAN"
+        },
+        {
+          "block_index": 30,
+          "heading": "1. Identifikasi Penyimpangan"
+        },
+        {
+          "block_index": 32,
+          "heading": "2. Mitigasi Penyimpangan"
+        },
+        {
+          "block_index": 34,
+          "heading": "3. Evaluasi Efektivitas Tindakan"
+        },
+        {
+          "block_index": 46,
+          "heading": "Analisis Statistik Konsistensi"
+        },
+        {
+          "block_index": 47,
+          "heading": "Grafik Tren Konsistensi"
+        },
+        {
+          "block_index": 48,
+          "heading": "Dokumentasi Pengujian Konsistensi"
+        }
+      ]
+    },
+    {
+      "survey": "RNI",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx",
+      "phase": "periodic14",
+      "combined": false,
+      "paragraphs": 40,
+      "tables": 25,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "A. PERSIAPAN VERIFIKASI DAN VALIDASI 2-MINGGUAN"
+        },
+        {
+          "block_index": 2,
+          "heading": "1. Penjadwalan dan Tim Pelaksana"
+        },
+        {
+          "block_index": 4,
+          "heading": "2. Persiapan Dokumen dan Data"
+        },
+        {
+          "block_index": 6,
+          "heading": "3. Penetapan Ruang Lingkup"
+        },
+        {
+          "block_index": 8,
+          "heading": "B. VERIFIKASI HASIL VALIDASI INTERNAL PENYEDIA JASA"
+        },
+        {
+          "block_index": 9,
+          "heading": "1. Kelengkapan Laporan Validasi Internal"
+        },
+        {
+          "block_index": 11,
+          "heading": "2. Kesesuaian Kriteria Validasi Internal"
+        },
+        {
+          "block_index": 13,
+          "heading": "3. Tindak Lanjut Temuan Internal"
+        },
+        {
+          "block_index": 15,
+          "heading": "C. PEMERIKSAAN SAMPLING DATA TEKNIS"
+        },
+        {
+          "block_index": 16,
+          "heading": "1. Pengambilan Sampel"
+        },
+        {
+          "block_index": 18,
+          "heading": "2. Pemeriksaan Parameter Kunci"
+        },
+        {
+          "block_index": 20,
+          "heading": "3. Analisis Konsistensi Data"
+        },
+        {
+          "block_index": 22,
+          "heading": "D. VERIFIKASI KESESUAIAN DENGAN STANDAR TEKNIS"
+        },
+        {
+          "block_index": 23,
+          "heading": "1. Kesesuaian dengan Pedoman Teknis"
+        },
+        {
+          "block_index": 25,
+          "heading": "2. Kesesuaian dengan Spesifikasi Kontrak"
+        },
+        {
+          "block_index": 27,
+          "heading": "3. Kesesuaian dengan Standar SMD Jalan"
+        },
+        {
+          "block_index": 29,
+          "heading": "E. VALIDASI PROGRES SURVEI"
+        },
+        {
+          "block_index": 30,
+          "heading": "1. Kesesuaian dengan Jadwal"
+        },
+        {
+          "block_index": 32,
+          "heading": "2. Kesesuaian dengan Target Volume"
+        },
+        {
+          "block_index": 34,
+          "heading": "3. Kualitas Hasil Survei"
+        },
+        {
+          "block_index": 36,
+          "heading": "F. TINDAK LANJUT DAN REKOMENDASI"
+        },
+        {
+          "block_index": 37,
+          "heading": "1. Identifikasi Temuan"
+        },
+        {
+          "block_index": 39,
+          "heading": "2. Rekomendasi Tindakan Perbaikan"
+        },
+        {
+          "block_index": 41,
+          "heading": "3. Evaluasi Tindak Lanjut Periode Sebelumnya"
+        },
+        {
+          "block_index": 43,
+          "heading": "G. DOKUMENTASI DAN PELAPORAN"
+        },
+        {
+          "block_index": 44,
+          "heading": "1. Penerbitan Berita Acara"
+        },
+        {
+          "block_index": 46,
+          "heading": "2. Pelaporan dan Distribusi"
+        },
+        {
+          "block_index": 48,
+          "heading": "3. Dokumentasi dan Pengarsipan"
+        }
+      ]
+    },
+    {
+      "survey": "RNI",
+      "file": "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx",
+      "phase": "internal",
+      "combined": false,
+      "paragraphs": 35,
+      "tables": 22,
+      "headings": [
+        {
+          "block_index": 1,
+          "heading": "A. PERSIAPAN VERIFIKASI DAN VALIDASI INTERNAL"
+        },
+        {
+          "block_index": 2,
+          "heading": "1. Tim Verifikasi dan Validasi Internal"
+        },
+        {
+          "block_index": 4,
+          "heading": "2. Perencanaan Verifikasi dan Validasi"
+        },
+        {
+          "block_index": 6,
+          "heading": "3. Penetapan Kriteria Penerimaan"
+        },
+        {
+          "block_index": 8,
+          "heading": "B. VERIFIKASI DATA HARIAN"
+        },
+        {
+          "block_index": 9,
+          "heading": "1. Kelengkapan Data Survei"
+        },
+        {
+          "block_index": 11,
+          "heading": "2. Format Data"
+        },
+        {
+          "block_index": 13,
+          "heading": "3. Kewajaran Data"
+        },
+        {
+          "block_index": 15,
+          "heading": "C. VALIDASI DATA BERKALA (2 MINGGUAN)"
+        },
+        {
+          "block_index": 16,
+          "heading": "1. Kelengkapan Data"
+        },
+        {
+          "block_index": 18,
+          "heading": "2. Ketelitian Data"
+        },
+        {
+          "block_index": 20,
+          "heading": "3. Kesesuaian dengan Standar Teknis"
+        },
+        {
+          "block_index": 22,
+          "heading": "D. PEMERIKSAAN SILANG DATA"
+        },
+        {
+          "block_index": 23,
+          "heading": "1. Pemeriksaan Silang Antar Parameter"
+        },
+        {
+          "block_index": 25,
+          "heading": "2. Pemeriksaan Silang Antar Segmen"
+        },
+        {
+          "block_index": 27,
+          "heading": "3. Pemeriksaan Silang dengan Data Sebelumnya"
+        },
+        {
+          "block_index": 29,
+          "heading": "E. TINDAK LANJUT KETIDAKSESUAIAN"
+        },
+        {
+          "block_index": 30,
+          "heading": "1. Identifikasi Ketidaksesuaian"
+        },
+        {
+          "block_index": 32,
+          "heading": "2. Tindakan Perbaikan"
+        },
+        {
+          "block_index": 34,
+          "heading": "3. Verifikasi Hasil Perbaikan"
+        },
+        {
+          "block_index": 36,
+          "heading": "F. DOKUMENTASI DAN PELAPORAN"
+        },
+        {
+          "block_index": 37,
+          "heading": "1. Berita Acara Verifikasi dan Validasi Internal"
+        },
+        {
+          "block_index": 39,
+          "heading": "2. Statistik Verifikasi dan Validasi"
+        },
+        {
+          "block_index": 41,
+          "heading": "3. Manajemen Data Verifikasi dan Validasi"
+        },
+        {
+          "block_index": 48,
+          "heading": "Tim Verifikasi dan Validasi Internal:"
+        }
+      ]
+    }
+  ],
+  "coverage": {
+    "Lalu Lintas/periodic14": [
+      "CHECKLIST KONSISTENSI CHECKLIST VERIFIKASI DAN VALIDASI 2 MINGGUAN.docx"
+    ],
+    "Lalu Lintas/consistency": [
+      "CHECKLIST KONSISTENSI SURVEY LALU LINTAS.docx"
+    ],
+    "Lalu Lintas/internal": [
+      "CHECKLIST VALIDASI INTERNAL SURVEY LALU LINTAS.docx"
+    ],
+    "Lereng/consistency": [
+      "CHECKLIST KONSISTENSI SURVEI LERENG.docx"
+    ],
+    "Lereng/internal": [
+      "CHECKLIST VALIDASI DAN VERIFIKASI INTERNAL SURVEI LERENG.docx"
+    ],
+    "Lereng/periodic14": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI 2 MINGGUAN SURVEI LERENG.docx"
+    ],
+    "Drainase/consistency": [
+      "KONSISTENSI SURVEI KONDISI DRAINASE.docx"
+    ],
+    "Drainase/periodic14": [
+      "VERIVIKASI DAN VALIDASI 2 MINGGUAN SURVEI KONDISI DRAINASE.docx"
+    ],
+    "Drainase/internal": [
+      "VERIVIKASI DAN VALIDASI INTERNAL SURVEI KONDISI DRAINASE.docx"
+    ],
+    "IRI/periodic14": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx"
+    ],
+    "IRI/internal": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx"
+    ],
+    "Jembatan/consistency": [
+      "CHECKLIST KONSISTENSI.docx"
+    ],
+    "Jembatan/periodic14": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx"
+    ],
+    "Jembatan/internal": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx"
+    ],
+    "PCI AI/consistency": [
+      "CHECKLIST KONSISTENSI SURVEI PCI BERBASIS AI.docx"
+    ],
+    "PCI AI/periodic14": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI 2 MINGGUAN.docx"
+    ],
+    "PCI AI/internal": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL SURVEI PCI BERBASIS AI.docx"
+    ],
+    "PCI Manual/consistency": [
+      "CHECKLIST PENGUJIAN KONSISTENSI.docx"
+    ],
+    "PCI Manual/periodic14": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx"
+    ],
+    "PCI Manual/internal": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx"
+    ],
+    "RNI/consistency": [
+      "CHECKLIST KONSISTENSI SURVEY RNI.docx"
+    ],
+    "RNI/periodic14": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI 2.docx"
+    ],
+    "RNI/internal": [
+      "CHECKLIST VERIFIKASI DAN VALIDASI INTERNAL.docx"
+    ]
+  },
+  "missing_direct_files": [
+    "IRI/consistency",
+    "Lendutan/consistency",
+    "Lendutan/internal",
+    "Lendutan/periodic14"
+  ],
+  "important": "Dokumen gabungan IRI dan Lendutan harus dipisahkan berdasarkan bagian isinya. Jangan menganggap seluruh dokumen sebagai satu kegiatan."
+}

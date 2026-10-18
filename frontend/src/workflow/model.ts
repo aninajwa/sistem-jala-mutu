@@ -286,6 +286,9 @@ productionApprovalNote: string;
     id: string;
     packageName: string;
     spmkDate: string;
+    surveyStartDate?: string;
+    surveyEndDate?: string;
+    contractNumber?: string;
     contractor: string;
     balai: string;
     satker: string;
@@ -301,6 +304,7 @@ productionApprovalNote: string;
   productionTestDates?: Partial<Record<SurveyType,string>>;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
+  cycleHistory?: Record<string, VervalCycle>;
   submission: SubmissionState;
   audits: [AuditLevel, AuditLevel, AuditLevel];
   acceptance: {
@@ -603,6 +607,7 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
         { ...INITIAL_WORKFLOW.productionTests[type], ...parsed.productionTests?.[type] },
       ])) as OperationalWorkflowState['productionTests'],
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
+      cycleHistory: parsed.cycleHistory ?? {},
       calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
       submission: {
         ...INITIAL_WORKFLOW.submission,
