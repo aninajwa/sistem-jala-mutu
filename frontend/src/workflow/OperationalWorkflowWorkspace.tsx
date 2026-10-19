@@ -20,6 +20,8 @@ import { WorkflowNextAction } from './WorkflowNextAction';
 import { StageOwnershipBanner } from './StageOwnershipBanner';
 import { SURVEY_REFERENCES, PRODUCTION_REFERENCE_CHECKS, productionFields, dailyFields, dailyChecks, evaluateDailySurvey } from './surveyStandards';
 import { WorkflowDocuments } from './WorkflowDocuments';
+import { buildAuditSamplePlan } from './auditSamplePlan';
+import { auditSampleIntegrity } from './auditSampleIntegrity';
 import { RULE_SCENARIOS, RULE_CHECKS, RULE_NUMBERS, specialCorrectionErrors } from './correctionRules';
 import { AUDIT_REVIEW_CHECKS, fieldReadiness, semesterTwoReadiness, canMarkFinalReport, termReadiness, correctionClosureErrors, applyClosedCorrection, dueScheduledBackup } from './flowRules';
 import {
@@ -319,6 +321,7 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
       if(!surveyTypes.length||!routes.length){setNotice('Paket memerlukan minimal satu jenis survei dan satu ruas.');return;}
       const packageChanged=packageName!==state.project.packageName||spmkDate!==state.project.spmkDate||contractor!==state.project.contractor||satker!==state.project.satker||ppk!==state.project.ppk||balai!==state.project.balai||semester!==state.project.semester||routes.join('|')!==state.project.routes.join('|')||surveyTypes.join('|')!==state.project.surveyTypes.join('|');
       const scopeChanged=routes.join('|')!==state.project.routes.join('|')||surveyTypes.join('|')!==state.project.surveyTypes.join('|');
+      // Perubahan administratif tidak membatalkan pemeriksaan teknis. Perubahan lingkup harus ditinjau ulang.
       commit('Simpan konfigurasi paket',state.project.id,s=>{
         const allowedProtocolKeys=new Set(surveyTypes.flatMap(type=>CYCLE_PROTOCOLS[type].map(protocol=>`${type} Â· ${protocol}`)));
         const checkedProtocols=Object.fromEntries(Object.entries(s.cycle.checkedProtocols).filter(([key])=>CYCLE_SHARED_PROTOCOLS.includes(key)||allowedProtocolKeys.has(key)));
@@ -343,18 +346,18 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
             ...s.project,
             packageName,spmkDate,contractor,satker,ppk,balai,semester,
             routes,surveyTypes,
-            preparation:{...s.project.preparation,reportApproval:packageChanged?'Draft':s.project.preparation.reportApproval},
+            preparation:{...s.project.preparation,reportApproval:scopeChanged?'Draft':s.project.preparation.reportApproval},
           },
           cycle,
-          calibrationChecklist:packageChanged?{...s.calibrationChecklist,...Object.fromEntries(surveyTypes.map(type=>[type,false]))} as Record<SurveyType,boolean>:s.calibrationChecklist,
-          productionApproval:packageChanged?'Draft':s.productionApproval,
-          productionApprovalBa:packageChanged?'':s.productionApprovalBa,
-          bridgeInspectionPermit:packageChanged?false:s.bridgeInspectionPermit,
-          submission:packageChanged?{...s.submission,validationStatus:'Draft',validationMessage:'Ruang lingkup paket berubah; jalankan ulang validasi dan audit.'}:s.submission,
-          audits:packageChanged?resetAuditLevels():s.audits,
-          acceptance:packageChanged?{...s.acceptance,terms:s.acceptance.terms.map(term=>({...term,complete:false})),semesterTwoRevalidation:false,finalReport:false,finalAcceptance:false}:s.acceptance,
+          calibrationChecklist:scopeChanged?{...s.calibrationChecklist,...Object.fromEntries(surveyTypes.map(type=>[type,false]))} as Record<SurveyType,boolean>:s.calibrationChecklist,
+          productionApproval:scopeChanged?'Draft':s.productionApproval,
+          productionApprovalBa:scopeChanged?'':s.productionApprovalBa,
+          bridgeInspectionPermit:scopeChanged?false:s.bridgeInspectionPermit,
+          submission:scopeChanged?{...s.submission,validationStatus:'Draft',validationMessage:'Ruang lingkup paket berubah; jalankan ulang validasi dan audit.'}:s.submission,
+          audits:scopeChanged?resetAuditLevels():s.audits,
+          acceptance:scopeChanged?{...s.acceptance,terms:s.acceptance.terms.map(term=>({...term,complete:false})),semesterTwoRevalidation:false,finalReport:false,finalAcceptance:false}:s.acceptance,
         };
-      },packageChanged?'Ruang lingkup berubah; persetujuan, validasi, audit, siklus dan progres termin dikembalikan ke tahap pemeriksaan.':'Ruang lingkup paket tersimpan tanpa perubahan');
+      },scopeChanged?'Lingkup teknis berubah; pemeriksaan dan keputusan terkait perlu diulang.':packageChanged?'Identitas paket diperbarui tanpa menghapus persetujuan teknis.':'Ruang lingkup paket tersimpan tanpa perubahan');
       setDaily(current=>({...current,road:routes.includes(current.road)?current.road:routes[0],surveyType:surveyTypes.includes(current.surveyType)?current.surveyType:surveyTypes[0],tool:!surveyTypes.includes(current.surveyType)&&surveyTypes[0]==='Lalu Lintas'?'Traffic Counter':current.tool}));
     };
     return <>{heading(
@@ -3053,6 +3056,9 @@ const sourceModeLabel =
           </div>
         )}
       </Panel>
+      <div className="wf-callout" data-testid="stage4-process-guide" style={{marginBottom:12}}>
+        <strong>Urutan kerja:</strong> Penyedia menyiapkan data sumber dan data tervalidasi terpisah, melengkapi dokumen mutu, lalu memeriksa gerbang RNI/LRS. Setelah audit internal Tingkat 1 dan kesiapan paket terpenuhi, status penyerahan dapat dikonfirmasi. Status VALID di sini adalah catatan workflow, bukan bukti berhasil unggah ke sistem eksternal.
+      </div>
       <SourceAlignmentChecklist packageId={state.project.id} phase="staged" surveyTypes={state.project.surveyTypes} role={state.role} editableRoles={['PIC Balai / Pengguna Jasa','Admin']} title="Checklist Verifikasi Data"/>
 
       {canPrepare?<div className="wf-grid" style={{marginTop:12,alignItems:'start'}}>
@@ -3143,12 +3149,8 @@ const sourceModeLabel =
     const requiredRole=presentation.actor as WorkflowRole;
     const canEditAudit=state.role===requiredRole||state.role==='Admin';
     const scopedTypes=state.project.surveyTypes;
-    const shuffle=<T,>(rows:T[])=>{
-      const out=[...rows];
-      for(let i=out.length-1;i>0;i--){const j=Math.floor(Math.random()*(i+1));[out[i],out[j]]=[out[j],out[i]];}
-      return out;
-    };
     const auditChecks=AUDIT_REVIEW_CHECKS[auditLevel];
+    const sampleIssues=auditSampleIntegrity({audit,records:state.dailyRecords,surveyTypes:scopedTypes,routes:state.project.routes});
     const stage4Ready=fieldReadiness(state).length===0&&lrs.passed&&SUBMISSION_DOCUMENTS.every(key=>state.submission.requiredDocuments[key])&&!!state.submission.rawFileName.trim()&&!!state.submission.cleanedFileName.trim();
     const previousAuditPassed=auditLevel===1||state.audits[auditLevel-2].status==='Lulus';
     const uploadReady=auditLevel===1||state.submission.validationStatus==='VALID';
@@ -3161,38 +3163,16 @@ const sourceModeLabel =
     const makeSamples=()=>{
       if(!canEditAudit){setNotice(`Peran ${requiredRole} diperlukan untuk membuat/menetapkan sampel audit tingkat ${auditLevel}.`);return;}
       if(!canStart){setNotice(auditLevel===1?'Audit Tingkat 1 menunggu Tahap 4 lengkap dan gerbang RNI/LRS lulus.':'Audit tingkat ini menunggu status paket VALID dan audit sebelumnya lulus.');return;}
-      const samples:string[]=[];
-      scopedTypes.forEach(type=>{
-        const records=state.dailyRecords.filter(record=>record.surveyType===type&&state.project.surveyTypes.includes(record.surveyType)&&state.project.routes.includes(record.road)&&record.state==='Tercatat');
-        if(!records.length)return;
-        const rule=samplingRule(type,auditLevel);
-        if(auditLevel===1){samples.push(...records.map(record=>record.id));return;}
-        if(auditLevel===2&&type==='Lalu Lintas'){
-          const byDay=new Map<string,DailySurveyRecord[]>();
-          records.filter(record=>record.trafficDurationMinutes>=10).forEach(record=>byDay.set(record.date,[...(byDay.get(record.date)||[]),record]));
-          for(const dayRecords of byDay.values())samples.push(shuffle(dayRecords)[0].id);
-          return;
-        }
-        if(auditLevel===2&&type==='Lereng'){
-          const groups=new Map<string,DailySurveyRecord[]>();
-          records.forEach(record=>groups.set(record.slopeFailureType||'Belum diklasifikasikan',[...(groups.get(record.slopeFailureType||'Belum diklasifikasikan')||[]),record]));
-          groups.forEach(rows=>samples.push(...shuffle(rows).slice(0,Math.max(1,Math.ceil(rows.length*.1))).map(r=>r.id)));
-          return;
-        }
-        if(auditLevel===2&&rule.rate===5){
-          const totalKm=records.reduce((total,record)=>total+Math.max(0,record.lengthKm),0);
-          const capKm=totalKm*rule.rate/100;
-          let sampledKm=0;
-          for(const record of shuffle(records)){
-            const length=Math.max(0,record.lengthKm);
-            if(length>0&&sampledKm+length<=capKm+0.000001){samples.push(record.id);sampledKm+=length;}
-          }
-          return;
-        }
-        const count=Math.max(1,Math.ceil(records.length*rule.rate/100));
-        samples.push(...shuffle(records).slice(0,count).map(record=>record.id));
+      const result=buildAuditSamplePlan({
+        packageId:state.project.id,
+        auditLevel,
+        surveyTypes:scopedTypes,
+        routes:state.project.routes,
+        records:state.dailyRecords,
       });
-      const next:AuditLevel={...audit,status:'Dalam Review',sampleIds:samples,reviewChecks:{},baNumber:'',decisionNote:''};
+      if(result.issues.length){setNotice(result.issues.join(' '));return;}
+      const samples=result.sampleIds;
+      const next:AuditLevel={...audit,status:'Dalam Review',sampleIds:[...new Set(samples)],reviewChecks:{},baNumber:'',decisionNote:''};
       commit(`Siapkan sampel audit tingkat ${auditLevel}`,`Tingkat ${auditLevel}`,s=>({...s,audits:s.audits.map(x=>x.level===auditLevel?next:x.level>auditLevel?{...INITIAL_WORKFLOW.audits[x.level-1],sampleIds:[]}:x) as OperationalWorkflowState['audits'],acceptance:{...s.acceptance,finalReport:false,finalAcceptance:false,terms:s.acceptance.terms.map(t=>t.id==='T3'||t.id==='T4'?{...t,complete:false}:t)}}),samples.length?'Sampel audit berhasil disiapkan':'Belum ada rekaman yang memenuhi cakupan sampel audit.');
     };
     const patchAudit=(patch:Partial<AuditLevel>,activity:string)=>{
@@ -3201,6 +3181,10 @@ const sourceModeLabel =
         const ba=draft[`audit-ba-${auditLevel}`]??audit.baNumber;
         if(!audit.sampleIds.length||!ba.trim()){setNotice(auditLevel===1?'Bukti audit internal memerlukan cakupan rekaman dan referensi dokumen/BA.':'Audit memerlukan sampel dan nomor BA sebelum dinyatakan lulus.');return;}
         if(!canStart){setNotice('Gerbang audit sebelumnya belum terpenuhi.');return;}
+        if(state.corrections.some(item=>item.status!=='Ditutup'&&item.blockedStage===`Audit tingkat ${auditLevel}`)){
+          setNotice(`Audit tingkat ${auditLevel} belum dapat lulus: ada tindak lanjut audit yang masih terbuka.`);return;
+        }
+        if(sampleIssues.length){setNotice(`Sampel audit tidak valid: ${sampleIssues.join(' ')}`);return;}
         if(!auditChecks.every(key=>audit.reviewChecks?.[key])){setNotice('Selesaikan checklist pemeriksaan tingkat ini sebelum lulus.');return;}
         const missing=scopedTypes.filter(type=>!audit.sampleIds.some(id=>state.dailyRecords.find(r=>r.id===id)?.surveyType===type));
         if(missing.length){setNotice(`Cakupan sampel belum mencakup: ${missing.join(', ')}.`);return;}
@@ -3231,6 +3215,9 @@ const sourceModeLabel =
     const statusLabel=auditLevel===1?'Status kesiapan internal':'Status audit';
     const baLabel=auditLevel===1?'Referensi audit internal / BA':'Nomor berita acara';
     return <>{heading('Tahap 5 Â· audit berjenjang','Audit tingkat 1â€“3','Pemeriksaan dilakukan berurutan. Tingkat 1 mencatat bukti kesiapan internal Penyedia; assurance formal berikutnya dilakukan PIC Balai dan Direktorat sesuai kewenangan.')}
+      <div className="wf-callout" data-testid="stage5-process-guide" style={{marginBottom:12}}>
+        <strong>Urutan audit:</strong> Tingkat 1 oleh Penyedia, Tingkat 2 oleh PIC Balai, dan Tingkat 3 oleh Direktorat. Catat cakupan serta bukti sebelum keputusan. Sampel dihitung secara konsisten dari rekaman yang tersedia; perubahan rekaman atau aturan sampling membutuhkan pemeriksaan ulang. Nomor BA yang dicatat bukan tanda tangan/pengesahan otomatis.
+      </div>
       <SourceAlignmentChecklist packageId={state.project.id} phase="audit" surveyTypes={state.project.surveyTypes} role={state.role} editableRoles={[AUDIT_LEVEL_PRESENTATION[auditLevel].actor as WorkflowRole,'Admin']} title={`Checklist ${AUDIT_LEVEL_PRESENTATION[auditLevel].label}`}/>
       <div className="wf-callout" style={{marginBottom:12}}><strong>{state.role}:</strong> {STAGE5_ROLE_GUIDANCE[state.role]}</div>
       <Panel title="Pilih tingkat pemeriksaan" icon={ShieldCheck}>
@@ -3283,6 +3270,7 @@ const sourceModeLabel =
         <div style={{display:'grid',gap:12,alignContent:'start'}}>
           <Panel title={`Cakupan & sampling Â· tingkat ${auditLevel}`} icon={ClipboardList} extra={<Badge tone={audit.status==='Lulus'?'good':audit.status==='Ditolak'?'bad':'warn'}>{audit.status}</Badge>}>
             <div className="wf-note" style={{marginBottom:8}}>Cakupan mengikuti jenis survei dan tingkat audit. Aturan sampling ditampilkan dari konfigurasi yang berlaku.</div>
+            {sampleIssues.length>0&&audit.sampleIds.length>0&&<div className="wf-callout warn" data-testid="audit-sample-integrity" style={{marginBottom:10}}>Sampel perlu diperiksa ulang sebelum keputusan lulus: {sampleIssues.join(" ")}</div>}
             <div className="wf-table"><table data-testid={`table-sampling-level-${auditLevel}`}><thead><tr><th>Jenis survei</th><th>Protokol cakupan</th><th>Rate</th><th>Satuan</th></tr></thead><tbody>{scopedTypes.map(t=>{const rule=samplingRule(t,auditLevel);return <tr key={t}><td><strong>{t}</strong></td><td>{rule.label}</td><td>{rule.rate}%</td><td>{rule.unit}</td></tr>})}</tbody></table></div>
             <div className="wf-toolbar" style={{marginTop:10}}><Button id={`button-create-samples-${auditLevel}`} kind="primary" onClick={makeSamples} disabled={!canEditAudit||!canStart}><Plus size={13}/>{auditLevel===1?'Catat cakupan audit internal':'Siapkan sampel audit'}</Button><Badge tone="info">{audit.sampleIds.length} rekaman</Badge></div>
             {!canEditAudit&&<div className="wf-callout" style={{marginTop:9}}>Read-only pada peran ini. Aksi Tingkat {auditLevel} dilakukan oleh <strong>{requiredRole}</strong>.</div>}

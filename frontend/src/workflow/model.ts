@@ -581,6 +581,12 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
     if (!saved) return INITIAL_WORKFLOW;
     const parsed = JSON.parse(saved) as Partial<OperationalWorkflowState>;
     if(parsed.flowContractVersion!==3){
+      // Pertahankan snapshot sebelum migrasi yang menginvalidasi hasil teknis.
+      // Snapshot tidak otomatis dipulihkan sebagai persetujuan yang sah.
+      try {
+        const backupKey=`road-qaqc-before-contract-v3-${parsed.flowContractVersion??'legacy'}`;
+        if(!localStorage.getItem(backupKey))localStorage.setItem(backupKey,saved);
+      } catch { /* Penyimpanan backup opsional (mis. kuota browser penuh). */ }
       parsed.productionApproval='Draft';parsed.productionApprovalBa='';parsed.bridgeInspectionPermit=false;
       if(parsed.productionTests){
         if(parsed.productionTests.PCI)parsed.productionTests.PCI={...parsed.productionTests.PCI,pciBenchmarkBalanced:false};

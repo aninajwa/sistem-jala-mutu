@@ -1,0 +1,11 @@
+import { test } from 'node:test';
+import { strict as assert } from 'node:assert';
+import { auditSampleIntegrity } from './auditSampleIntegrity';
+import type { DailySurveyRecord } from './model';
+const record={id:'R1',surveyType:'IRI',road:'A',state:'Tercatat'} as DailySurveyRecord;
+const base={audit:{sampleIds:['R1']},records:[record],surveyTypes:['IRI'] as const,routes:['A']};
+test('sampel valid tidak diblokir',()=>assert.deepEqual(auditSampleIntegrity(base),[]));
+test('rekaman hilang memblokir keputusan',()=>assert.ok(auditSampleIntegrity({...base,records:[]}).some(x=>x.includes('tidak ditemukan'))));
+test('sampel di luar ruas memblokir keputusan',()=>assert.ok(auditSampleIntegrity({...base,routes:['B']}).some(x=>x.includes('luar ruas'))));
+test('rekaman berubah menjadi ditahan memblokir keputusan',()=>assert.ok(auditSampleIntegrity({...base,records:[{...record,state:'Ditahan'}]}).some(x=>x.includes('Tercatat'))));
+test('cakupan multi jenis wajib ada',()=>assert.ok(auditSampleIntegrity({...base,surveyTypes:['IRI','PCI'] as const}).some(x=>x.includes('PCI'))));

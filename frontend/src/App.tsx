@@ -1,4 +1,4 @@
-﻿import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
 import {
   Activity, AlertCircle, AlertTriangle, ArrowDownToLine, ArrowRight, BarChart3, Bell,
@@ -10,6 +10,7 @@ import {
 import { SubmoduleWorkspace } from './SubmoduleWorkspace';
 import { BalaiOsmMap } from './BalaiOsmMap';
 import { OperationalWorkflowWorkspace } from './workflow/OperationalWorkflowWorkspace';
+import { buildCompleteExamplePackage, QA_EXAMPLE_PACKAGE_ID } from './workflow/qaCompleteExamplePackage';
 import { PackageContextHeader, PackageOverview, PackagesPage } from './workflow/PackageHub';
 import { PACKAGE_STORE_KEY, derivePackageStage, loadWorkflowPackageStore, packageStatus, packageWaitingFor, type WorkflowPackageStore } from './workflow/packageStore';
 import { buildRoleNavigation } from './workflow/roleNavigation';
@@ -167,7 +168,20 @@ function RoleEntryScreen({currentRole,onEnter}:{currentRole:WorkflowRole;onEnter
 }
 function App(){
  const [store,setStore]=useState<Store>(readStore);
- const [packageStore,setPackageStore]=useState<WorkflowPackageStore>(loadWorkflowPackageStore);
+ const [packageStore,setPackageStore]=useState<WorkflowPackageStore>(()=>{
+  const loaded=loadWorkflowPackageStore();
+  // Satu paket contoh terpisah: data dummy, mesin workflow yang sama.
+  // Migrasi sekali dari fixture QA lama; dua paket operasional tidak diubah.
+  const alreadySeeded=localStorage.getItem('jala-qa-full-example-v1')==='yes';
+  if (alreadySeeded && loaded.packages[QA_EXAMPLE_PACKAGE_ID]) return loaded;
+  const completedExample=buildCompleteExamplePackage();
+  completedExample.role=loaded.activeRole;
+  localStorage.setItem('jala-qa-full-example-v1','yes');
+  return {
+    ...loaded,
+    packages:{...loaded.packages,[QA_EXAMPLE_PACKAGE_ID]:completedExample},
+  };
+ });
  const activePackageId=packageStore.activePackageId;
  const fallbackPackageId=Object.keys(packageStore.packages)[0]||'PAKET-DEMO-001';
  const workflow=packageStore.packages[activePackageId||fallbackPackageId];
@@ -223,6 +237,8 @@ const visibleNav = useMemo(
     setPackageStore(current=>({...current,activePackageId:id,packages:{...current.packages,[id]:{...current.packages[id],role:current.activeRole}}}));
     navigateSubmodule('/documents:BA & dokumen workflow');
   };
+  // Daftar paket sengaja tidak memuat panel kontrol skenario pengembang.
+  const qaPackageList = <PackagesPage packages={packageStore.packages} role={packageStore.activeRole} onOpen={openPackage}/>;
   const backToPackages=()=>{setPackageStore(current=>({...current,activePackageId:null}));setSelectedSubmodule('');setLocation('/packages');};
   useEffect(()=>{if(demoSession&&!canAccessRoute(packageStore.activeRole,location)){setSelectedSubmodule('');setLocation('/');}},[demoSession,packageStore.activeRole,location,setLocation]);
 
@@ -308,11 +324,11 @@ const visibleNav = useMemo(
       {location==='/'&&<div className="filter-wrap" style={{flex:1,minWidth:135}}><label>Jenis survei</label><select value={jenis} onChange={e=>setJenis(e.target.value)} data-testid="select-mobile-survey-type"><option>Semua</option>{surveiTypes.map(x=><option key={x}>{x}</option>)}</select></div>}
      </div>
       {selectedSubmodule?(workflowSubmodules.has(selectedSubmodule)
-        ?activePackageId?<><PackageContextHeader state={workflow} onBack={backToPackages} onNavigate={navigateSubmodule}/>{selectedSubmodule==='/packages:Ringkasan Paket'?<PackageOverview state={workflow} onNavigate={navigateSubmodule}/>:<OperationalWorkflowWorkspace selection={selectedSubmodule} state={workflow} onUpdate={updateWorkflow} setNotice={setNotice} onNavigate={navigateSubmodule}/>}</>:<PackagesPage packages={packageStore.packages} role={packageStore.activeRole} onOpen={openPackage}/>
+        ?activePackageId?<><PackageContextHeader state={workflow} onBack={backToPackages} onNavigate={navigateSubmodule}/>{selectedSubmodule==='/packages:Ringkasan Paket'?<PackageOverview state={workflow} onNavigate={navigateSubmodule}/>:<OperationalWorkflowWorkspace selection={selectedSubmodule} state={workflow} onUpdate={updateWorkflow} setNotice={setNotice} onNavigate={navigateSubmodule}/>}</>:qaPackageList
         :<SubmoduleWorkspace selection={selectedSubmodule} {...pageProps} onBack={()=>{clearSubmodule();setActiveTab('Semua')}}/>):<Switch>
       <Route path="/"><Dashboard {...pageProps}/></Route>
       <Route path="/data-master"><MasterPage {...pageProps}/></Route>
-      <Route path="/packages"><PackagesPage packages={packageStore.packages} role={packageStore.activeRole} onOpen={openPackage}/></Route>
+      <Route path="/packages">{qaPackageList}</Route>
       <Route path="/entry"><EntryPage {...pageProps}/></Route>
       <Route path="/verification"><VerificationPage {...pageProps}/></Route>
       <Route path="/actions"><ActionsPage {...pageProps}/></Route>
