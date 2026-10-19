@@ -165,6 +165,13 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
     '/audit:Peran & backup','/reports:Matriks cakupan diagram',
     '/documents:BA & dokumen workflow',
   ];
+  const goToBA = (kind: 'kalibrasi'|'konsistensi'|'internal'|'duaMingguan'|'bertahap'|'audit'|'penerimaan', period=0) => {
+    try { localStorage.setItem('jala-ba-navigation-v2', JSON.stringify({packageId:state.project.id,kind,period})); } catch {}
+    try { localStorage.setItem('jala-ba-return-to',selection); } catch {}
+    onNavigate('/documents:BA & dokumen workflow');
+  };
+  const baAccess = (kind: 'kalibrasi'|'konsistensi'|'internal'|'duaMingguan'|'bertahap'|'audit'|'penerimaan', label:string, period=0) =>
+    <button type="button" className="wf-button" onClick={()=>goToBA(kind,period)}><FileText size={14}/>{label}</button>;
   const [draft,setDraft] = useState<Record<string,string>>({});
   const [prodType,setProdType] = useState<SurveyType>('IRI');
   const [daily,setDaily] = useState(()=>defaultDaily(state.simulationDate,state.project.routes[0]||'',state.project.surveyTypes[0]||'IRI'));
@@ -992,7 +999,6 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
           'Kalibrasi & Validasi Awal',
           'Pastikan alat, personel, kalibrasi/validasi, kualifikasi dan bukti pendukung siap sebelum uji coba produksi.'
         )}
-
         <div className="workflow-data-origin">
           <span className="origin-badge provider">
             PENYEDIA
@@ -1014,7 +1020,7 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
             JENIS SURVEI
             ================================================ */}
 
-        <Panel
+      <Panel
           title="Jenis Survei"
           icon={ClipboardCheck}
         >
@@ -1798,6 +1804,10 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
             </Button>
           </div>
         </Panel>
+        <Panel title="Berita Acara Kalibrasi dan Validasi" icon={FileText}>
+          <p className="wf-note">Setelah data alat, personel, dan hasil kalibrasi dicatat, susun satu draft BA untuk jenis survei terkait. Hasil validasi produksi dari Tahap 2 dapat ikut ditampilkan sebagai data pendukung.</p>
+          {baAccess('kalibrasi','Buka BA Kalibrasi & Validasi')}
+        </Panel>
       </>
     );
   };
@@ -1923,7 +1933,7 @@ const sourceModeLabel =
       if(state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin'){setNotice('Peran PIC Balai / Pengguna Jasa diperlukan untuk meninjau metode.');return;}
       if(state.productionApproval!=='Diajukan'&&state.productionApproval!=='Perlu Revisi'){setNotice('Ajukan metode terlebih dahulu sebelum keputusan Pengguna Jasa.');return;}
       if(decision==='Disetujui'&&!reviewReady){setNotice('Persetujuan tertahan sampai seluruh gerbang persiapan, kalibrasi dan uji produksi lulus.');return;}
-      const ba=decision==='Disetujui'?(draft.methodBa||state.productionApprovalBa||`BA-ALAT-METODE-${state.simulationDate.replaceAll('-','')}`):state.productionApprovalBa;
+      const ba=decision==='Disetujui'?(draft.methodBa||state.productionApprovalBa||''):state.productionApprovalBa;
       commit(`Keputusan metode: ${decision}`,state.project.packageName,s=>({...s,productionApproval:decision,productionApprovalBa:ba,productionApprovalNote:draft.reviewerProductionNote??s.productionApprovalNote,bridgeInspectionPermit:decision==='Disetujui'&&scopedTypes.includes('Jembatan')?true:s.bridgeInspectionPermit}),decision==='Disetujui'?'Referensi BA persetujuan metode dicatat pada simulasi':'Metode dikembalikan untuk revisi');
     };
     return <>{heading(
@@ -1931,6 +1941,14 @@ const sourceModeLabel =
   'Validasi Produksi Data / Uji Coba',
   'Data hasil uji diperiksa otomatis terhadap ketentuan QA/QC. Penyedia melengkapi bukti yang belum tersedia, kemudian PIC Balai melakukan review.'
 )}
+  <Panel title="Dokumen Hasil Uji & Persetujuan" icon={FileText}>
+    <p className="wf-note">BA Kalibrasi dan Validasi disusun dari hasil Tahap 1–2. Persetujuan alat/metode diterbitkan setelah hasil uji ditinjau dan disetujui Pengguna Jasa.</p>
+    <div className="wf-toolbar">{baAccess('kalibrasi','Lihat BA Kalibrasi (dokumen Tahap 1)')}</div>
+    <div className="wf-callout" style={{marginTop:10}}>
+      <strong>Persetujuan Alat & Metode: {state.productionApproval}</strong>
+      <div>{state.productionApproval==='Disetujui' ? `Referensi: ${state.productionApprovalBa||'Belum dicatat'}` : 'Belum ada persetujuan. Dokumen persetujuan tidak boleh diterbitkan sebelum review lulus.'}</div>
+    </div>
+  </Panel>
   <Panel
     title="Jenis Survei yang Diperiksa"
     icon={Gauge}
@@ -2777,6 +2795,14 @@ const sourceModeLabel =
       }
     };
     return <>{heading('Tahap 3B Â· verifikasi dan validasi berkala','Verval berkala 14 hari','Penyedia menyiapkan bukti dan checklist periode; hasil pemeriksaan dirangkum sistem, lalu PIC Balai / Pengguna Jasa meninjau, memberi catatan/keputusan, dan mencatat BA berkala.')}
+      <Panel title="Berita Acara Periode" icon={FileText}>
+        <p className="wf-note">Pilih BA sesuai kegiatan. Paket dan periode aktif terisi otomatis; draft belum berarti disetujui.</p>
+        <div className="wf-toolbar" style={{flexWrap:'wrap'}}>
+          {baAccess('konsistensi','Susun BA Konsistensi',activeStage3BPeriod)}
+          {baAccess('internal','Susun BA V&V Internal',activeStage3BPeriod)}
+          {baAccess('duaMingguan','Susun BA V&V 2-Mingguan',activeStage3BPeriod)}
+        </div>
+      </Panel>
       <Stage3BPeriodSelector packageId={state.project.id} activePeriod={activeStage3BPeriod} onPeriodChange={switchStage3BPeriod} onRangeChange={setStage3BPeriodRange}
         surveyStartDate={state.project.surveyStartDate} surveyEndDate={state.project.surveyEndDate}
         editable={state.role==='Penyedia Jasa / Ketua Tim'||state.role==='Admin'} />
@@ -2993,6 +3019,7 @@ const sourceModeLabel =
     ];
     const readOnlyDocRows=documentItems.map((x,i)=><div className="wf-row" key={x} data-testid={`stage4-review-doc-${i}`}><span>{x}</span><Badge tone={state.submission.requiredDocuments[x]?'good':'warn'}>{state.submission.requiredDocuments[x]?'Tercatat':'Belum'}</Badge></div>);
     return <>{heading('Tahap 4 Â· penyiapan data',stage4Title,stage4Detail)}
+      <Panel title="Berita Acara V&V Bertahap" icon={FileText}><p className="wf-note">Draft dibuat dari hasil pemeriksaan bertahap, bukan otomatis disahkan.</p>{baAccess('bertahap','Susun BA V&V Bertahap')}</Panel>
       <div className="wf-callout" style={{marginBottom:12}}><strong>{state.role}:</strong> {STAGE4_ROLE_GUIDANCE[state.role]}</div>
       <GateSummary title={canPrepare?'Kesiapan Tahap 4':'Ringkasan kesiapan paket'} items={readinessItems}/>
 
@@ -3245,6 +3272,13 @@ const sourceModeLabel =
         </div>
       </Panel>
 
+      <Panel title={`Dokumen hasil audit · Tingkat ${auditLevel}`} icon={FileText}>
+        <p className="wf-note">Ringkasan mengikuti sampel, checklist, temuan, dan keputusan audit yang sudah tercatat. Dokumen ini bukan BA Audit resmi sampai format dan pengesahannya ditetapkan.</p>
+        <div className="wf-toolbar">
+          {baAccess('audit',`Lihat / susun dokumen audit tingkat ${auditLevel}`)}
+          <Badge tone={audit.status==='Lulus'?'good':audit.status==='Ditolak'?'bad':'warn'}>{audit.status}</Badge>
+        </div>
+      </Panel>
       <div className="wf-grid" style={{marginTop:12,alignItems:'start'}}>
         <div style={{display:'grid',gap:12,alignContent:'start'}}>
           <Panel title={`Cakupan & sampling Â· tingkat ${auditLevel}`} icon={ClipboardList} extra={<Badge tone={audit.status==='Lulus'?'good':audit.status==='Ditolak'?'bad':'warn'}>{audit.status}</Badge>}>
@@ -3352,6 +3386,7 @@ const sourceModeLabel =
       commit('Catat penerimaan akhir',state.project.packageName,s=>({...s,acceptance:{...s.acceptance,acceptanceDecision:'Diterima',acceptanceRejectionReason:'',finalAcceptance:true,finalAcceptanceBa:draft.finalAcceptanceBa||s.acceptance.finalAcceptanceBa||`BA-AKHIR-${s.simulationDate}`}}),'Penerimaan akhir dan referensi BA dicatat.');
     };
     return <>{heading('Tahap 6 Â· penerimaan','Penerimaan data & termin','Catat penerimaan parsial dan progres T1â€“T4. Penerimaan akhir menunggu seluruh termin, audit berjenjang, revalidasi Semester II dan laporan akhir.')}
+      <Panel title="Berita Acara Penerimaan Data" icon={FileText}><p className="wf-note">BA mengikuti keputusan dan data yang sudah diperiksa, dengan para pihak sesuai format sumber.</p>{baAccess('penerimaan','Susun BA Penerimaan')}</Panel>
       <div className="wf-callout" style={{marginBottom:12}}><strong>{state.role}:</strong> {STAGE6_ROLE_GUIDANCE[state.role]}</div>
 
       <Panel title="Dokumen Penerimaan" icon={FileText}>
@@ -3653,7 +3688,7 @@ const sourceModeLabel =
     case '/notifications:Pengingat & eskalasi': content=notificationsScreen(); break;
     case '/audit:Peran & backup': content=auditRoleScreen(); break;
     case '/reports:Matriks cakupan diagram': content=diagramScreen(); break;
-    case '/documents:BA & dokumen workflow': content=<>{heading('Kontrol dokumen Â· lintas tahap','BA & dokumen workflow','Referensi terhubung ke status sumber; tidak ada file nyata yang diunggah.')}<WorkflowDocuments state={state}/></>;break;
+    case '/documents:BA & dokumen workflow': content=<>{heading('Kontrol dokumen Â· lintas tahap','BA & dokumen workflow','Referensi terhubung ke status sumber; tidak ada file nyata yang diunggah.')}<WorkflowDocuments state={state} period={activeStage3BPeriod} periodRange={stage3bPeriodRange} onNavigate={onNavigate}/></>;break;
     default:return null;
   }
   return <div className="wf" data-testid="operational-workflow-workspace"><WorkflowNextAction state={state} onNavigate={onNavigate}/><StageOwnershipBanner selection={selection} role={state.role}/>{content}</div>;

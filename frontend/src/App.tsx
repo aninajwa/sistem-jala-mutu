@@ -14,7 +14,6 @@ import { PackageContextHeader, PackageOverview, PackagesPage } from './workflow/
 import { PACKAGE_STORE_KEY, derivePackageStage, loadWorkflowPackageStore, packageStatus, packageWaitingFor, type WorkflowPackageStore } from './workflow/packageStore';
 import { buildRoleNavigation } from './workflow/roleNavigation';
 import { RoleSidebar } from './workflow/RoleSidebar';
-import { WorkflowDocuments } from './workflow/WorkflowDocuments';
 import {
   ROLE_DEMO_USERS, ROLE_HOME_LABELS, ROLE_HOME_PRIORITIES, ROLE_HOME_QUICK_LINKS,
   WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE, canAccessRoute, canRole,
@@ -219,6 +218,11 @@ const visibleNav = useMemo(
   const enterAsRole=(role:WorkflowRole)=>{setPackageStore(current=>({...current,activeRole:role,packages:Object.fromEntries(Object.entries(current.packages).map(([id,state])=>[id,{...state,role}]))}));localStorage.setItem(DEMO_SESSION_KEY,'active');setDemoSession(true);setSelectedSubmodule('');setLocation('/');setNotice(`Peran aktif: ${role}`);};
   const switchRole=()=>{localStorage.removeItem(DEMO_SESSION_KEY);setDemoSession(false);setSelectedSubmodule('');setMobileOpen(false);};
   const openPackage=(id:string)=>{setPackageStore(current=>({...current,activePackageId:id,packages:{...current.packages,[id]:{...current.packages[id],role:current.activeRole}}}));setSelectedSubmodule('/packages:Ringkasan Paket');setLocation('/packages?submodule=%2Fpackages%3ARingkasan%20Paket');setNotice('Workspace paket dibuka.');};
+  const openPackageBA=(id:string,kind:string)=>{
+    try {localStorage.setItem('jala-ba-navigation-v2',JSON.stringify({packageId:id,kind,period:1}));localStorage.setItem('jala-ba-return-to','/packages:Ringkasan Paket');}catch{}
+    setPackageStore(current=>({...current,activePackageId:id,packages:{...current.packages,[id]:{...current.packages[id],role:current.activeRole}}}));
+    navigateSubmodule('/documents:BA & dokumen workflow');
+  };
   const backToPackages=()=>{setPackageStore(current=>({...current,activePackageId:null}));setSelectedSubmodule('');setLocation('/packages');};
   useEffect(()=>{if(demoSession&&!canAccessRoute(packageStore.activeRole,location)){setSelectedSubmodule('');setLocation('/');}},[demoSession,packageStore.activeRole,location,setLocation]);
 
@@ -258,7 +262,7 @@ const visibleNav = useMemo(
    setMobileOpen(false);
   };
   const clearSubmodule=()=>{setSelectedSubmodule('');const url=new URL(window.location.href);url.searchParams.delete('submodule');window.history.replaceState(window.history.state,'',url);};
-  const pageProps={store,workflow,packages:packageStore.packages,openPackage,balai,periode,jenis,scoped,search,setSearch,activeTab,setActiveTab,openNew,beginEdit,updateStatus,record,setNotice};
+  const pageProps={store,workflow,packages:packageStore.packages,openPackage,openPackageBA,balai,periode,jenis,scoped,search,setSearch,activeTab,setActiveTab,openNew,beginEdit,updateStatus,record,setNotice};
  if(!demoSession)return <RoleEntryScreen currentRole={packageStore.activeRole} onEnter={enterAsRole}/>;
  return <WouterRouter>
    <div className="app-shell" onClickCapture={e=>{if((e.target as HTMLElement).closest('[data-testid="button-export-report"]')){const rows:string[][]=[['Jenis rekaman','ID','Balai / PIC','Ruas / Nama','Jenis / Kategori','Status','Tanggal / Detail'],...store.surveys.map(s=>['Survei',s.id,s.balai,s.ruas,s.jenis,s.status,`${s.tanggal}; ${s.hasil}; ${s.km} km`]),...store.findings.map(f=>['Temuan',f.id,f.pic,f.ruas,f.jenis,f.status,`Prioritas ${f.prioritas}; jatuh tempo ${f.due}`]),...store.docs.map(d=>['Dokumen',d.id,'',d.nama,d.kategori,d.status,`Versi ${d.versi}`])];downloadCsv(`data-qaqc-${new Date().toISOString().slice(0,10)}.csv`,rows)}}}>
@@ -326,7 +330,7 @@ const visibleNav = useMemo(
  </WouterRouter>;
 }
 
-type Props={store:Store;workflow:OperationalWorkflowState;packages:Record<string,OperationalWorkflowState>;openPackage:(id:string)=>void;balai:string;periode:string;jenis:string;scoped:Survey[];search:string;setSearch:(s:string)=>void;activeTab:string;setActiveTab:(s:string)=>void;openNew:(t:'survey'|'finding'|'doc'|'master')=>void;beginEdit:(t:'survey'|'finding'|'doc'|'master',id:string)=>void;updateStatus:(t:'survey'|'finding'|'doc',id:string,status:string)=>void;record:(a:string,o:string)=>void;setNotice:(s:string)=>void};
+type Props={store:Store;workflow:OperationalWorkflowState;packages:Record<string,OperationalWorkflowState>;openPackage:(id:string)=>void;openPackageBA:(id:string,kind:string)=>void;balai:string;periode:string;jenis:string;scoped:Survey[];search:string;setSearch:(s:string)=>void;activeTab:string;setActiveTab:(s:string)=>void;openNew:(t:'survey'|'finding'|'doc'|'master')=>void;beginEdit:(t:'survey'|'finding'|'doc'|'master',id:string)=>void;updateStatus:(t:'survey'|'finding'|'doc',id:string,status:string)=>void;record:(a:string,o:string)=>void;setNotice:(s:string)=>void};
 function KPI({icon:Icon,label,value,note,tone='blue',testId}:{icon:any;label:string;value:string;note:string;tone?:string;testId:string}){
  return <div className="kpi" data-testid={testId}><div className={`kpi-icon ${tone}`}><Icon size={19}/></div><div><div className="kpi-label">{label}</div><div className="kpi-value">{value}</div><div className="kpi-note">{note}</div></div></div>;
 }
@@ -500,14 +504,27 @@ function ReportsPage(p:Props){
 }
 function DocumentsPage(p:Props){
  const docs=p.store.docs.filter(d=>`${d.nama} ${d.kategori} ${d.status}`.toLowerCase().includes(p.search.toLowerCase())).filter(d=>p.activeTab==='Semua'||d.kategori===p.activeTab);
- return <><PageHeading label="Kontrol dokumen mutu" detail="Sertifikat, hasil validasi, dan bukti pendukung untuk paket survei" action={<button className="btn primary" onClick={()=>p.openNew('doc')} data-testid="button-upload-document"><Plus size={13}/>Tambah dokumen</button>}/>
- <WorkflowDocuments state={p.workflow}/>
- <div className="kpi-grid" style={{gridTemplateColumns:'repeat(4,minmax(0,1fr))'}}><KPI icon={FileText} label="Total dokumen" value={`${p.store.docs.length+244}`} note="terdaftar pada sistem" testId="kpi-doc-total"/><KPI icon={CheckCircle2} label="Paket lengkap" value="77" note="72% dari kebutuhan" tone="green" testId="kpi-doc-complete"/><KPI icon={AlertTriangle} label="Perlu dilengkapi" value={`${p.store.docs.filter(d=>d.status!=='Lengkap').length+7}`} note="tindak lanjut dibutuhkan" tone="red" testId="kpi-doc-incomplete"/><KPI icon={Layers3} label="Versi terbaru" value="32" note="dokumen diperbarui" tone="blue" testId="kpi-doc-latest"/></div>
- <div className="grid-two"><Section title="File manager dokumen" icon={BookOpen} extra={<FilterToolbar search={p.search} setSearch={p.setSearch} actions={<button className="btn sm" onClick={()=>p.setSearch('')} data-testid="button-reset-document-search"><RotateCcw size={12}/></button>}/>}>
- <div className="tabs">{['Semua','Kalibrasi','Validasi','Verifikasi berkala','Berita acara'].map(t=><button className={`tab ${p.activeTab===t?'active':''}`} key={t} onClick={()=>p.setActiveTab(t)} data-testid={`tab-doc-${t.toLowerCase().replaceAll(' ','-')}`}>{t}</button>)}</div>
- <div className="table-wrap"><table data-testid="table-documents"><thead><tr><th>Nama dokumen</th><th>Kategori</th><th>Versi</th><th>Status</th><th>Aksi</th></tr></thead><tbody>{docs.map(d=><tr key={d.id} data-testid={`row-document-${d.id}`}><td><div style={{display:'flex',gap:7,alignItems:'center'}}><FileText size={14} color="#d75d53"/><strong>{d.nama}</strong></div></td><td>{d.kategori}</td><td>{d.versi}</td><td><Status value={d.status}/></td><td><div className="toolbar"><button className="btn sm" onClick={()=>p.beginEdit('doc',d.id)} data-testid={`button-edit-document-${d.id}`}><Pencil size={12}/></button><button className="btn sm" onClick={()=>p.updateStatus('doc',d.id,d.status==='Lengkap'?'Perlu Dilengkapi':'Lengkap')} data-testid={`button-toggle-document-${d.id}`} title="Ubah status"><Check size={12}/></button></div></td></tr>)}</tbody></table>{docs.length===0&&<div className="empty"><FileText size={21}/>Dokumen tidak ditemukan.</div>}</div>
- </Section><div style={{display:'grid',gap:11}}><Section title="Kelengkapan paket survei" icon={ClipboardCheck}><div className="panel-body"><div style={{display:'flex',alignItems:'center',gap:18}}><div style={{width:100,height:100,borderRadius:'50%',background:'conic-gradient(#13a17a 0 72%,#e8eef2 72% 100%)',display:'grid',placeItems:'center'}}><div style={{width:72,height:72,borderRadius:'50%',background:'white',display:'grid',placeItems:'center',textAlign:'center',font:'800 20px Manrope',color:'#173453'}}>77<span style={{font:'9px DM Sans',display:'block'}}>Paket lengkap</span></div></div><div style={{display:'grid',gap:8}}><span><i style={{display:'inline-block',width:8,height:8,borderRadius:8,background:'#13a17a',marginRight:7}}/>Lengkap <b>77</b></span><span><i style={{display:'inline-block',width:8,height:8,borderRadius:8,background:'#edb23b',marginRight:7}}/>Perlu dilengkapi <b>8</b></span><span><i style={{display:'inline-block',width:8,height:8,borderRadius:8,background:'#d9e1e7',marginRight:7}}/>Belum ada <b>3</b></span></div></div>{['Sertifikat kalibrasi','Hasil validasi','Verifikasi berkala','Foto/video','Data mentah & final'].map(x=><div className="quality-check" key={x}><span>{x}</span><Status value={x==='Verifikasi berkala'?'Perlu Dilengkapi':'Ada'}/></div>)}</div></Section>
- <Section title="Riwayat revisi" icon={RotateCcw}><div className="panel-body">{['v2.1 Â· Kalibrasi alat','v1.4 Â· Hasil validasi','v1.3 Â· Verifikasi berkala'].map((x,i)=><div className="quality-check" key={x}><span>{x}</span><span className="subtle">{['14 Jun','09 Jun','05 Jun'][i]} 2027</span></div>)}</div></Section></div></div></>;
+ const isBerita=p.activeTab==='Berita acara';
+ return <>
+  <PageHeading label={isBerita?'Berita Acara':'Dokumen Mutu'} detail={isBerita?'Susun dan periksa draft BA berdasarkan tahapan QA/QC.':'Dokumen dan bukti pendukung paket survei.'} action={!isBerita?<button className="btn primary" onClick={()=>p.openNew('doc')} data-testid="button-upload-document"><Plus size={13}/>Tambah dokumen</button>:undefined}/>
+  {isBerita ? <Section title="Pilih Paket untuk Berita Acara" icon={FileText}>
+     <div className="panel-body" style={{display:'grid',gap:10}}>
+       <p style={{margin:'0 0 4px',fontSize:12,color:'#58697d'}}>Pilih BA pada paket yang benar untuk membuka draft atau hasilnya. Penyusunan baru sebaiknya dimulai dari tahap pemeriksaan terkait.</p>
+       {Object.values(p.packages).map(item=><div key={item.project.id} style={{padding:14,border:'1px solid #dae5ed',borderRadius:9,display:'grid',gap:10}}>
+         <div><strong>{item.project.packageName}</strong><div style={{fontSize:11,color:'#66778b',marginTop:3}}>{item.project.id} · {item.project.balai} · {item.project.surveyTypes.join(', ')}</div></div>
+         <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(230px,1fr))',gap:7}}>
+           {([['kalibrasi','BA Kalibrasi & Validasi','Tahap 1–2'],['konsistensi','BA Konsistensi','Tahap 3B'],['internal','BA V&V Internal','Tahap 3B'],['duaMingguan','BA V&V 2-Mingguan','Tahap 3B'],['bertahap','BA V&V Bertahap','Tahap 4'],['audit','Dokumen Hasil Audit','Tahap 5'],['penerimaan','BA Penerimaan Data','Tahap 6']] as const).map(([kind,name,stage])=><button key={kind} type="button" className="btn sm" style={{justifyContent:'space-between',minHeight:39}} onClick={()=>p.openPackageBA(item.project.id,kind)}><span><FileText size={13} style={{verticalAlign:'middle',marginRight:5}}/>{name} <small style={{opacity:.65,marginLeft:4}}>{stage}</small></span><ArrowRight size={12}/></button>)}
+         </div>
+       </div>)}
+       {!Object.keys(p.packages).length&&<p>Belum ada paket yang tersedia.</p>}
+     </div>
+   </Section> : <>
+   <Section title="Dokumen tercatat" icon={BookOpen} extra={<FilterToolbar search={p.search} setSearch={p.setSearch} actions={<button className="btn sm" onClick={()=>p.setSearch('')} data-testid="button-reset-document-search"><RotateCcw size={12}/></button>}/> }>
+     <div className="tabs">{['Semua','Kalibrasi','Validasi','Verifikasi berkala','Berita acara'].map(t=><button className={`tab ${p.activeTab===t?'active':''}`} key={t} onClick={()=>p.setActiveTab(t)} data-testid={`tab-doc-${t.toLowerCase().replaceAll(' ','-')}`}>{t}</button>)}</div>
+     <div className="table-wrap"><table data-testid="table-documents"><thead><tr><th>Nama dokumen</th><th>Kategori</th><th>Versi</th><th>Status</th></tr></thead><tbody>{docs.length ? docs.map(d=><tr key={d.id} data-testid={`row-document-${d.id}`}><td>{d.nama}</td><td>{d.kategori}</td><td>{d.versi}</td><td><Status value={d.status}/></td></tr>) : <tr><td colSpan={4}>Belum ada dokumen pada kategori ini.</td></tr>}</tbody></table></div>
+   </Section>
+  </>}
+ </>;
 }
 function NotificationsPage(p:Props){
  const [read,setRead]=useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('road-qaqc-notifications-read')||'[]') as string[]}catch{return[]}});
@@ -549,5 +566,3 @@ function DataDialog({type,editing,store,onClose,onSave}:{type:'survey'|'finding'
   </form></div></div>;
 }
 export default App;
-
-
