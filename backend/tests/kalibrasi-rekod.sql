@@ -22,7 +22,7 @@ begin
  state:=public.simpan_kalibrasi_alat(pid,k,v,'{"pelaksana":"UJIAN - pembetulan"}');v:=(state->>'versi')::int;
  if v<>2 or state->>'pelaksana'<>'UJIAN - pembetulan' then raise exception 'Edit failed';end if;
  if (public.simpan_kalibrasi_alat(pid,k,v,'{"pelaksana":"UJIAN - pembetulan"}')->>'versi')::int<>v then raise exception 'No-op increased version';end if;
- begin perform public.simpan_kalibrasi_alat(pid,k,1,'{"pelaksana":"Stale"}');raise exception 'Stale edit allowed';exception when serialization_failure then null;end;
+ begin perform public.simpan_kalibrasi_alat(pid,k,1,'{"pelaksana":"Stale"}');raise exception 'Stale edit allowed';exception when object_not_in_prerequisite_state then null;end;
  begin perform public.simpan_kalibrasi_alat(pid,k,v,'{"alat_id":1}');raise exception 'Tool reparent allowed';exception when invalid_parameter_value then null;end;
  old_state:=public.simpan_kalibrasi_alat(pid,k,v,'{"pelaksana":"UJIAN - pembetulan"}');
  execute 'reset role';alter table public.audit_trail add constraint test_cal_edit_audit_failure check(aksi<>'UPDATE_CALIBRATION_DRAFT') not valid;

@@ -9,8 +9,12 @@ const storageFiles = new Map();
 let registeredDocument;
 let cleanupCalls = 0;
 let organisation = null;
+const personnelRows = [];
+const membershipRows = [];
+const qualificationRows = [];
 const calibrationRows = [];
 let calibrationCertificate = null;
+let qualificationEvidence = null;
 const teamRows = [];
 const equipmentRows = [];
 const assignmentRows = [];
@@ -32,13 +36,86 @@ before(async () => {
     if (url.pathname === '/rest/v1/pengguna_peran') return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
     if (url.pathname === '/rest/v1/peran') return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, nama: token?.includes('reviewer') ? 'pic_balai' : 'penyedia_jasa' }]);
     if (url.pathname === '/rest/v1/balai') return send([{ balai_id: 1, nama: 'Balai Ujian', aktif: true }]);
+    if (url.pathname === '/rest/v1/anggota_tim') {
+      if(token==='foreign-reviewer')return send([]);
+      const rows=membershipRows.filter(a=>url.searchParams.get('tim_id')===`eq.${a.tim_id}` && (!url.searchParams.has('personel_id')||url.searchParams.get('personel_id')===`eq.${a.personel_id}`));
+      const offset=Number(url.searchParams.get('offset')??0);
+      return send(rows.slice(offset,offset+50).map(a=>({...a,personel:personnelRows.find(p=>p.personel_id===a.personel_id)})));
+    }
+    if (url.pathname === '/rest/v1/kualifikasi_personel') {
+      if(token==='foreign-reviewer')return send([]);
+      const offset=Number(url.searchParams.get('offset')??0);
+      return send(qualificationRows.filter(q=>url.searchParams.get('personel_id')===`eq.${q.personel_id}` && (!url.searchParams.has('kualifikasi_id')||url.searchParams.get('kualifikasi_id')===`eq.${q.kualifikasi_id}`)).slice().reverse().slice(offset,offset+50));
+    }
+    if (['/rest/v1/rpc/daftar_personel_tim','/rest/v1/rpc/daftar_kualifikasi_personel'].includes(url.pathname)) {
+      let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
+      if(lastRpc.p_paket_id===999)return send({code:'P0002'},404);
+      if(lastRpc.p_paket_id!==3 || preparationState.status!=='DISETUJUI')return send({code:'55000',message:'Persiapan perlu disetujui'},400);
+      if(!teamRows.some(t=>t.tim_id===lastRpc.p_tim_id&&t.paket_id===lastRpc.p_paket_id))return send({code:'P0002'},404);
+      const d=lastRpc.p_data;
+      if(url.pathname.endsWith('/daftar_personel_tim')) {
+        let person;
+        if(d.personel_id){person=personnelRows.find(p=>p.personel_id===d.personel_id);if(!person)return send({code:'22023'},400);}
+        else {
+          if(d.nik_internal && personnelRows.some(p=>p.nik_internal?.toLowerCase()===d.nik_internal.toLowerCase()))return send({code:'23505'},409);
+          person={personel_id:91+personnelRows.length,penyedia_id:8,nama:d.nama,nik_internal:d.nik_internal??null,pendidikan:d.pendidikan??null,pengalaman_tahun:d.pengalaman_tahun??null};
+        }
+        if(membershipRows.some(a=>a.tim_id===lastRpc.p_tim_id&&a.personel_id===person.personel_id&&a.mulai===(d.mulai??null)&&a.selesai===(d.selesai??null)))return send({code:'23505'},409);
+        if(!d.personel_id)personnelRows.push(person);
+        const member={anggota_id:101+membershipRows.length,tim_id:lastRpc.p_tim_id,personel_id:person.personel_id,peran:d.peran,mulai:d.mulai??null,selesai:d.selesai??null,alasan_ganti:null};membershipRows.push(member);
+        return send({personel:person,anggota:member,kelayakan_belum_dinilai:true});
+      }
+      if(!membershipRows.some(a=>a.tim_id===lastRpc.p_tim_id&&a.personel_id===lastRpc.p_personel_id))return send({code:'P0002'},404);
+      if(qualificationRows.some(q=>q.personel_id===lastRpc.p_personel_id&&q.jenis===d.jenis&&q.nomor.toLowerCase()===d.nomor.toLowerCase()))return send({code:'23505'},409);
+      const q={kualifikasi_id:111+qualificationRows.length,personel_id:lastRpc.p_personel_id,jenis:d.jenis,nomor:d.nomor,jenjang:d.jenjang??null,berlaku_sd:d.berlaku_sd??null,dokumen_id:null,versi:1};qualificationRows.push(q);
+      return send({kualifikasi:q,kelayakan_belum_dinilai:true});
+    }
     if(url.pathname === '/rest/v1/kalibrasi_alat') {
       if(token==='foreign-reviewer')return send([]);
       return send(calibrationRows.filter(k=>url.searchParams.get('paket_id')===`eq.${k.paket_id}` && (!url.searchParams.has('kalibrasi_id')||url.searchParams.get('kalibrasi_id')===`eq.${k.kalibrasi_id}`)).map(k=>({...k,dokumen:k.dokumen_id ? {dokumen_id:k.dokumen_id,versi_aktif:calibrationCertificate.versi_aktif}:null})));
     }
+    if(url.pathname==='/rest/v1/dokumen' && url.searchParams.get('sumber_tipe')==='eq.KUALIFIKASI') {
+      if(!qualificationEvidence || token==='bad-evidence-link' || url.searchParams.get('dokumen_id')!==`eq.${qualificationEvidence.dokumen_id}` || url.searchParams.get('sumber_id')!==`eq.${qualificationEvidence.sumber_id}`)return send([]);
+      return send([qualificationEvidence]);
+    }
+    if(url.pathname.startsWith('/storage/v1/object/authenticated/dokumen-kualifikasi/')) {
+      const path=decodeURIComponent(url.pathname.split('/dokumen-kualifikasi/')[1]);const bytes=storageFiles.get(path);if(!bytes)return send({message:'Object not found'},404);
+      res.setHeader('Content-Type','application/pdf');return res.end(bytes);
+    }
+    if(url.pathname==='/storage/v1/object/dokumen-kualifikasi' && req.method==='DELETE') {
+      let raw='';for await(const c of req)raw+=c;cleanupCalls++;for(const path of JSON.parse(raw).prefixes)storageFiles.delete(path);return send([]);
+    }
+    if(url.pathname.startsWith('/storage/v1/object/dokumen-kualifikasi/') && req.method==='POST') {
+      if(token==='no-qualification-bucket')return send({message:'Bucket not found'},404);
+      const chunks=[];for await(const c of req)chunks.push(c);const path=decodeURIComponent(url.pathname.split('/dokumen-kualifikasi/')[1]);
+      assert.match(path,/^91\/111\/[0-9a-f-]{36}\.pdf$/);assert.equal(req.headers['x-upsert'],'false');storageFiles.set(path,Buffer.concat(chunks));return send({Key:path});
+    }
+    if(url.pathname==='/rest/v1/rpc/daftar_bukti_kualifikasi') {
+      let raw='';for await(const c of req)raw+=c;lastRpc=JSON.parse(raw);
+      assert.equal(lastRpc.p_personel_id,91);assert.equal(lastRpc.p_kualifikasi_id,111);assert.equal(lastRpc.p_tim_id,21);assert.equal(lastRpc.p_paket_id,3);
+      if(token==='race-qualification')return send({code:'55000',message:'Rekod kualifikasi telah berubah. Baca semula'},409);
+      if(token==='closed-qualification')return send({code:'55000',message:'Status paket belum disokong'},409);
+      if(lastRpc.p_nama_file==='reject.pdf')return send({code:'22023',message:'Metadata rejected'},400);
+      if(lastRpc.p_nama_file==='uncertain.pdf')return send({error:'Unknown upstream failure'},500);
+      const q=qualificationRows.find(q=>q.kualifikasi_id===lastRpc.p_kualifikasi_id);
+      if(q.versi!==lastRpc.p_expected_version)return send({code:'55000',message:'Rekod kualifikasi telah berubah. Baca semula'},409);
+      const bytes=storageFiles.get(lastRpc.p_object_path);assert.equal(lastRpc.p_sha256,createHash('sha256').update(bytes).digest('hex'));assert.equal(lastRpc.p_ukuran,bytes.length);
+      const v={dok_versi_id:301+(qualificationEvidence?.dokumen_versi.length??0),bucket_id:'dokumen-kualifikasi',object_path:lastRpc.p_object_path,nama_file:lastRpc.p_nama_file,hash_file:lastRpc.p_sha256,ukuran_byte:bytes.length,mime_type:'application/pdf',versi_ke:qualificationEvidence?qualificationEvidence.versi_aktif+1:1};
+      qualificationEvidence={dokumen_id:88,paket_id:3,sumber_tipe:'KUALIFIKASI',sumber_id:q.kualifikasi_id,versi_aktif:v.versi_ke,dokumen_versi:[...(qualificationEvidence?.dokumen_versi??[]),v]};q.dokumen_id=88;q.versi++;
+      return send({kualifikasi:q,dokumen:qualificationEvidence,versi:v,kelayakan_belum_dinilai:true});
+    }
     if(url.pathname==='/rest/v1/dokumen_versi') {
-      const versions=calibrationCertificate?.dokumen_versi.filter(v=>url.searchParams.get('dokumen_id')===`eq.${calibrationCertificate.dokumen_id}`&&url.searchParams.get('versi_ke')===`eq.${v.versi_ke}`)??[];
-      return send(token==='bad-cert-hash' ? versions.map(v=>({...v,hash_file:'bad'})) : versions);
+      const document=qualificationEvidence && url.searchParams.get('dokumen_id')===`eq.${qualificationEvidence.dokumen_id}` ? qualificationEvidence : calibrationCertificate;
+      const versions=document?.dokumen_versi.filter(v=>url.searchParams.get('dokumen_id')===`eq.${document.dokumen_id}`&&(!url.searchParams.has('versi_ke')||url.searchParams.get('versi_ke')===`eq.${v.versi_ke}`)).slice().reverse()??[];
+      const offset=Number(url.searchParams.get('offset')??0),limit=Number(url.searchParams.get('limit')??50);
+      const projected=versions.slice(offset,offset+limit).map(v=>{
+        let row={...v};
+        if(token==='bad-cert-hash'||token==='bad-evidence-hash')row.hash_file='bad';
+        if(token==='bad-evidence-bucket')row.bucket_id='dokumen-persiapan';
+        if(token==='bad-evidence-path')row.object_path='999/999/foreign.pdf';
+        if(!url.searchParams.get('select').includes('object_path')){delete row.object_path;delete row.bucket_id;}
+        return row;
+      });return send(projected);
     }
     if(url.pathname==='/rest/v1/rpc/simpan_kalibrasi_alat') {
       let raw='';for await(const c of req)raw+=c;lastRpc=JSON.parse(raw);
@@ -49,7 +126,7 @@ before(async () => {
         const k={...lastRpc.p_data,kalibrasi_id:17+calibrationRows.length,paket_id:3,dokumen_id:null,versi:1,status:'DRAFT',created_by:3};calibrationRows.push(k);return send(k);
       }
       const k=calibrationRows.find(k=>k.kalibrasi_id===lastRpc.p_kalibrasi_id);if(!k)return send({code:'P0002'},404);
-      if(k.versi!==lastRpc.p_expected_version)return send({code:'40001'},409);
+      if(k.versi!==lastRpc.p_expected_version)return send({code:'55000',message:'Rekod kalibrasi telah berubah. Baca semula'},409);
       const next={...k,...lastRpc.p_data};
       if(next.berlaku_sd && next.berlaku_sd<next.tgl_kalibrasi)return send({code:'22023',message:'Tarikh tamat tidak boleh lebih awal'},400);
       if(Object.keys(lastRpc.p_data).some(key=>k[key]!==lastRpc.p_data[key])){Object.assign(k,lastRpc.p_data);k.versi++;}return send(k);
@@ -68,11 +145,11 @@ before(async () => {
     }
     if(url.pathname==='/rest/v1/rpc/daftar_sertifikat_kalibrasi') {
       let raw='';for await(const c of req)raw+=c;lastRpc=JSON.parse(raw);
-      if(token==='race-calibration')return send({code:'40001'},409);
+      if(token==='race-calibration')return send({code:'55000',message:'Rekod kalibrasi telah berubah. Baca semula'},409);
       if(lastRpc.p_nama_file==='reject.pdf')return send({code:'22023',message:'Metadata rejected'},400);
       if(lastRpc.p_nama_file==='uncertain.pdf')return send({error:'Unknown upstream failure'},500);
       const k=calibrationRows.find(k=>k.kalibrasi_id===lastRpc.p_kalibrasi_id);
-      if(k.versi!==lastRpc.p_expected_version)return send({code:'40001'},409);
+      if(k.versi!==lastRpc.p_expected_version)return send({code:'55000',message:'Rekod kalibrasi telah berubah. Baca semula'},409);
       const bytes=storageFiles.get(lastRpc.p_object_path);assert.equal(lastRpc.p_sha256,createHash('sha256').update(bytes).digest('hex'));assert.equal(lastRpc.p_ukuran,bytes.length);
       const v={bucket_id:'dokumen-kalibrasi',object_path:lastRpc.p_object_path,nama_file:lastRpc.p_nama_file,hash_file:lastRpc.p_sha256,ukuran_byte:bytes.length,versi_ke:calibrationCertificate?calibrationCertificate.versi_aktif+1:1};
       calibrationCertificate={dokumen_id:77,paket_id:3,sumber_tipe:'KALIBRASI',sumber_id:k.kalibrasi_id,versi_aktif:v.versi_ke,dokumen_versi:[...(calibrationCertificate?.dokumen_versi??[]),v]};k.dokumen_id=77;k.versi++;
@@ -637,4 +714,143 @@ test('certificate active/old downloads verify bytes, scope and integrity',async(
  assert.equal((await request(certificatePath+'/download','foreign-reviewer')).status,404);
  assert.equal((await request(certificatePath+'/download','bad-cert-hash')).status,502);
  assert.equal((await request(certificatePath+'/versi/99/download','provider')).status,404);
+});
+
+const personnelPath='/paket/3/tim/21/personel';
+const personPayload={nama:' UJIAN - Operator ',nik_internal:' UJIAN-PERSON-001 ',pendidikan:null,pengalaman_tahun:0,peran:' Operator ',mulai:'2026-10-18',selesai:null};
+const qualificationPath=personnelPath+'/91/kualifikasi';
+test('personnel and qualifications require login and PIC writes are denied',async()=>{
+  for(const path of [personnelPath,qualificationPath])assert.equal((await request(path)).status,401);
+  assert.equal((await request(personnelPath,'reviewer',personPayload)).status,403);
+  assert.equal((await request(qualificationPath,'reviewer',{jenis:'SKK',nomor:'UJIAN'})).status,403);
+});
+test('personnel validates input types, dates and rejects privilege/evidence spoofing',async()=>{
+  for(const extra of [{penyedia_id:1},{status:'LULUS'},{created_by:9},{alasan_ganti:'fake'},{nama:''},{peran:null},{pengalaman_tahun:-1},{pengalaman_tahun:1.5},{mulai:'2026-02-30'},{mulai:null,selesai:'2026-10-18'},{mulai:'2026-10-19',selesai:'2026-10-18'},{personel_id:91}]) {
+    assert.equal((await request(personnelPath,'valid',{...personPayload,...extra})).status,400,JSON.stringify(extra));
+  }
+  assert.equal((await request(personnelPath,'valid',{})).status,400);
+});
+test('personnel registration binds provider and team without creating account or approval',async()=>{
+  const r=await request(personnelPath,'valid',personPayload);assert.equal(r.status,201);
+  assert.equal(r.body.data.personel.nama,'UJIAN - Operator');assert.equal(r.body.data.personel.penyedia_id,8);
+  assert.equal(r.body.data.anggota.tim_id,21);assert.equal(r.body.data.anggota.peran,'Operator');assert.equal(r.body.data.kelayakan_belum_dinilai,true);
+  assert.equal(r.body.data.personel.auth_user_id,undefined);assert.equal(r.body.data.personel.pendidikan,null);
+  assert.equal(lastRpc.p_paket_id,3);assert.equal(lastRpc.p_tim_id,21);assert.equal(lastRpc.p_data.penyedia_id,undefined);
+});
+test('personnel duplicate IDs and assignment periods return conflict',async()=>{
+  assert.equal((await request(personnelPath,'valid',personPayload)).status,409);
+  assert.equal((await request(personnelPath,'valid',{personel_id:91,peran:'Operator',mulai:'2026-10-18'})).status,409);
+});
+test('existing person may join another team without changing biodata',async()=>{
+  const r=await request('/paket/3/tim/22/personel','valid',{personel_id:91,peran:'Ketua Tim'});
+  assert.equal(r.status,201);assert.equal(r.body.data.personel.personel_id,91);assert.equal(r.body.data.anggota.tim_id,22);
+  assert.equal(personnelRows.length,1);
+  assert.equal((await request(personnelPath,'valid',{personel_id:999,peran:'Operator'})).status,400);
+});
+test('personnel writes enforce preparation gate and package/team binding',async()=>{
+  assert.equal((await request('/paket/4/tim/21/personel','valid',personPayload)).status,409);
+  assert.equal((await request('/paket/999/tim/21/personel','valid',personPayload)).status,404);
+  assert.equal((await request('/paket/3/tim/999/personel','valid',personPayload)).status,404);
+});
+test('personnel reads allow scoped PIC, reject other Balai and paginate',async()=>{
+  const r=await request(personnelPath,'reviewer');assert.equal(r.status,200);assert.equal(r.body.data[0].personel.personel_id,91);assert.equal(r.body.page_size,50);
+  assert.equal((await request(personnelPath,'foreign-reviewer')).status,404);
+  assert.equal((await request('/paket/4/tim/21/personel','valid')).status,404);
+  assert.deepEqual((await request(personnelPath+'?page=2','valid')).body.data,[]);
+  for(const query of ['?page=0','?page=1.5','?page=1&page=2'])assert.equal((await request(personnelPath+query,'valid')).status,400);
+});
+test('qualification metadata rejects forged proof, results, malformed type and date',async()=>{
+  for(const extra of [{dokumen_id:4},{status:'LULUS'},{personel_id:92},{jenis:'BAD'},{nomor:null},{berlaku_sd:'2026-02-30'},{jenjang:12}])assert.equal((await request(qualificationPath,'valid',{jenis:'SKK',nomor:'UJIAN-SKK-001',...extra})).status,400);
+});
+test('qualification stores supplied metadata with no invented expiry, proof or acceptance',async()=>{
+  const r=await request(qualificationPath,'valid',{jenis:'SKK',nomor:' UJIAN-SKK-001 ',jenjang:null,berlaku_sd:null});assert.equal(r.status,201);
+  assert.equal(r.body.data.kualifikasi.nomor,'UJIAN-SKK-001');assert.equal(r.body.data.kualifikasi.dokumen_id,null);assert.equal(r.body.data.kualifikasi.berlaku_sd,null);assert.equal(r.body.data.kelayakan_belum_dinilai,true);
+  assert.equal((await request(qualificationPath,'valid',{jenis:'SKK',nomor:'ujian-skk-001'})).status,409);
+});
+test('qualification writes require person to belong to specified team and package',async()=>{
+  assert.equal((await request(personnelPath+'/999/kualifikasi','valid',{jenis:'SKK',nomor:'Unknown person'})).status,404);
+  assert.equal((await request('/paket/3/tim/999/personel/91/kualifikasi','valid',{jenis:'SKK',nomor:'Unknown team'})).status,404);
+  assert.equal((await request('/paket/4/tim/21/personel/91/kualifikasi','valid',{jenis:'SKK',nomor:'Unapproved package'})).status,409);
+});
+test('qualification reads enforce membership and scope before returning metadata',async()=>{
+  const r=await request(qualificationPath,'reviewer');assert.equal(r.status,200);assert.equal(r.body.data[0].personel_id,91);assert.equal(r.body.kelayakan_belum_dinilai,true);
+  assert.equal((await request(qualificationPath,'foreign-reviewer')).status,404);
+  assert.equal((await request(personnelPath+'/999/kualifikasi','reviewer')).status,404);
+  assert.deepEqual((await request(qualificationPath+'?page=2','valid')).body.data,[]);
+  assert.equal((await request(qualificationPath+'?page=0','valid')).status,400);
+});
+test('personnel routes reject malformed and overflow identifiers',async()=>{
+  for(const path of ['/paket/no/tim/21/personel','/paket/3/tim/0/personel','/paket/3/tim/2147483648/personel','/paket/3/tim/21/personel/no/kualifikasi'])assert.equal((await request(path,'valid')).status,400);
+});
+
+const qualificationEvidencePath=qualificationPath+'/111/bukti';
+function evidenceForm(expected='1',filename='bukti-skk.pdf',bytes=pdfBytes) {return certificateForm(expected,filename,bytes);}
+async function uploadEvidence(form=evidenceForm(),token='provider',path=qualificationEvidencePath) {
+ const r=await fetch(base+path,{method:'POST',headers:token?{Authorization:`Bearer ${token}`}:{},body:form});return {status:r.status,body:await r.json()};
+}
+test('qualification evidence requires login and provider role before touching Storage',async()=>{
+ assert.equal((await request(qualificationEvidencePath)).status,401);
+ assert.equal((await uploadEvidence(evidenceForm(),null)).status,401);
+ const n=storageFiles.size;
+ assert.equal((await uploadEvidence(evidenceForm(),'reviewer')).status,403);
+ assert.equal((await request(qualificationEvidencePath,'locked')).status,403);
+ assert.equal(storageFiles.size,n);
+});
+test('empty qualification evidence detail returns version without inventing a document',async()=>{
+ const r=await request(qualificationEvidencePath,'reviewer');assert.equal(r.status,200);assert.equal(r.body.data.kualifikasi.versi,1);
+ assert.equal(r.body.data.dokumen,null);assert.deepEqual(r.body.data.riwayat_versi,[]);assert.equal(r.body.data.kelayakan_belum_dinilai,true);
+ assert.equal((await request(qualificationEvidencePath+'/download','reviewer')).status,404);
+});
+test('qualification evidence checks package, team, person and qualification IDs',async()=>{
+ for(const path of ['/paket/4/tim/21/personel/91/kualifikasi/111/bukti','/paket/3/tim/999/personel/91/kualifikasi/111/bukti','/paket/3/tim/21/personel/999/kualifikasi/111/bukti',qualificationPath+'/999/bukti'])assert.equal((await request(path,'provider')).status,404);
+ for(const path of ['/paket/0/tim/21/personel/91/kualifikasi/111/bukti',qualificationPath+'/no/bukti',qualificationEvidencePath+'/versi/0/download'])assert.equal((await request(path,'provider')).status,path.endsWith('/versi/0/download')?404:400);
+ assert.equal((await uploadEvidence(evidenceForm(),'provider',qualificationPath+'/999/bukti')).status,404);
+});
+test('qualification evidence validates version, PDF contents, limits and protected metadata',async()=>{
+ for(const v of ['0','1.5','2147483647','not-number'])assert.equal((await uploadEvidence(evidenceForm(v))).status,400);
+ for(const [name,bytes] of [['none.pdf',null],['fake.pdf',Buffer.from('Not PDF')],['file.txt',pdfBytes]])assert.equal((await uploadEvidence(evidenceForm('1',name,bytes))).status,400);
+ assert.equal((await uploadEvidence(evidenceForm('1','big.pdf',Buffer.alloc(10*1024*1024+1)))).status,413);
+ const f=evidenceForm();f.set('dokumen_id','4');assert.equal((await uploadEvidence(f)).status,400);
+});
+test('missing qualification bucket has the correct setup error',async()=>{
+ const r=await uploadEvidence(evidenceForm(),'no-qualification-bucket');assert.equal(r.status,503);assert.match(r.body.error,/dokumen-kualifikasi/);
+});
+test('rejected qualification registration and raced gate clean up only the new object',async()=>{
+ for(const [token,name,code] of [['provider','reject.pdf',400],['race-qualification','bukti.pdf',409],['closed-qualification','bukti.pdf',409]]){
+  const n=storageFiles.size,cleanups=cleanupCalls;const r=await uploadEvidence(evidenceForm('1',name),token);assert.equal(r.status,code);assert.equal(storageFiles.size,n);assert.equal(cleanupCalls,cleanups+1);
+ }
+});
+test('uncertain qualification registration retains object for reconciliation',async()=>{
+ const n=cleanupCalls;assert.equal((await uploadEvidence(evidenceForm('1','uncertain.pdf'))).status,502);assert.equal(cleanupCalls,n);
+});
+test('first qualification evidence upload binds existing qualification and increments its version',async()=>{
+ const r=await uploadEvidence();assert.equal(r.status,201);assert.equal(r.body.data.kualifikasi.kualifikasi_id,111);assert.equal(r.body.data.kualifikasi.versi,2);
+ assert.equal(r.body.data.versi.versi_ke,1);assert.equal(r.body.data.kualifikasi.dokumen_id,88);assert.equal(r.body.data.kelayakan_belum_dinilai,true);
+ assert.equal(r.body.data.kualifikasi.berlaku_sd,null);assert.equal(r.body.data.kualifikasi.status,undefined);
+});
+test('qualification replacement preserves document identity and old PDF',async()=>{
+ const old=qualificationEvidence.dokumen_versi[0].object_path;
+ const r=await uploadEvidence(evidenceForm('2','bukti-revisi.pdf',revisedPdf));assert.equal(r.status,201);assert.equal(r.body.data.kualifikasi.versi,3);
+ assert.equal(r.body.data.versi.versi_ke,2);assert.equal(r.body.data.dokumen.dokumen_id,88);assert.deepEqual(storageFiles.get(old),pdfBytes);
+});
+test('qualification evidence history is ordered, paginated and restricted to scoped viewers',async()=>{
+ const r=await request(qualificationEvidencePath,'reviewer');assert.equal(r.status,200);assert.equal(r.body.data.versi_aktif.versi_ke,2);
+ assert.deepEqual(r.body.data.riwayat_versi.map(v=>v.versi_ke),[2,1]);assert.equal(r.body.data.riwayat_versi[0].object_path,undefined);
+ const end=await request(qualificationEvidencePath+'?page=2','reviewer');assert.deepEqual(end.body.data.riwayat_versi,[]);assert.equal(end.body.data.versi_aktif.versi_ke,2);
+ assert.equal((await request(qualificationEvidencePath+'?page=0','provider')).status,400);assert.equal((await request(qualificationEvidencePath,'foreign-reviewer')).status,404);
+});
+test('qualification evidence current and historical downloads return exact bytes',async()=>{
+ for(const [path,bytes] of [[qualificationEvidencePath+'/download',revisedPdf],[qualificationEvidencePath+'/versi/1/download',pdfBytes]]) {
+  const r=await fetch(base+path,{headers:{Authorization:'Bearer reviewer'}});assert.equal(r.status,200);assert.match(r.headers.get('content-type'),/application\/pdf/);
+  assert.equal(r.headers.get('cache-control'),'private, no-store');assert.equal(r.headers.get('x-content-type-options'),'nosniff');assert.deepEqual(Buffer.from(await r.arrayBuffer()),bytes);
+ }
+});
+test('qualification downloads reject wrong scope, tampered bytes and mismatched evidence',async()=>{
+ for(const [token,status] of [['foreign-reviewer',404],['bad-evidence-link',404],['bad-evidence-hash',502],['bad-evidence-bucket',404],['bad-evidence-path',404]])assert.equal((await request(qualificationEvidencePath+'/download',token)).status,status);
+ assert.equal((await request(qualificationEvidencePath+'/versi/99/download','provider')).status,404);
+ assert.equal((await request(qualificationEvidencePath+'/versi/0/download','provider')).status,400);
+});
+test('stale qualification evidence upload is rejected before writing Storage',async()=>{
+ const n=storageFiles.size;const r=await uploadEvidence(evidenceForm('2'));assert.equal(r.status,409);assert.match(r.body.error,/kualifikasi/);assert.equal(storageFiles.size,n);
+ assert.equal(qualificationRows[0].versi,3);
 });
