@@ -1,0 +1,199 @@
+{
+  "info": {
+    "_postman_id": "d2d4ea9f-cacd-46db-8b77-bf5b3104d9ee",
+    "name": "Jala Mutu - Bukti Kualifikasi Personel",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Selepas Langkah 12. Jalankan satu request pada satu masa; jangan Run All. Default merujuk paket 3/tim 10/personel 6/kualifikasi 5 yang sudah didaftarkan. Baca 02 sebelum upload, pilih PDF sebenar dalam 03. expected_version ialah versi REKOD kualifikasi, bukan versi PDF. Bucket private dokumen-kualifikasi diperlukan. Tiada keputusan sah/layak/lulus daripada upload. Credentials kosong; jangan kongsi eksport berisi credentials."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "tim_id",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "personel_id",
+      "value": "6",
+      "type": "string"
+    },
+    {
+      "key": "kualifikasi_id",
+      "value": "5",
+      "type": "string"
+    },
+    {
+      "key": "expected_version",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "dokumen_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Login akaun",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Detail kualifikasi dan sejarah bukti",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel/{{personel_id}}/kualifikasi/{{kualifikasi_id}}/bukti"
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              " const d = pm.response.json().data;",
+              " pm.collectionVariables.set(\"expected_version\", String(d.kualifikasi.versi));",
+              " if (d.dokumen) pm.collectionVariables.set(\"dokumen_id\", String(d.dokumen.dokumen_id));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Upload bukti PDF atau versi pengganti",
+      "request": {
+        "method": "POST",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel/{{personel_id}}/kualifikasi/{{kualifikasi_id}}/bukti",
+        "body": {
+          "mode": "formdata",
+          "formdata": [
+            {
+              "key": "expected_version",
+              "value": "{{expected_version}}",
+              "type": "text"
+            },
+            {
+              "key": "file",
+              "type": "file",
+              "src": []
+            }
+          ]
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code >= 200 && pm.response.code < 300) {",
+              " const d = pm.response.json().data;",
+              " pm.collectionVariables.set(\"expected_version\", String(d.kualifikasi.versi));",
+              " if (d.dokumen) pm.collectionVariables.set(\"dokumen_id\", String(d.dokumen.dokumen_id));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "04 - Download bukti aktif",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel/{{personel_id}}/kualifikasi/{{kualifikasi_id}}/bukti/download"
+      }
+    },
+    {
+      "name": "05 - Download bukti versi 1",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel/{{personel_id}}/kualifikasi/{{kualifikasi_id}}/bukti/versi/1/download"
+      }
+    }
+  ]
+}

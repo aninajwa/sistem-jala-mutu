@@ -25,7 +25,7 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
     if (failure?.code === '22023') throw new ApiError(400, failure.message ?? 'Data tidak valid');
     if (failure?.code === '42501' || response.status === 403) throw new ApiError(403, 'Akses tidak dibenarkan');
     if (path.startsWith('/storage/')) {
-      if (/bucket.*not found/i.test(`${failure?.message ?? ''} ${failure?.error ?? ''}`)) throw new ApiError(503, `Bucket private ${path.includes('dokumen-kalibrasi') ? 'dokumen-kalibrasi' : 'dokumen-persiapan'} belum dibuat`);
+      if (/bucket.*not found/i.test(`${failure?.message ?? ''} ${failure?.error ?? ''}`)) throw new ApiError(503, `Bucket private ${path.includes('dokumen-kualifikasi') ? 'dokumen-kualifikasi' : path.includes('dokumen-kalibrasi') ? 'dokumen-kalibrasi' : 'dokumen-persiapan'} belum dibuat`);
       if (response.status === 404) throw new ApiError(404, 'Fail tidak ditemukan atau tidak boleh diakses');
       if (response.status === 413) throw new ApiError(413, 'Fail melebihi had saiz Storage');
       if (response.status === 400) throw new ApiError(400, 'Storage menolak fail atau akses upload');

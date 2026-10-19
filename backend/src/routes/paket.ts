@@ -2,6 +2,8 @@ import { Router } from 'express';
 import dokumenRouter from './dokumen';
 import kalibrasiAsasRouter from './kalibrasi-asas';
 import kalibrasiRouter from './kalibrasi';
+import personelRouter from './personel';
+import kualifikasiBuktiRouter from './kualifikasi-bukti';
 import { checklistDraftSchema, checklistEvidenceSchema, preparationSubmitSchema, preparationReviewSchema } from '../schemas/checklist';
 import { requireAuth } from '../middleware/auth';
 import { ApiError, supabaseRequest } from '../services/supabase';
@@ -134,4 +136,6 @@ router.post('/paket/:id/pengajuan-persiapan/review', async (req, res) => {
 router.use(dokumenRouter);
 router.use(kalibrasiAsasRouter);
 router.use(kalibrasiRouter);
+router.use(personelRouter);
+router.use(kualifikasiBuktiRouter);
 export default router;

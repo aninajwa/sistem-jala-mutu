@@ -1,0 +1,75 @@
+-- Metadata/RLS integration tests. All fixtures rolled back. No SQL writes to Storage.
+begin;
+do $$
+declare provider_auth uuid; provider_user integer; pid integer; team integer; person integer; qualification integer; balai_a integer; balai_b integer; template integer; org integer; team_b integer; doc integer; kind integer; path text; policy text; actual boolean; r record; shared boolean; expected boolean;
+begin
+ select u.pengguna_id,u.auth_user_id into provider_user,provider_auth from public.pengguna u join public.pengguna_peran pp using(pengguna_id) join public.peran pr using(peran_id) where pr.nama='penyedia_jasa' and not coalesce(u.terkunci,false) limit 1;
+ select q.kualifikasi_id,q.personel_id,a.tim_id,t.paket_id,p.balai_id,p.penyedia_id,c.template_id into qualification,person,team,pid,balai_a,org,template from public.kualifikasi_personel q join public.anggota_tim a using(personel_id) join public.tim_survei t using(tim_id) join public.paket_kontrak p using(paket_id) join public.checklist_pengisian c using(paket_id) join public.checklist_template ct using(template_id) where q.dokumen_id is null and c.status='DISETUJUI' and ct.no_dokumen='JM-PERSIAPAN-TAHAP0' order by q.kualifikasi_id limit 1;
+ if qualification is null then raise exception 'Need a qualification without evidence on approved package';end if;
+ path:=person||'/'||qualification||'/00000000-0000-4000-8000-000000000013.pdf';
+ perform set_config('request.jwt.claim.sub',provider_auth::text,true);execute 'set local role authenticated';
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,0,path,'proof.pdf',100,repeat('a',64));raise exception 'Zero version allowed';exception when invalid_parameter_value then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,2,path,'proof.pdf',100,repeat('a',64));raise exception 'Stale version allowed';exception when object_not_in_prerequisite_state then if sqlerrm<>'Rekod kualifikasi telah berubah. Baca semula' then raise;end if;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,2147483647,1,path,'proof.pdf',100,repeat('a',64));raise exception 'Wrong qualification allowed';exception when no_data_found then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,2147483647,qualification,1,path,'proof.pdf',100,repeat('a',64));raise exception 'Wrong person allowed';exception when no_data_found then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,2147483647,person,qualification,1,path,'proof.pdf',100,repeat('a',64));raise exception 'Wrong team allowed';exception when no_data_found then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,1,path,'proof.txt',100,repeat('a',64));raise exception 'Wrong extension allowed';exception when invalid_parameter_value then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,1,'999/999/00000000-0000-4000-8000-000000000013.pdf','proof.pdf',100,repeat('a',64));raise exception 'Wrong prefix allowed';exception when invalid_parameter_value then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,1,path,'proof.pdf',10485761,repeat('a',64));raise exception 'Oversize allowed';exception when invalid_parameter_value then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,1,path,'proof.pdf',100,'bad');raise exception 'Bad hash allowed';exception when invalid_parameter_value then null;end;
+ begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,1,path,'proof.pdf',100,repeat('a',64));raise exception 'Missing Storage object accepted';exception when object_not_in_prerequisite_state or invalid_parameter_value then null;end;
+ execute 'reset role';
+ if (select versi from public.kualifikasi_personel where kualifikasi_id=qualification)<>1 or (select dokumen_id from public.kualifikasi_personel where kualifikasi_id=qualification) is not null then raise exception 'Failed registration changed qualification';end if;
+ select jenis_dokumen_id into kind from public.jenis_dokumen where kode='BUKTI_KUALIFIKASI_PERSONEL';
+ insert into public.dokumen(paket_id,jenis_dokumen_id,judul,sumber_tipe,sumber_id,versi_aktif,status,diunggah_oleh) values(pid,kind,'Rollback evidence fixture','KUALIFIKASI',qualification,2,'TERSEDIA',provider_user) returning dokumen_id into doc;
+ insert into public.dokumen_versi(dokumen_id,versi_ke,bucket_id,object_path,nama_file,mime_type,hash_file,ukuran_byte) values(doc,1,'dokumen-kualifikasi',path,'fixture.pdf','application/pdf',repeat('a',64),100),(doc,2,'dokumen-kualifikasi',person||'/'||qualification||'/00000000-0000-4000-8000-000000000014.pdf','fixture2.pdf','application/pdf',repeat('b',64),100);
+ update public.kualifikasi_personel set dokumen_id=doc,versi=3 where kualifikasi_id=qualification;
+ select min(scope_balai_id) into balai_b from public.pengguna_peran where scope_balai_id<>balai_a;
+ insert into public.paket_kontrak(paket_id,balai_id,penyedia_id,nama_paket,status) overriding system value values(2100000013,balai_b,org,'Rollback qualification B','DRAFT');
+ insert into public.checklist_pengisian(paket_id,template_id,status) values(2100000013,template,'DRAFT');
+ insert into public.tim_survei(paket_id,jenis_survei_id,nama_tim) select 2100000013,jenis_survei_id,'Rollback evidence B' from public.tim_survei where tim_id=team returning tim_id into team_b;
+ perform set_config('request.jwt.claim.sub',provider_auth::text,true);execute 'set local role authenticated';
+ begin perform public.daftar_bukti_kualifikasi(2100000013,team_b,person,qualification,3,path,'proof.pdf',100,repeat('a',64));raise exception 'Unapproved package allowed';exception when object_not_in_prerequisite_state then null;end;
+ execute 'reset role';
+ foreach shared in array array[false,true] loop
+  if shared then insert into public.anggota_tim(tim_id,personel_id,peran) values(team_b,person,'Operator');end if;
+  for r in select u.auth_user_id,u.pengguna_id,pr.nama,pp.scope_balai_id,pp.scope_paket_id from public.pengguna u join public.pengguna_peran pp using(pengguna_id) join public.peran pr using(peran_id) loop
+   expected:=r.nama in ('penyedia_jasa','direktorat','admin') or (r.nama='pic_balai' and ((r.scope_balai_id=balai_a and (r.scope_paket_id is null or r.scope_paket_id=pid)) or (shared and r.scope_balai_id=balai_b and (r.scope_paket_id is null or r.scope_paket_id=2100000013))));
+   perform set_config('request.jwt.claim.sub',r.auth_user_id::text,true);execute 'set local role authenticated';
+   if exists(select 1 from public.kualifikasi_personel where kualifikasi_id=qualification) is distinct from expected then raise exception 'Qualification scope failed';end if;
+   if exists(select 1 from public.dokumen where dokumen_id=doc) is distinct from expected then raise exception 'Evidence document scope failed for % / shared %',r.nama,shared;end if;
+   if (select count(*) from public.dokumen_versi where dokumen_id=doc)<>(case when expected then 2 else 0 end) then raise exception 'Version scope failed';end if;
+   execute 'reset role';select pg_get_expr(polqual,polrelid) into policy from pg_policy where polname='kualifikasi_storage_read' and polrelid='storage.objects'::regclass;execute 'set local role authenticated';
+   execute 'select ('||policy||') from (select $1::text bucket_id,$2::text name,$3::text owner_id) objects' into actual using 'dokumen-kualifikasi',path,provider_auth::text;
+   if actual is distinct from expected then raise exception 'Storage read scope failed';end if;
+   if r.nama<>'penyedia_jasa' then
+    begin perform public.daftar_bukti_kualifikasi(pid,team,person,qualification,3,path,'proof.pdf',100,repeat('a',64));raise exception 'Non-provider registers evidence';exception when insufficient_privilege then null;end;
+   end if;
+   execute 'reset role';
+  end loop;
+ end loop;
+ perform set_config('request.jwt.claim.sub',provider_auth::text,true);
+ select pg_get_expr(polwithcheck,polrelid) into policy from pg_policy where polname='kualifikasi_storage_insert' and polrelid='storage.objects'::regclass;execute 'set local role authenticated';
+ execute 'select ('||policy||') from (select $1::text bucket_id,$2::text name,$3::text owner_id) objects' into actual using 'dokumen-kualifikasi',path,provider_auth::text;
+ if actual is distinct from true then raise exception 'Valid uploader predicate denied';end if;
+ execute 'reset role';update public.paket_kontrak set status='SELESAI' where paket_id=pid;
+ execute 'set local role authenticated';execute 'select ('||policy||') from (select $1::text bucket_id,$2::text name,$3::text owner_id) objects' into actual using 'dokumen-kualifikasi',path,provider_auth::text;
+ if actual is true then raise exception 'Write allowed without eligible DRAFT/approved package';end if;
+ execute 'reset role';
+ update public.dokumen set status='DRAFT' where dokumen_id=doc;
+ select pg_get_expr(polqual,polrelid) into policy from pg_policy where polname='kualifikasi_storage_cleanup' and polrelid='storage.objects'::regclass;execute 'set local role authenticated';
+ if not app_private.kualifikasi_file_berdaftar(path) then raise exception 'Registered hidden object not detected';end if;
+ execute 'select ('||policy||') from (select $1::text bucket_id,$2::text name,$3::text owner_id) objects' into actual using 'dokumen-kualifikasi',path,provider_auth::text;
+ if actual is true then raise exception 'Registered file deletion allowed';end if;
+ execute 'select ('||policy||') from (select $1::text bucket_id,$2::text name,$3::text owner_id) objects' into actual using 'dokumen-kualifikasi',person||'/'||qualification||'/00000000-0000-4000-8000-000000000099.pdf',provider_auth::text;
+ if actual is distinct from true then raise exception 'Orphan cleanup denied';end if;
+ execute 'reset role';update public.pengguna set terkunci=true where pengguna_id=provider_user;
+ execute 'set local role authenticated';
+ if exists(select 1 from public.kualifikasi_personel where kualifikasi_id=qualification) then raise exception 'Locked profile sees qualification';end if;
+ execute 'select ('||policy||') from (select $1::text bucket_id,$2::text name,$3::text owner_id) objects' into actual using 'dokumen-kualifikasi','orphan.pdf',provider_auth::text;
+ if actual is true then raise exception 'Locked user cleanup allowed';end if;
+ execute 'reset role';
+ if has_function_privilege('anon','public.daftar_bukti_kualifikasi(integer,integer,integer,integer,integer,text,text,bigint,text)','EXECUTE') then raise exception 'Anonymous RPC enabled';end if;
+end $$;
+rollback;
+select 'PASS: context, stale-version and metadata guards; qualification/evidence/version/Storage read scope for all accounts; shared-person cross-Balai access; upload gate and protected orphan cleanup. Fixtures rolled back; real Storage upload is pending bucket setup.' as verification;
