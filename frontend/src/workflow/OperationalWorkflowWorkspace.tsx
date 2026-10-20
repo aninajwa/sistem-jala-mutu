@@ -1,4 +1,4 @@
-import { useCallback, useState, type ReactNode } from 'react';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
 import {
   Activity, Archive, ArrowRight, BadgeCheck, BookOpen, CalendarClock,
   Check, CheckCircle2, ClipboardCheck, ClipboardList, Clock3, Eye, FileCheck2, FileText,
@@ -14,13 +14,16 @@ import { ChecklistPanel, EvidenceField, GateSummary, ValidationResultTable } fro
 import { AuditReadOnlySummary } from './AuditReadOnlySummary';
 import { ACCEPTANCE_CRITERIA, AcceptanceCriteriaPanel, type AcceptanceCriterion } from './AcceptanceCriteriaPanel';
 import { SourceAlignmentChecklist } from './SourceAlignmentChecklist';
-import { EvidenceAttachment } from './EvidenceAttachment';
+import { EvidenceAttachment, missingEvidence, useEvidenceRevision } from './EvidenceAttachment';
+import { passesEvidenceGate } from './evidenceGate';
+import { auditEvidenceRequirements, auditStartEvidenceRequirements, FINAL_ACCEPTANCE_EVIDENCE, STAGE0_REQUIRED_EVIDENCE, STAGE4_REQUIRED_EVIDENCE, STAGE6_REQUIRED_EVIDENCE } from './evidenceRequirements';
 import { ProductionValidationChecklist } from './ProductionValidationChecklist';
 import { WorkflowNextAction } from './WorkflowNextAction';
 import { StageOwnershipBanner } from './StageOwnershipBanner';
 import { SURVEY_REFERENCES, PRODUCTION_REFERENCE_CHECKS, productionFields, dailyFields, dailyChecks, evaluateDailySurvey } from './surveyStandards';
 import { WorkflowDocuments } from './WorkflowDocuments';
 import { buildAuditSamplePlan } from './auditSamplePlan';
+import { prepareSurveyValues } from './surveyValues';
 import { auditSampleIntegrity } from './auditSampleIntegrity';
 import { RULE_SCENARIOS, RULE_CHECKS, RULE_NUMBERS, specialCorrectionErrors } from './correctionRules';
 import { AUDIT_REVIEW_CHECKS, fieldReadiness, semesterTwoReadiness, canMarkFinalReport, termReadiness, correctionClosureErrors, applyClosedCorrection, dueScheduledBackup } from './flowRules';
@@ -30,7 +33,7 @@ import {
   WorkflowEvent, SurveyType, WorkflowRole, ApprovalState, SURVEY_TYPES, PREPARATION_SOURCE_REVIEWS,
   PREPARATION_FIELD_PLAN, PREPARATION_COORDINATION, PREPARATION_DOCUMENTS, CYCLE_PROTOCOLS,
   CYCLE_SHARED_PROTOCOLS, SUBMISSION_DOCUMENTS, INTERNAL_AUDIT_CHECKS, CORRECTION_ACTIONS, CORRECTION_GUIDANCE,
-  INITIAL_WORKFLOW, DEFAULT_SEMESTER_TWO, evaluateProductionTest, samplingRule, cycleDueDate, evaluateLrsGate, notificationsFor, daysBetween,
+  INITIAL_WORKFLOW, DEFAULT_SEMESTER_TWO, evaluateProductionTest, samplingRule, cycleDueDate, evaluateLrsGate, notificationsFor, daysBetween, normalizeActivePeriod,
 } from './model';
 
 export type OperationalWorkflowWorkspaceProps = {
@@ -160,6 +163,16 @@ function Select({value,onChange,options,id,disabled=false}:{value:string;onChang
 }
 
 export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice,onNavigate}:OperationalWorkflowWorkspaceProps) {
+  const evidenceRevision=useEvidenceRevision();
+  const acceptedEvidenceReady=passesEvidenceGate(true,missingEvidence(state.project.id,FINAL_ACCEPTANCE_EVIDENCE));
+  useEffect(()=>{
+    if(!state.acceptance.finalAcceptance||acceptedEvidenceReady)return;
+    onUpdate(current=>current.acceptance.finalAcceptance?{
+      ...current,
+      acceptance:{...current.acceptance,finalAcceptance:false,acceptanceDecision:'Belum Diperiksa'},
+    }:current,'Batalkan penerimaan akhir karena bukti wajib tidak tersedia',state.project.packageName);
+    setNotice('Penerimaan akhir dibatalkan karena bukti wajib tidak lagi tersedia.');
+  },[acceptedEvidenceReady,evidenceRevision,onUpdate,setNotice,state.acceptance.finalAcceptance,state.project.id,state.project.packageName]);
   const recognized = [
     '/entry:Persiapan & SPMK','/documents:Kalibrasi & personel','/entry:Validasi produksi','/entry:Survei harian',
     '/verification:Verval 14 hari','/entry:Gerbang RNI/LRS','/verification:Audit tingkat 1â€“3',
@@ -197,12 +210,19 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
   internal: false,
   periodic14: false,
 });
-  const [activeStage3BPeriod,setActiveStage3BPeriod] = useState(1);
+  const [activeStage3BPeriod,setActiveStage3BPeriod] = useState(
+    () => normalizeActivePeriod(state.cycleActivePeriod),
+  );
   const [stage3bPeriodRange,setStage3BPeriodRange] = useState<{start:string;end:string}>({start:'',end:''});
   const [stage3BStatus,setStage3BStatus] = useState<Record<string,boolean>>({});
   const onStage3BCompletion = useCallback((phase:'consistency'|'internal'|'periodic14',complete:boolean) => {
     setStage3BCompletion(current => current[phase] === complete ? current : {...current,[phase]:complete});
   }, []);
+  useEffect(() => {
+    setActiveStage3BPeriod(
+      normalizeActivePeriod(state.cycleActivePeriod),
+    );
+  }, [state.project.id, state.cycleActivePeriod]);
   const [auditId,setAuditId] = useState('');
   const [backupMedia,setBackupMedia] = useState<string[]>(['Perangkat kerja']);
   const [acceptDraft,setAcceptDraft] = useState<Record<string,string>>({});
@@ -300,11 +320,13 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
     const canReviewPreparation=state.role==='PIC Balai / Pengguna Jasa'||state.role==='Admin';
     const allItems=[...PREPARATION_SOURCE_REVIEWS.map(x=>prep.sourceReviews[x]),...PREPARATION_FIELD_PLAN.map(x=>prep.fieldPlan[x]),...PREPARATION_COORDINATION.map(x=>prep.coordination[x]),...PREPARATION_DOCUMENTS.map(x=>prep.documents[x])];
     const complete=allItems.filter(Boolean).length;
+    const missingPreparationEvidence=missingEvidence(state.project.id,STAGE0_REQUIRED_EVIDENCE);
     const approve = (status:ApprovalState) => {
       if(status==='Diajukan'&&(state.role!=='Penyedia Jasa / Ketua Tim'&&state.role!=='Admin')){setNotice('Peran Penyedia Jasa / Ketua Tim diperlukan untuk mengajukan laporan.');return;}
       if(status!=='Diajukan'&&(state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin')){setNotice('Peran PIC Balai / Pengguna Jasa diperlukan untuk meninjau laporan.');return;}
       if(status!=='Diajukan'&&prep.reportApproval!=='Diajukan'){setNotice('Ajukan laporan terlebih dahulu sebelum revisi atau persetujuan.');return;}
       if(status==='Diajukan'&&complete!==allItems.length){setNotice('Checklist persiapan belum lengkap.');return;}
+      if((status==='Diajukan'||status==='Disetujui')&&missingPreparationEvidence.length){setNotice(`Bukti wajib belum lengkap: ${missingPreparationEvidence.join(', ')}.`);return;}
       setPreparation(p=>({...p,reportApproval:status,reviewerNote:draft.reviewerNote??p.reviewerNote}),`Status laporan pendahuluan: ${status}`,state.project.packageName,`Status persiapan menjadi ${status}`);
     };
     const savePackage=()=>{
@@ -391,8 +413,13 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
     },
     {
       label:'Review PIC Balai selesai',
-      ready:prep.reportApproval==='Disetujui',
-      detail:prep.reportApproval
+      ready:prep.reportApproval==='Disetujui'&&missingPreparationEvidence.length===0,
+      detail:missingPreparationEvidence.length?`Bukti wajib belum lengkap: ${missingPreparationEvidence.join(', ')}`:prep.reportApproval
+    },
+    {
+      label:'Bukti persiapan wajib tersedia',
+      ready:missingPreparationEvidence.length===0,
+      detail:missingPreparationEvidence.length?missingPreparationEvidence.join(', '):'Bukti tersedia',
     },
   ]}/>
 
@@ -533,12 +560,14 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
           </div>
         )}
 
+        {missingPreparationEvidence.length>0&&<div className="wf-callout warn" data-testid="stage0-missing-evidence"><strong>Bukti wajib belum lengkap:</strong> {missingPreparationEvidence.join(', ')}.</div>}
         <div className="wf-toolbar" style={{marginTop:12}}>
           <Button
             id="button-prep-submit"
             kind="primary"
             disabled={
               complete!==allItems.length ||
+              missingPreparationEvidence.length>0 ||
               prep.reportApproval==='Diajukan'
             }
             onClick={()=>approve('Diajukan')}
@@ -596,6 +625,7 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
           </div>
         )}
 
+        {missingPreparationEvidence.length>0&&<div className="wf-callout warn" data-testid="stage0-missing-evidence-review"><strong>Bukti wajib belum lengkap:</strong> {missingPreparationEvidence.join(', ')}. Persetujuan belum dapat dicatat.</div>}
         <div className="wf-toolbar" style={{marginTop:12}}>
           <Button
             id="button-prep-revise"
@@ -610,6 +640,7 @@ export function OperationalWorkflowWorkspace({selection,state,onUpdate,setNotice
             id="button-prep-approve"
             disabled={
               complete!==allItems.length ||
+              missingPreparationEvidence.length>0 ||
               prep.reportApproval!=='Diajukan'
             }
             onClick={()=>approve('Disetujui')}
@@ -1890,7 +1921,8 @@ const sourceModeLabel =
     const scopedTypes=state.project.surveyTypes;
     const allSelectedPassed=scopedTypes.length>0&&scopedTypes.every(type=>evaluateProductionTest(type,state.productionTests[type]).passed);
     const calibrationReady=state.calibrations.length>0&&state.calibrations.every(c=>daysBetween(state.simulationDate,c.dueDate)>=0&&c.qualificationValid&&c.trainingVerified&&c.condition==='Baik')&&scopedTypes.length>0&&scopedTypes.every(type=>state.calibrationChecklist[type]);
-    const reviewReady=state.project.preparation.reportApproval==='Disetujui'&&calibrationReady&&allSelectedPassed;
+    const missingPreparationEvidence=missingEvidence(state.project.id,STAGE0_REQUIRED_EVIDENCE);
+    const reviewReady=passesEvidenceGate(state.project.preparation.reportApproval==='Disetujui'&&calibrationReady&&allSelectedPassed,missingPreparationEvidence);
     const submitForReview = () => {
   if (
     state.role !== 'Penyedia Jasa / Ketua Tim' &&
@@ -1903,6 +1935,7 @@ const sourceModeLabel =
   }
 
   if (!reviewReady) {
+    if(missingPreparationEvidence.length){setNotice(`Bukti persiapan wajib belum tersedia: ${missingPreparationEvidence.join(', ')}.`);return;}
     setNotice(
       'Pengajuan tertahan sampai persiapan, kalibrasi/personel, dan seluruh uji produksi dalam lingkup memenuhi pemeriksaan.',
     );
@@ -1935,7 +1968,10 @@ const sourceModeLabel =
     const decideReview=(decision:'Perlu Revisi'|'Disetujui')=>{
       if(state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin'){setNotice('Peran PIC Balai / Pengguna Jasa diperlukan untuk meninjau metode.');return;}
       if(state.productionApproval!=='Diajukan'&&state.productionApproval!=='Perlu Revisi'){setNotice('Ajukan metode terlebih dahulu sebelum keputusan Pengguna Jasa.');return;}
-      if(decision==='Disetujui'&&!reviewReady){setNotice('Persetujuan tertahan sampai seluruh gerbang persiapan, kalibrasi dan uji produksi lulus.');return;}
+      if(decision==='Disetujui'&&!reviewReady){
+        if(missingPreparationEvidence.length){setNotice(`Persetujuan tertahan; bukti persiapan wajib belum tersedia: ${missingPreparationEvidence.join(', ')}.`);return;}
+        setNotice('Persetujuan tertahan sampai seluruh gerbang persiapan, kalibrasi dan uji produksi lulus.');return;
+      }
       const ba=decision==='Disetujui'?(draft.methodBa||state.productionApprovalBa||''):state.productionApprovalBa;
       commit(`Keputusan metode: ${decision}`,state.project.packageName,s=>({...s,productionApproval:decision,productionApprovalBa:ba,productionApprovalNote:draft.reviewerProductionNote??s.productionApprovalNote,bridgeInspectionPermit:decision==='Disetujui'&&scopedTypes.includes('Jembatan')?true:s.bridgeInspectionPermit}),decision==='Disetujui'?'Referensi BA persetujuan metode dicatat pada simulasi':'Metode dikembalikan untuk revisi');
     };
@@ -2551,7 +2587,8 @@ const sourceModeLabel =
 
   const dailyScreen = () => {
     const toolChecks=dailyChecks(daily);
-    const preparationReady=state.project.preparation.reportApproval==='Disetujui';
+    const missingPreparationEvidence=missingEvidence(state.project.id,STAGE0_REQUIRED_EVIDENCE);
+    const preparationReady=passesEvidenceGate(state.project.preparation.reportApproval==='Disetujui',missingPreparationEvidence);
     const calibrationReady=state.calibrations.length>0&&state.calibrations.every(c=>daysBetween(state.simulationDate,c.dueDate)>=0&&c.qualificationValid&&c.trainingVerified&&c.condition==='Baik')&&state.project.surveyTypes.length>0&&state.project.surveyTypes.every(type=>state.calibrationChecklist[type]);
     const methodApproved=state.productionApproval==='Disetujui'&&state.project.surveyTypes.every(type=>evaluateProductionTest(type,state.productionTests[type]).passed);
     const bridgePermitRequired=daily.surveyType==='Jembatan';
@@ -2570,12 +2607,15 @@ const sourceModeLabel =
       if(!daily.road||!daily.operator||!daily.rawValue){setNotice('Isi ruas, operator dan nilai raw sebelum mencatat survei.');return;}
       if(!state.project.routes.includes(daily.road)||!state.project.surveyTypes.includes(daily.surveyType)){setNotice('Pilih ruas dan jenis survei yang termasuk dalam lingkup paket.');return;}
       if(daily.surveyType==='Lereng'&&!daily.slopeFailureType?.trim()){setNotice('Jenis keruntuhan lereng wajib untuk sampling 10% per jenis keruntuhan.');return;}
+      if(missingPreparationEvidence.length){setNotice(`Pengumpulan tertahan; bukti persiapan wajib belum tersedia: ${missingPreparationEvidence.join(', ')}.`);return;}
       if(!stageReady){setNotice('Pengumpulan tertahan sampai laporan pendahuluan, kalibrasi, persetujuan metode dan izin jembatan (bila perlu) lulus.');return;}
       if(sourceReadOnly){setNotice('Data kegiatan pada mode sinkronisasi menunggu data dari sistem sumber.');return;}
       if(!fieldQuality&&daily.state!=='Survei Ulang'){setNotice(technicalErrors.join(' '));return;}
       if(daily.state==='Survei Ulang'&&!daily.eventNotes.trim()){setNotice('Alasan survei ulang wajib dicatat pada kolom catatan event.');return;}
       if(!Number.isFinite(daily.lengthKm)||daily.lengthKm<0||!daily.date||daily.date>state.simulationDate){setNotice('Panjang tidak boleh negatif dan tanggal tidak boleh di masa depan.');return;}
-      const record:DailySurveyRecord={...daily,id:idNow('HARIAN'),dailyToolCheck:{...dailyTool},cleanedValue:daily.rawValue,cleaningReason:''};
+      const values=prepareSurveyValues(daily.rawValue,daily.cleanedValue,daily.cleaningReason);
+      if(!values.values){setNotice(values.error??'Nilai survei tidak valid.');return;}
+      const record:DailySurveyRecord={...daily,id:idNow('HARIAN'),dailyToolCheck:{...dailyTool},...values.values};
       commit('Catat survei harian',record.id,s=>{
         const invalidatesDownstream=s.submission.validationStatus==='VALID'||s.audits.some(audit=>audit.status!=='Belum Dimulai');
         const next={...s,cycle:s.cycle.periodCompleted?{...s.cycle,periodCompleted:false,certificateId:'',userReview:'Belum Diperiksa' as const,finalPeriodValidation:false,finalToolUnchanged:false}:s.cycle};
@@ -2682,8 +2722,9 @@ const sourceModeLabel =
               : <input type={field.numeric?'number':'text'} step="any" data-testid={`input-daily-technical-${field.key}`} value={daily.technicalData?.[field.key]??''} readOnly={sourceReadOnly} onChange={e=>{const value=e.target.value;setDaily(d=>({...d,technicalData:{...d.technicalData,[field.key]:value}}));}}/>}</Field>)}
             <Field label="Faktor pengganggu"><input data-testid="input-daily-disturbances" value={daily.disturbances} onChange={e=>setDaily(d=>({...d,disturbances:e.target.value}))}/></Field>
             <Field label="Catatan event"><input data-testid="input-daily-events" value={daily.eventNotes} onChange={e=>setDaily(d=>({...d,eventNotes:e.target.value}))}/></Field>
-            <Field label="Ringkasan hasil / nilai referensi"><input data-testid="input-daily-raw" value={daily.rawValue} readOnly={sourceReadOnly} onChange={e=>setDaily(d=>({...d,rawValue:e.target.value}))} placeholder={sourceReadOnly?"Menunggu data dari sistem sumber":"Isi ringkasan dari sumber kegiatan"}/></Field>
-            <Field label="Nilai yang ditampilkan di QA/QC"><input data-testid="input-daily-cleaned" value={daily.rawValue} readOnly/></Field>
+            <Field label="Ringkasan hasil / nilai referensi"><input data-testid="input-daily-raw" value={daily.rawValue} readOnly={sourceReadOnly} onChange={e=>setDaily(d=>{const value=e.target.value;const wasAligned=!d.cleanedValue||d.cleanedValue===d.rawValue;return {...d,rawValue:value,...(wasAligned?{cleanedValue:value}:{})};})} placeholder={sourceReadOnly?"Menunggu data dari sistem sumber":"Isi ringkasan dari sumber kegiatan"}/></Field>
+            <Field label="Nilai yang ditampilkan di QA/QC"><input data-testid="input-daily-cleaned" value={daily.cleanedValue} readOnly={sourceReadOnly} onChange={e=>setDaily(d=>({...d,cleanedValue:e.target.value}))} placeholder="Sama dengan nilai raw bila tidak ada koreksi"/></Field>
+            {daily.cleanedValue.trim()&&daily.cleanedValue.trim()!==daily.rawValue.trim()&&<Field label="Alasan koreksi / cleaning" full><textarea rows={2} data-testid="input-daily-cleaning-reason" value={daily.cleaningReason} onChange={e=>setDaily(d=>({...d,cleaningReason:e.target.value}))} placeholder="Jelaskan dasar perubahan nilai sebelum dicatat."/></Field>}
             <div className="wf-callout wf-field full">Data sumber tetap menjadi referensi utama. Bila ada ketidaksesuaian, catat temuan/tindak lanjut dan gunakan hasil terbaru setelah perbaikan diverifikasi.</div>
           </div>}
           <div className={`wf-callout ${gate?'':sourceReadOnly?'':'danger'}`} style={{marginTop:12}}>{sourceReadOnly?'Status: menunggu data kegiatan dari sistem sumber.':<>Gerbang berantai <strong>{gate?'LOLOS':'TAHAN'}</strong> Â· persiapan {preparationReady?'lulus':'tertahan'}, kalibrasi {calibrationReady?'siap':'tertahan'}, metode {methodApproved?'disetujui':'belum disetujui'}, izin jembatan {!bridgePermitRequired||state.bridgeInspectionPermit?'siap':'tertahan'}, kondisi lapangan {fieldQuality?'sesuai':'perlu diperiksa'}.</>}</div>
@@ -2728,18 +2769,19 @@ const sourceModeLabel =
   };
 
   const switchStage3BPeriod=(number:number)=>{
-    if(number===activeStage3BPeriod)return;
+    const targetNumber=normalizeActivePeriod(Math.floor(number));
+    if(targetNumber===activeStage3BPeriod)return;
     onUpdate(current=>{
       const history={...(current.cycleHistory||{}),[String(activeStage3BPeriod)]:{...current.cycle}};
-      const target=history[String(number)];
+      const target=history[String(targetNumber)];
       const fresh:VervalCycle={...current.cycle,
         lastCompletedDate:'',periodCompleted:false,heldRecordIds:[],checkedProtocols:{},
         iriCoefficientVariation:null,pciAiStandardDeviation:null,reRatingStatus:'Belum Diperiksa',
         consistency:'Belum Diperiksa',bridgeFieldValidation:false,finalPeriodValidation:false,
         certificateId:'',userReview:'Belum Diperiksa',userReviewNote:'',affectedTool:''};
-      return {...current,cycleHistory:history,cycle:target?{...target}:{...fresh}};
-    },'Pilih periode verval',`Periode ${number}`);
-    setActiveStage3BPeriod(number);
+      return {...current,cycleActivePeriod:targetNumber,cycleHistory:history,cycle:target?{...target}:{...fresh}};
+    },'Pilih periode verval',`Periode ${targetNumber}`);
+    setActiveStage3BPeriod(targetNumber);
     setDraft(d=>({...d,cycleBa:''}));
     setStage3BCompletion({consistency:false,internal:false,periodic14:false});
   };
@@ -2971,11 +3013,16 @@ const sourceModeLabel =
     const targetsPassed=requiredTargets.length>0;
     const packageReferenced=!!state.submission.rawFileName.trim()&&!!state.submission.cleanedFileName.trim();
     const fieldErrors=fieldReadiness(state);
-    const preAuditReady=!fieldErrors.length&&lrs.passed&&docsPassed&&packageReferenced;
+    const missingStage0Evidence=missingEvidence(state.project.id,STAGE0_REQUIRED_EVIDENCE);
+    const missingStage4Evidence=missingEvidence(state.project.id,STAGE4_REQUIRED_EVIDENCE);
+    const missingStage4GateEvidence=[...missingStage0Evidence,...missingStage4Evidence];
+    const evidenceReady=passesEvidenceGate(true,missingStage4GateEvidence);
+    const preAuditReady=passesEvidenceGate(!fieldErrors.length&&lrs.passed&&docsPassed&&packageReferenced,missingStage4GateEvidence);
     const readyToSubmit=preAuditReady&&state.audits[0].status==='Lulus'&&targetsPassed;
     const updateReq=(key:string,value:boolean)=>updateSubmission({requiredDocuments:{...state.submission.requiredDocuments,[key]:value}},'Periksa dokumen mutu');
     const validate=()=>{
       if(!canPrepare){setNotice('Penyiapan dan penyerahan paket data dilakukan oleh Penyedia Jasa / Ketua Tim.');return;}
+      if(missingStage4GateEvidence.length){setNotice(`Penyerahan tertahan; bukti wajib belum lengkap: ${missingStage4GateEvidence.join(', ')}.`);return;}
       if(!readyToSubmit){setNotice('Penyerahan masih tertahan. Pastikan Tahap 3 selesai, dokumen mutu lengkap, gerbang RNI/LRS lulus, paket data tersedia, Audit Tingkat 1 lulus, dan tujuan sistem sesuai jenis survei.');return;}
       const result=evaluateLrsGate(state.submission,state.simulationDate);
       if(!result.passed){setNotice('Gerbang RNI/LRS belum lulus. Tindak lanjuti ketidaksesuaian sebelum penyerahan.');return;}
@@ -3014,6 +3061,8 @@ const sourceModeLabel =
       {label:'Dokumen mutu lengkap',ready:docsPassed,detail:`${documentItems.filter(x=>state.submission.requiredDocuments[x]).length}/${documentItems.length} dokumen`},
       {label:'Gerbang RNI/LRS',ready:lrs.passed,detail:lrs.passed?'Lulus':'Ada kriteria yang belum terpenuhi'},
       {label:'Paket data tersedia',ready:packageReferenced,detail:packageReferenced?'Data sumber & tervalidasi tercatat':'Referensi paket data belum lengkap'},
+      {label:'Bukti persiapan Tahap 0',ready:missingStage0Evidence.length===0,detail:missingStage0Evidence.length?`${missingStage0Evidence.length} bukti wajib belum lengkap`:'Bukti persiapan tersedia'},
+      {label:'Bukti paket data terlampir',ready:evidenceReady,detail:evidenceReady?'Data sumber & tervalidasi terlampir':`${missingStage4GateEvidence.length} bukti wajib belum lengkap`},
     ];
     const auditGateItems=[
       {label:'Penyiapan data lengkap',ready:preAuditReady,detail:preAuditReady?'Siap diaudit':'Lengkapi gerbang dan paket data'},
@@ -3076,6 +3125,7 @@ const sourceModeLabel =
             {targetAssignments.length?targetAssignments.map(({system,types})=><div className="wf-row" key={system} data-testid={`target-system-${testId(system)}`}><span><strong>{system}</strong><span className="wf-note" style={{display:'block'}}>{types.join(' Â· ')}</span></span><Badge tone="good">Terkonfigurasi</Badge></div>):<div className="wf-callout warn">Belum ada jenis survei pada paket sehingga sistem tujuan belum dapat ditentukan.</div>}
           </Panel>
           <Panel title="Lanjut ke audit & penyerahan" icon={ShieldCheck}>
+            {missingStage4GateEvidence.length>0&&<div className="wf-callout warn" data-testid="stage4-missing-evidence"><strong>Bukti wajib belum lengkap:</strong> {missingStage4GateEvidence.join(', ')}.</div>}
             <GateSummary title="Gerbang Tahap 4 â†’ Tahap 5" items={auditGateItems}/>
             <div className="wf-callout" style={{marginTop:10}}>{state.submission.validationMessage||'Belum ada konfirmasi kesiapan penyerahan.'}</div>
             <div className="wf-toolbar" style={{marginTop:10}}>
@@ -3151,18 +3201,24 @@ const sourceModeLabel =
     const scopedTypes=state.project.surveyTypes;
     const auditChecks=AUDIT_REVIEW_CHECKS[auditLevel];
     const sampleIssues=auditSampleIntegrity({audit,records:state.dailyRecords,surveyTypes:scopedTypes,routes:state.project.routes});
-    const stage4Ready=fieldReadiness(state).length===0&&lrs.passed&&SUBMISSION_DOCUMENTS.every(key=>state.submission.requiredDocuments[key])&&!!state.submission.rawFileName.trim()&&!!state.submission.cleanedFileName.trim();
+    const missingAuditStartEvidence=missingEvidence(state.project.id,auditStartEvidenceRequirements(auditLevel));
+    const stage4Ready=passesEvidenceGate(fieldReadiness(state).length===0&&lrs.passed&&SUBMISSION_DOCUMENTS.every(key=>state.submission.requiredDocuments[key])&&!!state.submission.rawFileName.trim()&&!!state.submission.cleanedFileName.trim(),missingAuditStartEvidence);
     const previousAuditPassed=auditLevel===1||state.audits[auditLevel-2].status==='Lulus';
     const uploadReady=auditLevel===1||state.submission.validationStatus==='VALID';
-    const canStart=auditLevel===1?stage4Ready:previousAuditPassed&&uploadReady;
+    const canStart=passesEvidenceGate(auditLevel===1?stage4Ready:previousAuditPassed&&uploadReady,missingAuditStartEvidence);
     const startGateItems=[
       {label:auditLevel===1?'Tahap 4 siap diaudit':`Audit Tingkat ${auditLevel-1} lulus`,ready:auditLevel===1?stage4Ready:previousAuditPassed,detail:auditLevel===1?(stage4Ready?'Paket siap masuk audit internal':'Lengkapi penyiapan data/RNI-LRS'):(previousAuditPassed?'Lulus':'Belum lulus')},
       ...(auditLevel>1?[{label:'Status paket/upload siap',ready:uploadReady,detail:state.submission.validationStatus==='VALID'?'VALID':'Belum VALID'}]:[]),
+      {label:'Bukti wajib Tahap 0, 4 dan audit sebelumnya',ready:missingAuditStartEvidence.length===0,detail:missingAuditStartEvidence.length?missingAuditStartEvidence.join(', '):'Bukti prasyarat tersedia'},
       {label:'Actor audit sesuai',ready:canEditAudit,detail:canEditAudit?'Peran aktif dapat melakukan aksi':`Aksi dilakukan oleh ${requiredRole}`},
     ];
+    const missingAuditEvidence=missingEvidence(state.project.id,auditEvidenceRequirements(auditLevel));
     const makeSamples=()=>{
       if(!canEditAudit){setNotice(`Peran ${requiredRole} diperlukan untuk membuat/menetapkan sampel audit tingkat ${auditLevel}.`);return;}
-      if(!canStart){setNotice(auditLevel===1?'Audit Tingkat 1 menunggu Tahap 4 lengkap dan gerbang RNI/LRS lulus.':'Audit tingkat ini menunggu status paket VALID dan audit sebelumnya lulus.');return;}
+      if(!canStart){
+        if(missingAuditStartEvidence.length){setNotice(`Audit tingkat ${auditLevel} tertahan; bukti wajib belum tersedia: ${missingAuditStartEvidence.join(', ')}.`);return;}
+        setNotice(auditLevel===1?'Audit Tingkat 1 menunggu Tahap 4 lengkap dan gerbang RNI/LRS lulus.':'Audit tingkat ini menunggu status paket VALID dan audit sebelumnya lulus.');return;
+      }
       const result=buildAuditSamplePlan({
         packageId:state.project.id,
         auditLevel,
@@ -3178,9 +3234,13 @@ const sourceModeLabel =
     const patchAudit=(patch:Partial<AuditLevel>,activity:string)=>{
       if(!canEditAudit){setNotice(`Peran ${requiredRole} diperlukan untuk mengubah audit tingkat ${auditLevel}.`);return;}
       if(patch.status==='Lulus'){
+        if(!passesEvidenceGate(true,missingAuditEvidence)){setNotice(`Bukti audit tingkat ${auditLevel} belum lengkap: ${missingAuditEvidence.join(', ')}.`);return;}
         const ba=draft[`audit-ba-${auditLevel}`]??audit.baNumber;
         if(!audit.sampleIds.length||!ba.trim()){setNotice(auditLevel===1?'Bukti audit internal memerlukan cakupan rekaman dan referensi dokumen/BA.':'Audit memerlukan sampel dan nomor BA sebelum dinyatakan lulus.');return;}
-        if(!canStart){setNotice('Gerbang audit sebelumnya belum terpenuhi.');return;}
+        if(!canStart){
+          if(missingAuditStartEvidence.length){setNotice(`Audit tingkat ${auditLevel} tertahan; bukti wajib belum tersedia: ${missingAuditStartEvidence.join(', ')}.`);return;}
+          setNotice('Gerbang audit sebelumnya belum terpenuhi.');return;
+        }
         if(state.corrections.some(item=>item.status!=='Ditutup'&&item.blockedStage===`Audit tingkat ${auditLevel}`)){
           setNotice(`Audit tingkat ${auditLevel} belum dapat lulus: ada tindak lanjut audit yang masih terbuka.`);return;
         }
@@ -3257,6 +3317,7 @@ const sourceModeLabel =
             editable={canEditAudit}
           />
         </div>
+        {missingAuditEvidence.length>0&&<div className="wf-callout warn" data-testid={`stage5-missing-evidence-${auditLevel}`} style={{marginTop:10}}><strong>Bukti wajib tingkat {auditLevel} belum lengkap:</strong> {missingAuditEvidence.join(', ')}.</div>}
       </Panel>
 
       <Panel title={`Dokumen hasil audit · Tingkat ${auditLevel}`} icon={FileText}>
@@ -3323,6 +3384,8 @@ const sourceModeLabel =
       if(patch.complete){
         if(!state.acceptance.partialReceipts.includes(`BA penerimaan ${id}`)){setNotice(`BA penerimaan parsial ${id} wajib dicatat sebelum termin dinyatakan selesai.`);return;}
         const errors=termReadiness(state,id);if(errors.length){setNotice(errors.join(' Â· '));return;}
+        const missingStage0Evidence=missingEvidence(state.project.id,STAGE0_REQUIRED_EVIDENCE);
+        if(id==='T1'&&!passesEvidenceGate(true,missingStage0Evidence)){setNotice(`Termin T1 tertahan; bukti persiapan wajib belum tersedia: ${missingStage0Evidence.join(', ')}.`);return;}
         if(id==='T1'&&(state.project.preparation.reportApproval!=='Disetujui'||!calibrationReady||state.productionApproval!=='Disetujui'||!productionTestsPassed)){setNotice('Termin T1 menunggu laporan pendahuluan, kalibrasi/personel, uji produksi, dan BA metode disetujui.');return;}
         if(id==='T2'&&(!state.dailyRecords.some(record=>record.state==='Tercatat')||!state.cycle.certificateId||state.cycle.consistency!=='Konsisten'||state.cycle.heldRecordIds.length>0)){setNotice('Termin T2 menunggu catatan lapangan yang lolos, BA verval konsisten, dan tidak ada data tertahan.');return;}
         if(id==='T3'&&(state.submission.validationStatus!=='VALID'||state.audits[1].status!=='Lulus'||state.audits[2].status!=='Lulus')){setNotice('Termin T3 menunggu status VALID serta audit Pengguna Jasa dan Direktorat lulus.');return;}
@@ -3341,7 +3404,10 @@ const sourceModeLabel =
     };
     const acceptanceCriteria=state.acceptance.acceptanceCriteria??{};
     const acceptanceCriteriaReady=ACCEPTANCE_CRITERIA.every(item=>!!acceptanceCriteria[item]);
-    const finalReady=state.acceptance.terms.every(t=>t.complete&&state.acceptance.partialReceipts.includes(`BA penerimaan ${t.id}`))&&!semesterErrors.length&&state.acceptance.semesterTwoRevalidation&&state.acceptance.finalReport&&allAuditsPassed&&!state.corrections.some(item=>item.status!=='Ditutup')&&acceptanceCriteriaReady;
+    const missingStage6Evidence=missingEvidence(state.project.id,STAGE6_REQUIRED_EVIDENCE);
+    const missingFinalEvidence=missingEvidence(state.project.id,FINAL_ACCEPTANCE_EVIDENCE);
+    const finalReady=passesEvidenceGate(state.acceptance.terms.every(t=>t.complete&&state.acceptance.partialReceipts.includes(`BA penerimaan ${t.id}`))&&!semesterErrors.length&&state.acceptance.semesterTwoRevalidation&&state.acceptance.finalReport&&allAuditsPassed&&!state.corrections.some(item=>item.status!=='Ditutup')&&acceptanceCriteriaReady,missingFinalEvidence);
+    const finalAcceptanceRecorded=state.acceptance.finalAcceptance&&finalReady;
     const updateAcceptanceCriterion=(criterion:AcceptanceCriterion,checked:boolean)=>{
       if(state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin'){setNotice('Kriteria penerimaan dinilai oleh PIC Balai / Pengguna Jasa.');return;}
       commit('Nilai kriteria penerimaan data',criterion,s=>({...s,acceptance:{...s.acceptance,acceptanceCriteria:{...(s.acceptance.acceptanceCriteria??{}),[criterion]:checked},acceptanceDecision:'Belum Diperiksa',finalAcceptance:false}}));
@@ -3357,6 +3423,8 @@ const sourceModeLabel =
     };
     const toggleFinalReport=(checked:boolean)=>{
       if(state.role!=='Penyedia Jasa / Ketua Tim'&&state.role!=='Admin'){setNotice('Penyedia Jasa menyerahkan laporan akhir.');return;}
+      const missingReportEvidence=missingEvidence(state.project.id,STAGE6_REQUIRED_EVIDENCE.filter(item=>item.id==='stage6-final-report'));
+      if(checked&&!passesEvidenceGate(true,missingReportEvidence)){setNotice(`Laporan akhir belum dapat ditandai tersedia; bukti wajib belum ada: ${missingReportEvidence.join(', ')}.`);return;}
       if(checked&&!canMarkFinalReport(state)){setNotice('Laporan akhir membutuhkan T1â€“T3 selesai, audit lulus dan referensi laporan. Tidak perlu menunggu T4 (laporan adalah syarat T4).');return;}
       commit('Ubah status laporan akhir',state.project.packageName,s=>({...s,acceptance:{...s.acceptance,finalReport:checked,finalAcceptance:false,...(!checked?{terms:s.acceptance.terms.map(t=>t.id==='T4'?{...t,complete:false}:t)}:{})}}));
     };
@@ -3370,6 +3438,7 @@ const sourceModeLabel =
         return;
       }
       if(decision!=='Diterima'){setNotice('Pilih keputusan Diterima atau Ditolak.');return;}
+      if(!passesEvidenceGate(true,missingFinalEvidence)){setNotice(`Penerimaan akhir tertahan; bukti wajib belum tersedia: ${missingFinalEvidence.join(', ')}.`);return;}
       if(!finalReady){setNotice('Penerimaan akhir tertahan oleh kriteria penerimaan, termin, BA, audit, revalidasi, laporan akhir, atau kasus koreksi terbuka.');return;}
       commit('Catat penerimaan akhir',state.project.packageName,s=>({...s,acceptance:{...s.acceptance,acceptanceDecision:'Diterima',acceptanceRejectionReason:'',finalAcceptance:true,finalAcceptanceBa:draft.finalAcceptanceBa||s.acceptance.finalAcceptanceBa||`BA-AKHIR-${s.simulationDate}`}}),'Penerimaan akhir dan referensi BA dicatat.');
     };
@@ -3394,13 +3463,15 @@ const sourceModeLabel =
           />
         </div>
 
+        {missingStage6Evidence.length>0&&<div className="wf-callout warn" data-testid="stage6-missing-evidence" style={{marginTop:10}}><strong>Bukti wajib belum lengkap:</strong> {missingStage6Evidence.join(', ')}.</div>}
         {state.role==='Direktorat / Pusat'&&(
           <div className="wf-note" style={{marginTop:8}}>
             Direktorat / Pusat memonitor hasil audit dan penerimaan secara read-only.
           </div>
         )}
       </Panel>
-      <div className="wf-kpis"><div className="wf-kpi"><div className="wf-kpi-label">Termin selesai</div><div className="wf-kpi-value">{state.acceptance.terms.filter(t=>t.complete).length}/4</div></div><div className="wf-kpi"><div className="wf-kpi-label">Penerimaan parsial</div><div className="wf-kpi-value">{state.acceptance.partialReceipts.length}</div></div><div className="wf-kpi"><div className="wf-kpi-label">Gerbang akhir</div><div className="wf-kpi-value" style={{fontSize:14}}>{state.acceptance.finalAcceptance?'Diterima':finalReady?'Siap':'Tertahan'}</div></div></div>
+      {missingFinalEvidence.length>0&&<div className="wf-callout warn" data-testid="final-acceptance-missing-evidence"><strong>Penerimaan akhir tertahan; bukti wajib belum tersedia:</strong> {missingFinalEvidence.join(', ')}.</div>}
+      <div className="wf-kpis"><div className="wf-kpi"><div className="wf-kpi-label">Termin selesai</div><div className="wf-kpi-value">{state.acceptance.terms.filter(t=>t.complete).length}/4</div></div><div className="wf-kpi"><div className="wf-kpi-label">Penerimaan parsial</div><div className="wf-kpi-value">{state.acceptance.partialReceipts.length}</div></div><div className="wf-kpi"><div className="wf-kpi-label">Gerbang akhir</div><div className="wf-kpi-value" style={{fontSize:14}}>{finalAcceptanceRecorded?'Diterima':finalReady?'Siap':'Tertahan'}</div></div></div>
       <Panel title="Siklus ulang IRI Semester II â€” bukti terpisah" icon={RotateCcw}>
         <div className="wf-callout">Kalibrasi ulang â†’ validasi ulang â†’ survei IRI â†’ upload VALID (minggu ke-3 November) â†’ sanggah (minggu ke-4 November). Bukti Semester I tidak dianggap bukti Semester II. </div>
         <div className="wf-toolbar"><Button id="button-semester-calibration" onClick={()=>onNavigate('/documents:Kalibrasi & personel')}>Buka kalibrasi ulang</Button><Button id="button-semester-production" onClick={()=>{setProdType('IRI');onNavigate('/entry:Validasi produksi');}}>Buka uji IRI</Button><Button id="button-semester-daily" onClick={()=>onNavigate('/entry:Survei harian')}>Catat survei Semester II</Button></div>
@@ -3432,7 +3503,7 @@ const sourceModeLabel =
             <Field label="Nomor / referensi BA penerimaan akhir"><input data-testid="input-final-acceptance-ba" disabled={state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin'} value={draft.finalAcceptanceBa??state.acceptance.finalAcceptanceBa??''} onChange={e=>saveText('finalAcceptanceBa',e.target.value)}/></Field>
             <div className="wf-callout" style={{marginTop:8}}>Kriteria penerimaan: {acceptanceCriteriaReady?'Lengkap':'Belum lengkap'} Â· Audit seluruh tingkat: {allAuditsPassed?'Lulus':'Belum seluruhnya lulus'} Â· kasus koreksi terbuka: {state.corrections.filter(item=>item.status!=='Ditutup').length} Â· penerbit BA: PIC Balai / Pengguna Jasa</div>
             {state.role==='Direktorat / Pusat'&&<div className="wf-callout" style={{marginTop:8}}>Direktorat / Pusat memonitor hasil Audit Tingkat 3 dan status penerimaan. Keputusan penerimaan/BA dicatat oleh PIC Balai / Pengguna Jasa.</div>}
-            <Button id="button-final-acceptance" kind="primary" disabled={state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin'} onClick={saveAcceptanceDecision}>{state.acceptance.finalAcceptance?'Penerimaan akhir tercatat':'Simpan keputusan penerimaan'}</Button>
+            <Button id="button-final-acceptance" kind="primary" disabled={state.role!=='PIC Balai / Pengguna Jasa'&&state.role!=='Admin'} onClick={saveAcceptanceDecision}>{finalAcceptanceRecorded?'Penerimaan akhir tercatat':'Simpan keputusan penerimaan'}</Button>
           </Panel>
         </div>
       </div></>;
@@ -3679,5 +3750,5 @@ const sourceModeLabel =
     case '/documents:BA & dokumen workflow': content=<>{heading('Kontrol dokumen Â· lintas tahap','BA & dokumen workflow','Referensi terhubung ke status sumber; tidak ada file nyata yang diunggah.')}<WorkflowDocuments state={state} period={activeStage3BPeriod} periodRange={stage3bPeriodRange} onNavigate={onNavigate}/></>;break;
     default:return null;
   }
-  return <div className="wf" data-testid="operational-workflow-workspace"><WorkflowNextAction state={state} onNavigate={onNavigate}/><StageOwnershipBanner selection={selection} role={state.role}/>{content}</div>;
+  return <div className="wf" data-testid="operational-workflow-workspace"><WorkflowNextAction state={state} onNavigate={onNavigate} finalAcceptanceValid={state.acceptance.finalAcceptance&&acceptedEvidenceReady}/><StageOwnershipBanner selection={selection} role={state.role}/>{content}</div>;
 }

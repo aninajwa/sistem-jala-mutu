@@ -11,7 +11,7 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:flow": "tsc --outDir /tmp/road-qaqc-flow-tests --module commonjs --moduleResolution node --target es2022 --esModuleInterop --skipLibCheck --types node src/workflow/flowRules.test.ts && node --test /tmp/road-qaqc-flow-tests/flowRules.test.js"
+    "test:flow": "tsc --outDir /tmp/road-qaqc-flow-tests --module commonjs --moduleResolution node --target es2022 --esModuleInterop --skipLibCheck --types node src/workflow/flowRules.test.ts src/workflow/auditSampleIntegrity.test.ts && node --test /tmp/road-qaqc-flow-tests/workflow/flowRules.test.js /tmp/road-qaqc-flow-tests/workflow/auditSampleIntegrity.test.js"
   },
   "dependencies": {},
   "devDependencies": {

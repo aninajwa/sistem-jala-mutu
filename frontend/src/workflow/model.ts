@@ -305,6 +305,7 @@ productionApprovalNote: string;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
   cycleHistory?: Record<string, VervalCycle>;
+  cycleActivePeriod?: number;
   submission: SubmissionState;
   audits: [AuditLevel, AuditLevel, AuditLevel];
   acceptance: {
@@ -324,6 +325,10 @@ productionApprovalNote: string;
   events: WorkflowEvent[];
   backupSchedule?: { enabled: boolean; intervalDays: number; nextDate: string; media: string[] };
 };
+
+export function normalizeActivePeriod(value: unknown): number {
+  return typeof value === 'number' && Number.isSafeInteger(value) && value > 0 ? value : 1;
+}
 
 export const PREPARATION_SOURCE_REVIEWS = [
   'Survei tahun sebelumnya',
@@ -531,6 +536,7 @@ export const INITIAL_WORKFLOW: OperationalWorkflowState = {
     finalPeriodValidation: false,
     certificateId: '',
   },
+  cycleActivePeriod: 1,
   submission: {
     routeChanged: false,
     routeLengthDeviation: 12,
@@ -614,6 +620,7 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
       ])) as OperationalWorkflowState['productionTests'],
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
       cycleHistory: parsed.cycleHistory ?? {},
+      cycleActivePeriod: normalizeActivePeriod(parsed.cycleActivePeriod),
       calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
       submission: {
         ...INITIAL_WORKFLOW.submission,
@@ -667,6 +674,20 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     String(
       detail[key] ?? '',
     ).trim();
+
+  if (test.pciManual === false) {
+    add(
+      'Enam benchmark dengan kategori seimbang',
+      `${test.sections} benchmark`,
+      test.sections >= 6 &&
+        test.pciBenchmarkBalanced === true,
+    );
+    add(
+      'Minimal lima ulangan PCI AI',
+      `${test.repeats} ulangan`,
+      test.repeats >= 5,
+    );
+  }
 
   add(
     'Uji coba PCI minimal 5 km',
@@ -939,6 +960,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     );
 
     const reportReady =
+      test.bridgeTrialReportComplete === true &&
       !!text('bridgeReportIntro') &&
       !!text('bridgeReportResult') &&
       !!text('bridgeReportEvaluation') &&

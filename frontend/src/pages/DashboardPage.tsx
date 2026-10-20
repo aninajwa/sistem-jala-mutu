@@ -80,7 +80,7 @@ export default function DashboardPage(p:PageProps){
      ['Bukti/dokumen persiapan',Object.values(p.workflow.project.preparation.documents).filter(Boolean).length?'Ada dokumen':'Perlu Dilengkapi'],
      ['Tindakan perbaikan',openCorrections===0?'Selesai':'Perlu Perbaikan'],
    ].map(([label,status])=><div className="quality-check" key={label}><span>{label}</span><Status value={status}/></div>)}</div></Section>
-   <Section title="Pengajuan terbaru paket" icon={FileCheck2} extra={<Link href="/entry" className="btn sm">Buka workflow <ArrowRight size={12}/></Link>}><SurveyTable surveys={surveys.slice(0,4)} onEdit={p.beginEdit} onStatus={p.updateStatus} canEdit/></Section></div>
+   <Section title="Pengajuan terbaru paket" icon={FileCheck2} extra={<Link href="/entry" className="btn sm">Buka workflow <ArrowRight size={12}/></Link>}><SurveyTable surveys={surveys.slice(0,4)} onEdit={p.beginEdit} onStatus={p.updateStatus} role={role} canEdit/></Section></div>
  </>}
  {role==='PIC Balai / Pengguna Jasa'&&<>
    <div className="grid-even"><Section title="Antrean assurance Balai" icon={ClipboardCheck}><div className="panel-body">{[
@@ -89,7 +89,7 @@ export default function DashboardPage(p:PageProps){
      ['Verval berkala','Monitoring 14 hari'],
      ['Keputusan terdokumentasi','Perlu review'],
    ].map(([label,status])=><div className="quality-check" key={label}><span>{label}</span><Status value={String(status)}/></div>)}</div></Section>
-   <Section title="Sampel menunggu review" icon={FileCheck2} extra={<Link href="/verification" className="btn sm">Buka verifikasi <ArrowRight size={12}/></Link>}><SurveyTable surveys={(pendingSurveys.length?pendingSurveys:surveys).slice(0,4)} onEdit={p.beginEdit} onStatus={p.updateStatus} canEdit={false}/></Section></div>
+   <Section title="Sampel menunggu review" icon={FileCheck2} extra={<Link href="/verification" className="btn sm">Buka verifikasi <ArrowRight size={12}/></Link>}><SurveyTable surveys={(pendingSurveys.length?pendingSurveys:surveys).slice(0,4)} onEdit={p.beginEdit} onStatus={p.updateStatus} role={role} canEdit={false}/></Section></div>
  </>}
  {role==='Direktorat / Pusat'&&<>
    <div className="grid-two"><Section title="Monitoring lintas Balai" icon={MapPinned}><div className="panel-body"><BalaiOsmMap surveys={p.scoped}/><div className="subtle" style={{marginTop:7}}>Scope saat ini masih memakai data simulasi. Backend nantinya menentukan Balai/paket yang boleh terlihat.</div></div></Section>

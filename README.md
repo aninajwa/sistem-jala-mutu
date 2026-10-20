@@ -42,12 +42,20 @@ cd frontend && npm run build                     # dist/ (static files)
 
 ## Status saat ini (penting)
 
-- **Frontend belum memanggil backend.** Seluruh data (paket QA/QC, sesi demo, notifikasi)
-  masih disimpan di `localStorage` browser. Autentikasi masih demo lokal.
-- **Backend baru skeleton**: hanya `GET /api/healthz`. Skema Drizzle (`backend/src/db/schema`) masih kosong.
-- `backend/migrations/Migration_4E_4G_QAQC.sql` memakai tabel `public.qaqc_checklist_item` dan
-  sejenisnya (gaya Supabase/Postgres langsung). Tabel-tabel itu **belum ada** di skema Drizzle,
-  jadi perlu diputuskan: menjalankan SQL ini langsung, atau memodelkan ulang di Drizzle.
+- **Frontend belum memanggil backend untuk workflow.** Data workflow, paket demo,
+  sesi demo, notifikasi, bukti, dan periode aktif masih disimpan di `localStorage`
+  browser. Autentikasi frontend masih pemilihan peran demo lokal; ini bukan kontrol akses.
+- **Backend memiliki API Supabase terbatas** untuk health check, profil/peran,
+  daftar Balai/paket, draft paket, checklist persiapan, dan upload/download dokumen.
+  API tersebut belum menjadi persistence workflow frontend.
+- **Fitur workflow P0 belum memiliki API atau model database backend** untuk transisi
+  status/approval, pemilihan dan verifikasi sampel, submit survei, koreksi nilai harian,
+  evidence gate Tahap 0/4/5/6, atau periode aktif Tahap 3B. Guard dan data lokal pada
+  frontend karena itu tidak memberikan otorisasi atau validasi server-side.
+- Skema Drizzle (`backend/src/db/schema`) masih kosong. Migration dan SQL referensi
+  memakai tabel `public.*` Supabase/Postgres yang tidak dimodelkan di Drizzle; sebelum
+  mengintegrasikan workflow perlu memastikan skema aktual Supabase dan menyiapkan
+  migration non-destruktif yang sesuai.
 
 ## Perubahan dari repo asli (`aninajwa/jala-mutu-test`)
 

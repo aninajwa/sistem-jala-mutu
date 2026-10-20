@@ -1,6 +1,7 @@
+import type { SurveyDecision } from './lib/statusTransitions';
 import type { OperationalWorkflowState } from './workflow/model';
 
-export type Survey = { id:string; balai:string; ruas:string; jenis:string; tanggal:string; alat:string; status:string; hasil:string; km:number };
+export type Survey = { id:string; balai:string; ruas:string; jenis:string; tanggal:string; alat:string; status:string; hasil:string; km:number; reviewNote?:string; verificationNoteDraft?:string };
 export type Finding = { id:string; ruas:string; jenis:string; prioritas:string; status:string; pic:string; due:string };
 export type Doc = { id:string; nama:string; kategori:string; versi:string; status:string };
 export type Log = { id:string; waktu:string; pengguna:string; aktivitas:string; objek:string; hasil:string };
@@ -24,9 +25,11 @@ export type PageProps = {
   setSearch: (s: string) => void;
   activeTab: string;
   setActiveTab: (s: string) => void;
-  openNew: (t: RecordType) => void;
+  openNew: (t: RecordType, initial?: Record<string, string>) => void;
   beginEdit: (t: RecordType, id: string) => void;
   updateStatus: (t: StatusRecordType, id: string, status: string) => void;
+  saveReviewDraft: (id: string, note: string) => boolean;
+  reviewSurvey: (id: string, decision: SurveyDecision, note: string) => boolean;
   record: (a: string, o: string) => void;
   setNotice: (s: string) => void;
 };

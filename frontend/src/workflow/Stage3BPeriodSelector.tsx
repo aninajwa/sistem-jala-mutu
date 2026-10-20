@@ -14,7 +14,7 @@ function read(id: string): Schedule { try { const value=JSON.parse(localStorage.
   return {startDate:old?.startDate||'',endDate:''}; }catch{return {startDate:'',endDate:''};} }
 export function Stage3BPeriodSelector({packageId,activePeriod,onPeriodChange,surveyStartDate='',surveyEndDate='',editable=true,onRangeChange}:Props){
   const [fallback,setFallback]=useState<Schedule>(()=>read(packageId));
-  useEffect(()=>{setFallback(read(packageId));onPeriodChange(1);},[packageId]);
+  useEffect(()=>{setFallback(read(packageId));},[packageId]);
   const start=valid(surveyStartDate)?surveyStartDate:fallback.startDate;
   const end=valid(surveyEndDate)?surveyEndDate:fallback.endDate;
   const periods=useMemo(()=>{const output:Stage3BPeriod[]=[];

@@ -20,7 +20,7 @@ function stage3Complete(state:OperationalWorkflowState){
   return !!state.cycle.certificateId&&state.cycle.userReview==='Sesuai'&&state.cycle.consistency==='Konsisten'&&state.cycle.heldRecordIds.length===0;
 }
 
-export function getNextWorkflowAction(state:OperationalWorkflowState):NextWorkflowAction{
+export function getNextWorkflowAction(state:OperationalWorkflowState,finalAcceptanceValid=state.acceptance.finalAcceptance):NextWorkflowAction{
   const role=state.role;
   if(role==='Penyedia Jasa / Ketua Tim'){
     if(!preparationComplete(state))return {stage:'Tahap 0',title:'Lengkapi persiapan & Laporan Pendahuluan',detail:'Selesaikan survei pendahuluan, dokumen persiapan, lalu ajukan kepada PIC Balai.',selection:'/entry:Persiapan & SPMK'};
@@ -37,7 +37,7 @@ export function getNextWorkflowAction(state:OperationalWorkflowState):NextWorkfl
     if(state.productionApproval==='Diajukan'||state.productionApproval==='Perlu Revisi')return {stage:'Tahap 2',title:'Review hasil validasi produksi',detail:'Tinjau hasil system-check, evidence dan putuskan persetujuan alat/metode.',selection:'/entry:Validasi produksi'};
     if(state.cycle.userReview!=='Sesuai'||!state.cycle.certificateId)return {stage:'Tahap 3B',title:'Lakukan verval berkala 14 hari',detail:'Review evidence, konsistensi, temuan, dan catat BA berkala.',selection:'/verification:Verval 14 hari'};
     if(state.audits[1].status!=='Lulus')return {stage:'Tahap 5',title:'Lakukan Audit Tingkat 2',detail:'Sampling, klarifikasi, keputusan dan BA dilakukan pada level PIC Balai/Pengguna Jasa.',selection:'/verification:Audit tingkat 1–3'};
-    if(!state.acceptance.finalAcceptance)return {stage:'Tahap 6',title:'Nilai penerimaan data',detail:'Periksa lima kriteria penerimaan, BA parsial/bertahap, dan keputusan penerimaan akhir.',selection:'/reports:Penerimaan & termin'};
+    if(!finalAcceptanceValid)return {stage:'Tahap 6',title:'Nilai penerimaan data',detail:'Periksa lima kriteria penerimaan, BA parsial/bertahap, dan keputusan penerimaan akhir.',selection:'/reports:Penerimaan & termin'};
     return {stage:'Selesai',title:'Paket telah diterima',detail:'Pantau dokumentasi dan status penyerahan sesuai periode pekerjaan.',selection:'/reports:Penerimaan & termin'};
   }
   if(role==='Direktorat / Pusat'){
@@ -47,7 +47,7 @@ export function getNextWorkflowAction(state:OperationalWorkflowState):NextWorkfl
   return {stage:'Administrasi',title:'Pantau konfigurasi & integritas sistem',detail:'Admin mendukung konfigurasi, referensi dan audit trail tanpa mengambil alih keputusan QA/QC.',selection:'/audit:Peran & backup'};
 }
 
-export function WorkflowNextAction({state,onNavigate}:{state:OperationalWorkflowState;onNavigate:(selection:string)=>void}){
-  const next=getNextWorkflowAction(state);
+export function WorkflowNextAction({state,onNavigate,finalAcceptanceValid}:{state:OperationalWorkflowState;onNavigate:(selection:string)=>void;finalAcceptanceValid?:boolean}){
+  const next=getNextWorkflowAction(state,finalAcceptanceValid);
   return <div className="wf-next-action" data-testid="workflow-next-action"><div className="wf-next-icon"><Route size={17}/></div><div className="wf-next-copy"><span>{next.stage} · langkah berikutnya</span><strong>{next.title}</strong><small>{next.detail}</small></div><button className="wf-button primary" onClick={()=>onNavigate(next.selection)}>Buka <ArrowRight size={13}/></button></div>;
 }

@@ -1,11 +1,46 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useSyncExternalStore } from 'react';
 import {
   FileText,
   Paperclip,
   Trash2,
 } from 'lucide-react';
+import { hasEvidenceRecord, missingEvidenceFromStore } from './evidenceGate';
 
 const STORAGE_KEY = 'jala-mutu-evidence-v1';
+
+let evidenceRevision = 0;
+const evidenceListeners = new Set<() => void>();
+
+function notifyEvidenceChanged() {
+  evidenceRevision += 1;
+  for (const listener of evidenceListeners) listener();
+}
+
+/** Memicu render ulang gate setelah evidence ditambah/dihapus. */
+export function useEvidenceRevision() {
+  return useSyncExternalStore(
+    listener => {
+      evidenceListeners.add(listener);
+      return () => {
+        evidenceListeners.delete(listener);
+      };
+    },
+    () => evidenceRevision,
+    () => 0,
+  );
+}
+
+export function evidenceAvailable(packageId: string, evidenceId: string) {
+  const record = loadStore()[`${packageId}:${evidenceId}`];
+  return hasEvidenceRecord(record);
+}
+
+export function missingEvidence(
+  packageId: string,
+  requirements: Array<{ id: string; label: string }>,
+) {
+  return missingEvidenceFromStore(packageId, requirements, loadStore());
+}
 
 type EvidenceRecord = {
   fileName: string;
@@ -95,6 +130,7 @@ export function EvidenceAttachment({
 
     saveStore(store);
     setRecord(next);
+    notifyEvidenceChanged();
   };
 
   const remove = () => {
@@ -109,10 +145,10 @@ export function EvidenceAttachment({
       reference: '',
       updatedAt: '',
     });
+    notifyEvidenceChanged();
   };
 
-  const hasEvidence =
-    !!record.fileName || !!record.reference;
+  const hasEvidence = hasEvidenceRecord(record);
 
   return (
     <div
@@ -142,7 +178,7 @@ export function EvidenceAttachment({
           }`}
         >
           {hasEvidence
-            ? 'Bukti tersedia'
+            ? 'Referensi dicatat (demo)'
             : 'Belum ada bukti'}
         </span>
       </div>

@@ -56,11 +56,14 @@ function App() {
     store,
     modal,
     editing,
+    initialForm,
     notice,
     setNotice,
     record,
     addOrEdit,
     updateStatus,
+    saveReviewDraft,
+    reviewSurvey,
     beginEdit,
     openNew,
     closeDialog,
@@ -244,6 +247,8 @@ function App() {
     openNew,
     beginEdit,
     updateStatus,
+    saveReviewDraft,
+    reviewSurvey,
     record,
     setNotice,
   };
@@ -356,6 +361,7 @@ function App() {
           <DataDialog
             type={modal}
             editing={editing}
+            initial={initialForm ?? undefined}
             store={store}
             onClose={closeDialog}
             onSave={addOrEdit}

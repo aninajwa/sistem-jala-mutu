@@ -5,6 +5,7 @@
   type OperationalWorkflowState,
   type SurveyType,
   type WorkflowRole,
+  normalizeActivePeriod,
 } from './model';
 
 /*
@@ -898,6 +899,7 @@ function normalizePackage(
     ...state,
 
     role,
+    cycleActivePeriod: normalizeActivePeriod(state.cycleActivePeriod),
 
     project: {
       ...state.project,
