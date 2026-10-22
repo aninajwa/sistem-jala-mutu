@@ -5,7 +5,7 @@
 @media(max-width:460px){.wf-fields{grid-template-columns:1fr}.wf-field.full{grid-column:auto}.wf-kpis{grid-template-columns:1fr 1fr}.wf-button{white-space:normal;text-align:center}}
 .wf-next-action{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;margin:0 0 12px;border:1px solid #bed9cf;background:#f1f8f4;border-radius:5px}.wf-next-icon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#dcefe7;color:#176b58}.wf-next-copy{display:grid;gap:2px;min-width:0}.wf-next-copy span{font:700 8px 'SFMono-Regular',monospace;letter-spacing:.08em;text-transform:uppercase;color:#4c7668}.wf-next-copy strong{font:750 11px Manrope,sans-serif;color:#204b43}.wf-next-copy small{font-size:9px;color:#6f827a}.wf-source-stack{display:grid;gap:10px}.wf-source-stack details>summary{list-style:none}.wf-source-stack details>summary::-webkit-details-marker{display:none}@media(max-width:780px){.wf-next-action{grid-template-columns:auto 1fr}.wf-next-action>.wf-button{grid-column:1/-1;width:100%}}
 
-/* M10 Â· demo journey / learning mode */
+/* M10 · demo journey / learning mode */
 .wf-demo-journey{margin:0 0 12px;border:1px solid #c9dbea;border-radius:10px;background:#f8fbfe;overflow:hidden}
 .wf-demo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid #dce8f1;background:#eef7fd}
 .wf-demo-head>div{display:grid;gap:2px}.wf-demo-head span{font-size:10px;font-weight:800;letter-spacing:.12em;color:#1671a7}.wf-demo-head strong{font-size:14px;color:#18384b}.wf-demo-head small{font-size:11px;color:#587182}
@@ -13,7 +13,7 @@
 @media (max-width:800px){.wf-demo-head{align-items:flex-start;flex-direction:column}.wf-demo-step{min-width:155px}}
 
 
-/* M11 â€” package-first workspace */
+/* M11 — package-first workspace */
 .package-page{display:grid;gap:14px}
 .package-page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;background:#fff;border:1px solid #dfe8ee;border-radius:10px;padding:16px 18px}
 .package-page-head h2{margin:2px 0 5px;font:800 18px/1.2 Manrope,sans-serif;color:#203d53}
@@ -1549,3 +1549,707 @@ details[data-testid="production-calculator-optional"]:not([open]) {
   gap: 3px;
   margin-top: 8px;
 }
+
+/* Tahap 3A — layout ringkas tanpa kolom kosong panjang */
+.wf-grid:has(#button-daily-save) {
+  grid-template-columns: minmax(0, 1fr);
+  align-items: start;
+}
+
+.wf-grid:has(#button-daily-save) > div:last-child {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  align-items: start;
+  align-content: start;
+}
+
+.wf-grid:has(#button-daily-save) > div:last-child > * {
+  min-width: 0;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .wf-grid:has(#button-daily-save) > div:last-child {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+
+/* JALA MUTU — Tahap 3B compact */
+.jala3b { overflow: hidden; }
+
+.jala3b-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #dce6e0;
+}
+
+.jala3b-heading h3 {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin: 0;
+  color: #244653;
+  font-size: 13px;
+}
+
+.jala3b-heading p {
+  margin: 3px 0 0;
+  color: #72847d;
+  font-size: 10px;
+}
+
+.jala3b-progress {
+  white-space: nowrap;
+  padding: 5px 8px;
+  background: #e9f3ed;
+  color: #176b58;
+  border-radius: 5px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.jala3b-phases,
+.jala3b-surveys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 9px 12px;
+}
+
+.jala3b-phases {
+  border-bottom: 1px solid #e5ede8;
+}
+
+.jala3b-phases button,
+.jala3b-surveys button {
+  border: 1px solid #cbdcd3;
+  border-radius: 5px;
+  padding: 6px 10px;
+  background: #fff;
+  color: #426055;
+  font-size: 10px;
+  cursor: pointer;
+}
+
+.jala3b-phases button.selected,
+.jala3b-surveys button.selected {
+  background: #176b58;
+  border-color: #176b58;
+  color: #fff;
+}
+
+.jala3b-pci {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 5px 12px 10px;
+  font-size: 10px;
+}
+
+.jala3b-pci select {
+  padding: 6px 8px;
+  border: 1px solid #cadbd1;
+  border-radius: 4px;
+  background: white;
+}
+
+.jala3b-content {
+  padding: 0 12px 12px;
+}
+
+.jala3b-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px;
+  background: #eef5f0;
+  border: 1px solid #dbe7de;
+  border-radius: 5px 5px 0 0;
+  font-size: 11px;
+}
+
+.jala3b-section-title span {
+  color: #70877b;
+  font-size: 9px;
+}
+
+.jala3b-item {
+  display: grid;
+  grid-template-columns: minmax(180px, 1fr) minmax(280px, 1.1fr);
+  gap: 12px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid #e1eae4;
+  border-top: 0;
+  background: #fff;
+}
+
+.jala3b-label strong {
+  font-size: 10.5px;
+  line-height: 1.45;
+  color: #304e59;
+}
+
+.jala3b-response {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.jala3b-response input,
+.jala3b-response textarea {
+  min-width: 0;
+  width: 100%;
+  border: 1px solid #ccdcd3;
+  border-radius: 4px;
+  padding: 7px 8px;
+  font-size: 10px;
+  background: #fff;
+}
+
+.jala3b-options {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+
+.jala3b-options button {
+  border: 1px solid #cbdbd2;
+  background: #fff;
+  color: #486355;
+  border-radius: 4px;
+  padding: 6px 9px;
+  font-size: 9px;
+  cursor: pointer;
+}
+
+.jala3b-options button.active {
+  border-color: #176b58;
+  background: #e1f2e8;
+  color: #176b58;
+  font-weight: 700;
+}
+
+.jala3b-response .jala3b-note {
+  flex: 1 1 135px;
+  width: auto;
+}
+
+.jala3b-empty {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 5px 12px 12px;
+  padding: 12px;
+  background: #fbf0e2;
+  color: #825827;
+  font-size: 11px;
+}
+
+@media (max-width: 800px) {
+  .jala3b-item {
+    grid-template-columns: 1fr;
+  }
+
+  .jala3b-heading {
+    align-items: flex-start;
+  }
+}
+
+
+/* ===== JALA MUTU: Tahap 3B ===== */
+
+.s3b-panel {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.s3b-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #dce7e1;
+}
+
+.s3b-header h3 {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  margin: 0;
+  font-size: 13px;
+  color: #244b56;
+}
+
+.s3b-header p {
+  margin: 3px 0 0;
+  font-size: 10px;
+  color: #71858a;
+}
+
+.s3b-count {
+  white-space: nowrap;
+  background: #eaf4ee;
+  color: #176b58;
+  padding: 5px 8px;
+  border-radius: 5px;
+  font-size: 10px;
+}
+
+.s3b-tabs,
+.s3b-surveys {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 9px 12px;
+}
+
+.s3b-tabs {
+  border-bottom: 1px solid #e4ece7;
+}
+
+.s3b-tabs button,
+.s3b-surveys button {
+  border: 1px solid #ceddd5;
+  background: white;
+  border-radius: 5px;
+  padding: 7px 10px;
+  font-size: 10px;
+  color: #355c5a;
+  cursor: pointer;
+}
+
+.s3b-tabs button.active,
+.s3b-surveys button.active {
+  background: #176b58;
+  border-color: #176b58;
+  color: white;
+}
+
+.s3b-surveys select {
+  border: 1px solid #ceddd5;
+  border-radius: 5px;
+  background: white;
+  padding: 5px 8px;
+  font-size: 10px;
+}
+
+.s3b-sections {
+  padding: 0 12px 12px;
+  display: grid;
+  gap: 7px;
+}
+
+.s3b-section {
+  border: 1px solid #dce7e1;
+  border-radius: 6px;
+  overflow: hidden;
+  background: white;
+}
+
+.s3b-section summary {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  padding: 10px 12px;
+  background: #f3f8f5;
+  font-size: 11px;
+  color: #304d57;
+}
+
+.s3b-section summary span {
+  font-size: 9px;
+  color: #778b89;
+  font-weight: 400;
+}
+
+.s3b-items {
+  display: grid;
+}
+
+.s3b-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 8px 11px;
+  border-top: 1px solid #edf1ee;
+}
+
+.s3b-item-label {
+  min-width: 0;
+}
+
+.s3b-item-label strong {
+  font-size: 10.5px;
+  line-height: 1.4;
+  color: #304e57;
+}
+
+.s3b-item-label small {
+  margin-left: 6px;
+  font-size: 9px;
+  color: #71867e;
+}
+
+.s3b-item-input {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  min-width: 0;
+}
+
+.s3b-item-input input,
+.s3b-item-input select,
+.s3b-item-input textarea {
+  flex: 1 1 150px;
+  width: 100%;
+  min-width: 0;
+  min-height: 32px;
+  border: 1px solid #ccdbd3;
+  border-radius: 4px;
+  background: white;
+  padding: 6px 8px;
+  font-size: 10px;
+}
+
+.s3b-item-input textarea {
+  resize: vertical;
+}
+
+.s3b-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 12px;
+  padding: 10px;
+  border-left: 3px solid #d68a24;
+  background: #fff5e7;
+  color: #80551f;
+  font-size: 10px;
+}
+
+.s3b-table-scroll {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.s3b-table-scroll table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.s3b-table-scroll th,
+.s3b-table-scroll td {
+  padding: 5px;
+  border: 1px solid #e0e9e3;
+  text-align: left;
+}
+
+.s3b-table-scroll th {
+  background: #f3f8f5;
+}
+
+.s3b-table-scroll input {
+  min-width: 75px;
+  width: 100%;
+}
+
+@media (max-width: 850px) {
+  .s3b-item {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .s3b-header {
+    align-items: flex-start;
+  }
+}
+
+
+/* Tahap 3A — susunan panel tanpa ruang kosong */
+.wf-stage3a-stack {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-bottom: 12px;
+  min-width: 0;
+}
+
+.wf-stage3a-stack > .wf-panel {
+  width: 100%;
+  min-width: 0;
+}
+
+.wf-stage3a-stack > div {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  align-items: start;
+  min-width: 0;
+}
+
+.wf-stage3a-stack > div > .wf-panel {
+  min-width: 0;
+  margin: 0;
+}
+
+@media (max-width: 900px) {
+  .wf-stage3a-stack > div {
+    grid-template-columns: 1fr;
+  }
+}
+
+
+/* Tahap 3B — formulir berbasis DOCX */
+
+.s3doc {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.s3doc-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 14px;
+  border-bottom: 1px solid #e1e8ed;
+}
+
+.s3doc-head h3 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 0;
+  font-size: 13px;
+}
+
+.s3doc-head p {
+  margin: 4px 0 0;
+  font-size: 11px;
+  opacity: .7;
+}
+
+.s3doc-counter {
+  font-size: 10px;
+  white-space: nowrap;
+  padding: 6px 9px;
+  border-radius: 6px;
+  background: #eaf3f9;
+  color: #245571;
+}
+
+.s3doc-tabs,
+.s3doc-surveys {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+  padding: 10px 12px;
+}
+
+.s3doc-tabs {
+  border-bottom: 1px solid #e5ebf0;
+}
+
+.s3doc-tabs button,
+.s3doc-surveys button {
+  border: 1px solid #d3dfe6;
+  border-radius: 5px;
+  background: #fff;
+  padding: 7px 10px;
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.s3doc-tabs button.active,
+.s3doc-surveys button.active {
+  background: #145b91;
+  border-color: #145b91;
+  color: white;
+}
+
+.s3doc-surveys select {
+  border: 1px solid #d3dfe6;
+  border-radius: 5px;
+  padding: 6px 8px;
+}
+
+.s3doc-sections {
+  display: grid;
+  gap: 8px;
+  padding: 0 12px 12px;
+}
+
+.s3doc-section {
+  min-width: 0;
+  border: 1px solid #dce6ed;
+  border-radius: 7px;
+  overflow: hidden;
+}
+
+.s3doc-section summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  background: #f2f7fb;
+  cursor: pointer;
+  font-size: 11px;
+}
+
+.s3doc-section summary span {
+  opacity: .65;
+  font-size: 10px;
+}
+
+.s3doc-items {
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.s3doc-item {
+  min-width: 0;
+}
+
+.s3doc-label {
+  margin-bottom: 6px;
+  font-weight: 600;
+  font-size: 11px;
+}
+
+.s3doc-item textarea,
+.s3doc-item select {
+  width: 100%;
+  padding: 8px;
+  border: 1px solid #d2dfe6;
+  border-radius: 5px;
+  font-size: 11px;
+  background: white;
+}
+
+.s3doc-table-wrap {
+  width: 100%;
+  overflow-x: auto;
+}
+
+.s3doc-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 10px;
+}
+
+.s3doc-table th,
+.s3doc-table td {
+  border: 1px solid #dce6ed;
+  padding: 7px;
+  vertical-align: top;
+  text-align: left;
+}
+
+.s3doc-table th {
+  background: #f2f7fb;
+  font-weight: 600;
+}
+
+.s3doc-table input {
+  width: 100%;
+  min-width: 70px;
+  border: 1px solid #cedde7;
+  border-radius: 4px;
+  padding: 6px;
+  font-size: 10px;
+}
+
+.s3doc-muted {
+  font-size: 11px;
+  opacity: .7;
+}
+
+.s3doc-warning {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px;
+  margin: 10px;
+  background: #fff2dd;
+  border-radius: 6px;
+  font-size: 11px;
+}
+/* Stage 3B: pilihan formulir dari sumber DOCX */
+.s3doc-choice-group { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 8px 14px; padding: 5px 0; }
+.s3doc-choice-prefix { flex-basis: 100%; font-weight: 600; }
+.s3doc-choice { display: inline-flex; align-items: flex-start; gap: 7px; cursor: pointer; line-height: 1.45; font-size: 12px; max-width: 100%; }
+.s3doc-choice input { width: 16px; height: 16px; min-width: 16px; margin: 1px 0 0; accent-color: #1763a6; cursor: pointer; }
+.s3doc-choice input:disabled { cursor: not-allowed; }
+.s3doc-choice:has(input:disabled) { opacity: .72; cursor: default; }
+.s3doc-table .s3doc-choice-group { min-width: 140px; }
+.s3doc-table .s3doc-choice input { width: 16px; min-width: 16px; height: 16px; padding: 0; }
+
+/* Tahap 3B - table status choices and automatically filled project values */
+.s3doc-table-choice { display: flex; justify-content: center; align-items: center; min-height: 32px; cursor: pointer; }
+.s3doc-table-choice input { width: 17px; height: 17px; accent-color: #1976a3; cursor: pointer; }
+.s3doc-autofill { padding: 8px 10px; background: #f3f7f9; border: 1px solid #d8e5ec; border-radius: 5px; color: #24475e; }
+.s3doc-file-evidence { padding: 10px; border: 1px solid #d8e5ec; border-radius: 6px; display: grid; gap: 7px; }
+.s3doc-file-evidence a { word-break: break-all; }
+
+/* Tahap 3B - table status choices and automatically filled project values */
+.s3doc-table-choice { display: flex; justify-content: center; align-items: center; min-height: 32px; cursor: pointer; }
+.s3doc-table-choice input { width: 17px; height: 17px; accent-color: #1976a3; cursor: pointer; }
+.s3doc-autofill { padding: 8px 10px; background: #f3f7f9; border: 1px solid #d8e5ec; border-radius: 5px; color: #24475e; }
+.s3doc-file-evidence { padding: 10px; border: 1px solid #d8e5ec; border-radius: 6px; display: grid; gap: 7px; }
+.s3doc-file-evidence a { word-break: break-all; }
+
+
+/* Role task order: review first; supplier inputs remain available in disclosure. */
+.production-workspace-columns.review-first>.production-column:first-child{order:2}
+.production-workspace-columns.review-first>.production-column:last-child{order:1}
+.role-work-details{margin-block:8px}.role-work-body{padding:10px}.role-work-details>summary{cursor:pointer;font-size:14px}
+
+.acceptance-review-first>*:first-child{order:2}.acceptance-review-first>*:last-child{order:1}
+@media(max-width:760px){.production-workspace-columns,.wf-grid{grid-template-columns:minmax(0,1fr)}.wf input,.wf select,.wf textarea{max-width:100%;min-width:0}.role-work-body{padding:8px}.wf-table{overflow-x:auto}}
+.wf-grid > *, .production-workspace-columns > *, .role-work-body, .role-work-details{min-width:0}
+.wf-table{max-width:100%}
+
+.operational-form-chapter>summary{font-size:14px}.operational-form-chapter .structured-checklist-section{margin:6px 0}.source-table-section{padding:8px 10px}.document-file{border-top:1px solid #e3eaf0;padding:8px 0}.document-file details{font-size:13px;margin:6px 0}.document-file li{margin:5px 0;overflow-wrap:anywhere}.document-file select{max-width:100%}.documents-area .wf-row>div{min-width:0}.document-file small{display:block}.document-needs{margin-bottom:8px}
+
+/* RC2 UI clarity: focused actions, accessible read-only explanation, evidence */
+.document-upload-flow{display:grid;gap:12px;padding:12px;border:1px solid #e3eae6;border-radius:8px;margin:10px 0;background:#fbfcfb}
+.document-category-label{display:grid;gap:6px;font-size:12px;font-weight:650;min-width:0}
+.document-category-label select{width:100%;min-height:40px;border:1px solid #cbd9d3;border-radius:6px;padding:8px;background:white;color:#29444a}
+.document-upload-actions{display:flex;gap:9px;flex-wrap:wrap}
+.document-upload-actions .wf-button{min-height:36px}
+.stage-task-summary{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.stage-task-summary>span:not(.wf-status){font-size:12px;color:#56706b}
+.stage-task-details,.stage-task-blockers{margin-top:7px}
+.stage-task-blockers li{margin:5px 0}
+.stage-document-details{border:1px solid #dce7e1;border-radius:7px;padding:10px 12px;margin:12px 0}
+.stage-document-details>summary{font-weight:700;cursor:pointer}
+.stage-document-details>.wf-panel{margin-top:12px}
+@media(max-width:700px){.stage-task-summary{align-items:flex-start;flex-direction:column}.document-upload-actions{flex-direction:column}.document-upload-actions>.wf-button{width:100%}}
+
+/* RC2 Paket Saya — konteks tugas ringkas, dokumen tidak menutupi pekerjaan utama */
+.stage-action-context.rc2-task-line{padding:12px 14px;margin:0 0 12px;border:1px solid #dce7e4;border-radius:10px;background:#f8faf9}
+.stage-task-summary{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
+.stage-task-summary>strong{font-size:14px}.stage-task-summary>span:not(.wf-status){font-size:12px;flex:1 1 240px}
+.stage-task-details,.stage-task-blockers{margin-top:8px;font-size:12px}.stage-task-details>summary,.stage-task-blockers>summary{cursor:pointer}
+.stage-task-details .wf-callout{margin:8px 0 4px}.stage-task-blockers ul{padding-left:20px;margin:8px 0}
+.stage-document-details{margin:12px 0;border:1px solid #dce7e4;border-radius:10px;background:#fff;overflow:hidden}
+.stage-document-details>summary{padding:12px 14px;font-size:13px;font-weight:650;cursor:pointer;background:#f7f9f8}
+.stage-document-details>.wf-panel{margin:0;border:0;border-top:1px solid #dce7e4;box-shadow:none}
+.stage-period-hint{margin:0 0 10px}.document-upload-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.role-work-details>summary{cursor:pointer}.role-work-details:not([open]){margin-bottom:10px}
+@media(max-width:720px){.stage-task-summary{display:grid;grid-template-columns:1fr}.stage-action-context.rc2-task-line{padding:11px}.document-upload-actions>*{max-width:100%}}

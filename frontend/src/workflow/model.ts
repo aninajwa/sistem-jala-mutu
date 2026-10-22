@@ -1,3 +1,4 @@
+import { localPersistence } from './repository/localPersistence';
 import { productionFields, PRODUCTION_REFERENCE_CHECKS } from './surveyStandards';
 
 export const SURVEY_TYPES = [
@@ -143,6 +144,10 @@ export type DailySurveyRecord = {
 };
 
 export type VervalCycle = {
+  reviewPendingTypes?: SurveyType[];
+  surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string}>>;
+  requiresReview?: boolean;
+  reviewReason?: string;
   lastCompletedDate: string;
   selectedTypes: SurveyType[];
   periodCompleted: boolean;
@@ -150,6 +155,7 @@ export type VervalCycle = {
   checkedProtocols: Record<string, boolean>;
   iriCoefficientVariation: number | null;
   pciAiStandardDeviation: number | null;
+  pciManualMaxDifferencePercent?: number | null;
   reRatingStatus: 'Belum Diperiksa' | 'Sesuai' | 'Tidak Sesuai';
   consistency: 'Belum Diperiksa' | 'Konsisten' | 'Tidak Konsisten';
   bridgeFieldValidation: boolean;
@@ -182,14 +188,48 @@ export type SubmissionState = {
   targetSystems: string[];
   validationStatus: 'Draft' | 'VALID' | 'Error';
   validationMessage: string;
+  /** V&V bertahap generik hanya untuk jenis survei yang tidak memiliki checklist staged khusus pada sumber. */
+  stagedReviews?: Partial<Record<SurveyType,{decision:'Belum Diperiksa'|'Sesuai'|'Temuan';note:string;reviewedAt:string}>>;
   coordinatesBoundToLrs?: boolean;
   formatGlossaryCompliant?: boolean;
 };
 
+export type AuditSampleUnit = {
+  id: string;
+  sourceRecordId: string;
+  surveyType: SurveyType;
+  road: string;
+  unitType: 'point' | 'segment' | 'object' | 'time-window';
+  unitKey: string;
+  lengthKm?: number;
+  date?: string;
+  groupKey?: string;
+  sourceReference?: string;
+  reviewStatus?: 'Belum Diperiksa' | 'Valid' | 'Tidak Valid';
+  evidenceReference?: string;
+  reviewNote?: string;
+};
+
+export type AuditSamplingCoverage = {
+  sourceRecords: number;
+  sampledSourceRecords: number;
+  populationUnits: number;
+  sampledUnits: number;
+  populationKm?: number;
+  sampledKm?: number;
+};
+
 export type AuditLevel = {
+  requiresReview?: boolean;
+  reviewReason?: string;
+  history?: Omit<AuditLevel, "history">[];
   level: 1 | 2 | 3;
   status: 'Belum Dimulai' | 'Dalam Review' | 'Klarifikasi' | 'Lulus' | 'Ditolak';
   sampleIds: string[];
+  /** Unit sampel ter-normalisasi. sampleIds dipertahankan sebagai indeks rekaman sumber untuk kompatibilitas histori. */
+  sampleUnits?: AuditSampleUnit[];
+  /** Denominator populasi yang dipakai saat sampel dibuat. Opsional agar histori RC2 lama tetap dapat dibaca. */
+  samplingCoverage?: Partial<Record<SurveyType, AuditSamplingCoverage>>;
   decisionNote: string;
   baNumber: string;
   bridgeTrustScore: number;
@@ -208,6 +248,7 @@ export type AcceptanceTerm = {
 };
 
 export type CorrectionCase = {
+  cyclePeriod?: number;
   id: string;
   source: string;
   blockedStage: string;
@@ -272,6 +313,7 @@ export type WorkflowEvent = {
 };
 
 export type OperationalWorkflowState = {
+  pciMethodDrafts?: Partial<Record<"manual" | "ai", ProductionTest>>;
   flowContractVersion?: number;
   simulationDate: string;
   role: WorkflowRole;
@@ -286,6 +328,9 @@ productionApprovalNote: string;
     id: string;
     packageName: string;
     spmkDate: string;
+    surveyStartDate?: string;
+    surveyEndDate?: string;
+    contractNumber?: string;
     contractor: string;
     balai: string;
     satker: string;
@@ -301,6 +346,9 @@ productionApprovalNote: string;
   productionTestDates?: Partial<Record<SurveyType,string>>;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
+  cycleHistory?: Record<string, VervalCycle>;
+  activeCyclePeriod?: number;
+  cycleRevisions?: Record<string, VervalCycle[]>;
   submission: SubmissionState;
   audits: [AuditLevel, AuditLevel, AuditLevel];
   acceptance: {
@@ -573,20 +621,9 @@ export const INITIAL_WORKFLOW: OperationalWorkflowState = {
 
 export function loadOperationalWorkflowState(): OperationalWorkflowState {
   try {
-    const saved = localStorage.getItem('road-qaqc-workflow-v1');
+    const saved = localPersistence.getItem('road-qaqc-workflow-v1');
     if (!saved) return INITIAL_WORKFLOW;
     const parsed = JSON.parse(saved) as Partial<OperationalWorkflowState>;
-    if(parsed.flowContractVersion!==3){
-      parsed.productionApproval='Draft';parsed.productionApprovalBa='';parsed.bridgeInspectionPermit=false;
-      if(parsed.productionTests){
-        if(parsed.productionTests.PCI)parsed.productionTests.PCI={...parsed.productionTests.PCI,pciBenchmarkBalanced:false};
-        if(parsed.productionTests.Jembatan)parsed.productionTests.Jembatan={...parsed.productionTests.Jembatan,bridgeTrialReportComplete:false};
-      }
-      parsed.submission={...INITIAL_WORKFLOW.submission,...parsed.submission,validationStatus:'Draft',validationMessage:'Acuan teknis per jenis survei diperbarui; bukti metode dan audit perlu diperiksa ulang. Rekaman sumber tetap tersimpan.'};
-      parsed.audits=[{...INITIAL_WORKFLOW.audits[0],sampleIds:[]},{...INITIAL_WORKFLOW.audits[1],sampleIds:[]},{...INITIAL_WORKFLOW.audits[2],sampleIds:[]}];
-      parsed.acceptance={...INITIAL_WORKFLOW.acceptance,...parsed.acceptance,finalReport:false,finalAcceptance:false,semesterTwoRevalidation:false,terms:(parsed.acceptance?.terms??INITIAL_WORKFLOW.acceptance.terms).map(t=>['T1','T3','T4'].includes(t.id)?{...t,complete:false,progress:0}:t)};
-    }
-    parsed.flowContractVersion=3;
     const acceptanceTerms=parsed.acceptance?.terms??INITIAL_WORKFLOW.acceptance.terms;
     const existingReceipts=parsed.acceptance?.partialReceipts??INITIAL_WORKFLOW.acceptance.partialReceipts;
     const partialReceipts=[...new Set(existingReceipts)];
@@ -603,6 +640,7 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
         { ...INITIAL_WORKFLOW.productionTests[type], ...parsed.productionTests?.[type] },
       ])) as OperationalWorkflowState['productionTests'],
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
+      cycleHistory: parsed.cycleHistory ?? {},
       calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
       submission: {
         ...INITIAL_WORKFLOW.submission,
@@ -647,6 +685,15 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add('R² ≥0,95', test.rSquared.toFixed(2), test.rSquared >= 0.95);
     add('CV ≤5%', `${test.coefficientVariation.toFixed(1)}%`, test.coefficientVariation <= 5);
  } else if (type === 'PCI') {
+  // KAK 2026 §11.2.4, subsection 'Untuk Penggunaan Teknologi berbasis AI'.
+  if(test.pciManual===false){
+  add('Lebih dari 50% segmen berselisih ≤5 poin',`${test.segmentsWithinFive}%`,test.segmentsWithinFive>50);
+  add('Maksimum 12% segmen berselisih ≥15 poin',`${test.segmentsAtLeastFifteen}%`,test.segmentsAtLeastFifteen<=12);
+    add('Enam seksi benchmark mewakili kategori kondisi',`${test.sections} seksi`,test.sections>=6&&test.pciBenchmarkBalanced===true);
+    add('Lima pengulangan PCI dan SD ≤8',`${test.repeats} ulangan; SD ${test.standardDeviation}`,test.repeats>=5&&test.standardDeviation<=8);
+    add('F1 sebelum QA ≥0,8 dan sesudah QA ≥0,9',`F1 ${test.f1Before} → ${test.f1After}`,test.f1Before>=0.8&&test.f1After>=0.9); // KAK 11.2.2 / 11.2.6. No additional mAP threshold is specified.
+  }
+
   const detail =
     test.productionDetails ?? {};
 
@@ -878,6 +925,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     );
 
   } else if (type === 'Jembatan') {
+    add('Laporan uji coba lengkap dan dinyatakan selesai',test.bridgeTrialReportComplete?'Lengkap':'Belum lengkap',test.bridgeTrialReportComplete===true);
     const detail =
       test.productionDetails ?? {};
 
@@ -1494,6 +1542,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
 }
 
 export function samplingRule(type: SurveyType, level: 1 | 2 | 3) {
+  if (type === 'Lendutan' && level === 2) return {label:'Sampling Pengguna Jasa · ketentuan sementara',rate:5,unit:'titik lendutan'};
   if (level === 1) return { label: 'Audit Penyedia Jasa', rate: 100, unit: 'seluruh data' };
   if (level === 3) return { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% data' };
   if (type === 'Jembatan' || type === 'Lereng' || type === 'Lendutan') {

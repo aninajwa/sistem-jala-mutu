@@ -19,7 +19,7 @@ export function AuditReadOnlySummary({ level, actor, activeRole, audit, checks }
         </div>
       </div>
       <div className="wf-row"><span>Status</span><strong>{audit.status}</strong></div>
-      <div className="wf-row"><span>Cakupan / sampel</span><strong>{audit.sampleIds.length} rekaman</strong></div>
+      <div className="wf-row"><span>Cakupan / sampel</span><strong>{audit.sampleUnits?.length ?? audit.sampleIds.length} unit</strong></div>
       <div className="wf-row"><span>Checklist pemeriksaan</span><strong>{completed}/{checks.length}</strong></div>
       <div className="wf-row"><span>Referensi / BA</span><strong>{audit.baNumber || 'Belum dicatat'}</strong></div>
       <div className="wf-row"><span>Catatan keputusan</span><strong>{audit.decisionNote || 'Belum ada catatan'}</strong></div>
