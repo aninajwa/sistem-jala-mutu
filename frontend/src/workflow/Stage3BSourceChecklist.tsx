@@ -1,3 +1,6 @@
+import {DocumentAttachments,documentAttachmentId} from './DocumentAttachments';
+import {projectChecklistValue as automaticProjectValue} from './checklistProjectValues';
+import { localPersistence } from './repository/localPersistence';
 
 import { useEffect, useMemo, useState } from 'react';
 import { ClipboardCheck, AlertTriangle } from 'lucide-react';
@@ -15,6 +18,7 @@ import type {
 
 type Props = {
   packageId: string;
+  onAnswersChanged?: () => void;
   surveyTypes: SurveyType[];
   role: WorkflowRole;
   projectInfo?: { packageName: string; contractor: string; balai: string; satker: string; ppk: string; routes: string[]; contractNumber?: string };
@@ -60,7 +64,7 @@ function storeKey(packageId: string) {
 
 function readAnswers(packageId: string): Answers {
   try {
-    const raw = localStorage.getItem(storeKey(packageId));
+    const raw = localPersistence.getItem(storeKey(packageId));
     return raw ? JSON.parse(raw) as Answers : {};
   } catch {
     return {};
@@ -77,18 +81,6 @@ function sourceChoices(value: string): { prefix: string; choices: string[] } | n
   return choices.length ? { prefix, choices } : null;
 }
 
-function automaticProjectValue(label: string, project?: Props['projectInfo']): string | undefined {
-  if (!project) return undefined;
-  const key = label.trim().toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ');
-  if (/nama (proyek|project|paket)|nama pekerjaan/.test(key)) return project.packageName;
-  if (/nomor kontrak|no kontrak/.test(key)) return project.contractNumber || undefined;
-  if (/penyedia jasa|nama penyedia/.test(key)) return project.contractor;
-  if (/pengguna jasa|nama balai/.test(key)) return project.balai;
-  if (/nama satker|satuan kerja/.test(key)) return project.satker;
-  if (/nama ppk/.test(key)) return project.ppk;
-  if (/lokasi|ruas jalan/.test(key) && project.routes.length) return project.routes.join(', ');
-  return undefined;
-}
 
 function isAttachmentSection(section: string) {
   return /lampiran|dokumen pendukung/i.test(section);
@@ -174,6 +166,7 @@ export function Stage3BSourceChecklist({
   onCompletionChange,
   periodStart,
   periodEnd,
+  onAnswersChanged,
 }: Props) {
   const [phase, setPhase] =
     useState<Stage3BPhase>('consistency');
@@ -201,8 +194,7 @@ export function Stage3BSourceChecklist({
   }, [survey, surveyTypes]);
 
   const canEdit =
-    role === 'Penyedia Jasa / Ketua Tim' ||
-    role === 'Admin';
+    role === 'Penyedia Jasa / Ketua Tim' ;
 
   const variant =
     survey === 'PCI' ? pciMethod : survey;
@@ -230,11 +222,9 @@ export function Stage3BSourceChecklist({
     };
 
     setAnswers(next);
+    onAnswersChanged?.();
 
-    localStorage.setItem(
-      storeKey(packageId),
-      JSON.stringify(next),
-    );
+    try {localPersistence.setItem(storeKey(packageId),JSON.stringify(next));} catch { /* local state remains usable */ }
   }
 
   // Hitung jawaban seluruh kombinasi jenis survei dan kegiatan untuk periode aktif.
@@ -256,7 +246,7 @@ export function Stage3BSourceChecklist({
           // Informasi administratif tidak dihitung sebagai pemeriksaan teknis.
           if (automaticProjectValue(item.label, projectInfo) !== undefined) continue;
           if (/^(no\.?\s*dokumen|nomor dokumen|tanggal\s*:)/i.test(item.label.trim())) continue;
-          if (/lampiran|dokumen pendukung/i.test(item.section)) { dest.uncertain++; continue; }
+          if (isAttachmentSection(item.section)) continue; // Bukti dikelola di area Lampiran, bukan upload wajib per butir.
           if (item.inputType.toUpperCase() === 'JSON') {
             const columns = getColumns(item);
             const rows = getRows(item);
@@ -271,7 +261,12 @@ export function Stage3BSourceChecklist({
               }
             } else {
               // Jangan memberi status hijau untuk tabel numerik / status tunggal tanpa aturan pemetaan.
-              dest.uncertain++;
+              const cells=rows.flatMap((row,i)=>row.map((cell,j)=>({cell,i,j}))).filter(({cell,j})=>isPlaceholder(cell)&&!(/foto|gambar|screenshot/i.test(columns[j]??'')));
+              if(!cells.length) continue; // tabel informatif dari sumber
+              for(const {i,j} of cells){
+                dest.total++;
+                if(answers[keyFor(packageId,target,item,`${i}:${j}`)]?.trim() || automaticProjectValue(rows[i]?.[0]??'',projectInfo)!==undefined)dest.done++;
+              }
             }
           } else {
             dest.total++;
@@ -343,13 +338,13 @@ export function Stage3BSourceChecklist({
     const inputType = item.inputType.toUpperCase();
     const textLabel=item.label.trim();
     const automaticPeriod = /periode (konsistensi|pemeriksaan|verifikasi)|masa pemeriksaan/i.test(textLabel) && periodStart && periodEnd ? `${periodStart} s.d. ${periodEnd}` : undefined;
-    const automaticDate = /^(tanggal|tanggal pemeriksaan|tanggal verifikasi)\s*[:：]/i.test(textLabel) && periodEnd ? periodEnd : undefined;
+    const automaticDate:string|undefined = undefined;
 
     // Lampiran dari Draft PP adalah dokumen pendukung, bukan jawaban bebas.
     // Proses lebih dulu supaya label yang tidak mengandung kata 'dokumen'
     // (mis. grafik / tabel deviasi / hasil repeatability) tidak menjadi textarea.
     if (isAttachmentSection(item.section) && inputType !== 'JSON') {
-      return <Stage3BFileEvidence packageId={packageId} evidenceId={`${template.id}:${item.code}`} label={item.label} editable={canEdit} />;
+      return <div><a href={`#${documentAttachmentId(`${packageId}:form-${template.id}`)}`}>{item.label} · kelola Dokumen &amp; Lampiran</a><details><summary>Berkas yang pernah dicatat</summary><Stage3BFileEvidence packageId={packageId} evidenceId={`${template.id}:${item.code}`} label={item.label} editable={false}/></details></div>;
     }
 
     if (inputType === 'JSON') {
@@ -400,7 +395,7 @@ export function Stage3BSourceChecklist({
                     return (
                       <td key={columnIndex}>
                         {isPhoto && editableCell ? (
-                          <Stage3BFileEvidence packageId={packageId} evidenceId={photoName} label={`Foto/rekaman baris ${rowIndex+1}`} editable={canEdit}/>
+                          <Stage3BFileEvidence onChanged={onAnswersChanged} packageId={packageId} evidenceId={photoName} label={`Foto/rekaman baris ${rowIndex+1}`} editable={canEdit}/>
                         ) : hasStatusChoice && statusLabel && /^[□☐\s]*$/.test(cell) ? (
                           <label className="s3doc-table-choice">
                             <input
@@ -581,7 +576,7 @@ export function Stage3BSourceChecklist({
               open={index === 0 ? true : undefined}
             >
               <summary>
-                <strong>{title}</strong>
+                <strong>{isAttachmentSection(title)?`Lampiran · ${title}`:title}</strong>
                 <span>{items.length} bagian isian</span>
               </summary>
 
@@ -606,6 +601,7 @@ export function Stage3BSourceChecklist({
           ))}
         </div>
       )}
+      {template&&<DocumentAttachments scope={`${packageId}:form-${template.id}`} categories={template.items.filter(item=>isAttachmentSection(item.section)&&item.inputType!=='JSON').map(item=>item.label)} editable={canEdit} onChanged={onAnswersChanged}/>}
     </section>
   );
 }

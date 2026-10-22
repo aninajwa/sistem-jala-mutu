@@ -1,4 +1,4 @@
-﻿import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
   Bell,
@@ -86,7 +86,7 @@ export const PACKAGE_WORKFLOW_ITEMS: readonly PackageWorkflowItem[] = [
     code: 'Tahap 5',
     label: 'Audit Data',
     shortLabel: 'Audit Data',
-    selection: '/verification:Audit tingkat 1â€“3',
+    selection: '/verification:Audit tingkat 1–3',
     actorHint: 'Audit internal Penyedia, audit Balai, dan audit Direktorat.',
   },
   {
@@ -127,23 +127,18 @@ function packageChildren(
     ];
   }
 
-  const currentIndex = stageIndexFromCode(currentStage);
-
   return [
     {
       label: 'Ringkasan Paket',
       selection: '/packages:Ringkasan Paket',
       hint: 'Identitas, status, lingkup survei, dan progres paket.',
     },
-    ...PACKAGE_WORKFLOW_ITEMS.map((item, index) => ({
-      label: item.shortLabel,
-      selection: item.selection,
-      locked: role !== 'Direktorat / Pusat' && currentStage !== 'Selesai' && index > currentIndex,
-      hint:
-        role !== 'Direktorat / Pusat' && currentStage !== 'Selesai' && index > currentIndex
-          ? `Menunggu ${PACKAGE_WORKFLOW_ITEMS[index - 1]?.shortLabel ?? 'tahap sebelumnya'} selesai.`
-          : item.actorHint,
-    })),
+    ...PACKAGE_WORKFLOW_ITEMS.map(item => ({
+  label: item.shortLabel,
+  selection: item.selection,
+  locked: false,
+  hint: `${item.actorHint} Akses halaman tidak berarti persyaratan tahap sudah terpenuhi.`,
+})),
   ];
 }
 

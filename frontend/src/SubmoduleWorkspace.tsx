@@ -1,3 +1,4 @@
+import { localPersistence } from './workflow/repository/localPersistence';
 import { useEffect, useState } from 'react';
 import {
   Activity, AlertCircle, AlertTriangle, ArrowDownToLine, ArrowLeft, ArrowRight,
@@ -145,11 +146,11 @@ export function SubmoduleWorkspace(props: SubmoduleProps) {
   const [selectedSurvey, setSelectedSurvey] = useState('');
   const [range, setRange] = useState('Semester I 2027');
   const [query, setQuery] = useState('');
-  const [readIds, setReadIds] = useState<string[]>(()=>{try{return JSON.parse(localStorage.getItem('road-qaqc-notifications-read')||'[]') as string[]}catch{return[]}});
+  const [readIds, setReadIds] = useState<string[]>(()=>{try{return JSON.parse(localPersistence.getItem('road-qaqc-notifications-read')||'[]') as string[]}catch{return[]}});
   useEffect(()=>{
     setCompleted(false);setChecked([]);setSampleIds([]);setSelectedSurvey('');setRange('Semester I 2027');setQuery('');
   },[selection]);
-  useEffect(()=>{localStorage.setItem('road-qaqc-notifications-read',JSON.stringify(readIds));},[readIds]);
+  useEffect(()=>{localPersistence.setItem('road-qaqc-notifications-read',JSON.stringify(readIds));},[readIds]);
 
   const finish = (message: string, activity = label, object = label) => {
     setCompleted(true);props.record(activity,object);props.setNotice(message);window.setTimeout(()=>props.setNotice(''),2600);

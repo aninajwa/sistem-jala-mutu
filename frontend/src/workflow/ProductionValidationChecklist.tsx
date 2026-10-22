@@ -1,3 +1,4 @@
+import {PRODUCTION_REFERENCE_CHECKS} from './surveyStandards';
 import { ClipboardCheck } from 'lucide-react';
 
 import type {
@@ -2088,6 +2089,7 @@ export function ProductionValidationChecklist({
           </>
         )}
       </div>
+    {PRODUCTION_REFERENCE_CHECKS[type].length>0&&<div className="wf-body"><h4>Konfirmasi referensi pemeriksaan</h4>{PRODUCTION_REFERENCE_CHECKS[type].map(label=><TrialCheck key={label} label={label} checked={test.referenceChecks?.[label]===true} editable={editable} onChange={value=>onUpdate('referenceChecks',{...test.referenceChecks,[label]:value})}/>)}</div>}
     </section>
   );
 }

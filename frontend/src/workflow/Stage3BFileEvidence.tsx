@@ -1,40 +1,18 @@
 import { useEffect, useRef, useState } from 'react';
 
-const DATABASE = 'jala-mutu-stage3b-evidence-local';
-const STORE = 'files';
-type SavedFile = { file: File; name: string; savedAt: string };
+import {attachmentRepository,downloadLocalFile,type LocalFile as SavedFile} from './repository/attachmentRepository';
 
-function database(): Promise<IDBDatabase> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open(DATABASE, 1);
-    req.onupgradeneeded = () => { if (!req.result.objectStoreNames.contains(STORE)) req.result.createObjectStore(STORE); };
-    req.onsuccess = () => resolve(req.result);
-    req.onerror = () => reject(req.error);
-  });
-}
-async function access(key: string, value?: SavedFile | null): Promise<SavedFile | null> {
-  const db = await database();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(STORE, value === undefined ? 'readonly' : 'readwrite');
-    const req = value === undefined ? tx.objectStore(STORE).get(key) :
-      value === null ? tx.objectStore(STORE).delete(key) : tx.objectStore(STORE).put(value, key);
-    req.onsuccess = () => resolve(value === undefined ? (req.result as SavedFile | undefined) ?? null : value);
-    req.onerror = () => reject(req.error);
-    tx.oncomplete = () => db.close();
-  });
-}
-
-export function Stage3BFileEvidence({ packageId, evidenceId, label, editable }: {
+export function Stage3BFileEvidence({ packageId, evidenceId, label, editable,onChanged }: {onChanged?:()=>void;
   packageId: string; evidenceId: string; label: string; editable: boolean;
 }) {
   const key = `${packageId}:${evidenceId}`;
   const inputRef = useRef<HTMLInputElement>(null);
   const [record, setRecord] = useState<SavedFile | null>(null);
   const [error, setError] = useState('');
-  useEffect(() => { let live = true;setRecord(null);access(key).then(v => {if(live)setRecord(v);}).catch(() => {if(live)setError('Penyimpanan browser tidak tersedia.');});return()=>{live=false;}; }, [key]);
-  async function save(file:File){try{const next={file,name:file.name,savedAt:new Date().toISOString()};await access(key,next);setRecord(next);setError('');}catch{setError('Gagal menyimpan berkas lokal.');}}
-  async function remove(){try{await access(key,null);setRecord(null);}catch{setError('Gagal menghapus berkas.');}}
-  function download(){if(!record)return;const url=URL.createObjectURL(record.file);const a=document.createElement('a');a.href=url;a.download=record.name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+  useEffect(() => { let live = true;setRecord(null);attachmentRepository.get(key).then(v => {if(live)setRecord(v);}).catch(() => {if(live)setError('Penyimpanan browser tidak tersedia.');});return()=>{live=false;}; }, [key]);
+  async function save(file:File){if(!editable)return;try{const next=await attachmentRepository.put(key,file);setRecord(next);setError('');onChanged?.();}catch{setError('Penyimpanan berkas/metadata gagal. Muat ulang untuk memeriksa hasil.');}}
+  async function remove(){if(!editable)return;try{await attachmentRepository.remove(key);setRecord(null);onChanged?.();}catch{setError('Gagal menghapus berkas.');}}
+  function download(){if(record)downloadLocalFile(record);}
   const photo=/foto|gambar|visual|screenshot|tangkapan layar/i.test(label);
   return <div className="s3doc-file-evidence" style={{padding:12,border:'1px dashed #94b9cc',borderRadius:8,background:'#f6f9fc',display:'grid',gap:8}}>
     <strong>{label}</strong>

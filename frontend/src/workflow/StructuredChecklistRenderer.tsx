@@ -1,3 +1,5 @@
+import {useState} from 'react';
+import {itemIsComplete} from './structuredChecklist';
 import {
   CheckCircle2,
   CircleAlert,
@@ -30,11 +32,7 @@ type Props = {
 };
 
 function isNegative(value: string) {
-  return [
-    'Tidak',
-    'Tidak Memenuhi',
-    'Tidak Ada',
-  ].includes(value);
+  return /^(tidak|belum|gagal)\b/i.test(value.trim());
 }
 
 function ResponseDisplay({
@@ -53,28 +51,24 @@ function ResponseDisplay({
 
   return (
     <span
-      className={`wf-status ${
-        isNegative(value)
-          ? 'warn'
-          : 'good'
-      }`}
+      className={`wf-status ${isNegative(value)?'warn':'info'}`}
     >
       <CheckCircle2 size={12} />
-      {value}
+      {value==='checked'?'Tercatat':value}
     </span>
   );
 }
 
 function ChecklistTable({
-  item,
+  item,answer,editable,onChange,
 }: {
-  item: StructuredChecklistItem;
+  item: StructuredChecklistItem;answer?:StructuredChecklistAnswer;editable:boolean;onChange:(value:string)=>void;
 }) {
   const columns =
     item.tableColumns || [];
 
-  const rows =
-    item.tableRows || [];
+  let saved:Record<string,string>={};try{saved=JSON.parse(answer?.value||'{}');}catch{}
+  const rows=item.tableRows?.length?item.tableRows:[{}];
 
   if (columns.length === 0) {
     return (
@@ -105,7 +99,7 @@ function ChecklistTable({
                   <td
                     key={`${rowIndex}-${column}`}
                   >
-                    {row[column] ?? '—'}
+                    {row[column]!==undefined&&String(row[column]).trim()&&!/^(—|-|\[.*\])$/.test(String(row[column]))?<span>{row[column]}</span>:editable?<input aria-label={`${item.label}: baris ${rowIndex+1}, ${column}`} value={saved[`${rowIndex}:${column}`]??''} onChange={e=>onChange(JSON.stringify({...saved,[`${rowIndex}:${column}`]:e.target.value}))}/>:<span>{saved[`${rowIndex}:${column}`]||'Belum diisi'}</span>}
                   </td>
                 ))}
               </tr>
@@ -133,8 +127,10 @@ export function StructuredChecklistRenderer({
   onAnswerChange,
   readOnly = false,
 }: Props) {
+  const [filter,setFilter]=useState<'all'|'missing'|'attention'>('all');
   return (
     <div className="structured-checklist">
+      <div className="checklist-filter"><label>Tampilkan <select aria-label="Filter jawaban checklist" value={filter} onChange={e=>setFilter(e.target.value as typeof filter)}><option value="all">Semua butir</option><option value="missing">Belum dijawab</option><option value="attention">Perlu pemeriksaan</option></select></label><small>Jawaban lengkap bukan keputusan reviewer.</small></div>
       {template.sections.map(
         (section, index) => (
           <details
@@ -152,7 +148,7 @@ export function StructuredChecklistRenderer({
 
                 <strong>
                   {section.title}
-                </strong>
+                </strong><span className="category-progress">{section.items.filter(item=>itemIsComplete(item,answers[item.id])).length}/{section.items.length} terisi</span>
               </div>
             </summary>
 
@@ -163,7 +159,7 @@ export function StructuredChecklistRenderer({
             )}
 
             <div className="structured-checklist-items">
-              {section.items.map(item => {
+              {section.items.filter(item=>filter==='all'||filter==='missing'&&!itemIsComplete(item,answers[item.id])||filter==='attention'&&isNegative(answers[item.id]?.value??'')).map(item => {
                 const answer =
                   answers[item.id] || {};
 
@@ -240,7 +236,7 @@ export function StructuredChecklistRenderer({
                       )}
 
                       <ChecklistTable
-                        item={item}
+                        item={item} answer={answers[item.id]} editable={canEdit} onChange={value=>{if(canEdit)onAnswerChange(item.id,{value});}}
                       />
                     </div>
                   );
@@ -308,35 +304,10 @@ export function StructuredChecklistRenderer({
                             <div className="structured-checklist-options">
                               {(item.options || []).map(
                                 option => (
-                                  <button
-                                    key={option}
-                                    type="button"
-                                    className={`structured-choice ${
-                                      value ===
-                                      option
-                                        ? 'selected'
-                                        : ''
-                                    } ${
-                                      isNegative(
-                                        option,
-                                      )
-                                        ? 'negative'
-                                        : ''
-                                    }`}
-                                    onClick={() =>
-  onAnswerChange(
-    item.id,
-    {
-      value:
-        value === option
-          ? ''
-          : option,
-    },
-  )
-}
-                                  >
+                                  <label key={option} className={`structured-choice ${value===option?'selected':''} ${isNegative(option)?'negative':''}`}>
+                                    <input type="radio" name={`${template.id}:${item.id}`} aria-label={`${item.label}: ${option}`} checked={value===option} onChange={()=>{if(canEdit)onAnswerChange(item.id,{value:option});}}/>
                                     {option}
-                                  </button>
+                                  </label>
                                 ),
                               )}
                             </div>
@@ -378,8 +349,9 @@ export function StructuredChecklistRenderer({
                             />
                           )}
 
-                          {item.noteAllowed && (
+                          {item.noteAllowed && (<details className="checklist-item-notes" open={item.noteRequired&&!answer.note?true:undefined}><summary>Catatan{item.noteRequired?' · wajib':''}{answer.note?' · tersimpan':''}</summary>
                             <textarea
+                              rows={2}
                               className="structured-note-input"
                               value={
                                 answer.note || ''
@@ -395,11 +367,11 @@ export function StructuredChecklistRenderer({
                                   },
                                 )
                               }
-                            />
+                            /></details>
                           )}
 
                           {item.evidenceAllowed && (
-                            <div className="structured-evidence">
+                            <details className="structured-evidence"><summary>Referensi lampiran{item.evidenceRequired?' · wajib':''}</summary>
                               <div className="structured-evidence-title">
                                 <Paperclip
                                   size={13}
@@ -410,37 +382,7 @@ export function StructuredChecklistRenderer({
                                   : ' · opsional'}
                               </div>
 
-                              <label className="structured-evidence-file">
-                                <input
-                                  type="file"
-                                  onChange={event => {
-                                    const file =
-                                      event
-                                        .target
-                                        .files?.[0];
-
-                                    if (!file) {
-                                      return;
-                                    }
-
-                                    onAnswerChange(
-                                      item.id,
-                                      {
-                                        evidenceReference:
-                                          file.name,
-                                      },
-                                    );
-                                  }}
-                                />
-
-                                <span className="wf-button">
-                                  <Paperclip
-                                    size={12}
-                                  />
-                                  Pilih file
-                                </span>
-                              </label>
-
+                              <p className="wf-note">Lampirkan dokumen/foto pada area Lampiran tahap. Kolom ini hanya referensi bukti, bukan unggahan berkas.</p>
                               <input
                                 type="text"
                                 value={
@@ -473,7 +415,7 @@ export function StructuredChecklistRenderer({
                                   </span>
                                 </div>
                               )}
-                            </div>
+                            </details>
                           )}
                         </>
                       ) : (

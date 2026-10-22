@@ -1,3 +1,4 @@
+import ujiCobaRouter from './uji-coba';
 import { Router } from 'express';
 import dokumenRouter from './dokumen';
 import kalibrasiAsasRouter from './kalibrasi-asas';
@@ -138,4 +139,5 @@ router.use(kalibrasiAsasRouter);
 router.use(kalibrasiRouter);
 router.use(personelRouter);
 router.use(kualifikasiBuktiRouter);
+router.use(ujiCobaRouter);
 export default router;
