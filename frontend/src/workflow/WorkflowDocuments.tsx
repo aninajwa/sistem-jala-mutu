@@ -1,3 +1,5 @@
+import {BaGenerator} from './ba/BaGenerator';
+import { localPersistence } from './repository/localPersistence';
 import { useEffect, useMemo, useState } from 'react';
 import type { OperationalWorkflowState } from './model';
 import { workflowDocumentReferences } from './flowRules';
@@ -17,15 +19,15 @@ const CATALOG: CatalogItem[] = [
   { id: 'penerimaan', title: 'BA Penerimaan Data', stage: 'Tahap 6', source: 'BERITA ACARA PENERIMAAN DATA.docx', owner: 'Pihak Pertama / Pihak Kedua', sections: ['Nomor dan Para Pihak', 'Data yang Diserahkan per Jenis Survei', 'Hasil Audit / Verifikasi dan Validasi', 'Keputusan Penerimaan Data', 'Catatan dan Tindakan Perbaikan', 'Periode/Semester', 'Tanda Tangan Para Pihak dan Persetujuan'] },
 ];
 const safeRead = (key: string): DraftFields => {
-  try { const raw=localStorage.getItem(key); const data=raw?JSON.parse(raw):{}; return data && typeof data==='object'&&!Array.isArray(data)?data:{}; }
+  try { const raw=localPersistence.getItem(key); const data=raw?JSON.parse(raw):{}; return data && typeof data==='object'&&!Array.isArray(data)?data:{}; }
   catch { return {}; }
 };
 const clean = (s?: string | null) => s?.trim() || 'Belum tersedia';
-export function WorkflowDocuments({state, period=1, periodRange, onNavigate}: {state: OperationalWorkflowState;period?:number;periodRange?:{start:string;end:string};onNavigate?:(selection:string)=>void}) {
-  const initialNavigation=(()=>{try {return JSON.parse(localStorage.getItem('jala-ba-navigation-v2')||'{}') as {packageId?:string;kind?:BaKind;period?:number};}catch{return {} as {packageId?:string;kind?:BaKind;period?:number};}})();
+export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigate}: {state: OperationalWorkflowState;period?:number;periodRange?:{start:string;end:string};onNavigate?:(selection:string)=>void}) {
+  const initialNavigation=(()=>{try {return JSON.parse(localPersistence.getItem('jala-ba-navigation-v2')||'{}') as {packageId?:string;kind?:BaKind;period?:number};}catch{return {} as {packageId?:string;kind?:BaKind;period?:number};}})();
   const requested=initialNavigation.packageId===state.project.id?initialNavigation:{};
   const [kind,setKind] = useState<BaKind>(requested.kind||'konsistensi');
-  const originSelection = (()=>{try{return localStorage.getItem('jala-ba-return-to') || '/packages:Ringkasan Paket';}catch{return '/packages:Ringkasan Paket';}})();
+  const originSelection = (()=>{try{return localPersistence.getItem('jala-ba-return-to') || '/packages:Ringkasan Paket';}catch{return '/packages:Ringkasan Paket';}})();
   const lockedKind=Boolean(requested.kind);
   const [survey,setSurvey] = useState<string>('');
   const [auditLevel,setAuditLevel] = useState<1|2|3>(1);
@@ -37,14 +39,15 @@ export function WorkflowDocuments({state, period=1, periodRange, onNavigate}: {s
   const effectivePeriod=isPeriodic?(requested.period||period):0;
   const cacheKey = `jala-ba-draft-v1:${state.project.id}:${kind}:p${effectivePeriod}:${selectedSurvey||'paket'}${kind==='audit'?`:audit-${auditLevel}`:''}`;
   useEffect(()=>{setDraft(safeRead(cacheKey));},[cacheKey]);
-  const setField=(name:string,value:string)=>setDraft(prev=>{const next={...prev,[name]:value};try{localStorage.setItem(cacheKey,JSON.stringify(next));}catch{}return next;});
-  const references=workflowDocumentReferences(state);
+  const setField=(name:string,value:string)=>{if(!mayEdit)return;setDraft(prev=>{const next={...prev,[name]:value};try{localPersistence.setItem(cacheKey,JSON.stringify(next));}catch{}return next;});};
+  const selectedCycle=isPeriodic&&effectivePeriod!==(state.activeCyclePeriod??1)?state.cycleHistory?.[String(effectivePeriod)]??state.cycle:state.cycle;
+  const references=workflowDocumentReferences({...state,cycle:selectedCycle});
   const relatedCorrections=state.corrections.filter(c=>c.status!=='Ditutup'&&(!selectedSurvey||c.surveyType===selectedSurvey));
   const periodText=isPeriodic?`Periode ${effectivePeriod}${periodRange?.start&&periodRange?.end?` (${periodRange.start} s.d. ${periodRange.end})`:''}`:'Mengikuti tahap terkait';
-  const presentRecords=useMemo(()=>state.dailyRecords.filter(row=>!selectedSurvey||row.surveyType===selectedSurvey),[state.dailyRecords,selectedSurvey]);
-  const isProvider=state.role==='Penyedia Jasa / Ketua Tim'||state.role==='Admin';
-  const isBalai=state.role==='PIC Balai / Pengguna Jasa'||state.role==='Admin';
-  const mayEdit=(kind==='internal'||kind==='konsistensi'||kind==='kalibrasi')?isProvider:(kind==='duaMingguan'||kind==='bertahap'||kind==='penerimaan')?isBalai:state.role==='Direktorat / Pusat'||state.role==='Admin';
+  const presentRecords=useMemo(()=>state.dailyRecords.filter(row=>(!selectedSurvey||row.surveyType===selectedSurvey)&&(!isPeriodic||!periodRange?.start||row.date>=periodRange.start&&row.date<=periodRange.end)),[state.dailyRecords,selectedSurvey,isPeriodic,periodRange]);
+  const isProvider=state.role==='Penyedia Jasa / Ketua Tim';
+  const isBalai=state.role==='PIC Balai / Pengguna Jasa';
+  const mayEdit=(kind==='internal'||kind==='konsistensi'||kind==='kalibrasi')?isProvider:(kind==='duaMingguan'||kind==='bertahap'||kind==='penerimaan')?isBalai:state.role===(['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat'] as const)[auditLevel-1];
   const auditData=state.audits[auditLevel-1];
   const auditSamples=state.dailyRecords.filter(r=>auditData.sampleIds.includes(r.id)&&(!selectedSurvey||r.surveyType===selectedSurvey));
   const auditFindings=state.corrections.filter(c=>c.blockedStage===`Audit tingkat ${auditLevel}`);
@@ -71,7 +74,7 @@ export function WorkflowDocuments({state, period=1, periodRange, onNavigate}: {s
     if(!isPeriodic) return null;
     const packageId=effectivePeriod===1?state.project.id:`${state.project.id}::period-${effectivePeriod}`;
     let raw:Record<string,string>={};
-    try {raw=JSON.parse(localStorage.getItem(`jala-mutu-stage3b-docx-${packageId}-v1`)||'{}') as Record<string,string>;}catch{}
+    try {raw=JSON.parse(localPersistence.getItem(`jala-mutu-stage3b-docx-${packageId}-v1`)||'{}') as Record<string,string>;}catch{}
     const phase=kind==='konsistensi'?'consistency':kind==='internal'?'internal':'periodic14';
     const templates=STAGE3B_DOCX_CANDIDATES.filter(t=>t.phase===phase&&(t.survey===selectedSurvey||(selectedSurvey==='PCI'&&t.survey.startsWith('PCI'))));
     const rows: {label:string;value:string}[]=[];
@@ -192,3 +195,4 @@ export function WorkflowDocuments({state, period=1, periodRange, onNavigate}: {s
     <details className="wf-panel ba-no-print"><summary style={{padding:12,cursor:"pointer",fontWeight:600}}>Nomor / referensi dokumen dari sistem sumber ({references.length}, bukan berkas BA)</summary><div className="wf-body"><div className="wf-table"><table><thead><tr><th>Dokumen</th><th>Referensi</th><th>Status sumber</th></tr></thead><tbody>{references.map((row,index)=><tr key={`${row.name}-${index}`}><td>{row.name}</td><td>{row.reference}</td><td>{row.status}</td></tr>)}</tbody></table></div></div></details>
   </div>;
 }
+export function WorkflowDocuments(props:Parameters<typeof LegacyWorkflowDocuments>[0]){return <><BaGenerator {...props}/><details className="wf-panel"><summary className="wf-panel-head">Catatan dan pratinjau versi terdahulu (arsip)</summary><LegacyWorkflowDocuments {...props}/></details></>;}

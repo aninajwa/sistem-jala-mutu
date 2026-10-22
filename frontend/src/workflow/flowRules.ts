@@ -1,3 +1,4 @@
+import { recordDailyChange, markAuditsForReview } from './workflowRevisions';
 import { DEFAULT_SEMESTER_TWO, INITIAL_WORKFLOW, evaluateProductionTest, type OperationalWorkflowState, type CorrectionCase } from './model';
 
 export const AUDIT_REVIEW_CHECKS: Record<number,string[]> = {
@@ -9,6 +10,8 @@ export const AUDIT_REVIEW_CHECKS: Record<number,string[]> = {
 export function fieldReadiness(state:OperationalWorkflowState): string[] {
   const c=state.cycle;
   return [
+    c.requiresReview?'Periode memerlukan pemeriksaan ulang':'',
+    Object.values(state.cycleHistory??{}).some(period=>period.requiresReview)?'Periode terdahulu memerlukan pemeriksaan ulang':'',
     state.productionApproval!=='Disetujui'?'BA persetujuan alat/metode belum disetujui':'',
     state.project.surveyTypes.some(type=>!c.selectedTypes.includes(type))?'Verval belum mencakup seluruh jenis dalam paket':'',
     state.project.surveyTypes.some(type=>!state.dailyRecords.some(r=>r.surveyType===type&&r.state==='Tercatat'&&state.project.routes.includes(r.road)))?'Rekaman valid untuk setiap jenis dalam paket belum lengkap':'',
@@ -22,9 +25,17 @@ export function fieldReadiness(state:OperationalWorkflowState): string[] {
   ].filter(Boolean);
 }
 
+/** KAK 2026, lingkup pelaksanaan: siklus Semester II adalah survei IRI.
+ * Paket tanpa IRI tidak dikenai revalidasi alat IRI. Tidak menyimpulkan
+ * pengecualian bagi paket IRI hanya dari tanggal kontrak/semester tampilan. */
+export function semesterTwoApplies(state:OperationalWorkflowState):boolean {
+  return state.project.surveyTypes.includes('IRI');
+}
 export function semesterTwoReadiness(state:OperationalWorkflowState):string[] {
+  if(!semesterTwoApplies(state))return [];
   const e=state.acceptance.semesterTwoEvidence??DEFAULT_SEMESTER_TWO;
-  const inPeriod=(date:string)=>date>='2027-07-01'&&date<=state.simulationDate;
+  const year=state.simulationDate.slice(0,4);
+  const inPeriod=(date:string)=>date>=`${year}-07-01`&&date<=state.simulationDate;
   return [
     !inPeriod(e.calibrationDate)||!e.calibrationReference.trim()?'Kalibrasi ulang IRI Semester II beserta referensi wajib':'',
     !inPeriod(e.validationDate)||e.validationDate<e.calibrationDate||!e.validationReference.trim()||!evaluateProductionTest('IRI',state.productionTests.IRI).passed?'Validasi ulang IRI setelah kalibrasi wajib lulus dan memiliki BA':'',
@@ -38,15 +49,17 @@ export function semesterTwoReadiness(state:OperationalWorkflowState):string[] {
 
 export function canMarkFinalReport(state:OperationalWorkflowState):boolean {
   return state.acceptance.terms.filter(t=>t.id!=='T4').every(t=>t.complete)
-    &&state.audits.every(a=>a.status==='Lulus')
+    &&state.audits.every(a=>a.status==='Lulus'&&!a.requiresReview)
     &&!!state.acceptance.semesterTwoEvidence?.finalReportReference.trim();
 }
 
 export function termReadiness(state:OperationalWorkflowState,id:string):string[] {
   if(id==='T1')return state.project.preparation.reportApproval==='Disetujui'&&state.productionApproval==='Disetujui'&&state.calibrations.length>0&&state.calibrations.every(c=>c.dueDate>=state.simulationDate&&c.condition==='Baik'&&c.qualificationValid&&c.trainingVerified)&&state.project.surveyTypes.every(t=>state.calibrationChecklist[t]&&evaluateProductionTest(t,state.productionTests[t]).passed)?[]:['Persiapan, kalibrasi, metode dan uji produksi belum disetujui'];
+  if(id==='T2'&&(state.cycle.requiresReview||Object.values(state.cycleHistory??{}).some(c=>c.requiresReview)))return ['Pemeriksaan ulang periode belum selesai'];
+  if(id==='T3'&&state.audits.some(a=>a.requiresReview))return ['Pemeriksaan ulang audit belum selesai'];
   if(id==='T2')return state.dailyRecords.some(r=>r.state==='Tercatat')&&state.cycle.certificateId&&state.cycle.consistency==='Konsisten'&&!state.cycle.heldRecordIds.length?[]:['Rekaman lapangan dan BA verval konsisten wajib'];
   if(id==='T3')return state.submission.validationStatus==='VALID'&&state.audits[1].status==='Lulus'&&state.audits[2].status==='Lulus'?[]:['Upload VALID dan BA audit Pengguna Jasa/Direktorat wajib'];
-  return [...semesterTwoReadiness(state),...(!state.acceptance.semesterTwoRevalidation?['Persetujuan revalidasi Semester II wajib']:[]),...(!state.acceptance.finalReport?['Laporan akhir wajib']:[])];
+  return [...semesterTwoReadiness(state),...(semesterTwoApplies(state)&&!state.acceptance.semesterTwoRevalidation?['Persetujuan revalidasi Semester II wajib']:[]),...(!state.acceptance.finalReport?['Laporan akhir wajib']:[])];
 }
 
 export function correctionClosureErrors(state:OperationalWorkflowState,c:CorrectionCase):string[] {
@@ -62,14 +75,17 @@ export function correctionClosureErrors(state:OperationalWorkflowState,c:Correct
 export function applyClosedCorrection(state:OperationalWorkflowState,c:CorrectionCase):OperationalWorkflowState {
   if(correctionClosureErrors(state,c).length)throw new Error('Kasus belum memenuhi syarat penutupan');
   const resetsProduction=['Kalibrasi','Validasi produksi'].includes(c.blockedStage);
+  const revised=c.fieldDataValid==='Ya'?state.dailyRecords.find(row=>row.id===c.linkedRecordId):undefined;
+  const affected=revised?recordDailyChange(state,{...revised,cleanedValue:c.proposedValue,cleaningReason:`${c.id}: ${c.evidence}`}):state;
   return {
     ...state,
     ...(resetsProduction?{productionApproval:'Draft' as const,productionApprovalBa:'',bridgeInspectionPermit:false}:{}),
     corrections:state.corrections.map(item=>item.id===c.id?{...item,status:'Ditutup' as const}:item),
     dailyRecords:state.dailyRecords.map(r=>r.id===c.linkedRecordId&&c.fieldDataValid==='Ya'?{...r,cleanedValue:c.proposedValue,cleaningReason:`${c.id}: ${c.reviewNote||c.rejectionReason} · ${c.evidence}`} :r),
-    cycle:c.fieldDataValid==='Ya'||c.blockedStage==='Verval 14 hari'?{...state.cycle,certificateId:'',consistency:'Belum Diperiksa',userReview:'Belum Diperiksa',finalPeriodValidation:false}:state.cycle,
+    cycleHistory:affected.cycleHistory,
+    cycle:c.blockedStage==='Verval 14 hari'&&!c.linkedRecordId?{...state.cycle,requiresReview:true,reviewReason:`Tindak lanjut ${c.id} selesai; periksa ulang periode terkait.`}:affected.cycle,
     submission:{...state.submission,validationStatus:'Draft',validationMessage:'Koreksi selesai; penyerahan dan audit wajib diulang.'},
-    audits:[{...INITIAL_WORKFLOW.audits[0],sampleIds:[],reviewChecks:{}},{...INITIAL_WORKFLOW.audits[1],sampleIds:[],reviewChecks:{}},{...INITIAL_WORKFLOW.audits[2],sampleIds:[],reviewChecks:{}}],
+    audits:markAuditsForReview(state,`Tindak lanjut ${c.id} selesai; tinjau ulang data terkait.`),
     acceptance:{...state.acceptance,terms:state.acceptance.terms.map(t=>['T2','T3','T4'].includes(t.id)?{...t,complete:false}:t),finalReport:false,finalAcceptance:false,semesterTwoRevalidation:false},
   };
 }

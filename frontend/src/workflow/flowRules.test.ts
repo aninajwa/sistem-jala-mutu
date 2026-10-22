@@ -1,3 +1,4 @@
+import {withProductionReferences} from './testing/productionFixture';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { INITIAL_WORKFLOW, evaluateProductionTest, evaluateLrsGate, notificationsFor, type DailySurveyRecord, type CorrectionCase } from './model';
@@ -15,7 +16,7 @@ const fresh=()=>{
     state.productionTests[type].evidenceReference='BA-UJI-SIMULASI';
     state.productionTests[type].referenceChecks=Object.fromEntries(PRODUCTION_REFERENCE_CHECKS[type].map(key=>[key,true]));
   }
-  return state;
+  return withProductionReferences(state);
 };
 const record:DailySurveyRecord={id:'TEST-RAW',date:'2027-06-10',time:'08:00',surveyType:'IRI',road:'Medan – Binjai',lengthKm:1,trafficDurationMinutes:0,lane:'1',direction:'Normal',weather:'Cerah',surfaceDry:true,glareFree:true,speedAndLaneCompliant:true,tool:'Profilometer Laser',operator:'Surveyor demo',driver:'Pengemudi demo',poi:'',disturbances:'',eventNotes:'',dailyToolCheck:{},rawValue:'4.5',cleanedValue:'4.5',cleaningReason:'',state:'Tercatat'};
 const correction:CorrectionCase={id:'TEST-CASE',source:'Audit tingkat 2',blockedStage:'Audit tingkat 2',road:record.road,stationing:'0+000',rejectionReason:'Bukti pemrosesan perlu diperiksa',severity:'Mayor',owner:'PIC demo',dueDate:'2027-06-12',rootCause:'Pemrosesan',fieldDataValid:'Ya',surveyType:'IRI',actionType:'Koreksi pemrosesan dengan bukti',evidence:'Video dan foto referensi demo',originalValue:'4.5',proposedValue:'4.2',approval:'Disetujui',retest:'Lulus',status:'Verifikasi Ulang',returnStage:'Audit tingkat 2',linkedRecordId:record.id,verification:{surveyor:true,teamLeader:true,balai:true},reviewNote:'Bukti cocok'};
@@ -28,7 +29,7 @@ test('baseline delapan jenis dan rentang angka',()=>{
 });
 test('PCI AI memerlukan enam benchmark, kategori dan lima ulangan',()=>{
   const pci=fresh().productionTests.PCI;
-  for(const patch of [{sections:5},{repeats:4},{pciBenchmarkBalanced:false}])assert.equal(evaluateProductionTest('PCI',{...pci,...patch}).passed,false);
+  for(const patch of [{sections:5},{repeats:4},{pciBenchmarkBalanced:false},{f1Before:.79},{f1After:.89},{segmentsWithinFive:50},{segmentsAtLeastFifteen:13}])assert.equal(evaluateProductionTest('PCI',{...pci,...patch}).passed,false);
   assert.equal(evaluateProductionTest('PCI',{...pci,pciManual:true,f1Before:0,f1After:0,meanAveragePrecision:0}).passed,true);
 });
 test('bukti sumber wajib; angka jenis lain tidak mempengaruhi IRI; blank aman setelah reload',()=>{
@@ -39,11 +40,13 @@ test('bukti sumber wajib; angka jenis lain tidak mempengaruhi IRI; blank aman se
   const blank=JSON.parse(JSON.stringify({...iri,coefficientVariation:NaN}));
   assert.equal(evaluateProductionTest('IRI',blank).passed,false);
 });
-test('PCI manual tetap harus memenuhi ground truth, bukan F1/SD AI',()=>{
+test('PCI manual memerlukan pembanding dan pemeriksaan antar-rater; ambang AI tidak diterapkan',()=>{
   const pci={...fresh().productionTests.PCI,pciManual:true,standardDeviation:99,f1After:-1};
   assert.equal(evaluateProductionTest('PCI',pci).passed,true);
-  assert.equal(evaluateProductionTest('PCI',{...pci,segmentsWithinFive:50}).passed,false);
-  assert.equal(evaluateProductionTest('PCI',{...pci,segmentsAtLeastFifteen:13}).passed,false);
+  // KAK 11.2.4 puts the numeric 50%/12% criteria under AI, not under manual rating.
+  assert.equal(evaluateProductionTest('PCI',{...pci,segmentsWithinFive:0,segmentsAtLeastFifteen:99}).passed,true);
+  assert.equal(evaluateProductionTest('PCI',{...pci,ratersAgree:false}).passed,false);
+  assert.equal(evaluateProductionTest('PCI',{...pci,productionDetails:{...pci.productionDetails,pciComparisonReference:''}}).passed,false);
 });
 test('LWD bukan FWD; korelasi 3 titik dan pengulangan diperiksa',()=>{
   const lwd={...fresh().productionTests.Lendutan,deflectionMethod:'LWD' as const,fwdLoad:10,lwdCorrelationPoints:3,lwdRepeats:3,lwdDifferenceMicrons:19,lwdDifferencePercent:12};

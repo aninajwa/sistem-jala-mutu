@@ -66,8 +66,8 @@ export default function DashboardPage(p:PageProps){
          [HardDrive,'Persistence','localStorage','sementara di browser','amber'],
          [ShieldCheck,'Audit trail',`${p.store.logs.length}`,'log lokal tersedia','green'],
        ];
- return <><PageHeading id="dashboard-main" label={ROLE_HOME_LABELS[role]} detail={`${role} Â· ${p.balai} Â· ${p.periode}`} action={<div className="toolbar">{roleAction}<button className="btn" onClick={()=>{p.record('Ekspor laporan ringkasan','Dashboard QA/QC');p.setNotice('Laporan ringkasan disiapkan untuk ekspor lokal')}} data-testid="button-export-dashboard"><ArrowDownToLine size={13}/>Ekspor laporan</button></div>}/>
- <div className="notice" style={{marginBottom:12}} data-testid="role-workspace-context"><ShieldCheck size={14}/><div><strong>{role}</strong><div className="subtle" style={{marginTop:2}}>{WORKFLOW_ROLE_SCOPE[role]} Â· State workflow sementara disimpan lokal; autentikasi dan API nyata akan mengikuti backend.</div></div></div>
+ return <><PageHeading id="dashboard-main" label={ROLE_HOME_LABELS[role]} detail={`${role} · ${p.balai} · ${p.periode}`} action={<div className="toolbar">{roleAction}<button className="btn" onClick={()=>{p.record('Ekspor laporan ringkasan','Dashboard QA/QC');p.setNotice('Laporan ringkasan disiapkan untuk ekspor lokal')}} data-testid="button-export-dashboard"><ArrowDownToLine size={13}/>Ekspor laporan</button></div>}/>
+ <div className="notice" style={{marginBottom:12}} data-testid="role-workspace-context"><ShieldCheck size={14}/><div><strong>{role}</strong><div className="subtle" style={{marginTop:2}}>{WORKFLOW_ROLE_SCOPE[role]} · State workflow sementara disimpan lokal; autentikasi dan API nyata akan mengikuti backend.</div></div></div>
  <div className="kpi-grid">{roleKpis.map(([Icon,label,value,note,tone])=><KPI key={String(label)} icon={Icon} label={String(label)} value={String(value)} note={String(note)} tone={String(tone)} testId={`kpi-role-${String(label).toLowerCase().replace(/[^a-z0-9]+/g,'-')}`}/>)}</div>
  <div className="grid-two">
    <Section title="Fokus kerja sesuai peran" icon={ListChecks}><div className="panel-body" style={{display:'grid',gap:8}}>{ROLE_HOME_PRIORITIES[role].map((item,index)=><div className="quality-check" key={item}><span style={{display:'flex',gap:8,alignItems:'flex-start'}}><span className="stage-num" style={{width:20,height:20,minWidth:20}}>{index+1}</span>{item}</span></div>)}</div></Section>
@@ -100,6 +100,6 @@ export default function DashboardPage(p:PageProps){
    <div className="grid-even"><Section title="Kesiapan administrasi sistem" icon={Settings}><div className="panel-body">{[['Data master','Data lokal'],['Autentikasi','Menunggu backend'],['Hak akses','Frontend sementara'],['Persistence','localStorage aktif']].map(([label,status])=><div className="quality-check" key={label}><span>{label}</span><Status value={status}/></div>)}</div></Section>
    <Section title="Aktivitas frontend terbaru" icon={ClipboardList}><div className="panel-body">{p.store.logs.slice(0,5).map(log=><div className="quality-check" key={log.id}><span><strong>{log.aktivitas}</strong><div className="subtle">{log.objek}</div></span><Status value={log.hasil}/></div>)}</div></Section></div>
  </>}
- <div className="subtle" style={{textAlign:'right',marginTop:10}}>Data ilustratif Â· Dashboard role-based frontend Â· API/persistence/auth final belum terhubung</div>
+ <div className="subtle" style={{textAlign:'right',marginTop:10}}>Data ilustratif · Dashboard role-based frontend · API/persistence/auth final belum terhubung</div>
  </>;
 }

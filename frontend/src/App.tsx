@@ -1,16 +1,33 @@
+import {normalizeWorkflowSelection} from './workflow/legacySelection';
+import {isRoleTestMode} from './workflow/access/packageAccess';
+import { localPersistence } from './workflow/repository/localPersistence';
+
 import { useEffect, useMemo, useState } from 'react';
-import { Route, Router as WouterRouter, Switch, useLocation } from 'wouter';
+import {
+  Route,
+  Router as WouterRouter,
+  Switch,
+  useLocation,
+} from 'wouter';
 import { CheckCircle2 } from 'lucide-react';
 
-import { titleFor, workflowSubmodules } from './app/navigation';
+import { workflowSubmodules } from './app/navigation';
+
 import { AppSidebar } from './components/app/AppSidebar';
-import { AppTopbar, MobileFilters } from './components/app/AppTopbar';
+import {
+  AppTopbar,
+  MobileFilters,
+} from './components/app/AppTopbar';
 import { DataDialog } from './components/app/DataDialog';
 import { RoleEntryScreen } from './components/app/RoleEntryScreen';
+
 import { useDemoStore } from './hooks/useDemoStore';
+import { usePackageStore } from './hooks/usePackageStore';
+
 import { exportDemoDataCsv } from './lib/csv';
 import { DEMO_SESSION_KEY } from './lib/demoData';
 import { isInPeriod } from './lib/periods';
+
 import ActionsPage from './pages/ActionsPage';
 import AuditPage from './pages/AuditPage';
 import CompliancePage from './pages/CompliancePage';
@@ -19,38 +36,31 @@ import DocumentsPage from './pages/DocumentsPage';
 import EntryPage from './pages/EntryPage';
 import MasterPage from './pages/MasterPage';
 import NotificationsPage from './pages/NotificationsPage';
+import PackageDetailPage from './pages/PackageDetailPage';
+import PackagesPage from './pages/PackagesPage';
 import ReportsPage from './pages/ReportsPage';
 import VerificationPage from './pages/VerificationPage';
+
 import { SubmoduleWorkspace } from './SubmoduleWorkspace';
 import type { PageProps } from './types';
-import type { OperationalWorkflowState, WorkflowRole } from './workflow/model';
-import { OperationalWorkflowWorkspace } from './workflow/OperationalWorkflowWorkspace';
-import {
-  PACKAGE_STORE_KEY,
-  derivePackageStage,
-  loadWorkflowPackageStore,
-  type WorkflowPackageStore,
-} from './workflow/packageStore';
-import { PackageContextHeader, PackageOverview, PackagesPage } from './workflow/PackageHub';
-import { buildCompleteExamplePackage, QA_EXAMPLE_PACKAGE_ID } from './workflow/qaCompleteExamplePackage';
+
+import type { WorkflowRole } from './workflow/model';
+import { derivePackageStage } from './workflow/packageStore';
 import { buildRoleNavigation } from './workflow/roleNavigation';
 import { canAccessRoute } from './workflow/workflowConfig';
 
 function App() {
-  const [packageStore, setPackageStore] = useState<WorkflowPackageStore>(() => {
-    const loaded = loadWorkflowPackageStore();
-    // Satu paket contoh terpisah: data dummy, mesin workflow yang sama.
-    // Migrasi sekali dari fixture QA lama; dua paket operasional tidak diubah.
-    const alreadySeeded = localStorage.getItem('jala-qa-full-example-v1') === 'yes';
-    if (alreadySeeded && loaded.packages[QA_EXAMPLE_PACKAGE_ID]) return loaded;
-    const completedExample = buildCompleteExamplePackage();
-    completedExample.role = loaded.activeRole;
-    localStorage.setItem('jala-qa-full-example-v1', 'yes');
-    return {
-      ...loaded,
-      packages: { ...loaded.packages, [QA_EXAMPLE_PACKAGE_ID]: completedExample },
-    };
-  });
+  const {
+    packageStore,
+    scopedPackages,
+    activePackageId,
+    activePackage,
+    workflow,
+    openPackage: selectPackage,
+    closePackage,
+    setRole,
+    updateWorkflow,
+  } = usePackageStore();
 
   const {
     store,
@@ -66,28 +76,36 @@ function App() {
     closeDialog,
   } = useDemoStore(packageStore.activeRole);
 
-  const activePackageId = packageStore.activePackageId;
-  const fallbackPackageId = Object.keys(packageStore.packages)[0] || 'PAKET-DEMO-001';
-  const workflow = packageStore.packages[activePackageId || fallbackPackageId];
+  const [location, setLocation] = useLocation();
 
   const [balai, setBalai] = useState('Semua Balai');
   const [periode, setPeriode] = useState('Semester I 2027');
   const [jenis, setJenis] = useState('Semua');
+
   const [mobileOpen, setMobileOpen] = useState(false);
   const [search, setSearch] = useState('');
   const [activeTab, setActiveTab] = useState('Semua');
-  const [selectedSubmodule, setSelectedSubmodule] = useState(
-    () => new URLSearchParams(window.location.search).get('submodule') || '',
-  );
-  const [location, setLocation] = useLocation();
-  const [demoSession, setDemoSession] = useState(
-    () => localStorage.getItem(DEMO_SESSION_KEY) === 'active',
-  );
+
+  const [selectedSubmodule, setSelectedSubmodule] =
+    useState(
+      () =>
+        normalizeWorkflowSelection(new URLSearchParams(
+          window.location.search,
+        ).get('submodule') || ''),
+    );
+
+  const [sessionActive, setSessionActive] =
+    useState(
+      () =>
+        localPersistence.getItem(DEMO_SESSION_KEY) ===
+        'active',
+    );
 
   const isPackageWorkspace =
-    !!activePackageId &&
+    Boolean(activePackageId && activePackage) &&
     (
-      selectedSubmodule === '/packages:Ringkasan Paket' ||
+      selectedSubmodule ===
+        '/packages:Ringkasan Paket' ||
       workflowSubmodules.has(selectedSubmodule)
     );
 
@@ -108,129 +126,168 @@ function App() {
   );
 
   useEffect(() => {
-    localStorage.setItem(PACKAGE_STORE_KEY, JSON.stringify(packageStore));
-  }, [packageStore]);
-
-  useEffect(() => {
     setMobileOpen(false);
     setSearch('');
     setActiveTab('Semua');
-    const selected = new URLSearchParams(window.location.search).get('submodule') || '';
-    setSelectedSubmodule(selected.startsWith(`${location}:`) ? selected : '');
+
+    const selected =
+      normalizeWorkflowSelection(new URLSearchParams(
+        window.location.search,
+      ).get('submodule') || '');
+
+    setSelectedSubmodule(
+      selected.startsWith(`${location}:`)
+        ? selected
+        : '',
+    );
   }, [location]);
 
   const scoped = useMemo(
     () =>
       store.surveys.filter(
-        s =>
-          (balai === 'Semua Balai' || s.balai === balai) &&
-          (jenis === 'Semua' || s.jenis === jenis) &&
-          isInPeriod(s.tanggal, periode),
+        survey =>
+          (
+            balai === 'Semua Balai' ||
+            survey.balai === balai
+          ) &&
+          (
+            jenis === 'Semua' ||
+            survey.jenis === jenis
+          ) &&
+          isInPeriod(survey.tanggal, periode),
       ),
     [store.surveys, balai, jenis, periode],
   );
 
-  const updateWorkflow = (
-    update: (current: OperationalWorkflowState) => OperationalWorkflowState,
-    _activity: string,
-    _object: string,
-  ) =>
-    setPackageStore(current => {
-      const id = current.activePackageId;
-      if (!id || !current.packages[id]) return current;
-      return {
-        ...current,
-        packages: { ...current.packages, [id]: update({ ...current.packages[id], role: current.activeRole }) },
-      };
-    });
-
   const enterAsRole = (role: WorkflowRole) => {
-    setPackageStore(current => ({
-      ...current,
-      activeRole: role,
-      packages: Object.fromEntries(
-        Object.entries(current.packages).map(([id, state]) => [id, { ...state, role }]),
-      ),
-    }));
-    localStorage.setItem(DEMO_SESSION_KEY, 'active');
-    setDemoSession(true);
+    setRole(role);
+
+    localPersistence.setItem(
+      DEMO_SESSION_KEY,
+      'active',
+    );
+
+    setSessionActive(true);
     setSelectedSubmodule('');
-    setLocation('/');
+    setLocation(isRoleTestMode()?'/?testRoles=1':'/');
     setNotice(`Peran aktif: ${role}`);
   };
 
   const switchRole = () => {
-    localStorage.removeItem(DEMO_SESSION_KEY);
-    setDemoSession(false);
+    localPersistence.removeItem(DEMO_SESSION_KEY);
+    setSessionActive(false);
     setSelectedSubmodule('');
     setMobileOpen(false);
   };
 
   const navigateSubmodule = (selection: string) => {
     const url = new URL(window.location.href);
-    url.searchParams.set('submodule', selection);
+
+    url.searchParams.set(
+      'submodule',
+      selection,
+    );
+
     setSelectedSubmodule(selection);
-    setLocation(`${selection.split(':')[0]}${url.search}${url.hash}`);
+
+    setLocation(
+      `${selection.split(':')[0]}${url.search}${url.hash}`,
+    );
+
     setMobileOpen(false);
   };
 
   const clearSubmodule = () => {
     setSelectedSubmodule('');
+
     const url = new URL(window.location.href);
+
     url.searchParams.delete('submodule');
-    window.history.replaceState(window.history.state, '', url);
+
+    window.history.replaceState(
+      window.history.state,
+      '',
+      url,
+    );
   };
 
   const openPackage = (id: string) => {
-    setPackageStore(current => ({
-      ...current,
-      activePackageId: id,
-      packages: { ...current.packages, [id]: { ...current.packages[id], role: current.activeRole } },
-    }));
-    setSelectedSubmodule('/packages:Ringkasan Paket');
-    setLocation('/packages?submodule=%2Fpackages%3ARingkasan%20Paket');
+    if (!selectPackage(id)) {
+      setNotice('Paket tidak ditemukan.');
+      return;
+    }
+
+    setSelectedSubmodule(
+      '/packages:Ringkasan Paket',
+    );
+
+    setLocation(
+      '/packages?submodule=%2Fpackages%3ARingkasan%20Paket'+(isRoleTestMode()?'&testRoles=1':''),
+    );
+
     setNotice('Workspace paket dibuka.');
   };
 
-  const openPackageBA = (id: string, kind: string) => {
+  const openPackageBA = (
+    id: string,
+    kind: string,
+  ) => {
+    if (!selectPackage(id)) {
+      setNotice('Paket tidak ditemukan.');
+      return;
+    }
+
     try {
-      localStorage.setItem('jala-ba-navigation-v2', JSON.stringify({ packageId: id, kind, period: 1 }));
-      localStorage.setItem('jala-ba-return-to', '/packages:Ringkasan Paket');
-    } catch { /* penyimpanan navigasi opsional */ }
-    setPackageStore(current => ({
-      ...current,
-      activePackageId: id,
-      packages: { ...current.packages, [id]: { ...current.packages[id], role: current.activeRole } },
-    }));
-    navigateSubmodule('/documents:BA & dokumen workflow');
+      localPersistence.setItem(
+        'jala-ba-navigation-v2',
+        JSON.stringify({
+          packageId: id,
+          kind,
+          period: 1,
+        }),
+      );
+
+      localPersistence.setItem(
+        'jala-ba-return-to',
+        '/packages:Ringkasan Paket',
+      );
+    } catch {
+      // Preferensi navigasi lokal bersifat opsional.
+    }
+
+    navigateSubmodule(
+      '/documents:BA & dokumen workflow',
+    );
   };
 
   const backToPackages = () => {
-    setPackageStore(current => ({ ...current, activePackageId: null }));
+    closePackage();
     setSelectedSubmodule('');
     setLocation('/packages');
   };
 
-  // Daftar paket sengaja tidak memuat panel kontrol skenario pengembang.
-  const qaPackageList = (
-    <PackagesPage
-      packages={packageStore.packages}
-      role={packageStore.activeRole}
-      onOpen={openPackage}
-    />
-  );
-
   useEffect(() => {
-    if (demoSession && !canAccessRoute(packageStore.activeRole, location)) {
+    if (
+      sessionActive &&
+      !canAccessRoute(
+        packageStore.activeRole,
+        location,
+      )
+    ) {
       setSelectedSubmodule('');
-      setLocation('/');
+      setLocation(isRoleTestMode()?'/?testRoles=1':'/');
     }
-  }, [demoSession, packageStore.activeRole, location, setLocation]);
+  }, [
+    sessionActive,
+    packageStore.activeRole,
+    location,
+    setLocation,
+  ]);
 
   const pageProps: PageProps = {
     store,
     workflow,
-    packages: packageStore.packages,
+    packages: scopedPackages,
     openPackage,
     openPackageBA,
     balai,
@@ -248,16 +305,36 @@ function App() {
     setNotice,
   };
 
-  if (!demoSession) {
-    return <RoleEntryScreen currentRole={packageStore.activeRole} onEnter={enterAsRole} />;
+  const packageList = (
+    <PackagesPage
+      packages={scopedPackages}
+      role={packageStore.activeRole}
+      onOpen={openPackage}
+    />
+  );
+
+  if (!sessionActive) {
+    return (
+      <RoleEntryScreen
+        currentRole={packageStore.activeRole}
+        onEnter={enterAsRole}
+      />
+    );
   }
 
   return (
     <WouterRouter>
       <div
         className="app-shell"
-        onClickCapture={e => {
-          if ((e.target as HTMLElement).closest('[data-testid="button-export-report"]')) {
+        onClickCapture={event => {
+          const target =
+            event.target as HTMLElement;
+
+          if (
+            target.closest(
+              '[data-testid="button-export-report"]',
+            )
+          ) {
             exportDemoDataCsv(store);
           }
         }}
@@ -276,10 +353,13 @@ function App() {
           onSetActiveTab={setActiveTab}
           onSetLocation={setLocation}
         />
+
         <main className="main-area">
           <AppTopbar
             isPackageWorkspace={isPackageWorkspace}
-            packageName={workflow.project.packageName}
+            packageName={
+              activePackage?.project.packageName
+            }
             location={location}
             navigation={visibleNav}
             balai={balai}
@@ -292,13 +372,20 @@ function App() {
             onSwitchRole={switchRole}
             onOpenMobile={() => setMobileOpen(true)}
           />
+
           <div className="content">
             {notice && (
-              <div className="notice" role="status" data-testid="status-toast">
-                <CheckCircle2 size={14} />{notice}
+              <div
+                className="notice"
+                role="status"
+                data-testid="status-toast"
+              >
+                <CheckCircle2 size={14} />
+                {notice}
               </div>
             )}
-            <MobileFilters
+
+            {!isPackageWorkspace&&location!=="/packages"&&<MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
@@ -306,52 +393,89 @@ function App() {
               jenis={jenis}
               setJenis={setJenis}
               showJenis={location === '/'}
-            />
+            />}
+
             {selectedSubmodule ? (
-              workflowSubmodules.has(selectedSubmodule)
-                ? activePackageId
-                  ? (
-                    <>
-                      <PackageContextHeader state={workflow} onBack={backToPackages} onNavigate={navigateSubmodule} />
-                      {selectedSubmodule === '/packages:Ringkasan Paket'
-                        ? <PackageOverview state={workflow} onNavigate={navigateSubmodule} />
-                        : (
-                          <OperationalWorkflowWorkspace
-                            selection={selectedSubmodule}
-                            state={workflow}
-                            onUpdate={updateWorkflow}
-                            setNotice={setNotice}
-                            onNavigate={navigateSubmodule}
-                          />
-                        )}
-                    </>
-                  )
-                  : qaPackageList
-                : (
-                  <SubmoduleWorkspace
+              workflowSubmodules.has(
+                selectedSubmodule,
+              ) ? (
+                activePackageId && activePackage ? (
+                  <PackageDetailPage
+                    packageId={activePackageId}
+                    workflow={activePackage}
                     selection={selectedSubmodule}
-                    {...pageProps}
-                    onBack={() => { clearSubmodule(); setActiveTab('Semua'); }}
+                    onBack={backToPackages}
+                    onNavigate={navigateSubmodule}
+                    onUpdate={updateWorkflow}
+                    setNotice={setNotice}
                   />
+                ) : (
+                  packageList
                 )
+              ) : (
+                <SubmoduleWorkspace
+                  selection={selectedSubmodule}
+                  {...pageProps}
+                  onBack={() => {
+                    clearSubmodule();
+                    setActiveTab('Semua');
+                  }}
+                />
+              )
             ) : (
               <Switch>
-                <Route path="/"><DashboardPage {...pageProps} /></Route>
-                <Route path="/data-master"><MasterPage {...pageProps} /></Route>
-                <Route path="/packages">{qaPackageList}</Route>
-                <Route path="/entry"><EntryPage {...pageProps} /></Route>
-                <Route path="/verification"><VerificationPage {...pageProps} /></Route>
-                <Route path="/actions"><ActionsPage {...pageProps} /></Route>
-                <Route path="/compliance"><CompliancePage {...pageProps} /></Route>
-                <Route path="/reports"><ReportsPage {...pageProps} /></Route>
-                <Route path="/documents"><DocumentsPage {...pageProps} /></Route>
-                <Route path="/notifications"><NotificationsPage {...pageProps} /></Route>
-                <Route path="/audit"><AuditPage {...pageProps} /></Route>
-                <Route><DashboardPage {...pageProps} /></Route>
+                <Route path="/">
+                  <DashboardPage {...pageProps} />
+                </Route>
+
+                <Route path="/data-master">
+                  <MasterPage {...pageProps} />
+                </Route>
+
+                <Route path="/packages">
+                  {packageList}
+                </Route>
+
+                <Route path="/entry">
+                  <EntryPage {...pageProps} />
+                </Route>
+
+                <Route path="/verification">
+                  <VerificationPage {...pageProps} />
+                </Route>
+
+                <Route path="/actions">
+                  <ActionsPage {...pageProps} />
+                </Route>
+
+                <Route path="/compliance">
+                  <CompliancePage {...pageProps} />
+                </Route>
+
+                <Route path="/reports">
+                  <ReportsPage {...pageProps} />
+                </Route>
+
+                <Route path="/documents">
+                  <DocumentsPage {...pageProps} />
+                </Route>
+
+                <Route path="/notifications">
+                  <NotificationsPage {...pageProps} />
+                </Route>
+
+                <Route path="/audit">
+                  <AuditPage {...pageProps} />
+                </Route>
+
+                <Route>
+                  <DashboardPage {...pageProps} />
+                </Route>
               </Switch>
             )}
           </div>
         </main>
+
         {modal && (
           <DataDialog
             type={modal}

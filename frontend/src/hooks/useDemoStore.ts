@@ -1,3 +1,4 @@
+import { localPersistence } from '../workflow/repository/localPersistence';
 import { useEffect, useState } from 'react';
 
 import { DEMO_STORE_KEY, balais, loadDemoStore, surveiTypes } from '../lib/demoData';
@@ -15,7 +16,7 @@ export function useDemoStore(activeRole: WorkflowRole) {
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
-    localStorage.setItem(DEMO_STORE_KEY, JSON.stringify(store));
+    localPersistence.setItem(DEMO_STORE_KEY, JSON.stringify(store));
   }, [store]);
 
   const record = (activity: string, object: string) =>
@@ -31,7 +32,7 @@ export function useDemoStore(activeRole: WorkflowRole) {
             hour: '2-digit',
             minute: '2-digit',
           }),
-          pengguna: 'Anda Â· ' + activeRole,
+          pengguna: 'Anda · ' + activeRole,
           aktivitas: activity,
           objek: object,
           hasil: 'Berhasil',
@@ -61,7 +62,7 @@ export function useDemoStore(activeRole: WorkflowRole) {
         ...p,
         surveys: editing ? p.surveys.map(x => (x.id === editing ? row : x)) : [row, ...p.surveys],
       }));
-      record(editing ? 'Ubah data survei' : 'Tambah data survei', `${id} Â· ${row.ruas}`);
+      record(editing ? 'Ubah data survei' : 'Tambah data survei', `${id} · ${row.ruas}`);
     } else if (type === 'finding') {
       const row: Finding = {
         id,
@@ -76,7 +77,7 @@ export function useDemoStore(activeRole: WorkflowRole) {
         ...p,
         findings: editing ? p.findings.map(x => (x.id === editing ? row : x)) : [row, ...p.findings],
       }));
-      record(editing ? 'Ubah temuan' : 'Tambah temuan', `${id} Â· ${row.ruas}`);
+      record(editing ? 'Ubah temuan' : 'Tambah temuan', `${id} · ${row.ruas}`);
     } else if (type === 'doc') {
       const row: Doc = {
         id,

@@ -1,20 +1,22 @@
+import {isRoleTestMode} from '../../workflow/access/packageAccess';
 import { ArrowRight, BarChart3, ClipboardCheck, FileText, Settings } from 'lucide-react';
 
 import type { WorkflowRole } from '../../workflow/model';
 import { ROLE_DEMO_USERS, WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE } from '../../workflow/workflowConfig';
 
 export function RoleEntryScreen({currentRole,onEnter}:{currentRole:WorkflowRole;onEnter:(role:WorkflowRole)=>void}){
+ if(!isRoleTestMode())return <div className="session-entry"><div className="session-entry-card"><div className="session-mark">JALA <b>MUTU</b></div><h1>Monitoring QA/QC Survei Kondisi Jalan</h1><p>Ruang kerja paket, pemeriksaan, tindak lanjut, dan dokumen mutu.</p><div className="wf-callout">Sesi frontend lokal · {currentRole}<br/>Data disimpan pada perangkat ini. Identitas dan penugasan server belum tersambung.</div><button type="button" className="wf-button primary" onClick={()=>onEnter(currentRole)}>Buka Paket Saya <ArrowRight size={16}/></button></div></div>;
  const roleIcon=(role:WorkflowRole)=>role==='Penyedia Jasa / Ketua Tim'?FileText:role==='PIC Balai / Pengguna Jasa'?ClipboardCheck:role==='Direktorat / Pusat'?BarChart3:Settings;
  return <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#edf6fb 0%,#f7fafc 48%,#eef7f4 100%)',display:'grid',placeItems:'center',padding:24}}>
   <div style={{width:'min(1040px,100%)'}}>
    <div style={{textAlign:'center',marginBottom:22}}>
     <img src={`${import.meta.env.BASE_URL}jala-mutu-mark.png`} alt="Simbol JALA MUTU" style={{width:54,height:54,objectFit:'contain'}}/>
     <div style={{fontSize:26,fontWeight:800,letterSpacing:.2,color:'#17344b',marginTop:8}}>JALA <span style={{color:'#1689c9'}}>MUTU</span></div>
-    <div style={{fontSize:12,color:'#60778b',marginTop:5}}>Pratinjau peran frontend Â· autentikasi nyata akan mengikuti backend</div>
+    <div style={{fontSize:12,color:'#60778b',marginTop:5}}>Pengujian frontend · bukan pemilihan kewenangan pengguna operasional</div>
    </div>
    <div style={{background:'#fff',border:'1px solid #dce7ee',borderRadius:12,padding:18,boxShadow:'0 18px 55px rgba(40,78,105,.10)'}}>
     <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:14}}>
-     <div><strong style={{fontSize:15,color:'#233f54'}}>Masuk sesuai peran</strong><div style={{fontSize:10,color:'#6d8293',marginTop:3}}>Pilih actor untuk melihat menu dan aksi yang relevan. Pemilihan ini mengatur pengalaman UI sementara; kontrol akses backend akan diintegrasikan kemudian.</div></div>
+     <div><strong style={{fontSize:15,color:'#233f54'}}>Lingkungan pengujian role terisolasi</strong><div style={{fontSize:10,color:'#6d8293',marginTop:3}}>Pilih actor untuk melihat menu dan aksi yang relevan. Pemilihan ini mengatur pengalaman UI sementara; kontrol akses backend akan diintegrasikan kemudian.</div></div>
      
     </div>
     <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:12}}>
@@ -23,7 +25,7 @@ export function RoleEntryScreen({currentRole,onEnter}:{currentRole:WorkflowRole;
       <div style={{fontWeight:800,fontSize:11,color:'#244257'}}>{role}</div>
       <div style={{fontSize:9,color:'#748797',marginTop:3}}>Akun pratinjau: {user}</div>
       <div style={{fontSize:9.5,lineHeight:1.55,color:'#566d7f',marginTop:9}}>{WORKFLOW_ROLE_SCOPE[role]}</div>
-      <div style={{display:'flex',alignItems:'center',gap:5,color:'#167db7',fontSize:9,fontWeight:700,marginTop:11}}>Masuk ke workspace <ArrowRight size={11}/></div>
+      <div style={{display:'flex',alignItems:'center',gap:5,color:'#167db7',fontSize:9,fontWeight:700,marginTop:11}}>Buka sesi uji <ArrowRight size={11}/></div>
      </button>})}
     </div>
    </div>

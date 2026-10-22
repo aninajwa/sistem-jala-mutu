@@ -11,11 +11,17 @@
     "build": "tsc -p tsconfig.json --noEmit && vite build",
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test:flow": "tsc --outDir /tmp/road-qaqc-flow-tests --module commonjs --moduleResolution node --target es2022 --esModuleInterop --skipLibCheck --types node src/workflow/flowRules.test.ts && node --test /tmp/road-qaqc-flow-tests/flowRules.test.js"
+    "test:flow": "node --import tsx --test src/workflow/flowRules.test.ts",
+    "test:domain": "node --import tsx --test src/workflow/flowRules.test.ts src/workflow/auditSampleIntegrity.test.ts src/workflow/workflowRevisions.test.ts src/workflow/checklistCompleteness.test.ts src/workflow/access/operationalPolicy.test.ts src/workflow/repository/httpRepository.test.ts src/workflow/ba/documentWorkflow.test.ts src/workflow/ba/technicalMapping.test.ts src/workflow/ba/fieldValidation.test.ts src/workflow/sourceDocumentModel.test.ts src/workflow/repository/sourceChecklistRepository.test.ts src/workflow/sourceTechnicalEvaluation.test.ts src/workflow/reviewReadiness.test.ts src/workflow/closureValidation.test.ts src/workflow/stagedReviewPolicy.test.ts",
+    "test:permissions": "vitest run src/workflow/workflowPermissions.test.ts",
+    "test:browser": "node --import tsx scripts/verifyOperational.ts",
+    "test:review": "node --import tsx scripts/verifyReviewControls.ts",
+    "test:journey": "node --import tsx scripts/verifyJourneyFromBlank.ts",
+    "test:closure": "node --import tsx scripts/verifyClosure.ts"
   },
-  "dependencies": {},
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
+    "@playwright/test": "^1.64.1",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
     "@radix-ui/react-aspect-ratio": "^1.1.3",
@@ -71,11 +77,17 @@
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "tailwindcss": "^4.1.14",
+    "tsx": "^4.23.15",
     "tw-animate-css": "^1.4.0",
     "typescript": "~5.9.3",
     "vaul": "^1.1.2",
     "vite": "^7.3.2",
+    "vitest": "^5.0.5",
     "wouter": "^3.3.5",
     "zod": "^3.25.76"
+  },
+  "dependencies": {
+    "docx-preview": "^0.4.1",
+    "fflate": "^0.8.3"
   }
 }

@@ -1,3 +1,4 @@
+import {isRoleTestMode} from '../../workflow/access/packageAccess';
 import { Menu, Users } from 'lucide-react';
 
 import { titleFor } from '../../app/navigation';
@@ -57,11 +58,11 @@ export function AppTopbar({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
             <div className="page-title">
-              {isPackageWorkspace ? packageName : (titleFor[location] || 'Monitoring QA/QC')}
+              {isPackageWorkspace ? 'Detail paket QA/QC' : (titleFor[location] || 'Monitoring QA/QC')}
             </div>
           </div>
           <div className="crumb">
-            QA/QC Survei Kondisi Jalan <span style={{ margin: '0 5px' }}>â€º</span>{' '}
+            QA/QC Survei Kondisi Jalan <span style={{ margin: '0 5px' }}>›</span>{' '}
             {isPackageWorkspace
               ? 'Workspace Paket'
               : (navigation.find(item => item.path === location)?.label || 'Ringkasan')}
@@ -69,7 +70,7 @@ export function AppTopbar({
         </div>
       </div>
       <div className="global-filters">
-        <div className="filter-wrap">
+        {!isPackageWorkspace&&location!=="/packages"&&<><div className="filter-wrap">
           <label>Balai:</label>
           <select value={balai} onChange={e => setBalai(e.target.value)} data-testid="select-global-balai">
             <option>Semua Balai</option>
@@ -82,6 +83,7 @@ export function AppTopbar({
             {periodeOptions.map(x => <option key={x}>{x}</option>)}
           </select>
         </div>
+        </>}
         {location === '/' && (
           <div className="filter-wrap">
             <label>Jenis survei:</label>
@@ -93,14 +95,14 @@ export function AppTopbar({
         )}
         <div className="filter-wrap">
           <label>Peran aktif:</label>
-          <button
+          {isRoleTestMode()?<button
             className="btn sm"
             onClick={onSwitchRole}
             data-testid="button-switch-role"
-            title="Ganti peran"
+            title="Keluar dari sesi uji peran"
           >
-            <Users size={12} />{activeRole}
-          </button>
+            <Users size={12} />Uji peran: {activeRole}
+          </button>:<strong className="active-role-label">{activeRole}</strong>}
         </div>
       </div>
     </header>

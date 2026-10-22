@@ -24,7 +24,7 @@ export const workflowSubmodules = new Set([
   '/entry:Survei harian',
   '/verification:Verval 14 hari',
   '/entry:Gerbang RNI/LRS',
-  '/verification:Audit tingkat 1â€“3',
+  '/verification:Audit tingkat 1–3',
   '/reports:Penerimaan & termin',
   '/actions:Koreksi berbukti',
   '/notifications:Pengingat & eskalasi',
