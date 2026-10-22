@@ -32,7 +32,7 @@ begin
   if not found then raise exception 'Rekod kalibrasi tidak ditemukan' using errcode='P0002';end if;
   if k.status<>'DRAFT' then raise exception 'Hanya kalibrasi DRAFT boleh diubah' using errcode='55000';end if;
   if p_expected_version is null or p_expected_version not between 1 and 2147483646 then raise exception 'Versi kalibrasi tidak valid' using errcode='22023';end if;
-  if k.versi<>p_expected_version then raise exception 'Rekod kalibrasi telah berubah. Baca semula' using errcode='40001';end if;
+  if k.versi<>p_expected_version then raise exception 'Rekod kalibrasi telah berubah. Baca semula' using errcode='55000';end if;
   old_state:=to_jsonb(k);
  end if;
  for key in select jsonb_object_keys(p_data) loop
@@ -101,7 +101,7 @@ begin
  if not found then raise exception 'Rekod kalibrasi tidak ditemukan' using errcode='P0002';end if;
  if k.status<>'DRAFT' then raise exception 'Sijil hanya boleh diupload ketika kalibrasi DRAFT' using errcode='55000';end if;
  if p_expected_version is null or p_expected_version not between 1 and 2147483646 then raise exception 'Versi kalibrasi tidak valid' using errcode='22023';end if;
- if k.versi<>p_expected_version then raise exception 'Rekod kalibrasi telah berubah. Baca semula' using errcode='40001';end if;
+ if k.versi<>p_expected_version then raise exception 'Rekod kalibrasi telah berubah. Baca semula' using errcode='55000';end if;
  if p_nama_file is null or length(p_nama_file) not between 5 and 255 or p_nama_file !~* '\.pdf$' or p_nama_file ~ '[[:cntrl:]/\\]'
  or p_ukuran is null or p_ukuran not between 1 and 10485760 or p_sha256 is null or p_sha256 !~ '^[0-9a-f]{64}$'
  or p_object_path is null or p_object_path !~ '^[1-9][0-9]{0,9}/[1-9][0-9]{0,9}/[0-9a-f-]{36}\.pdf$' or split_part(p_object_path,'/',1)<>p_paket_id::text or split_part(p_object_path,'/',2)<>p_kalibrasi_id::text then raise exception 'Metadata sijil tidak valid' using errcode='22023';end if;

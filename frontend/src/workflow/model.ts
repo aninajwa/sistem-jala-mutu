@@ -86,12 +86,12 @@ export type ProductionTest = {
   lwdDifferencePercent?: number;
 
   sourceMode?:
-    | 'Sinkronisasi sistem sumber'
-    | 'Lampiran / bukti kegiatan'
-    | 'Pencatatan manual'
-    | 'Sinkronisasi source/SMD'
-    | 'Import/evidence'
-    | 'Input manual fallback';
+  | 'Sinkronisasi sistem sumber'
+  | 'Lampiran / bukti kegiatan'
+  | 'Pencatatan manual'
+  | 'Sinkronisasi source/SMD'
+  | 'Import/evidence'
+  | 'Input manual fallback';
 };
 
 export type DailySurveyRecord = {
@@ -105,13 +105,13 @@ export type DailySurveyRecord = {
   lane: string;
 
   direction:
-    | 'Normal'
-    | 'Opposite';
+  | 'Normal'
+  | 'Opposite';
 
   weather:
-    | 'Cerah'
-    | 'Berawan'
-    | 'Hujan';
+  | 'Cerah'
+  | 'Berawan'
+  | 'Hujan';
 
   surfaceDry: boolean;
   glareFree: boolean;
@@ -126,26 +126,26 @@ export type DailySurveyRecord = {
   eventNotes: string;
 
   dailyToolCheck:
-    Record<string, boolean>;
+  Record<string, boolean>;
 
   rawValue: string;
   cleanedValue: string;
   cleaningReason: string;
 
   state:
-    | 'Tercatat'
-    | 'Survei Ulang'
-    | 'Ditahan';
+  | 'Tercatat'
+  | 'Survei Ulang'
+  | 'Ditahan';
 
   slopeFailureType?: string;
 
   technicalData?:
-    Record<string, string>;
+  Record<string, string>;
 };
 
 export type VervalCycle = {
   reviewPendingTypes?: SurveyType[];
-  surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string}>>;
+  surveyReviews?: Partial<Record<SurveyType, { decision: "Belum Diperiksa" | "Sesuai" | "Temuan"; note: string; reviewedAt: string }>>;
   requiresReview?: boolean;
   reviewReason?: string;
   lastCompletedDate: string;
@@ -189,7 +189,7 @@ export type SubmissionState = {
   validationStatus: 'Draft' | 'VALID' | 'Error';
   validationMessage: string;
   /** V&V bertahap generik hanya untuk jenis survei yang tidak memiliki checklist staged khusus pada sumber. */
-  stagedReviews?: Partial<Record<SurveyType,{decision:'Belum Diperiksa'|'Sesuai'|'Temuan';note:string;reviewedAt:string}>>;
+  stagedReviews?: Partial<Record<SurveyType, { decision: 'Belum Diperiksa' | 'Sesuai' | 'Temuan'; note: string; reviewedAt: string }>>;
   coordinatesBoundToLrs?: boolean;
   formatGlossaryCompliant?: boolean;
 };
@@ -273,8 +273,8 @@ export type CorrectionCase = {
   verification?: { surveyor: boolean; teamLeader: boolean; balai: boolean };
   reviewNote?: string;
   ruleScenario?: string;
-  ruleChecks?: Record<string,boolean>;
-  ruleNumbers?: Record<string,number>;
+  ruleChecks?: Record<string, boolean>;
+  ruleNumbers?: Record<string, number>;
   provinceUpdateBa?: string;
 };
 
@@ -289,8 +289,8 @@ export type SemesterTwoEvidence = {
   finalReportReference: string;
 };
 export const DEFAULT_SEMESTER_TWO: SemesterTwoEvidence = {
-  calibrationDate:'', calibrationReference:'', validationDate:'', validationReference:'',
-  uploadDate:'', uploadValid:false, objectionsClosed:false, finalReportReference:'',
+  calibrationDate: '', calibrationReference: '', validationDate: '', validationReference: '',
+  uploadDate: '', uploadValid: false, objectionsClosed: false, finalReportReference: '',
 };
 
 export type BackupSnapshot = {
@@ -319,10 +319,10 @@ export type OperationalWorkflowState = {
   role: WorkflowRole;
   productionApproval: ApprovalState;
 
-productionSubmissionNote?: string;
+  productionSubmissionNote?: string;
 
-productionApprovalBa: string;
-productionApprovalNote: string;
+  productionApprovalBa: string;
+  productionApprovalNote: string;
   bridgeInspectionPermit: boolean;
   project: {
     id: string;
@@ -343,7 +343,7 @@ productionApprovalNote: string;
   calibrations: CalibrationRecord[];
   calibrationChecklist: Record<SurveyType, boolean>;
   productionTests: Record<SurveyType, ProductionTest>;
-  productionTestDates?: Partial<Record<SurveyType,string>>;
+  productionTestDates?: Partial<Record<SurveyType, string>>;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
   cycleHistory?: Record<string, VervalCycle>;
@@ -504,10 +504,10 @@ export const INITIAL_WORKFLOW: OperationalWorkflowState = {
     surveyTypes: [...SURVEY_TYPES],
     semester: 'Semester I',
     preparation: {
-      sourceReviews: Object.fromEntries(PREPARATION_SOURCE_REVIEWS.map(item=>[item,true])),
-      fieldPlan: Object.fromEntries(PREPARATION_FIELD_PLAN.map(item=>[item,true])),
-      coordination: Object.fromEntries(PREPARATION_COORDINATION.map(item=>[item,true])),
-      documents: Object.fromEntries(PREPARATION_DOCUMENTS.map(item=>[item,true])),
+      sourceReviews: Object.fromEntries(PREPARATION_SOURCE_REVIEWS.map(item => [item, true])),
+      fieldPlan: Object.fromEntries(PREPARATION_FIELD_PLAN.map(item => [item, true])),
+      coordination: Object.fromEntries(PREPARATION_COORDINATION.map(item => [item, true])),
+      documents: Object.fromEntries(PREPARATION_DOCUMENTS.map(item => [item, true])),
       reportApproval: 'Disetujui',
       reviewerNote: 'Baseline alur simulasi; bukan persetujuan atau BA nyata.',
     },
@@ -549,9 +549,9 @@ export const INITIAL_WORKFLOW: OperationalWorkflowState = {
   },
   productionTests: {
     IRI: { trialKm: 10, sections: 5, sectionLengthKm: 0.5, repeats: 5, speedTrials40: 5, speedTrials50: 5, speedTrialsAbove60: 5, coefficientA: 1.02, coefficientB: 0.1, rSquared: 0.97, coefficientVariation: 4.3, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true },
-    PCI: { trialKm: 5, sections: 6, sectionLengthKm: 0, repeats: 5, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0.84, f1After: 0.92, meanAveragePrecision: 0.93, segmentsWithinFive: 56, segmentsAtLeastFifteen: 8, standardDeviation: 7.2, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true, pciBenchmarkBalanced:true, pciManual:false },
+    PCI: { trialKm: 5, sections: 6, sectionLengthKm: 0, repeats: 5, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0.84, f1After: 0.92, meanAveragePrecision: 0.93, segmentsWithinFive: 56, segmentsAtLeastFifteen: 8, standardDeviation: 7.2, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true, pciBenchmarkBalanced: true, pciManual: false },
     Lendutan: { trialKm: 0, sections: 0, sectionLengthKm: 0, repeats: 9, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true },
-    Jembatan: { trialKm: 0, sections: 0, sectionLengthKm: 0, repeats: 2, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true, bridgeTrialReportComplete:true },
+    Jembatan: { trialKm: 0, sections: 0, sectionLengthKm: 0, repeats: 2, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true, bridgeTrialReportComplete: true },
     Lereng: { trialKm: 0, sections: 0, sectionLengthKm: 0, repeats: 2, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true },
     Drainase: { trialKm: 5, sections: 0, sectionLengthKm: 0, repeats: 3, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true },
     'Lalu Lintas': { trialKm: 0, sections: 0, sectionLengthKm: 0, repeats: 2, speedTrials40: 0, speedTrials50: 0, speedTrialsAbove60: 0, coefficientA: 1, coefficientB: 0, rSquared: 0.96, coefficientVariation: 4, f1Before: 0, f1After: 0, meanAveragePrecision: 0, segmentsWithinFive: 0, segmentsAtLeastFifteen: 0, standardDeviation: 0, fwdLoad: 40, deflectionBowlOrdered: true, locations: 1, trafficHours: 24, bridgePersonnelPassed: true, ratersAgree: true, stationingConsistent: true },
@@ -564,8 +564,8 @@ export const INITIAL_WORKFLOW: OperationalWorkflowState = {
     periodCompleted: false,
     heldRecordIds: [],
     checkedProtocols: Object.fromEntries([
-      ...SURVEY_TYPES.flatMap(type=>CYCLE_PROTOCOLS[type].map(protocol=>[`${type} · ${protocol}`,true])),
-      ...CYCLE_SHARED_PROTOCOLS.map(protocol=>[protocol,true]),
+      ...SURVEY_TYPES.flatMap(type => CYCLE_PROTOCOLS[type].map(protocol => [`${type} · ${protocol}`, true])),
+      ...CYCLE_SHARED_PROTOCOLS.map(protocol => [protocol, true]),
     ]),
     iriCoefficientVariation: 4.3,
     pciAiStandardDeviation: 7.2,
@@ -624,9 +624,9 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
     const saved = localPersistence.getItem('road-qaqc-workflow-v1');
     if (!saved) return INITIAL_WORKFLOW;
     const parsed = JSON.parse(saved) as Partial<OperationalWorkflowState>;
-    const acceptanceTerms=parsed.acceptance?.terms??INITIAL_WORKFLOW.acceptance.terms;
-    const existingReceipts=parsed.acceptance?.partialReceipts??INITIAL_WORKFLOW.acceptance.partialReceipts;
-    const partialReceipts=[...new Set(existingReceipts)];
+    const acceptanceTerms = parsed.acceptance?.terms ?? INITIAL_WORKFLOW.acceptance.terms;
+    const existingReceipts = parsed.acceptance?.partialReceipts ?? INITIAL_WORKFLOW.acceptance.partialReceipts;
+    const partialReceipts = [...new Set(existingReceipts)];
     return {
       ...INITIAL_WORKFLOW,
       ...parsed,
@@ -641,7 +641,7 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
       ])) as OperationalWorkflowState['productionTests'],
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
       cycleHistory: parsed.cycleHistory ?? {},
-      calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
+      calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type => [type, parsed.calibrationChecklist?.[type] ?? false])) as Record<SurveyType, boolean>,
       submission: {
         ...INITIAL_WORKFLOW.submission,
         ...parsed.submission,
@@ -664,17 +664,17 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
 export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
   const checks: { label: string; actual: string; pass: boolean }[] = [];
   const add = (label: string, actual: string, pass: boolean) => checks.push({ label, actual, pass });
-  const relevant=productionFields(type,test);
-  const numbers=relevant.map(key=>[key,test[key] as number] as const);
-  const bounded=relevant.filter(key=>['f1Before','f1After','meanAveragePrecision','rSquared'].includes(key)).every(key=>(test[key] as number)>=0&&(test[key] as number)<=1)
-    &&relevant.filter(key=>['segmentsWithinFive','segmentsAtLeastFifteen'].includes(key)).every(key=>(test[key] as number)>=0&&(test[key] as number)<=100);
-  const numericValid=bounded&&numbers.every(([key,value])=>Number.isFinite(value)&&(key==='coefficientB'||value>=0)&&(!['sections','repeats','speedTrials40','speedTrials50','speedTrialsAbove60','locations','lwdCorrelationPoints','lwdRepeats'].includes(key)||Number.isInteger(value)));
-  add('Isian angka valid dan dalam rentang',numericValid?'Rentang diperiksa':'Ada angka kosong/di luar rentang atau jumlah bukan bilangan bulat',numericValid);
-  if(PRODUCTION_REFERENCE_CHECKS[type].length){
-    add('Referensi bukti uji/metode tercatat',test.evidenceReference?.trim()||'Belum dicatat',!!test.evidenceReference?.trim());
-    PRODUCTION_REFERENCE_CHECKS[type].forEach(label=>add(label,test.referenceChecks?.[label]?'Dikonfirmasi pada bukti sumber':'Belum diperiksa',test.referenceChecks?.[label]===true));
+  const relevant = productionFields(type, test);
+  const numbers = relevant.map(key => [key, test[key] as number] as const);
+  const bounded = relevant.filter(key => ['f1Before', 'f1After', 'meanAveragePrecision', 'rSquared'].includes(key)).every(key => (test[key] as number) >= 0 && (test[key] as number) <= 1)
+    && relevant.filter(key => ['segmentsWithinFive', 'segmentsAtLeastFifteen'].includes(key)).every(key => (test[key] as number) >= 0 && (test[key] as number) <= 100);
+  const numericValid = bounded && numbers.every(([key, value]) => Number.isFinite(value) && (key === 'coefficientB' || value >= 0) && (!['sections', 'repeats', 'speedTrials40', 'speedTrials50', 'speedTrialsAbove60', 'locations', 'lwdCorrelationPoints', 'lwdRepeats'].includes(key) || Number.isInteger(value)));
+  add('Isian angka valid dan dalam rentang', numericValid ? 'Rentang diperiksa' : 'Ada angka kosong/di luar rentang atau jumlah bukan bilangan bulat', numericValid);
+  if (PRODUCTION_REFERENCE_CHECKS[type].length) {
+    add('Referensi bukti uji/metode tercatat', test.evidenceReference?.trim() || 'Belum dicatat', !!test.evidenceReference?.trim());
+    PRODUCTION_REFERENCE_CHECKS[type].forEach(label => add(label, test.referenceChecks?.[label] ? 'Dikonfirmasi pada bukti sumber' : 'Belum diperiksa', test.referenceChecks?.[label] === true));
   }
-  if(!numericValid)return {checks,passed:false};
+  if (!numericValid) return { checks, passed: false };
 
   if (type === 'IRI') {
     add('Uji coba ≥10 km', `${test.trialKm} km`, test.trialKm >= 10);
@@ -684,140 +684,140 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add('−0,25 ≤ B ≤ 0,25 m/km', test.coefficientB.toFixed(3), test.coefficientB >= -0.25 && test.coefficientB <= 0.25);
     add('R² ≥0,95', test.rSquared.toFixed(2), test.rSquared >= 0.95);
     add('CV ≤5%', `${test.coefficientVariation.toFixed(1)}%`, test.coefficientVariation <= 5);
- } else if (type === 'PCI') {
-  // KAK 2026 §11.2.4, subsection 'Untuk Penggunaan Teknologi berbasis AI'.
-  if(test.pciManual===false){
-  add('Lebih dari 50% segmen berselisih ≤5 poin',`${test.segmentsWithinFive}%`,test.segmentsWithinFive>50);
-  add('Maksimum 12% segmen berselisih ≥15 poin',`${test.segmentsAtLeastFifteen}%`,test.segmentsAtLeastFifteen<=12);
-    add('Enam seksi benchmark mewakili kategori kondisi',`${test.sections} seksi`,test.sections>=6&&test.pciBenchmarkBalanced===true);
-    add('Lima pengulangan PCI dan SD ≤8',`${test.repeats} ulangan; SD ${test.standardDeviation}`,test.repeats>=5&&test.standardDeviation<=8);
-    add('F1 sebelum QA ≥0,8 dan sesudah QA ≥0,9',`F1 ${test.f1Before} → ${test.f1After}`,test.f1Before>=0.8&&test.f1After>=0.9); // KAK 11.2.2 / 11.2.6. No additional mAP threshold is specified.
-  }
+  } else if (type === 'PCI') {
+    // KAK 2026 §11.2.4, subsection 'Untuk Penggunaan Teknologi berbasis AI'.
+    if (test.pciManual === false) {
+      add('Lebih dari 50% segmen berselisih ≤5 poin', `${test.segmentsWithinFive}%`, test.segmentsWithinFive > 50);
+      add('Maksimum 12% segmen berselisih ≥15 poin', `${test.segmentsAtLeastFifteen}%`, test.segmentsAtLeastFifteen <= 12);
+      add('Enam seksi benchmark mewakili kategori kondisi', `${test.sections} seksi`, test.sections >= 6 && test.pciBenchmarkBalanced === true);
+      add('Lima pengulangan PCI dan SD ≤8', `${test.repeats} ulangan; SD ${test.standardDeviation}`, test.repeats >= 5 && test.standardDeviation <= 8);
+      add('F1 sebelum QA ≥0,8 dan sesudah QA ≥0,9', `F1 ${test.f1Before} → ${test.f1After}`, test.f1Before >= 0.8 && test.f1After >= 0.9); // KAK 11.2.2 / 11.2.6. No additional mAP threshold is specified.
+    }
 
-  const detail =
-    test.productionDetails ?? {};
+    const detail =
+      test.productionDetails ?? {};
 
-  const text = (
-    key: string,
-  ) =>
-    String(
-      detail[key] ?? '',
-    ).trim();
+    const text = (
+      key: string,
+    ) =>
+      String(
+        detail[key] ?? '',
+      ).trim();
 
-  add(
-    'Uji coba PCI minimal 5 km',
-    `${test.trialKm} km`,
-    test.trialKm >= 5,
-  );
+    add(
+      'Uji coba PCI minimal 5 km',
+      `${test.trialKm} km`,
+      test.trialKm >= 5,
+    );
 
-  add(
-    'Ruas/segmen uji tercatat',
-    text(
-      'pciSegmentReference',
-    ) ||
+    add(
+      'Ruas/segmen uji tercatat',
+      text(
+        'pciSegmentReference',
+      ) ||
       'Belum tercatat',
-    !!text(
-      'pciSegmentReference',
-    ),
-  );
-
-  if (
-    test.pciManual !== false
-  ) {
-    add(
-      'Data kerusakan/rating tersedia',
-      text(
-        'pciDistressReference',
-      ) ||
-        'Belum tersedia',
       !!text(
-        'pciDistressReference',
+        'pciSegmentReference',
       ),
     );
 
-    add(
-      'Data pembanding / objek standar tersedia',
-      text(
-        'pciComparisonReference',
-      ) ||
+    if (
+      test.pciManual !== false
+    ) {
+      add(
+        'Data kerusakan/rating tersedia',
+        text(
+          'pciDistressReference',
+        ) ||
         'Belum tersedia',
-      !!text(
-        'pciComparisonReference',
-      ),
-    );
+        !!text(
+          'pciDistressReference',
+        ),
+      );
 
-    add(
-      'Penilaian visual telah diperiksa penilai lain',
-      test.ratersAgree
-        ? 'Sudah diperiksa'
-        : 'Belum diperiksa',
-      test.ratersAgree === true,
-    );
-  } else {
-    add(
-      'Versi model AI tercatat',
-      text(
-        'pciModelVersion',
-      ) ||
+      add(
+        'Data pembanding / objek standar tersedia',
+        text(
+          'pciComparisonReference',
+        ) ||
+        'Belum tersedia',
+        !!text(
+          'pciComparisonReference',
+        ),
+      );
+
+      add(
+        'Penilaian visual telah diperiksa penilai lain',
+        test.ratersAgree
+          ? 'Sudah diperiksa'
+          : 'Belum diperiksa',
+        test.ratersAgree === true,
+      );
+    } else {
+      add(
+        'Versi model AI tercatat',
+        text(
+          'pciModelVersion',
+        ) ||
         'Belum tercatat',
-      !!text(
-        'pciModelVersion',
-      ),
+        !!text(
+          'pciModelVersion',
+        ),
+      );
+
+      add(
+        'Benchmark / kondisi aktual tersedia',
+        text(
+          'pciBenchmarkReference',
+        ) ||
+        'Belum tersedia',
+        !!text(
+          'pciBenchmarkReference',
+        ),
+      );
+
+      add(
+        'Hasil evaluasi kinerja AI tersedia',
+        text(
+          'pciPerformanceReport',
+        ) ||
+        'Belum tersedia',
+        !!text(
+          'pciPerformanceReport',
+        ),
+      );
+    }
+
+    add(
+      'Metode dan peralatan memenuhi persyaratan',
+      detail
+        .methodEquipmentCompliant ===
+        true
+        ? 'Dikonfirmasi'
+        : 'Belum dikonfirmasi',
+      detail
+        .methodEquipmentCompliant ===
+      true,
     );
 
     add(
-      'Benchmark / kondisi aktual tersedia',
-      text(
-        'pciBenchmarkReference',
-      ) ||
-        'Belum tersedia',
-      !!text(
-        'pciBenchmarkReference',
-      ),
+      'Data hasil uji telah diproses',
+      detail.dataProcessed === true
+        ? 'Sudah diproses'
+        : 'Belum diproses',
+      detail.dataProcessed === true,
     );
 
     add(
-      'Hasil evaluasi kinerja AI tersedia',
-      text(
-        'pciPerformanceReport',
-      ) ||
-        'Belum tersedia',
-      !!text(
-        'pciPerformanceReport',
-      ),
+      'Hasil PCI konsisten dengan LRS',
+      test.stationingConsistent
+        ? 'Konsisten'
+        : 'Belum konsisten',
+      test.stationingConsistent ===
+      true,
     );
-  }
 
-  add(
-    'Metode dan peralatan memenuhi persyaratan',
-    detail
-      .methodEquipmentCompliant ===
-      true
-      ? 'Dikonfirmasi'
-      : 'Belum dikonfirmasi',
-    detail
-      .methodEquipmentCompliant ===
-      true,
-  );
-
-  add(
-    'Data hasil uji telah diproses',
-    detail.dataProcessed === true
-      ? 'Sudah diproses'
-      : 'Belum diproses',
-    detail.dataProcessed === true,
-  );
-
-  add(
-    'Hasil PCI konsisten dengan LRS',
-    test.stationingConsistent
-      ? 'Konsisten'
-      : 'Belum konsisten',
-    test.stationingConsistent ===
-      true,
-  );
-
-    } else if (type === 'Lendutan') {
+  } else if (type === 'Lendutan') {
     const detail =
       test.productionDetails ?? {};
 
@@ -836,21 +836,21 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Lokasi / STA pengukuran tercatat',
       text('deflectionLocation') ||
-        'Belum tercatat',
+      'Belum tercatat',
       !!text('deflectionLocation'),
     );
 
     add(
       'Koordinat / referensi LRS tercatat',
       text('deflectionCoordinates') ||
-        'Belum tercatat',
+      'Belum tercatat',
       !!text('deflectionCoordinates'),
     );
 
     add(
       'Referensi hasil pengukuran tersedia',
       text('deflectionResultReference') ||
-        'Belum tersedia',
+      'Belum tersedia',
       !!text('deflectionResultReference'),
     );
 
@@ -869,18 +869,17 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
 
       add(
         'Selisih pengukuran LWD memenuhi ketentuan',
-        `${test.lwdDifferenceMicrons ?? '—'} µm / ${
-          test.lwdDifferencePercent ?? '—'
+        `${test.lwdDifferenceMicrons ?? '—'} µm / ${test.lwdDifferencePercent ?? '—'
         }%`,
         (test.lwdDifferenceMicrons ?? Infinity) < 20 ||
-          (test.lwdDifferencePercent ?? Infinity) < 10,
+        (test.lwdDifferencePercent ?? Infinity) < 10,
       );
     } else {
       add(
         'Beban FWD berada pada 40 ±4 kN',
         `${test.fwdLoad} kN`,
         test.fwdLoad >= 36 &&
-          test.fwdLoad <= 44,
+        test.fwdLoad <= 44,
       );
 
       add(
@@ -925,7 +924,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     );
 
   } else if (type === 'Jembatan') {
-    add('Laporan uji coba lengkap dan dinyatakan selesai',test.bridgeTrialReportComplete?'Lengkap':'Belum lengkap',test.bridgeTrialReportComplete===true);
+    add('Laporan uji coba lengkap dan dinyatakan selesai', test.bridgeTrialReportComplete ? 'Lengkap' : 'Belum lengkap', test.bridgeTrialReportComplete === true);
     const detail =
       test.productionDetails ?? {};
 
@@ -992,7 +991,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Lampiran formulir, foto dan sketsa tersedia',
       text('bridgeReportAttachment') ||
-        'Belum tersedia',
+      'Belum tersedia',
       !!text('bridgeReportAttachment'),
     );
 
@@ -1039,8 +1038,8 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Lokasi / STA dan koordinat tercatat',
       text('road') &&
-      text('locationReference') &&
-      text('coordinates')
+        text('locationReference') &&
+        text('coordinates')
         ? 'Lengkap'
         : 'Belum lengkap',
       !!text('road') &&
@@ -1051,7 +1050,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Geometri dan material/kondisi lereng tercatat',
       text('slopeGeometry') &&
-      text('slopeMaterial')
+        text('slopeMaterial')
         ? 'Lengkap'
         : 'Belum lengkap',
       !!text('slopeGeometry') &&
@@ -1061,7 +1060,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Jenis/kondisi keruntuhan dan drainase tercatat',
       text('failureCondition') &&
-      text('drainageCondition')
+        text('drainageCondition')
         ? 'Lengkap'
         : 'Belum lengkap',
       !!text('failureCondition') &&
@@ -1071,7 +1070,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Bangunan pengaman dan instrumentasi tercatat',
       text('protectionStructure') &&
-      text('instrumentation')
+        text('instrumentation')
         ? 'Lengkap'
         : 'Belum lengkap',
       !!text('protectionStructure') &&
@@ -1081,7 +1080,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Foto dan sketsa tersedia',
       text('photoReference') &&
-      text('sketchReference')
+        text('sketchReference')
         ? 'Tersedia'
         : 'Belum lengkap',
       !!text('photoReference') &&
@@ -1091,7 +1090,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     add(
       'Referensi InSlope tersedia',
       text('inSlopeReference') ||
-        'Belum tersedia',
+      'Belum tersedia',
       !!text('inSlopeReference'),
     );
 
@@ -1161,12 +1160,12 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
         ? 'Lengkap'
         : 'Belum lengkap',
       !!text('segmentId') &&
-        !!text('road') &&
-        !!text('staStart') &&
-        !!text('staEnd') &&
-        !!text(
-          'coordinates',
-        ),
+      !!text('road') &&
+      !!text('staStart') &&
+      !!text('staEnd') &&
+      !!text(
+        'coordinates',
+      ),
     );
 
     add(
@@ -1182,9 +1181,9 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       !!text(
         'channelType',
       ) &&
-        !!text('material') &&
-        !!text('widthM') &&
-        !!text('depthM'),
+      !!text('material') &&
+      !!text('widthM') &&
+      !!text('depthM'),
     );
 
     add(
@@ -1206,15 +1205,15 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       !!text(
         'conditionClass',
       ) &&
-        !!text(
-          'obstructionSediment',
-        ) &&
-        !!text(
-          'flowCondition',
-        ) &&
-        !!text(
-          'outletCondition',
-        ),
+      !!text(
+        'obstructionSediment',
+      ) &&
+      !!text(
+        'flowCondition',
+      ) &&
+      !!text(
+        'outletCondition',
+      ),
     );
 
     add(
@@ -1230,9 +1229,9 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       !!text(
         'inDrainReference',
       ) &&
-        !!text(
-          'inspectionReference',
-        ),
+      !!text(
+        'inspectionReference',
+      ),
     );
 
     add(
@@ -1275,7 +1274,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
         : 'Belum konsisten',
       test
         .stationingConsistent ===
-        true,
+      true,
     );
 
   } else if (
@@ -1338,15 +1337,15 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
         ? 'Lengkap'
         : 'Belum lengkap',
       !!text('tcId') &&
-        !!text('road') &&
-        !!text('direction') &&
-        !!text('lane'),
+      !!text('road') &&
+      !!text('direction') &&
+      !!text('lane'),
     );
 
     add(
       'Metode pencacahan tercatat',
       text('method') ||
-        'Belum dipilih',
+      'Belum dipilih',
       [
         'Manual',
         'Rekaman video / off-site',
@@ -1368,7 +1367,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       text(
         'recapReference',
       ) ||
-        'Belum tersedia',
+      'Belum tersedia',
       !!text(
         'recapReference',
       ),
@@ -1383,7 +1382,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
         text(
           'videoReference',
         ) ||
-          'Belum tersedia',
+        'Belum tersedia',
         !!text(
           'videoReference',
         ),
@@ -1441,16 +1440,16 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
         text('staStart') &&
         text('staEnd')
         ? `${text(
-            'road',
-          )} · ${text(
-            'staStart',
-          )}–${text(
-            'staEnd',
-          )}`
+          'road',
+        )} · ${text(
+          'staStart',
+        )}–${text(
+          'staEnd',
+        )}`
         : 'Belum lengkap',
       !!text('road') &&
-        !!text('staStart') &&
-        !!text('staEnd'),
+      !!text('staStart') &&
+      !!text('staEnd'),
     );
 
     add(
@@ -1466,9 +1465,9 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       !!text(
         'linkDescription',
       ) &&
-        !!text(
-          'lrpReference',
-        ),
+      !!text(
+        'lrpReference',
+      ),
     );
 
     add(
@@ -1484,9 +1483,9 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       !!text(
         'crossSectionInventory',
       ) &&
-        !!text(
-          'inventoryAttributes',
-        ),
+      !!text(
+        'inventoryAttributes',
+      ),
     );
 
     add(
@@ -1502,9 +1501,9 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
       !!text(
         'gpsReference',
       ) &&
-        !!text(
-          'rawDataReference',
-        ),
+      !!text(
+        'rawDataReference',
+      ),
     );
 
     add(
@@ -1535,14 +1534,14 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
         : 'Belum konsisten',
       test
         .stationingConsistent ===
-        true,
+      true,
     );
   }
   return { checks, passed: checks.every(check => check.pass) };
 }
 
 export function samplingRule(type: SurveyType, level: 1 | 2 | 3) {
-  if (type === 'Lendutan' && level === 2) return {label:'Sampling Pengguna Jasa · ketentuan sementara',rate:5,unit:'titik lendutan'};
+  if (type === 'Lendutan' && level === 2) return { label: 'Sampling Pengguna Jasa · ketentuan sementara', rate: 5, unit: 'titik lendutan' };
   if (level === 1) return { label: 'Audit Penyedia Jasa', rate: 100, unit: 'seluruh data' };
   if (level === 3) return { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% data' };
   if (type === 'Jembatan' || type === 'Lereng' || type === 'Lendutan') {
@@ -1607,23 +1606,23 @@ export function notificationsFor(state: OperationalWorkflowState) {
       object: state.project.packageName,
     }]),
     ...state.acceptance.terms.filter(term => !term.complete).map(term => ({ id: `term-${term.id}`, title: `Termin ${term.id} (${term.percentage}%)`, due: term.dueDate, object: term.milestone })),
-    ...state.corrections.filter(item=>item.status!=='Ditutup'&&!item.source.startsWith('Notifikasi H+0')).map(item=>({id:`correction-${item.id}`,title:'Tindak lanjut kasus koreksi',due:item.dueDate,object:`${item.id} · ${item.owner}`})),
-    ...(!state.acceptance.terms.find(term=>term.id==='T3')?.complete ? [
-      ...(!state.submission||state.submission.validationStatus!=='VALID'?[{id:'semester-one-upload',title:'Upload Semester I (minggu ke-1 Juni)',due:'2027-06-07',object:state.project.packageName}]:[]),
-      ...(!state.audits.every(a=>a.status==='Lulus')?[{id:'semester-one-objections',title:'Sanggah Semester I (minggu ke-2 Juni)',due:'2027-06-14',object:state.project.packageName}]:[]),
+    ...state.corrections.filter(item => item.status !== 'Ditutup' && !item.source.startsWith('Notifikasi H+0')).map(item => ({ id: `correction-${item.id}`, title: 'Tindak lanjut kasus koreksi', due: item.dueDate, object: `${item.id} · ${item.owner}` })),
+    ...(!state.acceptance.terms.find(term => term.id === 'T3')?.complete ? [
+      ...(!state.submission || state.submission.validationStatus !== 'VALID' ? [{ id: 'semester-one-upload', title: 'Upload Semester I (minggu ke-1 Juni)', due: '2027-06-07', object: state.project.packageName }] : []),
+      ...(!state.audits.every(a => a.status === 'Lulus') ? [{ id: 'semester-one-objections', title: 'Sanggah Semester I (minggu ke-2 Juni)', due: '2027-06-14', object: state.project.packageName }] : []),
     ] : []),
-    ...(!state.acceptance.terms.find(term=>term.id==='T4')?.complete ? [
-      ...(!state.acceptance.semesterTwoEvidence?.uploadValid?[{id:'semester-two-upload',title:'Upload IRI Semester II (minggu ke-3 November)',due:'2027-11-21',object:state.project.packageName}]:[]),
-      ...(!state.acceptance.semesterTwoEvidence?.objectionsClosed?[{id:'semester-two-objections',title:'Sanggah Semester II (minggu ke-4 November)',due:'2027-11-28',object:state.project.packageName}]:[]),
+    ...(!state.acceptance.terms.find(term => term.id === 'T4')?.complete ? [
+      ...(!state.acceptance.semesterTwoEvidence?.uploadValid ? [{ id: 'semester-two-upload', title: 'Upload IRI Semester II (minggu ke-3 November)', due: '2027-11-21', object: state.project.packageName }] : []),
+      ...(!state.acceptance.semesterTwoEvidence?.objectionsClosed ? [{ id: 'semester-two-objections', title: 'Sanggah Semester II (minggu ke-4 November)', due: '2027-11-28', object: state.project.packageName }] : []),
     ] : []),
-    ...(state.backupSchedule?.enabled?[{id:'scheduled-backup',title:'Snapshot backup terjadwal (simulasi)',due:state.backupSchedule.nextDate,object:state.project.packageName}]:[]),
+    ...(state.backupSchedule?.enabled ? [{ id: 'scheduled-backup', title: 'Snapshot backup terjadwal (simulasi)', due: state.backupSchedule.nextDate, object: state.project.packageName }] : []),
     ...(!state.project.preparation.documents['RMLLP (minimal 1 minggu sebelum kegiatan)'] && state.dailyRecords.length > 0
       ? [{
-          id: 'rmllp-before-survey',
-          title: 'RMLLP minimal 1 minggu sebelum kegiatan',
-          due: dateOffset([...state.dailyRecords].map(record => record.date).sort()[0], -7),
-          object: state.project.packageName,
-        }]
+        id: 'rmllp-before-survey',
+        title: 'RMLLP minimal 1 minggu sebelum kegiatan',
+        due: dateOffset([...state.dailyRecords].map(record => record.date).sort()[0], -7),
+        object: state.project.packageName,
+      }]
       : []),
   ];
   return deadlines.filter(item => item.due).map(item => {

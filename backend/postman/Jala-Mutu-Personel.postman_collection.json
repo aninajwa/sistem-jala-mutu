@@ -1,0 +1,241 @@
+{
+  "info": {
+    "_postman_id": "4ac441e4-b1b0-4771-a587-3bf9bc4fc9d8",
+    "name": "Jala Mutu - Personel Tim dan Kualifikasi",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Jalankan request satu demi satu; jangan Run All. Contoh UJIAN sahaja. Kualifikasi hanya metadata, dokumen_id null dan belum dinilai. Isi password di Variables, login 01 akan menyimpan token untuk koleksi ini sahaja. Jangan kongsi eksport berisi credentials."
+  },
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:5000",
+      "type": "string"
+    },
+    {
+      "key": "supabase_url",
+      "value": "https://vnvknmwcidberkjwtqjx.supabase.co",
+      "type": "string"
+    },
+    {
+      "key": "supabase_publishable_key",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "paket_id",
+      "value": "3",
+      "type": "string"
+    },
+    {
+      "key": "tim_id",
+      "value": "10",
+      "type": "string"
+    },
+    {
+      "key": "personel_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "anggota_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "kualifikasi_id",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "01 - Login akaun",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "apikey",
+            "value": "{{supabase_publishable_key}}"
+          }
+        ],
+        "url": "{{supabase_url}}/auth/v1/token?grant_type=password",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "auth": {
+          "type": "noauth"
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 200) { pm.collectionVariables.set(\"access_token\", pm.response.json().access_token); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "02 - Daftar personel UJIAN dalam tim",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"nama\": \"UJIAN - Operator IRI\",\n  \"nik_internal\": \"UJIAN-PERSONEL-001\",\n  \"pendidikan\": null,\n  \"pengalaman_tahun\": null,\n  \"peran\": \"Operator\",\n  \"mulai\": \"2026-10-18\",\n  \"selesai\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              " const d = pm.response.json().data;",
+              " pm.collectionVariables.set(\"personel_id\", String(d.personel.personel_id));",
+              " pm.collectionVariables.set(\"anggota_id\", String(d.anggota.anggota_id));",
+              "}"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "03 - Senarai personel dalam tim",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel"
+      }
+    },
+    {
+      "name": "04 - Rekod kualifikasi UJIAN",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel/{{personel_id}}/kualifikasi",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jenis\": \"SKK\",\n  \"nomor\": \"UJIAN-SKK-001\",\n  \"jenjang\": null,\n  \"berlaku_sd\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) { pm.collectionVariables.set(\"kualifikasi_id\", String(pm.response.json().data.kualifikasi.kualifikasi_id)); }"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "05 - Senarai kualifikasi personel",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel/{{personel_id}}/kualifikasi"
+      }
+    },
+    {
+      "name": "06 - Pilihan: tugaskan personel sedia ada",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{base_url}}/api/paket/{{paket_id}}/tim/{{tim_id}}/personel",
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"personel_id\": {{personel_id}},\n  \"peran\": \"Operator\",\n  \"mulai\": \"2026-10-18\",\n  \"selesai\": null\n}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        },
+        "description": "Untuk tim lain sahaja: tukar tim_id dalam Variables dahulu. Memerlukan personel dalam organisasi penyedia yang sama. Jangan hantar untuk tim/tempoh yang sama: akan 409. Tidak mengubah biodata personel."
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "if (pm.response.code === 201) {",
+              " const d = pm.response.json().data;",
+              " pm.collectionVariables.set(\"personel_id\", String(d.personel.personel_id));",
+              " pm.collectionVariables.set(\"anggota_id\", String(d.anggota.anggota_id));",
+              "}"
+            ]
+          }
+        }
+      ]
+    }
+  ]
+}
