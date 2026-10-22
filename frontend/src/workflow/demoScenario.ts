@@ -54,7 +54,7 @@ export const DEMO_CHECKPOINTS: DemoCheckpoint[] = [
   {id:'complete',order:11,stage:'Selesai',actor:'Direktorat / Pusat',title:'Paket diterima & dimonitor',detail:'Seluruh audit dan penerimaan selesai. Direktorat memantau status akhir; dokumen dan riwayat tetap dapat ditelusuri.',selection:'/reports:Penerimaan & termin'},
 ];
 
-const DEMO_TYPES: SurveyType[] = ['IRI','PCI','Jembatan','Drainase','RNI'];
+const DEMO_TYPES: SurveyType[] = ['IRI','PCI','Lendutan','Jembatan','Lereng','Drainase','Lalu Lintas','RNI'];
 const DEMO_ROAD = 'Medan – Binjai';
 
 const cloneInitial = (): OperationalWorkflowState => JSON.parse(JSON.stringify(INITIAL_WORKFLOW)) as OperationalWorkflowState;
@@ -104,6 +104,9 @@ function dailyReady(state:OperationalWorkflowState){
   state.dailyRecords = [
     daily('IRI','IRI-001','IRI 4.2 m/km'),
     daily('PCI','PCI-001','PCI 78'),
+    daily('Lendutan','LND-001','Lendutan terukur'),
+    daily('Lereng','LRG-001','Kondisi lereng terukur'),
+    daily('Lalu Lintas','LL-001','Volume lalu lintas tercatat'),
     daily('Jembatan','JBT-001','NK 2'),
     daily('Drainase','DRN-001','Kondisi Baik'),
     daily('RNI','RNI-001','RNI lengkap'),

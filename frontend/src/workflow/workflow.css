@@ -5,7 +5,7 @@
 @media(max-width:460px){.wf-fields{grid-template-columns:1fr}.wf-field.full{grid-column:auto}.wf-kpis{grid-template-columns:1fr 1fr}.wf-button{white-space:normal;text-align:center}}
 .wf-next-action{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:10px;align-items:center;padding:11px 12px;margin:0 0 12px;border:1px solid #bed9cf;background:#f1f8f4;border-radius:5px}.wf-next-icon{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;background:#dcefe7;color:#176b58}.wf-next-copy{display:grid;gap:2px;min-width:0}.wf-next-copy span{font:700 8px 'SFMono-Regular',monospace;letter-spacing:.08em;text-transform:uppercase;color:#4c7668}.wf-next-copy strong{font:750 11px Manrope,sans-serif;color:#204b43}.wf-next-copy small{font-size:9px;color:#6f827a}.wf-source-stack{display:grid;gap:10px}.wf-source-stack details>summary{list-style:none}.wf-source-stack details>summary::-webkit-details-marker{display:none}@media(max-width:780px){.wf-next-action{grid-template-columns:auto 1fr}.wf-next-action>.wf-button{grid-column:1/-1;width:100%}}
 
-/* M10 Â· demo journey / learning mode */
+/* M10 · demo journey / learning mode */
 .wf-demo-journey{margin:0 0 12px;border:1px solid #c9dbea;border-radius:10px;background:#f8fbfe;overflow:hidden}
 .wf-demo-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:12px 14px;border-bottom:1px solid #dce8f1;background:#eef7fd}
 .wf-demo-head>div{display:grid;gap:2px}.wf-demo-head span{font-size:10px;font-weight:800;letter-spacing:.12em;color:#1671a7}.wf-demo-head strong{font-size:14px;color:#18384b}.wf-demo-head small{font-size:11px;color:#587182}
@@ -13,7 +13,7 @@
 @media (max-width:800px){.wf-demo-head{align-items:flex-start;flex-direction:column}.wf-demo-step{min-width:155px}}
 
 
-/* M11 â€” package-first workspace */
+/* M11 — package-first workspace */
 .package-page{display:grid;gap:14px}
 .package-page-head{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;background:#fff;border:1px solid #dfe8ee;border-radius:10px;padding:16px 18px}
 .package-page-head h2{margin:2px 0 5px;font:800 18px/1.2 Manrope,sans-serif;color:#203d53}
@@ -2212,3 +2212,44 @@ details[data-testid="production-calculator-optional"]:not([open]) {
 .s3doc-autofill { padding: 8px 10px; background: #f3f7f9; border: 1px solid #d8e5ec; border-radius: 5px; color: #24475e; }
 .s3doc-file-evidence { padding: 10px; border: 1px solid #d8e5ec; border-radius: 6px; display: grid; gap: 7px; }
 .s3doc-file-evidence a { word-break: break-all; }
+
+
+/* Role task order: review first; supplier inputs remain available in disclosure. */
+.production-workspace-columns.review-first>.production-column:first-child{order:2}
+.production-workspace-columns.review-first>.production-column:last-child{order:1}
+.role-work-details{margin-block:8px}.role-work-body{padding:10px}.role-work-details>summary{cursor:pointer;font-size:14px}
+
+.acceptance-review-first>*:first-child{order:2}.acceptance-review-first>*:last-child{order:1}
+@media(max-width:760px){.production-workspace-columns,.wf-grid{grid-template-columns:minmax(0,1fr)}.wf input,.wf select,.wf textarea{max-width:100%;min-width:0}.role-work-body{padding:8px}.wf-table{overflow-x:auto}}
+.wf-grid > *, .production-workspace-columns > *, .role-work-body, .role-work-details{min-width:0}
+.wf-table{max-width:100%}
+
+.operational-form-chapter>summary{font-size:14px}.operational-form-chapter .structured-checklist-section{margin:6px 0}.source-table-section{padding:8px 10px}.document-file{border-top:1px solid #e3eaf0;padding:8px 0}.document-file details{font-size:13px;margin:6px 0}.document-file li{margin:5px 0;overflow-wrap:anywhere}.document-file select{max-width:100%}.documents-area .wf-row>div{min-width:0}.document-file small{display:block}.document-needs{margin-bottom:8px}
+
+/* RC2 UI clarity: focused actions, accessible read-only explanation, evidence */
+.document-upload-flow{display:grid;gap:12px;padding:12px;border:1px solid #e3eae6;border-radius:8px;margin:10px 0;background:#fbfcfb}
+.document-category-label{display:grid;gap:6px;font-size:12px;font-weight:650;min-width:0}
+.document-category-label select{width:100%;min-height:40px;border:1px solid #cbd9d3;border-radius:6px;padding:8px;background:white;color:#29444a}
+.document-upload-actions{display:flex;gap:9px;flex-wrap:wrap}
+.document-upload-actions .wf-button{min-height:36px}
+.stage-task-summary{display:flex;gap:9px;align-items:center;flex-wrap:wrap}
+.stage-task-summary>span:not(.wf-status){font-size:12px;color:#56706b}
+.stage-task-details,.stage-task-blockers{margin-top:7px}
+.stage-task-blockers li{margin:5px 0}
+.stage-document-details{border:1px solid #dce7e1;border-radius:7px;padding:10px 12px;margin:12px 0}
+.stage-document-details>summary{font-weight:700;cursor:pointer}
+.stage-document-details>.wf-panel{margin-top:12px}
+@media(max-width:700px){.stage-task-summary{align-items:flex-start;flex-direction:column}.document-upload-actions{flex-direction:column}.document-upload-actions>.wf-button{width:100%}}
+
+/* RC2 Paket Saya — konteks tugas ringkas, dokumen tidak menutupi pekerjaan utama */
+.stage-action-context.rc2-task-line{padding:12px 14px;margin:0 0 12px;border:1px solid #dce7e4;border-radius:10px;background:#f8faf9}
+.stage-task-summary{display:flex;align-items:center;gap:8px 14px;flex-wrap:wrap}
+.stage-task-summary>strong{font-size:14px}.stage-task-summary>span:not(.wf-status){font-size:12px;flex:1 1 240px}
+.stage-task-details,.stage-task-blockers{margin-top:8px;font-size:12px}.stage-task-details>summary,.stage-task-blockers>summary{cursor:pointer}
+.stage-task-details .wf-callout{margin:8px 0 4px}.stage-task-blockers ul{padding-left:20px;margin:8px 0}
+.stage-document-details{margin:12px 0;border:1px solid #dce7e4;border-radius:10px;background:#fff;overflow:hidden}
+.stage-document-details>summary{padding:12px 14px;font-size:13px;font-weight:650;cursor:pointer;background:#f7f9f8}
+.stage-document-details>.wf-panel{margin:0;border:0;border-top:1px solid #dce7e4;box-shadow:none}
+.stage-period-hint{margin:0 0 10px}.document-upload-actions{display:flex;flex-wrap:wrap;gap:8px;align-items:center}
+.role-work-details>summary{cursor:pointer}.role-work-details:not([open]){margin-bottom:10px}
+@media(max-width:720px){.stage-task-summary{display:grid;grid-template-columns:1fr}.stage-action-context.rc2-task-line{padding:11px}.document-upload-actions>*{max-width:100%}}

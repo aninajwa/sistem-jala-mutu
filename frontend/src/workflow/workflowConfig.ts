@@ -35,9 +35,9 @@ export const VALIDATION_SOURCE_OPTIONS = ['Sinkronisasi sistem sumber', 'Lampira
 
 export const STAGE3_SOURCE_MODE_PRESENTATION: Record<(typeof VALIDATION_SOURCE_OPTIONS)[number], { badge:string; detail:string; sourceReadOnly:boolean; evidenceLabel:string }> = {
   'Sinkronisasi sistem sumber': {
-    badge: 'Dari sistem sumber',
-    detail: 'Metadata dan hasil utama dibaca dari sistem sumber. Penyedia hanya melengkapi bukti, checklist, dan catatan yang belum tersedia.',
-    sourceReadOnly: true,
+    badge: 'Data lokal tersimpan',
+    detail: 'Belum ada penerimaan dari API. Periksa nilai lokal dan lengkapi kegiatan yang tersedia.',
+    sourceReadOnly: false,
     evidenceLabel: 'Referensi bukti pendukung',
   },
   'Lampiran / bukti kegiatan': {
@@ -47,7 +47,7 @@ export const STAGE3_SOURCE_MODE_PRESENTATION: Record<(typeof VALIDATION_SOURCE_O
     evidenceLabel: 'Referensi lampiran / bukti',
   },
   'Pencatatan manual': {
-    badge: 'Manual fallback',
+    badge: 'Pencatatan manual',
     detail: 'Dipakai hanya bila data belum tersedia dari sistem sumber maupun lampiran. Field wajib dilengkapi oleh Penyedia.',
     sourceReadOnly: false,
     evidenceLabel: 'Referensi pendukung (bila ada)',

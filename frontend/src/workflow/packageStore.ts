@@ -1,4 +1,7 @@
-﻿import {
+import {hasPendingRecheck} from './workflowRevisions';
+import {workflowFormIssues} from './repository/workflowReconciliation';
+import { localPersistence } from './repository/localPersistence';
+import {
   INITIAL_WORKFLOW,
   SURVEY_TYPES,
   type CorrectionCase,
@@ -880,8 +883,7 @@ export function createInitialPackageStore():
       'PAKET-DEMO-001':
         packageA(),
 
-      'PAKET-DEMO-002':
-        packageB(),
+
     },
   };
 }
@@ -929,7 +931,7 @@ export function loadWorkflowPackageStore():
 
   try {
     const raw =
-      window.localStorage.getItem(
+      localPersistence.getItem(
         PACKAGE_STORE_KEY,
       );
 
@@ -978,23 +980,6 @@ export function loadWorkflowPackageStore():
         string,
         OperationalWorkflowState
       >;
-
-    for (
-      const [
-        id,
-        state,
-      ] of Object.entries(
-        fallback.packages,
-      )
-    ) {
-      if (!packages[id]) {
-        packages[id] =
-          normalizePackage(
-            state,
-            activeRole,
-          );
-      }
-    }
 
     return {
       activePackageId:
@@ -1081,6 +1066,8 @@ export function derivePackageStage(
         item.status !==
         'Ditutup',
     ) ||
+    state.cycle.requiresReview ||
+    Object.values(state.cycleHistory??{}).some(cycle=>cycle.requiresReview) ||
     state.cycle.consistency !==
       'Konsisten' ||
     state.cycle.userReview !==
@@ -1103,7 +1090,7 @@ export function derivePackageStage(
     state.audits.some(
       item =>
         item.status !==
-        'Lulus',
+        'Lulus' || item.requiresReview,
     )
   ) {
     return 'Tahap 5';
@@ -1180,6 +1167,7 @@ export function packageWaitingFor(
   }
 
   if (
+    state.audits[0].requiresReview ||
     state.audits[0].status !==
     'Lulus'
   ) {
@@ -1187,6 +1175,7 @@ export function packageWaitingFor(
   }
 
   if (
+    state.audits[1].requiresReview ||
     state.audits[1].status !==
     'Lulus'
   ) {
@@ -1194,6 +1183,7 @@ export function packageWaitingFor(
   }
 
   if (
+    state.audits[2].requiresReview ||
     state.audits[2].status !==
     'Lulus'
   ) {
@@ -1226,6 +1216,9 @@ export function packageStatus(
   ) {
     return 'Perlu tindak lanjut';
   }
+
+  if(hasPendingRecheck(state))return 'Perlu pemeriksaan ulang';
+  if(workflowFormIssues(state).length)return 'Perlu pemeriksaan formulir';
 
   const stage =
     derivePackageStage(
