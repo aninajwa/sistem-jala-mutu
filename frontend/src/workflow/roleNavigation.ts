@@ -1,4 +1,4 @@
-import type { LucideIcon } from 'lucide-react';
+﻿import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
   Bell,
@@ -167,16 +167,16 @@ export function buildRoleNavigation(
         ],
       },
       packageNav,
-      {
-        path: '/actions',
-        label: 'Tindakan Perbaikan',
-        icon: Wrench,
-        children: [
-          { label: 'Kasus & Temuan', href: '/actions', tab: 'Semua' },
-          { label: 'Prioritas', href: '/actions', tab: 'Prioritas' },
-          { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
-        ],
-      },
+     {
+  path: '/actions',
+  label: 'Tindakan Perbaikan',
+  icon: Wrench,
+  children: [
+    { label: 'Tugas Saya', href: '/actions', tab: 'Tugas Saya' },
+    { label: 'Menunggu Verifikasi', href: '/actions', tab: 'Menunggu Verifikasi' },
+    { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
+  ],
+},
       {
         path: '/reports',
         label: 'Dashboard & Laporan',
@@ -234,15 +234,16 @@ export function buildRoleNavigation(
         ],
       },
       {
-        path: '/actions',
-        label: 'Tindakan Perbaikan',
-        icon: Wrench,
-        children: [
-          { label: 'Kasus & Temuan', href: '/actions', tab: 'Semua' },
-          { label: 'Prioritas', href: '/actions', tab: 'Prioritas' },
-          { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
-        ],
-      },
+  path: '/actions',
+  label: 'Tindakan Perbaikan',
+  icon: Wrench,
+  children: [
+    { label: 'Antrian Verifikasi', href: '/actions', tab: 'Antrian Verifikasi' },
+    { label: 'Tindak Lanjut Paket', href: '/actions', tab: 'Tindak Lanjut Paket' },
+    { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
+    { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
+  ],
+},
       {
         path: '/compliance',
         label: 'Analisis & Kepatuhan',
@@ -310,14 +311,16 @@ export function buildRoleNavigation(
         ],
       },
       {
-        path: '/actions',
-        label: 'Tindakan Perbaikan',
-        icon: Wrench,
-        children: [
-          { label: 'Temuan lintas paket', href: '/actions', tab: 'Semua' },
-          { label: 'Verifikasi ulang', href: '/actions', tab: 'Verifikasi Ulang' },
-        ],
-      },
+  path: '/actions',
+  label: 'Tindakan Perbaikan',
+  icon: Wrench,
+  children: [
+    { label: 'Temuan Lintas Paket', href: '/actions', tab: 'Temuan Lintas Paket' },
+    { label: 'Audit Tingkat 3', href: '/actions', tab: 'Audit Tingkat 3' },
+    { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
+    { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
+  ],
+},
       {
         path: '/compliance',
         label: 'Analisis & Kepatuhan',
@@ -390,14 +393,15 @@ export function buildRoleNavigation(
       ],
     },
     {
-      path: '/actions',
-      label: 'Tindakan Perbaikan',
-      icon: Wrench,
-      children: [
-        { label: 'Kasus & Temuan', href: '/actions', tab: 'Semua' },
-        { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
-      ],
-    },
+  path: '/actions',
+  label: 'Tindakan Perbaikan',
+  icon: Wrench,
+  children: [
+    { label: 'Monitoring Kasus', href: '/actions', tab: 'Monitoring Kasus' },
+    { label: 'Notifikasi & SLA', href: '/actions', tab: 'Notifikasi & SLA' },
+    { label: 'Data Referensi', href: '/actions', tab: 'Data Referensi' },
+  ],
+},
     {
       path: '/compliance',
       label: 'Analisis & Kepatuhan',

@@ -7,7 +7,7 @@ import { isLegacyExample, isRoleTestMode } from '../workflow/access/packageAcces
 import { packageMenuLabel } from '../workflow/roleNavigation';
 type Props = { packages: Record<string, OperationalWorkflowState>; role: WorkflowRole; onOpen: (id: string) => void };
 function LocalPackagesPage({ packages, role, onOpen }: Props) {
-    const [search, setSearch] = useState(''), [balai, setBalai] = useState(''), [status, setStatus] = useState(''), [showLegacy, setShowLegacy] = useState(false);
+    const [search, setSearch] = useState(''), [balai, setBalai] = useState(''), [status, setStatus] = useState(''), [showLegacy, setShowLegacy] = useState(() => import.meta.env.DEV);
     const all = Object.values(packages), legacy = all.filter(isLegacyExample);
     const rows = useMemo(() => all.filter(s => (showLegacy || !isLegacyExample(s)) && (!balai || s.project.balai === balai) && (!status || derivePackageStage(s) === status) && `${s.project.packageName} ${s.project.id} ${s.project.contractor} ${s.project.routes.join(' ')}`.toLowerCase().includes(search.toLowerCase())), [all, balai, status, showLegacy, search]);
     return <div className="package-page operational-list">

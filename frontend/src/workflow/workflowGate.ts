@@ -88,8 +88,11 @@ export function evaluateStageGate(
       ),
     );
 
-  const hasOpenCorrections = state.corrections.some(
-    correction => correction.status !== 'Ditutup',
+  const hasOpenPeriodicCorrections = state.corrections.some(
+    correction => correction.status !== 'Ditutup' &&
+      (correction.blockedStage === 'Verval 14 hari' ||
+       correction.source === 'Konsistensi gagal' ||
+       correction.source === 'Temuan proses verval'),
   );
 
   const periodicReviewed =
@@ -101,7 +104,7 @@ export function evaluateStageGate(
     state.cycle.userReview === 'Sesuai' &&
     Boolean(state.cycle.certificateId?.trim()) &&
     state.cycle.heldRecordIds.length === 0 &&
-    !hasOpenCorrections;
+    !hasOpenPeriodicCorrections;
 
   const submissionValid =
     state.submission.validationStatus === 'VALID';

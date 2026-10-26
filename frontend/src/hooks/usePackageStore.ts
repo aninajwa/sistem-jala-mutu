@@ -2,6 +2,7 @@ import {INITIAL_WORKFLOW} from '../workflow/model';
 import {packageRepository} from '../workflow/repository/packageRepository';
 import {localPrincipal,canViewPackage,visiblePackages,isRoleTestMode} from '../workflow/access/packageAccess';
 import { localPersistence } from '../workflow/repository/localPersistence';
+import { addCorrectionDemoPackages } from "../workflow/testing/correctionDemoPackages";
 
 import { useEffect,useState } from 'react';
 
@@ -20,8 +21,24 @@ type WorkflowPackageStore,
 export function usePackageStore(authenticatedRole?: WorkflowRole) {
   const [packageStore, setPackageStore] =
     useState<WorkflowPackageStore>(() => {
-      const store = packageRepository.load();
-      return authenticatedRole ? { ...store, activeRole: authenticatedRole, activePackageId: null, packages: Object.fromEntries(Object.entries(store.packages).map(([id, state]) => [id, { ...state, role: authenticatedRole }])) } : store;
+      const saved = packageRepository.load();
+      const store = import.meta.env.DEV
+        ? addCorrectionDemoPackages(saved)
+        : saved;
+
+      return authenticatedRole
+        ? {
+            ...store,
+            activeRole: authenticatedRole,
+            activePackageId: null,
+            packages: Object.fromEntries(
+              Object.entries(store.packages).map(([id, state]) => [
+                id,
+                { ...state, role: authenticatedRole },
+              ]),
+            ),
+          }
+        : store;
     });
 
   // Penyimpanan sementara sebelum integrasi API.

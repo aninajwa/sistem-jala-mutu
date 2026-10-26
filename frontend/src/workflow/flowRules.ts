@@ -1,4 +1,4 @@
-import { recordDailyChange, markAuditsForReview } from './workflowRevisions';
+import { markAuditsForReview } from './workflowRevisions';
 import { DEFAULT_SEMESTER_TWO, INITIAL_WORKFLOW, evaluateProductionTest, type OperationalWorkflowState, type CorrectionCase } from './model';
 
 export const AUDIT_REVIEW_CHECKS: Record<number,string[]> = {
@@ -68,22 +68,25 @@ export function correctionClosureErrors(state:OperationalWorkflowState,c:Correct
     c.status!=='Verifikasi Ulang'||c.retest!=='Lulus'?'Uji ulang harus lulus':'',
     !c.verification?.surveyor||!c.verification?.teamLeader||!c.verification?.balai?'Verifikasi Surveyor → Team Leader → Balai belum lengkap':'',
     !c.evidence.trim()?'Bukti wajib tersedia':'',
-    c.fieldDataValid==='Ya'&&(!record||record.rawValue!==c.originalValue||!c.proposedValue.trim())?'Pilih rekaman raw asli yang sesuai dan usulan cleaned':'',
+    !c.executionReference?.trim()?'Hasil pelaksanaan belum ditautkan ke dokumen/rekaman sumber':'',
+    !c.retestReference?.trim()?'Hasil uji ulang tahap asal belum memiliki referensi pemeriksaan':'',
+    c.fieldDataValid==='Ya'&&(!record||record.rawValue!==c.originalValue||!c.proposedValue.trim())?'Referensi raw tidak cocok atau usulan hasil pemrosesan belum tersedia':'',
   ].filter(Boolean);
 }
 
 export function applyClosedCorrection(state:OperationalWorkflowState,c:CorrectionCase):OperationalWorkflowState {
   if(correctionClosureErrors(state,c).length)throw new Error('Kasus belum memenuhi syarat penutupan');
   const resetsProduction=['Kalibrasi','Validasi produksi'].includes(c.blockedStage);
-  const revised=c.fieldDataValid==='Ya'?state.dailyRecords.find(row=>row.id===c.linkedRecordId):undefined;
-  const affected=revised?recordDailyChange(state,{...revised,cleanedValue:c.proposedValue,cleaningReason:`${c.id}: ${c.evidence}`}):state;
+  // JALA MUTU memverifikasi hasil dari sistem sumber, bukan menulis ulang data survei.
+  // proposedValue hanyalah usulan/reference untuk pembandingan QA/QC.
+  // Penutupan kasus tidak memutasi rawValue maupun cleanedValue.
   return {
     ...state,
     ...(resetsProduction?{productionApproval:'Draft' as const,productionApprovalBa:'',bridgeInspectionPermit:false}:{}),
     corrections:state.corrections.map(item=>item.id===c.id?{...item,status:'Ditutup' as const}:item),
-    dailyRecords:state.dailyRecords.map(r=>r.id===c.linkedRecordId&&c.fieldDataValid==='Ya'?{...r,cleanedValue:c.proposedValue,cleaningReason:`${c.id}: ${c.reviewNote||c.rejectionReason} · ${c.evidence}`} :r),
-    cycleHistory:affected.cycleHistory,
-    cycle:c.blockedStage==='Verval 14 hari'&&!c.linkedRecordId?{...state.cycle,requiresReview:true,reviewReason:`Tindak lanjut ${c.id} selesai; periksa ulang periode terkait.`}:affected.cycle,
+    // Data survei tidak diubah; penerimaan versi baru harus berasal dari SMD/API.
+    // Keputusan tahapan tidak dibuat 'Sesuai' otomatis karena kasus ditutup.
+    cycle:c.blockedStage==='Verval 14 hari'?{...state.cycle,requiresReview:true,reviewReason:`Tindak lanjut ${c.id} selesai; periksa ulang periode terkait.`}:state.cycle,
     submission:{...state.submission,validationStatus:'Draft',validationMessage:'Koreksi selesai; penyerahan dan audit wajib diulang.'},
     audits:markAuditsForReview(state,`Tindak lanjut ${c.id} selesai; tinjau ulang data terkait.`),
     acceptance:{...state.acceptance,terms:state.acceptance.terms.map(t=>['T2','T3','T4'].includes(t.id)?{...t,complete:false}:t),finalReport:false,finalAcceptance:false,semesterTwoRevalidation:false},

@@ -1149,14 +1149,12 @@ export function packageWaitingFor(
     return 'Penyedia';
   }
 
-  if (
-    state.corrections.some(
-      item =>
-        item.status !==
-        'Ditutup',
-    )
-  ) {
-    return 'Penyedia';
+  const openCorrection = state.corrections.find(item => item.status !== 'Ditutup');
+  if (openCorrection) {
+    if (openCorrection.status === 'Menunggu Persetujuan' ||
+        openCorrection.status === 'Dilaksanakan' ||
+        openCorrection.status === 'Verifikasi Ulang') return 'PIC Balai';
+    if (openCorrection.status === 'Disetujui' || openCorrection.status === 'Terbuka') return 'Penyedia';
   }
 
   if (
