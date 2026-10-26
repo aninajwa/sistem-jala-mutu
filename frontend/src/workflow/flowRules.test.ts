@@ -140,18 +140,21 @@ test('bukti Semester II ditopang kalibrasi, uji baru dan rekaman',()=>{
   assert.deepEqual(semesterTwoReadiness(s),[]);
   s.productionTestDates.IRI='2027-06-10';assert.ok(semesterTwoReadiness(s).length);
 });
-test('koreksi diterapkan pada cleaned saja; persetujuan lama tidak bertahan',()=>{
-  const s=fresh();s.dailyRecords=[structuredClone(record)];s.corrections=[correction];s.submission.validationStatus='VALID';s.acceptance.finalAcceptance=true;
-  assert.deepEqual(correctionClosureErrors(s,correction),[]);
-  const next=applyClosedCorrection(s,correction);
-  assert.equal(next.dailyRecords[0].rawValue,'4.5');assert.equal(next.dailyRecords[0].cleanedValue,'4.2');
+test('penutupan koreksi tidak mengubah nilai survei sumber; persetujuan lama ditinjau ulang',()=>{
+  const s=fresh();s.dailyRecords=[structuredClone(record)];s.corrections=[{...correction,executionReference:'SMD-RESURVEY-TEST',retestReference:'BA-RETEST-TEST'}];s.submission.validationStatus='VALID';s.acceptance.finalAcceptance=true;
+  assert.deepEqual(correctionClosureErrors(s,s.corrections[0]),[]);
+  const next=applyClosedCorrection(s,s.corrections[0]);
+  assert.equal(next.dailyRecords[0].rawValue,'4.5');assert.equal(next.dailyRecords[0].cleanedValue,'4.5');
   assert.equal(s.dailyRecords[0].cleanedValue,'4.5');assert.equal(next.submission.validationStatus,'Draft');assert.equal(next.acceptance.finalAcceptance,false);
-  assert.equal(next.corrections[0].status,'Ditutup');assert.ok(next.dailyRecords[0].cleaningReason.includes(correction.id));
+  assert.equal(next.corrections[0].status,'Ditutup');assert.equal(next.dailyRecords[0].cleaningReason,'');
+  assert.equal(next.corrections[0].executionReference,'SMD-RESURVEY-TEST');
+  assert.equal(next.corrections[0].retestReference,'BA-RETEST-TEST');
 });
 test('raw tidak cocok atau verifikasi tidak lengkap menahan penutupan',()=>{
   const s=fresh();s.dailyRecords=[record];
   assert.ok(correctionClosureErrors(s,{...correction,originalValue:'9'}).length);
   assert.ok(correctionClosureErrors(s,{...correction,verification:{surveyor:true,teamLeader:false,balai:false}}).length);
+  assert.ok(correctionClosureErrors(s,{...correction,executionReference:'',retestReference:''}).some(reason=>reason.includes('referensi')));
   assert.throws(()=>applyClosedCorrection(s,{...correction,retest:'Gagal'}));
 });
 test('aturan khusus IRI, lendutan dan pemutakhiran jembatan',()=>{

@@ -270,6 +270,10 @@ export type CorrectionCase = {
   status: 'Terbuka' | 'Menunggu Persetujuan' | 'Disetujui' | 'Dilaksanakan' | 'Verifikasi Ulang' | 'Ditutup';
   returnStage: string;
   linkedRecordId?: string;
+  /** Referensi tindakan nyata pada sistem sumber / rekaman lapangan setelah disetujui. */
+  executionReference?: string;
+  /** Referensi hasil pemeriksaan ulang oleh Pengguna Jasa pada tahap sumber. */
+  retestReference?: string;
   verification?: { surveyor: boolean; teamLeader: boolean; balai: boolean };
   reviewNote?: string;
   ruleScenario?: string;

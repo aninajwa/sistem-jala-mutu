@@ -2,6 +2,7 @@ import {INITIAL_WORKFLOW} from '../workflow/model';
 import {packageRepository} from '../workflow/repository/packageRepository';
 import {localPrincipal,canViewPackage,visiblePackages,isRoleTestMode} from '../workflow/access/packageAccess';
 import { localPersistence } from '../workflow/repository/localPersistence';
+import { addCorrectionDemoPackages } from "../workflow/testing/correctionDemoPackages";
 
 import { useEffect,useState } from 'react';
 
@@ -19,7 +20,13 @@ type WorkflowPackageStore,
 
 export function usePackageStore() {
   const [packageStore, setPackageStore] =
-    useState<WorkflowPackageStore>(packageRepository.load);
+  useState<WorkflowPackageStore>(() => {
+    const saved = packageRepository.load();
+
+    return import.meta.env.DEV
+      ? addCorrectionDemoPackages(saved)
+      : saved;
+  });
 
   // Penyimpanan sementara sebelum integrasi API.
   useEffect(() => {

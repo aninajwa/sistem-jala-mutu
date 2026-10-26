@@ -2,11 +2,19 @@ import {useMemo,useState} from 'react';
 import {ArrowRight,Building2,Search,FolderOpen,Archive} from 'lucide-react';
 import type {OperationalWorkflowState,WorkflowRole} from '../workflow/model';
 import {derivePackageStage,packageStatus,packageWaitingFor} from '../workflow/packageStore';
-import {isLegacyExample} from '../workflow/access/packageAccess';
+import {
+  isLegacyExample,
+} from '../workflow/access/packageAccess';
 import {packageMenuLabel} from '../workflow/roleNavigation';
+
 type Props={packages:Record<string,OperationalWorkflowState>;role:WorkflowRole;onOpen:(id:string)=>void};
 export default function PackagesPage({packages,role,onOpen}:Props){
- const [search,setSearch]=useState(''),[balai,setBalai]=useState(''),[status,setStatus]=useState(''),[showLegacy,setShowLegacy]=useState(false);
+ const [search, setSearch] = useState("");
+const [balai, setBalai] = useState("");
+const [status, setStatus] = useState("");
+const [showLegacy, setShowLegacy] = useState(
+  () => import.meta.env.DEV
+);
  const all=Object.values(packages),legacy=all.filter(isLegacyExample);
  const rows=useMemo(()=>all.filter(s=>(showLegacy||!isLegacyExample(s))&&(!balai||s.project.balai===balai)&&(!status||derivePackageStage(s)===status)&&`${s.project.packageName} ${s.project.id} ${s.project.contractor} ${s.project.routes.join(' ')}`.toLowerCase().includes(search.toLowerCase())),[all,balai,status,showLegacy,search]);
  return <div className="package-page operational-list">

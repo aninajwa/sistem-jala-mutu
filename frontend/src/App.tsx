@@ -1,4 +1,4 @@
-import {normalizeWorkflowSelection} from './workflow/legacySelection';
+﻿import {normalizeWorkflowSelection} from './workflow/legacySelection';
 import {isRoleTestMode} from './workflow/access/packageAccess';
 import { localPersistence } from './workflow/repository/localPersistence';
 
@@ -228,6 +228,35 @@ function App() {
     setNotice('Workspace paket dibuka.');
   };
 
+  const openCorrection = (packageId: string, correctionId: string) => {
+  const target = scopedPackages[packageId];
+  const correction = target?.corrections?.find(
+    item => item.id === correctionId
+  );
+
+  if (!target || !correction) {
+    setNotice("Kasus tidak ditemukan atau paket tidak dapat diakses.");
+    return;
+  }
+
+  if (!selectPackage(packageId)) {
+    setNotice("Anda tidak memiliki akses ke paket ini.");
+    return;
+  }
+
+  try {
+    localPersistence.setItem(
+      `jala-correction-selection:${packageId}`,
+      correctionId
+    );
+  } catch {
+    setNotice("Pilihan kasus tidak dapat disimpan di sesi lokal.");
+    return;
+  }
+
+  navigateSubmodule("/actions:Koreksi berbukti");
+};
+
   const openPackageBA = (
     id: string,
     kind: string,
@@ -259,6 +288,14 @@ function App() {
       '/documents:BA & dokumen workflow',
     );
   };
+
+  const returnToCorrections = () => {
+  setSelectedSubmodule("");
+  setActiveTab("Semua");
+  setLocation(
+    isRoleTestMode() ? "/actions?testRoles=1" : "/actions"
+  );
+};
 
   const backToPackages = () => {
     closePackage();
@@ -405,6 +442,7 @@ function App() {
                     workflow={activePackage}
                     selection={selectedSubmodule}
                     onBack={backToPackages}
+                    onReturnToCorrections={returnToCorrections}
                     onNavigate={navigateSubmodule}
                     onUpdate={updateWorkflow}
                     setNotice={setNotice}
@@ -445,8 +483,11 @@ function App() {
                 </Route>
 
                 <Route path="/actions">
-                  <ActionsPage {...pageProps} />
-                </Route>
+  <ActionsPage
+    {...pageProps}
+    onOpenCorrection={openCorrection}
+  />
+</Route>
 
                 <Route path="/compliance">
                   <CompliancePage {...pageProps} />
