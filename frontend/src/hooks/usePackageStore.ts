@@ -17,9 +17,12 @@ type WorkflowPackageStore,
 } from '../workflow/packageStore';
 
 
-export function usePackageStore() {
+export function usePackageStore(authenticatedRole?: WorkflowRole) {
   const [packageStore, setPackageStore] =
-    useState<WorkflowPackageStore>(packageRepository.load);
+    useState<WorkflowPackageStore>(() => {
+      const store = packageRepository.load();
+      return authenticatedRole ? { ...store, activeRole: authenticatedRole, activePackageId: null, packages: Object.fromEntries(Object.entries(store.packages).map(([id, state]) => [id, { ...state, role: authenticatedRole }])) } : store;
+    });
 
   // Penyimpanan sementara sebelum integrasi API.
   useEffect(() => {
@@ -65,7 +68,7 @@ export function usePackageStore() {
   };
 
   const setRole = (role: WorkflowRole) => {
-    if(!isRoleTestMode()&&role!==packageStore.activeRole)return;
+    if(authenticatedRole || (!isRoleTestMode()&&role!==packageStore.activeRole))return;
     setPackageStore(current => ({
       ...current,
       activeRole: role,

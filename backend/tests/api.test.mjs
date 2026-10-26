@@ -5,6 +5,7 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 let mock, child, base, lastRpc;
+const roleQueries = [];
 const storageFiles = new Map();
 let registeredDocument;
 let cleanupCalls = 0;
@@ -33,8 +34,15 @@ before(async () => {
     const send = (data, code = 200) => { res.statusCode = code; res.end(JSON.stringify(data)); };
     if (url.pathname === '/auth/v1/user') return token === 'expired' ? send({ error: 'expired' }, 401) : send({ id: token?.includes('reviewer') ? 'reviewer-id' : 'provider-id' });
     if (url.pathname === '/rest/v1/pengguna') return send(token === 'unlinked' ? [] : [{ ...profile, auth_user_id: token?.includes('reviewer') ? 'reviewer-id' : 'provider-id', terkunci: token === 'locked' }]);
-    if (url.pathname === '/rest/v1/pengguna_peran') return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
-    if (url.pathname === '/rest/v1/peran') return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, nama: token?.includes('reviewer') ? 'pic_balai' : 'penyedia_jasa' }]);
+    if (url.pathname === '/rest/v1/pengguna_peran') {
+      roleQueries.push(url.search);
+      return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
+    }
+    if (url.pathname === '/rest/v1/peran') {
+      roleQueries.push(url.search);
+      // The real catalog is readable by every authenticated user.
+      return send([{ peran_id: 1, nama: 'pic_balai' }, { peran_id: 2, nama: 'admin' }, { peran_id: 3, nama: 'penyedia_jasa' }, { peran_id: 4, nama: 'direktorat' }]);
+    }
     if (url.pathname === '/rest/v1/balai') return send([{ balai_id: 1, nama: 'Balai Ujian', aktif: true }]);
     if (url.pathname === '/rest/v1/anggota_tim') {
       if(token==='foreign-reviewer')return send([]);
@@ -330,6 +338,18 @@ test('login required', async () => assert.equal((await request('/me')).status, 4
 test('expired token rejected', async () => assert.equal((await request('/me', 'expired')).status, 401));
 test('unlinked and locked profiles rejected', async () => { for (const token of ['unlinked', 'locked']) assert.equal((await request('/me', token)).status, 403); });
 test('own profile and roles returned', async () => { const r = await request('/me', 'provider'); assert.equal(r.status, 200); assert.equal(r.body.data.peran[0].nama, 'penyedia_jasa'); });
+test('assigned roles are filtered per caller and intersected with the catalog', async () => {
+  const r = await request('/me', 'reviewer');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body.data.peran.map(role => role.nama), ['pic_balai']);
+  assert.ok(roleQueries.some(q => /[?&]pengguna_id=eq\.\d+/.test(q)), 'penugasan mesti ditapis ikut pengguna_id');
+  assert.ok(roleQueries.some(q => /[?&]peran_id=in\.\(\d+\)/.test(q)), 'katalog peran mesti ditapis ikut peran_id');
+});
+test('catalog roles that are not assigned cannot authorize provider-only actions', async () => {
+  const body = { nama_paket: 'Paket Ujian', nomor_kontrak: 'K-1', tahun_anggaran: 2026, balai_id: 1 };
+  const r = await request('/paket', 'reviewer', body);
+  assert.equal(r.status, 403);
+});
 test('Balai and package list available', async () => { assert.equal((await request('/balai', 'provider')).status, 200); assert.equal((await request('/paket', 'provider')).status, 200); });
 test('invalid pagination rejected', async () => assert.equal((await request('/paket?page=-1', 'provider')).status, 400));
 test('PIC cannot create', async () => assert.equal((await request('/paket', 'reviewer', draft)).status, 403));

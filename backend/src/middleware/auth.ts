@@ -20,10 +20,19 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
       `/rest/v1/pengguna?select=pengguna_id,auth_user_id,username,email,terkunci&auth_user_id=eq.${encodeURIComponent(user.id)}`, token);
     const profile = profiles[0];
     if (!profile || profile.terkunci || profile.auth_user_id !== user.id) throw new ApiError(403, 'Profil belum ditautkan atau akaun terkunci');
-    const [assignments, roles] = await Promise.all([
-      supabaseRequest<Identity['assignments']>('/rest/v1/pengguna_peran?select=peran_id,scope_balai_id,scope_paket_id', token),
-      supabaseRequest<Identity['roles']>('/rest/v1/peran?select=peran_id,nama', token),
-    ]);
+    if (!Number.isSafeInteger(profile.pengguna_id) || profile.pengguna_id <= 0) throw new ApiError(403, 'Profil pengguna tidak sah');
+    // Hanya penugasan milik pemanggil yang boleh dipercayai. Katalog `peran` boleh
+    // dibaca oleh semua pengguna authenticated, jadi ia tidak boleh menjadi senarai
+    // peran pengguna tanpa ditapis dengan penugasan di bawah.
+    const assignments = await supabaseRequest<Identity['assignments']>(
+      `/rest/v1/pengguna_peran?select=peran_id,scope_balai_id,scope_paket_id&pengguna_id=eq.${profile.pengguna_id}`, token);
+    const assignedIds = [...new Set(assignments.map((item) => item.peran_id))]
+      .filter((id) => Number.isSafeInteger(id) && id > 0);
+    if (!assignedIds.length) throw new ApiError(403, 'Peran belum ditetapkan');
+    const catalog = await supabaseRequest<Identity['roles']>(
+      `/rest/v1/peran?select=peran_id,nama&peran_id=in.(${assignedIds.join(',')})`, token);
+    const assigned = new Set(assignedIds);
+    const roles = catalog.filter((role) => assigned.has(role.peran_id));
     if (!roles.length) throw new ApiError(403, 'Peran belum ditetapkan');
     res.locals.identity = { token, profile, assignments, roles };
     next();

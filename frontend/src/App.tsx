@@ -1,5 +1,5 @@
-import {normalizeWorkflowSelection} from './workflow/legacySelection';
-import {isRoleTestMode} from './workflow/access/packageAccess';
+import { normalizeWorkflowSelection } from './workflow/legacySelection';
+import { isRoleTestMode } from './workflow/access/packageAccess';
 import { localPersistence } from './workflow/repository/localPersistence';
 
 import { useEffect, useMemo, useState } from 'react';
@@ -8,6 +8,7 @@ import {
   Router as WouterRouter,
   Switch,
   useLocation,
+  useSearch,
 } from 'wouter';
 import { CheckCircle2 } from 'lucide-react';
 
@@ -36,7 +37,7 @@ import DocumentsPage from './pages/DocumentsPage';
 import EntryPage from './pages/EntryPage';
 import MasterPage from './pages/MasterPage';
 import NotificationsPage from './pages/NotificationsPage';
-import PackageDetailPage from './pages/PackageDetailPage';
+import PackageDetailPage, { ServerPackageWorkspace } from './pages/PackageDetailPage';
 import PackagesPage from './pages/PackagesPage';
 import ReportsPage from './pages/ReportsPage';
 import VerificationPage from './pages/VerificationPage';
@@ -49,7 +50,7 @@ import { derivePackageStage } from './workflow/packageStore';
 import { buildRoleNavigation } from './workflow/roleNavigation';
 import { canAccessRoute } from './workflow/workflowConfig';
 
-function App() {
+function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: WorkflowRole; userLabel?: string; onSignOut?: () => void } = {}) {
   const {
     packageStore,
     scopedPackages,
@@ -60,7 +61,7 @@ function App() {
     closePackage,
     setRole,
     updateWorkflow,
-  } = usePackageStore();
+  } = usePackageStore(authenticatedRole);
 
   const {
     store,
@@ -77,6 +78,10 @@ function App() {
   } = useDemoStore(packageStore.activeRole);
 
   const [location, setLocation] = useLocation();
+  const query = useSearch();
+  const requestedPackageId = new URLSearchParams(query).get('paket');
+  const serverPackageId = authenticatedRole && requestedPackageId && /^[1-9]\d*$/.test(requestedPackageId)
+    ? requestedPackageId : null;
 
   const [balai, setBalai] = useState('Semua Balai');
   const [periode, setPeriode] = useState('Semester I 2027');
@@ -97,15 +102,15 @@ function App() {
   const [sessionActive, setSessionActive] =
     useState(
       () =>
-        localPersistence.getItem(DEMO_SESSION_KEY) ===
+        !!authenticatedRole || localPersistence.getItem(DEMO_SESSION_KEY) ===
         'active',
     );
 
   const isPackageWorkspace =
-    Boolean(activePackageId && activePackage) &&
+    Boolean(serverPackageId || (!authenticatedRole && activePackageId && activePackage)) &&
     (
       selectedSubmodule ===
-        '/packages:Ringkasan Paket' ||
+      '/packages:Ringkasan Paket' ||
       workflowSubmodules.has(selectedSubmodule)
     );
 
@@ -114,7 +119,7 @@ function App() {
       buildRoleNavigation(
         packageStore.activeRole,
         isPackageWorkspace,
-        workflow
+        !authenticatedRole && workflow
           ? derivePackageStage(workflow)
           : 'Tahap 0',
       ),
@@ -122,6 +127,7 @@ function App() {
       packageStore.activeRole,
       isPackageWorkspace,
       workflow,
+      authenticatedRole,
     ],
   );
 
@@ -140,7 +146,7 @@ function App() {
         ? selected
         : '',
     );
-  }, [location]);
+  }, [location, query]);
 
   const scoped = useMemo(
     () =>
@@ -169,11 +175,12 @@ function App() {
 
     setSessionActive(true);
     setSelectedSubmodule('');
-    setLocation(isRoleTestMode()?'/?testRoles=1':'/');
+    setLocation(isRoleTestMode() ? '/?testRoles=1' : '/');
     setNotice(`Peran aktif: ${role}`);
   };
 
   const switchRole = () => {
+    if (onSignOut) { onSignOut(); return; }
     localPersistence.removeItem(DEMO_SESSION_KEY);
     setSessionActive(false);
     setSelectedSubmodule('');
@@ -212,6 +219,13 @@ function App() {
   };
 
   const openPackage = (id: string) => {
+    if (authenticatedRole) {
+      if (!/^[1-9]\d*$/.test(id)) { setNotice('Pilih paket server melalui menu Paket.'); return; }
+      setSelectedSubmodule('/packages:Ringkasan Paket');
+      setLocation(`/packages?paket=${encodeURIComponent(id)}&submodule=${encodeURIComponent('/packages:Ringkasan Paket')}`);
+      setNotice('');
+      return;
+    }
     if (!selectPackage(id)) {
       setNotice('Paket tidak ditemukan.');
       return;
@@ -222,7 +236,7 @@ function App() {
     );
 
     setLocation(
-      '/packages?submodule=%2Fpackages%3ARingkasan%20Paket'+(isRoleTestMode()?'&testRoles=1':''),
+      '/packages?submodule=%2Fpackages%3ARingkasan%20Paket' + (isRoleTestMode() ? '&testRoles=1' : ''),
     );
 
     setNotice('Workspace paket dibuka.');
@@ -232,6 +246,7 @@ function App() {
     id: string,
     kind: string,
   ) => {
+    if (authenticatedRole) { setNotice('Dokumen & BA paket server belum terhubung. Buka paket dari menu Paket.'); return; }
     if (!selectPackage(id)) {
       setNotice('Paket tidak ditemukan.');
       return;
@@ -275,7 +290,7 @@ function App() {
       )
     ) {
       setSelectedSubmodule('');
-      setLocation(isRoleTestMode()?'/?testRoles=1':'/');
+      setLocation(isRoleTestMode() ? '/?testRoles=1' : '/');
     }
   }, [
     sessionActive,
@@ -345,7 +360,7 @@ function App() {
           location={location}
           activeTab={activeTab}
           selectedSubmodule={selectedSubmodule}
-          activePackageId={activePackageId}
+          activePackageId={serverPackageId || (!authenticatedRole ? activePackageId : null)}
           isPackageWorkspace={isPackageWorkspace}
           onCloseMobile={() => setMobileOpen(false)}
           onClearSubmodule={clearSubmodule}
@@ -355,10 +370,11 @@ function App() {
         />
 
         <main className="main-area">
+          {authenticatedRole && <div className="auth-local-notice">Masuk sebagai {userLabel}. Login, daftar paket, dan identitas paket terhubung ke server. Perhatikan status koneksi di setiap modul; dashboard umum masih pratinjau lokal.</div>}
           <AppTopbar
             isPackageWorkspace={isPackageWorkspace}
             packageName={
-              activePackage?.project.packageName
+              serverPackageId ? `Paket #${serverPackageId}` : activePackage?.project.packageName
             }
             location={location}
             navigation={visibleNav}
@@ -385,7 +401,7 @@ function App() {
               </div>
             )}
 
-            {!isPackageWorkspace&&location!=="/packages"&&<MobileFilters
+            {!isPackageWorkspace && location !== "/packages" && <MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
@@ -395,11 +411,20 @@ function App() {
               showJenis={location === '/'}
             />}
 
-            {selectedSubmodule ? (
+            {authenticatedRole && serverPackageId && workflowSubmodules.has(selectedSubmodule) ? (
+              <ServerPackageWorkspace
+                key={`${serverPackageId}:${authenticatedRole}`}
+                packageId={serverPackageId}
+                role={authenticatedRole}
+                selection={selectedSubmodule}
+                onBack={backToPackages}
+                onNavigate={navigateSubmodule}
+              />
+            ) : selectedSubmodule ? (
               workflowSubmodules.has(
                 selectedSubmodule,
               ) ? (
-                activePackageId && activePackage ? (
+                !authenticatedRole && activePackageId && activePackage ? (
                   <PackageDetailPage
                     packageId={activePackageId}
                     workflow={activePackage}

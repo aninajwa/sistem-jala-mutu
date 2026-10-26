@@ -102,7 +102,7 @@ export function AppTopbar({
             title="Keluar dari sesi uji peran"
           >
             <Users size={12} />Uji peran: {activeRole}
-          </button>:<strong className="active-role-label">{activeRole}</strong>}
+          </button>:<><strong className="active-role-label">{activeRole}</strong><button className="btn sm" onClick={onSwitchRole}>Keluar</button></>}
         </div>
       </div>
     </header>

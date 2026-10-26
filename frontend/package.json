@@ -12,12 +12,14 @@
     "preview": "vite preview --host 0.0.0.0",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "test:flow": "node --import tsx --test src/workflow/flowRules.test.ts",
-    "test:domain": "node --import tsx --test src/workflow/flowRules.test.ts src/workflow/auditSampleIntegrity.test.ts src/workflow/workflowRevisions.test.ts src/workflow/checklistCompleteness.test.ts src/workflow/access/operationalPolicy.test.ts src/workflow/repository/httpRepository.test.ts src/workflow/ba/documentWorkflow.test.ts src/workflow/ba/technicalMapping.test.ts src/workflow/ba/fieldValidation.test.ts src/workflow/sourceDocumentModel.test.ts src/workflow/repository/sourceChecklistRepository.test.ts src/workflow/sourceTechnicalEvaluation.test.ts src/workflow/reviewReadiness.test.ts src/workflow/closureValidation.test.ts src/workflow/stagedReviewPolicy.test.ts",
+    "test:domain": "node --import tsx --test src/pages/serverPreparation.test.ts src/workflow/flowRules.test.ts src/workflow/auditSampleIntegrity.test.ts src/workflow/workflowRevisions.test.ts src/workflow/checklistCompleteness.test.ts src/workflow/access/operationalPolicy.test.ts src/workflow/repository/httpRepository.test.ts src/workflow/ba/documentWorkflow.test.ts src/workflow/ba/technicalMapping.test.ts src/workflow/ba/fieldValidation.test.ts src/workflow/sourceDocumentModel.test.ts src/workflow/repository/sourceChecklistRepository.test.ts src/workflow/sourceTechnicalEvaluation.test.ts src/workflow/reviewReadiness.test.ts src/workflow/closureValidation.test.ts src/workflow/stagedReviewPolicy.test.ts",
     "test:permissions": "vitest run src/workflow/workflowPermissions.test.ts",
     "test:browser": "node --import tsx scripts/verifyOperational.ts",
     "test:review": "node --import tsx scripts/verifyReviewControls.ts",
     "test:journey": "node --import tsx scripts/verifyJourneyFromBlank.ts",
-    "test:closure": "node --import tsx scripts/verifyClosure.ts"
+    "test:closure": "node --import tsx scripts/verifyClosure.ts",
+    "test:auth": "node --import tsx --test src/auth/identity.test.ts",
+    "test:login": "node --import tsx scripts/verifyLogin.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -87,6 +89,7 @@
     "zod": "^3.25.76"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.118.0",
     "docx-preview": "^0.4.1",
     "fflate": "^0.8.3"
   }

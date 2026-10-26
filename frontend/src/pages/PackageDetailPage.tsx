@@ -67,3 +67,5 @@ export default function PackageDetailPage({
     </div>
   );
 }
+
+export { ServerPackageWorkspace } from './ServerPackageWorkspace';
