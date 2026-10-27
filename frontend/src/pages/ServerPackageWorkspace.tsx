@@ -4,12 +4,14 @@ import {
   ArrowLeft,
   ArrowRight,
   BookOpen,
+  CheckCircle2,
   ClipboardList,
   FileCheck2,
   FileText,
   MapPinned,
   Pencil,
   RefreshCw,
+  RotateCcw,
   Save,
   Send,
   ShieldCheck,
@@ -29,10 +31,13 @@ import {
 import type { WorkflowRole } from '../workflow/model';
 import { PACKAGE_WORKFLOW_ITEMS } from '../workflow/roleNavigation';
 import { ChecklistPanel } from '../workflow/WorkflowComponents';
+import { ServerCalibrationWorkspace } from './ServerCalibrationWorkspace';
 import {
   buildChecklistPayload,
   buildContractPatch,
+  buildPreparationReviewPayload,
   canEditPreparation,
+  canReviewPreparation,
   canSubmitPreparation,
   checklistDraft,
   contractDraft,
@@ -43,12 +48,14 @@ import {
   type ServerContract,
   type ServerPreparationDocument,
   type ServerPreparationSubmission,
+  type PreparationReviewDecision,
   validatePreparationPdf,
 } from './serverPreparation';
 import '../workflow/workflow.css';
 
 const OVERVIEW = '/packages:Ringkasan Paket';
 const PREPARATION = '/entry:Persiapan & SPMK';
+const CALIBRATION = '/documents:Kalibrasi & personel';
 
 function display(value: unknown): string {
   return value === null || value === undefined || value === '' ? 'Belum diisi' : String(value);
@@ -128,6 +135,9 @@ export function ServerPackageWorkspace({
   const [submissionMessage, setSubmissionMessage] = useState('');
   const [submissionRevision, setSubmissionRevision] = useState(0);
   const [submissionDialogOpen, setSubmissionDialogOpen] = useState(false);
+  const [reviewDecision, setReviewDecision] = useState<PreparationReviewDecision | null>(null);
+  const [reviewNote, setReviewNote] = useState('');
+  const [reviewBusy, setReviewBusy] = useState(false);
 
   useEffect(() => {
     const controller = new AbortController();
@@ -430,6 +440,47 @@ export function ServerPackageWorkspace({
     }
   }
 
+  async function reviewPreparation() {
+    if (!submission || !contract || !reviewDecision || reviewBusy) return;
+    if (!canReviewPreparation(role, contract.status, submission.status)) {
+      setSubmissionError('Semakan hanya tersedia kepada PIC Balai ketika status persiapan DIAJUKAN.');
+      setReviewDecision(null);
+      return;
+    }
+    let payload: ReturnType<typeof buildPreparationReviewPayload>;
+    try {
+      payload = buildPreparationReviewPayload(submission.versi, reviewDecision, reviewNote);
+    } catch (cause) {
+      setSubmissionError(errorMessage(cause, 'Keputusan semakan tidak valid.'));
+      setReviewDecision(null);
+      return;
+    }
+    setReviewBusy(true);
+    setSubmissionError('');
+    setSubmissionMessage('');
+    try {
+      const result = await apiRequest<{ data: ServerPreparationSubmission }>(
+        `/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan/review`,
+        { method: 'POST', body: JSON.stringify(payload) },
+      );
+      setSubmission(result.data);
+      setSubmissionMessage(result.data.status === 'DISETUJUI'
+        ? `Persiapan berjaya disetujui. Versi semasa ${result.data.versi}.`
+        : `Persiapan dikembalikan kepada Penyedia Jasa untuk revisi. Versi semasa ${result.data.versi}.`);
+      setReviewDecision(null);
+      setReviewNote('');
+      setCheckRevision(value => value + 1);
+      setSubmissionRevision(value => value + 1);
+    } catch (cause) {
+      setSubmissionError(errorMessage(cause, 'Gagal menyimpan keputusan PIC Balai.'));
+      setReviewDecision(null);
+      setCheckRevision(value => value + 1);
+      setSubmissionRevision(value => value + 1);
+    } finally {
+      setReviewBusy(false);
+    }
+  }
+
   const back = (
     <button type="button" className="wf-button" onClick={onBack}>
       <ArrowLeft size={14} /> Daftar paket
@@ -444,7 +495,7 @@ export function ServerPackageWorkspace({
     ? 'Balai belum ditetapkan'
     : balaiNames[String(contract.balai_id)] || `Balai #${contract.balai_id}`;
   const stageItem = PACKAGE_WORKFLOW_ITEMS.find(item => item.selection === selection);
-  const connected = selection === OVERVIEW || selection === PREPARATION;
+  const connected = selection === OVERVIEW || selection === PREPARATION || selection === CALIBRATION;
   const checklistGroups = checklist ? groupChecklistItems(checklist.items) : [];
   const checklistIcons = [BookOpen, MapPinned, Activity, FileCheck2];
   const reportItem = checklist?.items.find(item => item.kode === 'DOK-01');
@@ -456,11 +507,14 @@ export function ServerPackageWorkspace({
     checklist?.pengisian.status,
     Boolean(reportItem?.bukti_dokumen_id),
   );
+  const canReview = canReviewPreparation(role, contract.status, submission?.status);
   const stageStatus = (code: string) => code === 'Tahap 0'
     ? checklist
       ? `${checklist.pengisian.status} · ${checklist.ringkasan.jumlah_terjawab}/${checklist.ringkasan.jumlah_item} terjawab`
       : checkLoading ? 'Memuat checklist' : 'Checklist belum tersedia'
-    : 'Data tahap belum terhubung';
+    : code === 'Tahap 1'
+      ? 'Bacaan data server tersedia'
+      : 'Data tahap belum terhubung';
   const info: Array<[string, string]> = [
     ['Nomor kontrak', display(contract.nomor_kontrak)],
     ['Balai', balai],
@@ -517,7 +571,7 @@ export function ServerPackageWorkspace({
       <label className="package-stage-picker">Tahap yang dibuka<select aria-label="Tahap paket yang dibuka" value={stageItem ? selection : ''} onChange={event => { if (event.target.value) onNavigate(event.target.value); }}><option value="">{selection === OVERVIEW ? 'Ringkasan paket' : 'Dokumen dan kegiatan pendukung'}</option>{PACKAGE_WORKFLOW_ITEMS.map(item => <option key={item.code} value={item.selection}>{item.code} · {item.shortLabel}</option>)}</select></label>
     </section>
 
-    <div className="wf-callout">Tahap 0 menggunakan data server. Penyedia Jasa dapat mengubah kontrak dan menyimpan checklist selama rekod masih boleh diedit. Tahap lain belum terhubung.</div>
+    <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>
     {contractMessage && <p role="status" className="wf-callout">{contractMessage}</p>}
 
     {selection === OVERVIEW ? <div className="package-overview">
@@ -638,11 +692,27 @@ export function ServerPackageWorkspace({
           {submission?.review && <div className="wf-callout" style={{ marginTop: 12 }}>
             <strong>Keputusan PIC: {submission.review.keputusan}</strong>
             <div>{submission.review.catatan || 'Tiada catatan semakan.'}</div>
+            <div className="wf-note">Disemak pada {dateTime(submission.review.waktu)} · Pengguna #{submission.review.pengguna_id}</div>
+          </div>}
+          {canReview && <div style={{ marginTop: 12 }}>
+            <label className="wf-field">
+              <span>Catatan PIC Balai {reviewNote.length}/2000</span>
+              <textarea
+                rows={4}
+                maxLength={2000}
+                disabled={reviewBusy}
+                placeholder="Wajib untuk Minta Revisi; opsional untuk Setujui."
+                value={reviewNote}
+                onChange={event => setReviewNote(event.target.value)}
+              />
+            </label>
           </div>}
           {submissionError && <div role="alert" className="wf-callout danger" style={{ marginTop: 12 }}>{submissionError}</div>}
           {submissionMessage && <div role="status" className="wf-callout" style={{ marginTop: 12 }}>{submissionMessage}</div>}
           <div className="wf-toolbar" style={{ marginTop: 12 }}>
             {canSubmit && <button type="button" className="wf-button primary" disabled={submissionBusy || submissionLoading} onClick={() => setSubmissionDialogOpen(true)}><Send size={13} /> {submissionBusy ? 'Mengajukan…' : 'Ajukan kepada PIC Balai'}</button>}
+            {canReview && <button type="button" className="wf-button primary" disabled={reviewBusy || submissionLoading} onClick={() => { setSubmissionError(''); setReviewDecision('DISETUJUI'); }}><CheckCircle2 size={13} /> Setujui persiapan</button>}
+            {canReview && <button type="button" className="wf-button" disabled={reviewBusy || submissionLoading || !reviewNote.trim()} onClick={() => { setSubmissionError(''); setReviewDecision('PERLU_REVISI'); }}><RotateCcw size={13} /> Minta revisi</button>}
             {!canSubmit && !submissionLoading && checklist.pengisian.status === 'DRAFT' && !reportItem?.bukti_dokumen_id && <span className="wf-note">Tautkan PDF Laporan Pendahuluan untuk mengaktifkan tombol pengajuan.</span>}
             <button type="button" className="wf-button" disabled={submissionBusy || submissionLoading} onClick={() => { setSubmissionError(''); setSubmissionMessage(''); setSubmissionRevision(value => value + 1); }}><RefreshCw size={13} /> Muat ulang status</button>
           </div>
@@ -664,7 +734,30 @@ export function ServerPackageWorkspace({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
+      <AlertDialog open={reviewDecision !== null} onOpenChange={open => { if (!open && !reviewBusy) setReviewDecision(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{reviewDecision === 'DISETUJUI' ? 'Setujui persiapan ini?' : 'Kembalikan untuk revisi?'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Keputusan akan disimpan untuk pengajuan #{submission?.pengajuan?.pengajuan_id ?? '-'} menggunakan versi {submission?.versi ?? '-'}. {reviewDecision === 'DISETUJUI'
+                ? 'Persiapan akan dikunci sebagai DISETUJUI.'
+                : 'Penyedia Jasa akan dapat mengubah checklist dan menghantar semula selepas revisi.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {reviewNote.trim() && <div className="wf-callout"><strong>Catatan PIC</strong><div>{reviewNote.trim()}</div></div>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reviewBusy}>Batal</AlertDialogCancel>
+            <AlertDialogAction disabled={reviewBusy} onClick={event => { event.preventDefault(); void reviewPreparation(); }}>
+              {reviewBusy ? 'Menyimpan…' : reviewDecision === 'DISETUJUI' ? 'Ya, setujui' : 'Ya, minta revisi'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </div> : selection === CALIBRATION ? <ServerCalibrationWorkspace
+      packageId={packageId}
+      role={role}
+      preparationStatus={submission?.status || checklist?.pengisian.status}
+    /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
   </div>;
 }

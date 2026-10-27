@@ -4,7 +4,9 @@ import assert from 'node:assert/strict';
 import {
   buildChecklistPayload,
   buildContractPatch,
+  buildPreparationReviewPayload,
   canEditPreparation,
+  canReviewPreparation,
   canSubmitPreparation,
   checklistDraft,
   contractDraft,
@@ -107,4 +109,21 @@ test('submission requires provider, open draft and linked preliminary report', (
   assert.equal(canSubmitPreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DRAFT', false), false);
   assert.equal(canSubmitPreparation('PIC Balai / Pengguna Jasa', 'DRAFT', 'DRAFT', true), false);
   assert.equal(canSubmitPreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DIAJUKAN', true), false);
+});
+
+test('only assigned-role UI can review a submitted preparation', () => {
+  assert.equal(canReviewPreparation('PIC Balai / Pengguna Jasa', 'DRAFT', 'DIAJUKAN'), true);
+  assert.equal(canReviewPreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DIAJUKAN'), false);
+  assert.equal(canReviewPreparation('PIC Balai / Pengguna Jasa', 'DRAFT', 'PERLU_REVISI'), false);
+  assert.equal(canReviewPreparation('PIC Balai / Pengguna Jasa', 'AKTIF', 'DIAJUKAN'), false);
+});
+
+test('review payload trims notes and requires a revision reason', () => {
+  assert.deepEqual(buildPreparationReviewPayload(4, 'DISETUJUI', '  Sesuai  '), {
+    expected_version: 4,
+    keputusan: 'DISETUJUI',
+    catatan: 'Sesuai',
+  });
+  assert.throws(() => buildPreparationReviewPayload(4, 'PERLU_REVISI', '   '), /wajib/);
+  assert.throws(() => buildPreparationReviewPayload(4, 'DISETUJUI', 'x'.repeat(2001)), /2000/);
 });

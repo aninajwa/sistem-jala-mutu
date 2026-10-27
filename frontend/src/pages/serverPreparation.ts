@@ -190,3 +190,31 @@ export function canSubmitPreparation(
     && (checklistStatus === 'DRAFT' || checklistStatus === 'PERLU_REVISI')
     && hasLinkedReport;
 }
+
+export type PreparationReviewDecision = 'PERLU_REVISI' | 'DISETUJUI';
+
+export function canReviewPreparation(
+  role: WorkflowRole,
+  contractStatus: string,
+  preparationStatus: string | undefined,
+) {
+  return role === 'PIC Balai / Pengguna Jasa'
+    && contractStatus === 'DRAFT'
+    && preparationStatus === 'DIAJUKAN';
+}
+
+export function buildPreparationReviewPayload(
+  expectedVersion: number,
+  keputusan: PreparationReviewDecision,
+  catatan: string,
+) {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || expectedVersion > 2147483646) {
+    throw new Error('Versi pengajuan tidak valid.');
+  }
+  const note = catatan.trim();
+  if (note.length > 2000) throw new Error('Catatan semakan maksimum 2000 aksara.');
+  if (keputusan === 'PERLU_REVISI' && !note) {
+    throw new Error('Catatan wajib diisi apabila meminta revisi.');
+  }
+  return { expected_version: expectedVersion, keputusan, catatan: note };
+}
