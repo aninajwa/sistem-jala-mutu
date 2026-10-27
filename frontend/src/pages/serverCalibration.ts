@@ -1,7 +1,14 @@
 import type { WorkflowRole } from '../workflow/model';
 
 export type ServerSurveyType = {
+  jenis_survei_id?: number;
   kode: string;
+  nama: string;
+  aktif?: boolean;
+};
+
+export type ServerProvider = {
+  penyedia_id: number;
   nama: string;
 };
 
@@ -37,9 +44,33 @@ export type ServerCalibration = {
   dokumen: ServerCalibrationDocument | null;
 };
 
+export type SurveyTeamDraft = {
+  penyedia_id: string;
+  jenis_survei_id: string;
+  nama_tim: string;
+};
+
 export function serverRows<T>(value: unknown, label: string): T[] {
   if (!Array.isArray(value)) throw new Error(`Respons ${label} tidak sesuai.`);
   return value as T[];
+}
+
+function positiveId(value: string, label: string) {
+  if (!/^[1-9]\d*$/.test(value)) throw new Error(`${label} wajib dipilih.`);
+  const parsed = Number(value);
+  if (!Number.isSafeInteger(parsed) || parsed > 2147483647) throw new Error(`${label} tidak valid.`);
+  return parsed;
+}
+
+export function buildSurveyTeamPayload(draft: SurveyTeamDraft) {
+  const namaTim = draft.nama_tim.trim();
+  if (!namaTim) throw new Error('Nama tim wajib diisi.');
+  if (namaTim.length > 255) throw new Error('Nama tim maksimum 255 aksara.');
+  return {
+    penyedia_id: positiveId(draft.penyedia_id, 'Penyedia Jasa'),
+    jenis_survei_id: positiveId(draft.jenis_survei_id, 'Jenis survei'),
+    nama_tim: namaTim,
+  };
 }
 
 export function calibrationSummary(teams: ServerSurveyTeam[], calibrations: ServerCalibration[]) {

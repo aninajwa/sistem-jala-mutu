@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildSurveyTeamPayload,
   calibrationSummary,
   canManageCalibration,
   serverRows,
@@ -36,4 +37,22 @@ test('only provider with approved preparation may manage calibration', () => {
   assert.equal(canManageCalibration('Penyedia Jasa / Ketua Tim', 'DISETUJUI'), true);
   assert.equal(canManageCalibration('Penyedia Jasa / Ketua Tim', 'DIAJUKAN'), false);
   assert.equal(canManageCalibration('PIC Balai / Pengguna Jasa', 'DISETUJUI'), false);
+});
+
+test('survey team payload uses numeric references and trims the team name', () => {
+  assert.deepEqual(buildSurveyTeamPayload({
+    penyedia_id: '3',
+    jenis_survei_id: '2',
+    nama_tim: '  Tim Survei Paket 8  ',
+  }), {
+    penyedia_id: 3,
+    jenis_survei_id: 2,
+    nama_tim: 'Tim Survei Paket 8',
+  });
+});
+
+test('survey team payload rejects missing references and an empty name', () => {
+  assert.throws(() => buildSurveyTeamPayload({ penyedia_id: '', jenis_survei_id: '2', nama_tim: 'Tim' }), /Penyedia Jasa wajib dipilih/);
+  assert.throws(() => buildSurveyTeamPayload({ penyedia_id: '3', jenis_survei_id: '', nama_tim: 'Tim' }), /Jenis survei wajib dipilih/);
+  assert.throws(() => buildSurveyTeamPayload({ penyedia_id: '3', jenis_survei_id: '2', nama_tim: '   ' }), /Nama tim wajib diisi/);
 });
