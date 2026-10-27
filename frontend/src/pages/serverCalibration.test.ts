@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildNewEquipmentPayload,
   buildSurveyTeamPayload,
   calibrationSummary,
   canManageCalibration,
@@ -55,4 +56,38 @@ test('survey team payload rejects missing references and an empty name', () => {
   assert.throws(() => buildSurveyTeamPayload({ penyedia_id: '', jenis_survei_id: '2', nama_tim: 'Tim' }), /Penyedia Jasa wajib dipilih/);
   assert.throws(() => buildSurveyTeamPayload({ penyedia_id: '3', jenis_survei_id: '', nama_tim: 'Tim' }), /Jenis survei wajib dipilih/);
   assert.throws(() => buildSurveyTeamPayload({ penyedia_id: '3', jenis_survei_id: '2', nama_tim: '   ' }), /Nama tim wajib diisi/);
+});
+
+test('new equipment payload preserves server fields and normalizes optional values', () => {
+  assert.deepEqual(buildNewEquipmentPayload({
+    nama_alat: '  Profilometer Ujian  ',
+    nomor_seri: ' IRI-TEST-001 ',
+    kondisi: ' Baik ',
+    merek_tipe: '',
+    kelas: ' Kelas I ',
+    tahun_perolehan: '2026',
+    milik_djbm: false,
+    kendaraan: ' B 1234 JM ',
+    mulai: '2026-10-28',
+    selesai: '',
+  }), {
+    nama_alat: 'Profilometer Ujian',
+    nomor_seri: 'IRI-TEST-001',
+    kondisi: 'Baik',
+    merek_tipe: null,
+    kelas: 'Kelas I',
+    tahun_perolehan: 2026,
+    milik_djbm: false,
+    kendaraan: 'B 1234 JM',
+    mulai: '2026-10-28',
+    selesai: null,
+  });
+});
+
+test('new equipment payload rejects missing identity and invalid assignment dates', () => {
+  const base = { nama_alat: 'Alat', nomor_seri: 'S-1', kondisi: 'Baik', merek_tipe: '', kelas: '', tahun_perolehan: '', milik_djbm: false, kendaraan: '', mulai: '', selesai: '' };
+  assert.throws(() => buildNewEquipmentPayload({ ...base, nama_alat: ' ' }), /Nama alat wajib diisi/);
+  assert.throws(() => buildNewEquipmentPayload({ ...base, tahun_perolehan: '1899' }), /antara 1900 dan 2100/);
+  assert.throws(() => buildNewEquipmentPayload({ ...base, selesai: '2026-10-29' }), /memerlukan tarikh mulai/);
+  assert.throws(() => buildNewEquipmentPayload({ ...base, mulai: '2026-10-29', selesai: '2026-10-28' }), /tidak boleh lebih awal/);
 });

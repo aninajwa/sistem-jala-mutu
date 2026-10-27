@@ -14,6 +14,7 @@ import {
   type ServerSurveyType,
   type SurveyTeamDraft,
 } from './serverCalibration';
+import { ServerEquipmentPanel } from './ServerEquipmentPanel';
 
 function errorMessage(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -203,6 +204,12 @@ export function ServerCalibrationWorkspace({
         </div>
       </section>
 
+      <ServerEquipmentPanel
+        packageId={packageId}
+        teams={teams}
+        manageable={manageable}
+      />
+
       <section className="wf-panel">
         <div className="wf-panel-head">
           <h3><Wrench size={14} /> Rekod kalibrasi alat</h3>
@@ -227,8 +234,8 @@ export function ServerCalibrationWorkspace({
       </section>
 
       {manageable && <div className="wf-callout">
-        <strong>Pendaftaran tim sudah tersambung ke server</strong>
-        <div>Pendaftaran alat, personel dan rekod kalibrasi akan disambungkan selepas satu tim ujian berjaya disimpan.</div>
+        <strong>Pendaftaran tim dan alat sudah tersambung ke server</strong>
+        <div>Pendaftaran personel dan rekod kalibrasi akan disambungkan selepas satu alat ujian berjaya disimpan.</div>
       </div>}
     </>}
   </div>;
