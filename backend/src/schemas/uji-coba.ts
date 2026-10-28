@@ -23,3 +23,18 @@ export const ujiCobaCreateSchema = z.object({
 
     percobaan_ke: z.number().int().positive(),
 }).strict();
+
+const workflowVersionSchema = z.number().int().min(0).max(2147483646);
+
+export const ujiCobaSubmitSchema = z.object({
+    expected_version: workflowVersionSchema,
+}).strict();
+
+export const ujiCobaReviewSchema = z.object({
+    expected_version: workflowVersionSchema,
+    keputusan: z.enum(['PERLU_REVISI', 'DISETUJUI']),
+    catatan: z.string().trim().max(2000),
+}).strict().refine(
+    value => value.keputusan !== 'PERLU_REVISI' || value.catatan.length > 0,
+    { message: 'Catatan wajib diisi apabila meminta revisi', path: ['catatan'] },
+);

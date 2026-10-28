@@ -198,23 +198,46 @@ before(async () => {
       return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
     }
 
-    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba'].includes(url.pathname)) {
+    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba','/rest/v1/rpc/baca_pengajuan_uji_coba','/rest/v1/rpc/ajukan_uji_coba','/rest/v1/rpc/review_uji_coba'].includes(url.pathname)) {
       let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
       if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
       if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
       if(url.pathname.endsWith('/simpan_uji_coba')) {
-        const row={uji_coba_id:41+trialRows.length,paket_id:lastRpc.p_paket_id,tim_id:lastRpc.p_tim_id,jenis_survei_id:lastRpc.p_jenis_survei_id,alat_id:lastRpc.p_alat_id,ruas_id:lastRpc.p_ruas_id,tanggal:lastRpc.p_tanggal,panjang_km:lastRpc.p_panjang_km,percobaan_ke:lastRpc.p_percobaan_ke,status:'DRAFT',status_personel_jembatan:null,laporan_dokumen_id:null};
+        const row={uji_coba_id:41+trialRows.length,paket_id:lastRpc.p_paket_id,tim_id:lastRpc.p_tim_id,jenis_survei_id:lastRpc.p_jenis_survei_id,alat_id:lastRpc.p_alat_id,ruas_id:lastRpc.p_ruas_id,tanggal:lastRpc.p_tanggal,panjang_km:lastRpc.p_panjang_km,percobaan_ke:lastRpc.p_percobaan_ke,status:'DRAFT',versi:0,status_personel_jembatan:null,laporan_dokumen_id:null,pengajuan_trail_id:null,snapshot_pengajuan:null,diajukan_oleh:null,diajukan_pada:null,direview_oleh:null,direview_pada:null,catatan_review:null};
         trialRows.push(row);return send(row);
       }
       const trial=trialRows.find(row=>row.uji_coba_id===lastRpc.p_uji_coba_id&&row.paket_id===lastRpc.p_paket_id);
+      const workflowState=()=>({paket_id:trial.paket_id,uji_coba_id:trial.uji_coba_id,status:trial.status,versi:trial.versi,pengajuan:trial.pengajuan_trail_id===null?null:{pengajuan_id:trial.pengajuan_trail_id,diajukan_oleh:trial.diajukan_oleh,diajukan_pada:trial.diajukan_pada,snapshot:trial.snapshot_pengajuan},review:trial.direview_oleh===null?null:{pengguna_id:trial.direview_oleh,keputusan:trial.status,catatan:trial.catatan_review,waktu:trial.direview_pada},aturan:{mode:'SEMAKAN_MANUAL_PIC',validasi_ambang_otomatis_aktif:false,revisi_membuat_percobaan_baru:true}});
+      if(url.pathname.endsWith('/baca_pengajuan_uji_coba')) {
+        if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        return send(workflowState());
+      }
+      if(url.pathname.endsWith('/ajukan_uji_coba')) {
+        if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        if(lastRpc.p_expected_version!==trial.versi)return send({code:'40001',message:'Uji coba telah berubah'},409);
+        if(trial.status!=='DRAFT')return send({code:'55000',message:'Hanya uji coba DRAFT boleh diajukan'},400);
+        const sections=trialSectionRows.filter(row=>row.uji_coba_id===trial.uji_coba_id);
+        if(!sections.length||!trialMeasurementRows.some(row=>sections.some(section=>section.seksi_id===row.seksi_id)))return send({code:'22023',message:'Tambah seksi dan pengukuran'},400);
+        trial.status='DIAJUKAN';trial.versi+=1;trial.pengajuan_trail_id=700+trial.uji_coba_id;trial.diajukan_oleh=3;trial.diajukan_pada='2026-10-29T01:00:00.000Z';trial.snapshot_pengajuan={detail:{uji_coba:{...trial},seksi:structuredClone(sections)},versi_saat_dikirim:trial.versi,validasi_ambang_otomatis_aktif:false};
+        return send(workflowState());
+      }
+      if(url.pathname.endsWith('/review_uji_coba')) {
+        if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        if(lastRpc.p_expected_version!==trial.versi)return send({code:'40001',message:'Uji coba telah berubah'},409);
+        if(trial.status!=='DIAJUKAN')return send({code:'55000',message:'Uji coba belum diajukan atau sudah diputuskan'},400);
+        trial.status=lastRpc.p_keputusan;trial.versi+=1;trial.direview_oleh=12;trial.direview_pada='2026-10-29T01:05:00.000Z';trial.catatan_review=lastRpc.p_catatan.trim()||null;
+        return send(workflowState());
+      }
       if(url.pathname.endsWith('/simpan_uji_coba_seksi')) {
         if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        if(trial.status!=='DRAFT')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
         const row={seksi_id:51+trialSectionRows.length,uji_coba_id:trial.uji_coba_id,nama_seksi:lastRpc.p_nama_seksi,sta_awal:lastRpc.p_sta_awal,sta_akhir:lastRpc.p_sta_akhir,nilai_referensi:lastRpc.p_nilai_referensi,kategori_kondisi:lastRpc.p_kategori_kondisi};
         trialSectionRows.push(row);return send(row);
       }
       if(url.pathname.endsWith('/simpan_uji_coba_pengukuran')) {
         const section=trialSectionRows.find(row=>row.seksi_id===lastRpc.p_seksi_id&&row.uji_coba_id===lastRpc.p_uji_coba_id);
         if(!trial||!section)return send({code:'P0002',message:'Seksi tidak ditemukan'},404);
+        if(trial.status!=='DRAFT')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
         const row={pengukuran_id:61+trialMeasurementRows.length,seksi_id:section.seksi_id,ulangan_ke:lastRpc.p_ulangan_ke,kecepatan_kmh:lastRpc.p_kecepatan_kmh,nilai_alat:lastRpc.p_nilai_alat,beban_kn:lastRpc.p_beban_kn,rater_personel_id:lastRpc.p_rater_personel_id};
         trialMeasurementRows.push(row);return send(row);
       }
@@ -939,4 +962,38 @@ test('authorized viewers read trial list and nested detail without cross-scope l
 });
 test('trial routes reject malformed and overflow path identifiers',async()=>{
  for(const path of ['/paket/no/uji-coba','/paket/3/uji-coba/no','/paket/3/uji-coba/2147483648'])assert.equal((await request(path,'provider')).status,400,path);
+});
+test('trial submission state is readable only within package scope',async()=>{
+ const r=await request(trialPath+'/41/pengajuan','reviewer');assert.equal(r.status,200);assert.equal(r.body.data.status,'DRAFT');assert.equal(r.body.data.versi,0);
+ assert.equal(r.body.data.aturan.validasi_ambang_otomatis_aktif,false);
+ assert.equal((await request(trialPath+'/41/pengajuan','foreign-reviewer')).status,404);
+ assert.equal((await request(trialPath+'/999/pengajuan','provider')).status,404);
+});
+test('trial submission requires provider, exact version and strict body',async()=>{
+ const path=trialPath+'/41/pengajuan';
+ assert.equal((await request(path,'reviewer',{expected_version:0})).status,403);
+ for(const body of [{},{expected_version:-1},{expected_version:2147483647},{expected_version:0,status:'DIAJUKAN'}])assert.equal((await request(path,'provider',body)).status,400);
+ assert.equal((await request(path,'provider',{expected_version:9})).status,409);
+});
+test('provider submits a frozen trial snapshot for manual PIC review',async()=>{
+ const r=await request(trialPath+'/41/pengajuan','provider',{expected_version:0});assert.equal(r.status,201);assert.equal(r.body.data.status,'DIAJUKAN');assert.equal(r.body.data.versi,1);
+ assert.equal(r.body.data.pengajuan.snapshot.validasi_ambang_otomatis_aktif,false);assert.equal(r.body.data.review,null);
+ assert.equal((await request(trialPath+'/41/seksi','provider',{nama_seksi:'Terkunci',sta_awal:100,sta_akhir:200,nilai_referensi:null,kategori_kondisi:null})).status,409);
+});
+test('trial review requires PIC, a current version and revision note',async()=>{
+ const path=trialPath+'/41/pengajuan/review';
+ assert.equal((await request(path,'provider',{expected_version:1,keputusan:'DISETUJUI',catatan:''})).status,403);
+ for(const body of [{expected_version:1,keputusan:'PERLU_REVISI',catatan:' '},{expected_version:1,keputusan:'DITOLAK',catatan:'x'},{expected_version:1,keputusan:'DISETUJUI',catatan:'',pengguna_id:12},{expected_version:2147483647,keputusan:'DISETUJUI',catatan:''}])assert.equal((await request(path,'reviewer',body)).status,400);
+ assert.equal((await request(path,'reviewer',{expected_version:0,keputusan:'DISETUJUI',catatan:''})).status,409);
+});
+test('revision preserves the submitted attempt and the retry uses a new trial',async()=>{
+ const review=await request(trialPath+'/41/pengajuan/review','reviewer',{expected_version:1,keputusan:'PERLU_REVISI',catatan:' Ulang pengukuran '});assert.equal(review.status,200);assert.equal(review.body.data.status,'PERLU_REVISI');assert.equal(review.body.data.versi,2);assert.equal(review.body.data.review.catatan,'Ulang pengukuran');
+ assert.equal((await request(trialPath+'/41/pengajuan','provider',{expected_version:2})).status,409);
+ const retry=await request(trialPath,'provider',{...trialBody,percobaan_ke:2});assert.equal(retry.status,201);assert.equal(retry.body.data.uji_coba_id,42);assert.equal(retry.body.data.versi,0);
+});
+test('PIC can approve a complete retry without fabricating automatic threshold results',async()=>{
+ await request(trialPath+'/42/seksi','provider',{nama_seksi:'Seksi ulang',sta_awal:0,sta_akhir:100,nilai_referensi:2.2,kategori_kondisi:null});
+ await request(trialPath+'/42/seksi/52/pengukuran','provider',{ulangan_ke:1,kecepatan_kmh:40,nilai_alat:2.15,beban_kn:null,rater_personel_id:null});
+ const submitted=await request(trialPath+'/42/pengajuan','provider',{expected_version:0});assert.equal(submitted.status,201);
+ const approved=await request(trialPath+'/42/pengajuan/review','reviewer',{expected_version:1,keputusan:'DISETUJUI',catatan:''});assert.equal(approved.status,200);assert.equal(approved.body.data.status,'DISETUJUI');assert.equal(approved.body.data.versi,2);assert.equal(approved.body.data.aturan.validasi_ambang_otomatis_aktif,false);
 });

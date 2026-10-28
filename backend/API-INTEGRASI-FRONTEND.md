@@ -134,8 +134,13 @@ Jangan gunakan role yang dipilih sendiri pada UI sebagai bukti hak akses. Gunaka
 | GET | `/paket/:id/uji-coba/:ujiCobaId` | Detail uji coba dan data berkaitan |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/seksi` | Tambah seksi |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran` | Tambah pengukuran |
+| GET | `/paket/:id/uji-coba/:ujiCobaId/pengajuan` | Baca status, versi, snapshot pengajuan, dan keputusan PIC |
+| POST | `/paket/:id/uji-coba/:ujiCobaId/pengajuan` | Penyedia mengajukan uji coba DRAFT yang sudah mempunyai seksi dan pengukuran |
+| POST | `/paket/:id/uji-coba/:ujiCobaId/pengajuan/review` | PIC Balai memberi keputusan `PERLU_REVISI` atau `DISETUJUI` |
 
-**Belum tersedia/disahkan untuk alur Tahap 2:** endpoint submit uji coba, review/keputusan, berita acara, atau kelulusan automatik. Jangan paparkan sebagai fungsi siap.
+Semakan Tahap 2 masih manual. Sistem tidak mendakwa ambang teknikal lulus secara automatik. Jika keputusan `PERLU_REVISI`, rekod percobaan lama kekal sebagai sejarah dan Penyedia membuat uji coba baharu dengan `percobaan_ke` seterusnya.
+
+**Belum tersedia/disahkan untuk alur Tahap 2:** berita acara dan kelulusan automatik. Jangan paparkan sebagai fungsi siap.
 
 ## 4. Respons sebenar yang sudah diuji
 
