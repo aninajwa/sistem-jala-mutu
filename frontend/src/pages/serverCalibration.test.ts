@@ -8,6 +8,7 @@ import {
   calibrationSummary,
   canManageCalibration,
   serverRows,
+  validateCalibrationCertificate,
   type ServerCalibration,
   type ServerSurveyTeam,
 } from './serverCalibration';
@@ -119,4 +120,19 @@ test('calibration payload rejects incomplete fields and reversed dates', () => {
   assert.throws(() => buildCalibrationPayload({ ...base, standar: ' ' }), /Standar wajib diisi/);
   assert.throws(() => buildCalibrationPayload({ ...base, tgl_kalibrasi: '' }), /Tarikh kalibrasi wajib diisi/);
   assert.throws(() => buildCalibrationPayload({ ...base, berlaku_sd: '2026-10-27' }), /tidak boleh lebih awal/);
+});
+
+test('calibration certificate accepts only a non-empty PDF up to 10 MB', () => {
+  const pdf = { name: 'sijil-kalibrasi.pdf', type: 'application/pdf', size: 1024 };
+  assert.equal(validateCalibrationCertificate(pdf), pdf);
+  assert.throws(() => validateCalibrationCertificate(null), /Pilih satu fail/);
+  assert.throws(
+    () => validateCalibrationCertificate({ ...pdf, name: 'sijil.txt', type: 'text/plain' }),
+    /format PDF/,
+  );
+  assert.throws(() => validateCalibrationCertificate({ ...pdf, size: 0 }), /Pilih satu fail/);
+  assert.throws(
+    () => validateCalibrationCertificate({ ...pdf, size: 10 * 1024 * 1024 + 1 }),
+    /maksimum 10 MB/,
+  );
 });

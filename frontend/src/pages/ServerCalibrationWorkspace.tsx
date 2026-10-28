@@ -16,6 +16,7 @@ import {
   type SurveyTeamDraft,
 } from './serverCalibration';
 import { ServerCalibrationRecordPanel } from './ServerCalibrationRecordPanel';
+import { ServerCalibrationCertificatePanel } from './ServerCalibrationCertificatePanel';
 import { ServerEquipmentPanel } from './ServerEquipmentPanel';
 
 function errorMessage(error: unknown) {
@@ -216,6 +217,13 @@ export function ServerCalibrationWorkspace({
         teams={teams}
         manageable={manageable}
         onCreated={() => setRevision(value => value + 1)}
+      />
+
+      <ServerCalibrationCertificatePanel
+        packageId={packageId}
+        calibrations={calibrations}
+        manageable={manageable}
+        onUploaded={() => setRevision(value => value + 1)}
       />
 
       <section className="wf-panel">

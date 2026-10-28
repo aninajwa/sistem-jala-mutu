@@ -96,6 +96,25 @@ export type CalibrationDraft = {
   pelaksana: string;
 };
 
+export type CalibrationCertificateFile = {
+  name: string;
+  type: string;
+  size: number;
+};
+
+export const MAX_CALIBRATION_CERTIFICATE_BYTES = 10 * 1024 * 1024;
+
+export function validateCalibrationCertificate(file: CalibrationCertificateFile | null) {
+  if (!file || file.size <= 0) throw new Error('Pilih satu fail sijil PDF.');
+  if (!/\.pdf$/i.test(file.name) || file.type !== 'application/pdf') {
+    throw new Error('Sijil mesti menggunakan format PDF.');
+  }
+  if (file.size > MAX_CALIBRATION_CERTIFICATE_BYTES) {
+    throw new Error('Saiz sijil PDF maksimum 10 MB.');
+  }
+  return file;
+}
+
 export function serverRows<T>(value: unknown, label: string): T[] {
   if (!Array.isArray(value)) throw new Error(`Respons ${label} tidak sesuai.`);
   return value as T[];
