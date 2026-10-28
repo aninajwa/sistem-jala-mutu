@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import {
+  buildCalibrationPayload,
   buildNewEquipmentPayload,
   buildSurveyTeamPayload,
   calibrationSummary,
@@ -90,4 +91,32 @@ test('new equipment payload rejects missing identity and invalid assignment date
   assert.throws(() => buildNewEquipmentPayload({ ...base, tahun_perolehan: '1899' }), /antara 1900 dan 2100/);
   assert.throws(() => buildNewEquipmentPayload({ ...base, selesai: '2026-10-29' }), /memerlukan tarikh mulai/);
   assert.throws(() => buildNewEquipmentPayload({ ...base, mulai: '2026-10-29', selesai: '2026-10-28' }), /tidak boleh lebih awal/);
+});
+
+test('calibration payload matches the backend create contract', () => {
+  assert.deepEqual(buildCalibrationPayload({
+    alat_id: '8',
+    jenis: 'REFERENSI',
+    standar: '  ASTM E950  ',
+    komponen: '  Sensor profilometer  ',
+    tgl_kalibrasi: '2026-10-28',
+    berlaku_sd: '2027-10-28',
+    pelaksana: '  Makmal Ujian Jala Mutu  ',
+  }), {
+    alat_id: 8,
+    jenis: 'REFERENSI',
+    standar: 'ASTM E950',
+    komponen: 'Sensor profilometer',
+    tgl_kalibrasi: '2026-10-28',
+    berlaku_sd: '2027-10-28',
+    pelaksana: 'Makmal Ujian Jala Mutu',
+  });
+});
+
+test('calibration payload rejects incomplete fields and reversed dates', () => {
+  const base = { alat_id: '8', jenis: 'RELATIF' as const, standar: 'Standar', komponen: 'Sensor', tgl_kalibrasi: '2026-10-28', berlaku_sd: '', pelaksana: 'Makmal' };
+  assert.throws(() => buildCalibrationPayload({ ...base, alat_id: '' }), /Alat wajib dipilih/);
+  assert.throws(() => buildCalibrationPayload({ ...base, standar: ' ' }), /Standar wajib diisi/);
+  assert.throws(() => buildCalibrationPayload({ ...base, tgl_kalibrasi: '' }), /Tarikh kalibrasi wajib diisi/);
+  assert.throws(() => buildCalibrationPayload({ ...base, berlaku_sd: '2026-10-27' }), /tidak boleh lebih awal/);
 });

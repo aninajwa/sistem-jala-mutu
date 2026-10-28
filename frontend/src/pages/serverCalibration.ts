@@ -86,6 +86,16 @@ export type NewEquipmentDraft = {
   selesai: string;
 };
 
+export type CalibrationDraft = {
+  alat_id: string;
+  jenis: 'REFERENSI' | 'RELATIF';
+  standar: string;
+  komponen: string;
+  tgl_kalibrasi: string;
+  berlaku_sd: string;
+  pelaksana: string;
+};
+
 export function serverRows<T>(value: unknown, label: string): T[] {
   if (!Array.isArray(value)) throw new Error(`Respons ${label} tidak sesuai.`);
   return value as T[];
@@ -156,6 +166,27 @@ export function buildNewEquipmentPayload(draft: NewEquipmentDraft) {
     kendaraan: optionalText(draft.kendaraan),
     mulai,
     selesai,
+  };
+}
+
+export function buildCalibrationPayload(draft: CalibrationDraft) {
+  const tglKalibrasi = optionalDate(draft.tgl_kalibrasi, 'Tarikh kalibrasi');
+  if (!tglKalibrasi) throw new Error('Tarikh kalibrasi wajib diisi.');
+  const berlakuSd = optionalDate(draft.berlaku_sd, 'Tarikh berlaku hingga');
+  if (berlakuSd && berlakuSd < tglKalibrasi) {
+    throw new Error('Tarikh berlaku hingga tidak boleh lebih awal daripada tarikh kalibrasi.');
+  }
+  if (draft.jenis !== 'REFERENSI' && draft.jenis !== 'RELATIF') {
+    throw new Error('Jenis kalibrasi tidak valid.');
+  }
+  return {
+    alat_id: positiveId(draft.alat_id, 'Alat'),
+    jenis: draft.jenis,
+    standar: requiredText(draft.standar, 'Standar'),
+    komponen: requiredText(draft.komponen, 'Komponen'),
+    tgl_kalibrasi: tglKalibrasi,
+    berlaku_sd: berlakuSd,
+    pelaksana: requiredText(draft.pelaksana, 'Pelaksana'),
   };
 }
 

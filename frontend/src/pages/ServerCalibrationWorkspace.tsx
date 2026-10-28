@@ -14,6 +14,7 @@ import {
   type ServerSurveyType,
   type SurveyTeamDraft,
 } from './serverCalibration';
+import { ServerCalibrationRecordPanel } from './ServerCalibrationRecordPanel';
 import { ServerEquipmentPanel } from './ServerEquipmentPanel';
 
 function errorMessage(error: unknown) {
@@ -204,10 +205,13 @@ export function ServerCalibrationWorkspace({
         </div>
       </section>
 
-      <ServerEquipmentPanel
+      <ServerEquipmentPanel packageId={packageId} teams={teams} manageable={manageable} />
+
+      <ServerCalibrationRecordPanel
         packageId={packageId}
         teams={teams}
         manageable={manageable}
+        onCreated={() => setRevision(value => value + 1)}
       />
 
       <section className="wf-panel">
@@ -234,8 +238,8 @@ export function ServerCalibrationWorkspace({
       </section>
 
       {manageable && <div className="wf-callout">
-        <strong>Pendaftaran tim dan alat sudah tersambung ke server</strong>
-        <div>Pendaftaran personel dan rekod kalibrasi akan disambungkan selepas satu alat ujian berjaya disimpan.</div>
+        <strong>Pendaftaran tim, alat, dan rekod kalibrasi sudah tersambung ke server</strong>
+        <div>Langkah seterusnya ialah upload sijil PDF untuk rekod kalibrasi DRAFT yang sudah disimpan.</div>
       </div>}
     </>}
   </div>;
