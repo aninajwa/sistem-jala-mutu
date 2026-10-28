@@ -5,6 +5,7 @@ import { isRoleTestMode } from '../workflow/access/packageAccess';
 import { setPersistenceNamespace } from '../workflow/repository/localPersistence';
 import { apiRequest, authConfigurationError, supabase } from './client';
 import { assignedRoles, type Identity } from './identity';
+import { preserveSessionForSameUser } from './sessionStability';
 import type { WorkflowRole } from '../workflow/model';
 import './auth.css';
 
@@ -23,7 +24,7 @@ function AuthenticatedApp() {
   useEffect(() => {
     if (!supabase) return;
     const { data } = supabase.auth.onAuthStateChange((_event, next) => {
-      setSession(next);
+      setSession(current => preserveSessionForSameUser(current, next));
     });
     const invalid = () => { setIdentity(null); setSession(null); setError('Sesi telah berakhir. Silakan masuk kembali.'); void supabase!.auth.signOut({ scope: 'local' }); };
     window.addEventListener('jala-session-invalid', invalid);
@@ -34,7 +35,7 @@ function AuthenticatedApp() {
     const controller = new AbortController();
     setLoading(true);
     setError('');
-    apiRequest<{ data: Identity }>('/me', { signal: controller.signal }, session.access_token)
+    apiRequest<{ data: Identity }>('/me', { signal: controller.signal })
       .then(({ data }) => {
         if (controller.signal.aborted) return;
         const allowed = assignedRoles(data, session.user.id);

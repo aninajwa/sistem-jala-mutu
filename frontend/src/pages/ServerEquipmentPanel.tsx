@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw, Wrench } from 'lucide-react';
 
 import { ApiError, apiRequest } from '../auth/client';
+import { usePersistedDraft } from '../hooks/usePersistedDraft';
 import {
   buildNewEquipmentPayload,
   serverRows,
@@ -31,7 +32,10 @@ export function ServerEquipmentPanel({
 }) {
   const [teamId, setTeamId] = useState('');
   const [assignments, setAssignments] = useState<ServerEquipmentAssignment[]>([]);
-  const [draft, setDraft] = useState<NewEquipmentDraft>(EMPTY_EQUIPMENT);
+  const [draft, setDraft] = usePersistedDraft<NewEquipmentDraft>(
+    `server-equipment-draft:${packageId}:${teamId || 'unselected'}`,
+    EMPTY_EQUIPMENT,
+  );
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

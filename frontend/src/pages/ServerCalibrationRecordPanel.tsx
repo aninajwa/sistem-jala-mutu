@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw, Wrench } from 'lucide-react';
 
 import { ApiError, apiRequest } from '../auth/client';
+import { usePersistedDraft } from '../hooks/usePersistedDraft';
 import {
   buildCalibrationPayload,
   serverRows,
@@ -38,7 +39,10 @@ export function ServerCalibrationRecordPanel({
 }) {
   const [teamId, setTeamId] = useState('');
   const [assignments, setAssignments] = useState<ServerEquipmentAssignment[]>([]);
-  const [draft, setDraft] = useState<CalibrationDraft>(EMPTY_DRAFT);
+  const [draft, setDraft] = usePersistedDraft<CalibrationDraft>(
+    `server-calibration-draft:${packageId}:${teamId || 'unselected'}`,
+    EMPTY_DRAFT,
+  );
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');

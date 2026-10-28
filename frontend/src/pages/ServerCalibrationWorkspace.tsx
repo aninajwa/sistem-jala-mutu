@@ -2,6 +2,7 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { FileCheck2, RefreshCw, Users, Wrench } from 'lucide-react';
 
 import { ApiError, apiRequest } from '../auth/client';
+import { usePersistedDraft } from '../hooks/usePersistedDraft';
 import type { WorkflowRole } from '../workflow/model';
 import {
   buildSurveyTeamPayload,
@@ -45,7 +46,10 @@ export function ServerCalibrationWorkspace({
   const [calibrations, setCalibrations] = useState<ServerCalibration[]>([]);
   const [surveyTypes, setSurveyTypes] = useState<ServerSurveyType[]>([]);
   const [providers, setProviders] = useState<ServerProvider[]>([]);
-  const [teamDraft, setTeamDraft] = useState<SurveyTeamDraft>(EMPTY_TEAM);
+  const [teamDraft, setTeamDraft] = usePersistedDraft<SurveyTeamDraft>(
+    `server-team-draft:${packageId}`,
+    EMPTY_TEAM,
+  );
   const [teamBusy, setTeamBusy] = useState(false);
   const [teamError, setTeamError] = useState('');
   const [teamMessage, setTeamMessage] = useState('');
