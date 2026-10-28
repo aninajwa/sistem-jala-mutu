@@ -7,6 +7,12 @@ import { ujiCobaCreateSchema } from '../schemas/uji-coba';
 
 const router = Router();
 
+function routeId(value: unknown, label: string) {
+    const parsed = paketIdSchema.safeParse(value);
+    if (!parsed.success) throw new ApiError(400, `${label} tidak valid`);
+    return parsed.data;
+}
+
 router.post('/paket/:id/uji-coba', async (req, res) => {
     const { identity } = res.locals;
 
@@ -16,11 +22,7 @@ router.post('/paket/:id/uji-coba', async (req, res) => {
     }
 
     // Semak ID paket.
-    const id = paketIdSchema.safeParse(req.params.id);
-
-    if (!id.success) {
-        throw new ApiError(400, 'ID paket tidak valid');
-    }
+    const packageId = routeId(req.params.id, 'ID paket');
 
     // Semak data yang dihantar.
     const parsed = ujiCobaCreateSchema.safeParse(req.body);
@@ -42,7 +44,7 @@ router.post('/paket/:id/uji-coba', async (req, res) => {
         {
             method: 'POST',
             body: JSON.stringify({
-                p_paket_id: id.data,
+                p_paket_id: packageId,
                 p_tim_id: p.tim_id,
                 p_jenis_survei_id: p.jenis_survei_id,
                 p_alat_id: p.alat_id,
@@ -67,18 +69,8 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi', async (req, res) => {
     }
 
     // Validasi ID paket
-    const paketId = paketIdSchema.safeParse(req.params.id);
-
-    if (!paketId.success) {
-        throw new ApiError(400, 'ID paket tidak valid');
-    }
-
-    // Validasi ID uji coba
-    const ujiCobaId = Number(req.params.ujiCobaId);
-
-    if (!Number.isSafeInteger(ujiCobaId) || ujiCobaId <= 0) {
-        throw new ApiError(400, 'ID uji coba tidak valid');
-    }
+    const packageId = routeId(req.params.id, 'ID paket');
+    const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
 
     // Validasi body
     const parsed = ujiCobaSeksiCreateSchema.safeParse(req.body);
@@ -103,7 +95,7 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi', async (req, res) => {
         {
             method: 'POST',
             body: JSON.stringify({
-                p_paket_id: paketId.data,
+                p_paket_id: packageId,
                 p_uji_coba_id: ujiCobaId,
                 p_nama_seksi: p.nama_seksi,
                 p_sta_awal: p.sta_awal,
@@ -127,25 +119,9 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran', async (r
     }
 
     // Validasi ID paket
-    const paketId = paketIdSchema.safeParse(req.params.id);
-
-    if (!paketId.success) {
-        throw new ApiError(400, 'ID paket tidak valid');
-    }
-
-    // Validasi ID uji coba
-    const ujiCobaId = Number(req.params.ujiCobaId);
-
-    if (!Number.isSafeInteger(ujiCobaId) || ujiCobaId <= 0) {
-        throw new ApiError(400, 'ID uji coba tidak valid');
-    }
-
-    // Validasi ID seksi
-    const seksiId = Number(req.params.seksiId);
-
-    if (!Number.isSafeInteger(seksiId) || seksiId <= 0) {
-        throw new ApiError(400, 'ID seksi tidak valid');
-    }
+    const packageId = routeId(req.params.id, 'ID paket');
+    const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
+    const seksiId = routeId(req.params.seksiId, 'ID seksi');
 
     // Validasi data pengukuran
     const parsed = ujiCobaPengukuranCreateSchema.safeParse(req.body);
@@ -167,7 +143,7 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran', async (r
         {
             method: 'POST',
             body: JSON.stringify({
-                p_paket_id: paketId.data,
+                p_paket_id: packageId,
                 p_uji_coba_id: ujiCobaId,
                 p_seksi_id: seksiId,
                 p_ulangan_ke: p.ulangan_ke,
@@ -186,16 +162,8 @@ router.get('/paket/:id/uji-coba/:ujiCobaId', async (req, res, next) => {
     try {
         const { identity } = res.locals;
 
-        const paketId = Number(req.params.id);
-        const ujiCobaId = Number(req.params.ujiCobaId);
-
-        if (!Number.isSafeInteger(paketId) || paketId <= 0) {
-            throw new ApiError(400, 'ID paket tidak valid');
-        }
-
-        if (!Number.isSafeInteger(ujiCobaId) || ujiCobaId <= 0) {
-            throw new ApiError(400, 'ID uji coba tidak valid');
-        }
+        const packageId = routeId(req.params.id, 'ID paket');
+        const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
 
         const data = await supabaseRequest(
             '/rest/v1/rpc/ambil_detail_uji_coba',
@@ -203,7 +171,7 @@ router.get('/paket/:id/uji-coba/:ujiCobaId', async (req, res, next) => {
             {
                 method: 'POST',
                 body: JSON.stringify({
-                    p_paket_id: paketId,
+                    p_paket_id: packageId,
                     p_uji_coba_id: ujiCobaId,
                 }),
             }
@@ -219,11 +187,7 @@ router.get('/paket/:id/uji-coba', async (req, res, next) => {
     try {
         const { identity } = res.locals;
 
-        const paketId = Number(req.params.id);
-
-        if (!Number.isSafeInteger(paketId) || paketId <= 0) {
-            throw new ApiError(400, 'ID paket tidak valid');
-        }
+        const packageId = routeId(req.params.id, 'ID paket');
 
         const data = await supabaseRequest(
             '/rest/v1/rpc/ambil_senarai_uji_coba',
@@ -234,7 +198,7 @@ router.get('/paket/:id/uji-coba', async (req, res, next) => {
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    p_paket_id: paketId,
+                    p_paket_id: packageId,
                 }),
             }
         );

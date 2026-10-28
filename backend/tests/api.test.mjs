@@ -19,6 +19,9 @@ let qualificationEvidence = null;
 const teamRows = [];
 const equipmentRows = [];
 const assignmentRows = [];
+const trialRows = [];
+const trialSectionRows = [];
+const trialMeasurementRows = [];
 let preparationState = { paket_id: 3, pengisian_id: 2, status: 'DRAFT', versi: 3, pengajuan: null, review: null, aturan: { mode: 'SEMAKAN_MANUAL_PIC', validasi_kelengkapan_resmi_aktif: false } };
 const profile = { pengguna_id: 3, auth_user_id: 'provider-id', username: 'penyedia.jasa', email: 'provider@example.test', terkunci: false };
 async function request(path, token, body, method) {
@@ -195,6 +198,30 @@ before(async () => {
       return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
     }
 
+    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba'].includes(url.pathname)) {
+      let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
+      if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+      if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
+      if(url.pathname.endsWith('/simpan_uji_coba')) {
+        const row={uji_coba_id:41+trialRows.length,paket_id:lastRpc.p_paket_id,tim_id:lastRpc.p_tim_id,jenis_survei_id:lastRpc.p_jenis_survei_id,alat_id:lastRpc.p_alat_id,ruas_id:lastRpc.p_ruas_id,tanggal:lastRpc.p_tanggal,panjang_km:lastRpc.p_panjang_km,percobaan_ke:lastRpc.p_percobaan_ke,status:'DRAFT',status_personel_jembatan:null,laporan_dokumen_id:null};
+        trialRows.push(row);return send(row);
+      }
+      const trial=trialRows.find(row=>row.uji_coba_id===lastRpc.p_uji_coba_id&&row.paket_id===lastRpc.p_paket_id);
+      if(url.pathname.endsWith('/simpan_uji_coba_seksi')) {
+        if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        const row={seksi_id:51+trialSectionRows.length,uji_coba_id:trial.uji_coba_id,nama_seksi:lastRpc.p_nama_seksi,sta_awal:lastRpc.p_sta_awal,sta_akhir:lastRpc.p_sta_akhir,nilai_referensi:lastRpc.p_nilai_referensi,kategori_kondisi:lastRpc.p_kategori_kondisi};
+        trialSectionRows.push(row);return send(row);
+      }
+      if(url.pathname.endsWith('/simpan_uji_coba_pengukuran')) {
+        const section=trialSectionRows.find(row=>row.seksi_id===lastRpc.p_seksi_id&&row.uji_coba_id===lastRpc.p_uji_coba_id);
+        if(!trial||!section)return send({code:'P0002',message:'Seksi tidak ditemukan'},404);
+        const row={pengukuran_id:61+trialMeasurementRows.length,seksi_id:section.seksi_id,ulangan_ke:lastRpc.p_ulangan_ke,kecepatan_kmh:lastRpc.p_kecepatan_kmh,nilai_alat:lastRpc.p_nilai_alat,beban_kn:lastRpc.p_beban_kn,rater_personel_id:lastRpc.p_rater_personel_id};
+        trialMeasurementRows.push(row);return send(row);
+      }
+      if(url.pathname.endsWith('/ambil_senarai_uji_coba'))return send(trialRows.filter(row=>row.paket_id===lastRpc.p_paket_id));
+      if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+      return send({uji_coba:trial,seksi:trialSectionRows.filter(row=>row.uji_coba_id===trial.uji_coba_id).map(section=>({...section,pengukuran:trialMeasurementRows.filter(row=>row.seksi_id===section.seksi_id)}))});
+    }
     if (url.pathname === '/rest/v1/rpc/baca_pengajuan_persiapan' || url.pathname === '/rest/v1/rpc/ajukan_persiapan' || url.pathname === '/rest/v1/rpc/review_persiapan') {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (lastRpc.p_paket_id !== 3) return send({ code: 'P0002' }, 404);
@@ -873,4 +900,43 @@ test('qualification downloads reject wrong scope, tampered bytes and mismatched 
 test('stale qualification evidence upload is rejected before writing Storage',async()=>{
  const n=storageFiles.size;const r=await uploadEvidence(evidenceForm('2'));assert.equal(r.status,409);assert.match(r.body.error,/kualifikasi/);assert.equal(storageFiles.size,n);
  assert.equal(qualificationRows[0].versi,3);
+});
+
+const trialPath='/paket/3/uji-coba';
+const trialBody={tim_id:21,jenis_survei_id:1,alat_id:7,ruas_id:null,tanggal:'2026-10-28',panjang_km:2.5,percobaan_ke:1};
+test('trial routes require login and provider role for writes',async()=>{
+ assert.equal((await request(trialPath)).status,401);
+ assert.equal((await request(trialPath,'reviewer',trialBody)).status,403);
+ assert.equal((await request(trialPath+'/41/seksi','reviewer',{nama_seksi:'S1',sta_awal:0,sta_akhir:100,nilai_referensi:null,kategori_kondisi:null})).status,403);
+ assert.equal((await request(trialPath+'/41/seksi/51/pengukuran','reviewer',{ulangan_ke:1,kecepatan_kmh:null,nilai_alat:2.1,beban_kn:null,rater_personel_id:null})).status,403);
+});
+test('trial create validates protected fields, values and integer limits',async()=>{
+ for(const extra of [{status:'LULUS'},{tim_id:'21'},{tim_id:2147483648},{ruas_id:0},{tanggal:'2026-02-30'},{panjang_km:0},{percobaan_ke:1.5}])assert.equal((await request(trialPath,'provider',{...trialBody,...extra})).status,400,JSON.stringify(extra));
+ for(const path of ['/paket/0/uji-coba','/paket/2147483648/uji-coba'])assert.equal((await request(path,'provider',trialBody)).status,400);
+});
+test('provider creates a DRAFT trial using only validated fields',async()=>{
+ const r=await request(trialPath,'provider',trialBody);assert.equal(r.status,201);assert.equal(r.body.data.status,'DRAFT');assert.equal(r.body.data.uji_coba_id,41);
+ assert.deepEqual(lastRpc,{p_paket_id:3,p_tim_id:21,p_jenis_survei_id:1,p_alat_id:7,p_ruas_id:null,p_tanggal:'2026-10-28',p_panjang_km:2.5,p_percobaan_ke:1});
+});
+test('trial section validates IDs, ranges and protected fields',async()=>{
+ const path=trialPath+'/41/seksi',body={nama_seksi:' Seksi A ',sta_awal:0,sta_akhir:100,nilai_referensi:2.2,kategori_kondisi:null};
+ for(const invalid of [{...body,status:'LULUS'},{...body,nama_seksi:' '},{...body,nama_seksi:'x'.repeat(256)},{...body,sta_awal:-1},{...body,sta_akhir:0},{...body,sta_akhir:0}])assert.equal((await request(path,'provider',invalid)).status,400);
+ for(const bad of ['/paket/3/uji-coba/0/seksi','/paket/3/uji-coba/2147483648/seksi'])assert.equal((await request(bad,'provider',body)).status,400);
+ const r=await request(path,'provider',body);assert.equal(r.status,201);assert.equal(r.body.data.seksi_id,51);assert.equal(lastRpc.p_nama_seksi,'Seksi A');
+});
+test('trial measurement validates IDs, values and forwards nullable fields',async()=>{
+ const path=trialPath+'/41/seksi/51/pengukuran',body={ulangan_ke:1,kecepatan_kmh:null,nilai_alat:2.15,beban_kn:null,rater_personel_id:null};
+ for(const invalid of [{...body,status:'LULUS'},{...body,ulangan_ke:0},{...body,kecepatan_kmh:-1},{...body,nilai_alat:'2.15'},{...body,beban_kn:-1},{...body,rater_personel_id:2147483648}])assert.equal((await request(path,'provider',invalid)).status,400);
+ for(const bad of ['/paket/3/uji-coba/0/seksi/51/pengukuran','/paket/3/uji-coba/41/seksi/2147483648/pengukuran'])assert.equal((await request(bad,'provider',body)).status,400);
+ const r=await request(path,'provider',body);assert.equal(r.status,201);assert.equal(r.body.data.pengukuran_id,61);assert.equal(lastRpc.p_nilai_alat,2.15);assert.equal(lastRpc.p_rater_personel_id,null);
+});
+test('authorized viewers read trial list and nested detail without cross-scope leakage',async()=>{
+ const list=await request(trialPath,'reviewer');assert.equal(list.status,200);assert.equal(list.body.data[0].uji_coba_id,41);
+ const detail=await request(trialPath+'/41','reviewer');assert.equal(detail.status,200);assert.equal(detail.body.data.seksi[0].pengukuran[0].pengukuran_id,61);
+ assert.equal((await request('/paket/999/uji-coba','reviewer')).status,404);
+ assert.equal((await request(trialPath,'foreign-reviewer')).status,404);
+ assert.equal((await request(trialPath+'/999','provider')).status,404);
+});
+test('trial routes reject malformed and overflow path identifiers',async()=>{
+ for(const path of ['/paket/no/uji-coba','/paket/3/uji-coba/no','/paket/3/uji-coba/2147483648'])assert.equal((await request(path,'provider')).status,400,path);
 });
