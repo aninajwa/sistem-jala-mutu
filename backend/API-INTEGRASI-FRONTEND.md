@@ -241,3 +241,9 @@ Dokumen ini ialah **panduan integrasi awal**, bukan spesifikasi API muktamad. Ke
 `GET /api/paket/:id/uji-coba-kriteria/:jenisSurveiId` membaca konfigurasi kriteria uji coba mengikut skop paket. Untuk PCI, konfigurasi KAK 2026 disimpan sebagai `DRAFT`: enam seksi percobaan, lima ulangan, ketepatan terhadap ground truth, standar deviasi, mAP dan F1-Score.
 
 Respons menetapkan `sumber_nilai: BELUM_TERSAMBUNG_SMD`, `boleh_mengunci_pengajuan: false`, dan `keputusan_pic_tetap_manual: true`. Endpoint ini hanya membaca kriteria; ia tidak menerima nilai manual, tidak menghitung PCI ASTM D6433 daripada data yang belum tersedia, dan tidak meluluskan uji coba secara automatik.
+
+## Tahap 2E Kriteria operasi Lendutan
+
+Endpoint kriteria yang sama menerima `jenisSurveiId` Lendutan dan mengembalikan lima syarat operasi daripada KAK 2026: interval pengukuran 0.5 km, loading plate 300 mm untuk kaedah yang menggunakannya, durasi pembebanan 25 hingga 35 ms, kalibrasi referensi maksimum 12 bulan, dan pemeriksaan repeatability maksimum setiap 30 hari.
+
+Konfigurasi ini berstatus `DRAFT`, tidak mengandungi ambang penerimaan nilai lendutan, belum menerima data SMD, dan tidak mengubah keputusan manual PIC.

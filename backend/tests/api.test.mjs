@@ -204,6 +204,13 @@ before(async () => {
       if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
       if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
       if(url.pathname.endsWith('/baca_kriteria_uji_coba')) {
+        if(lastRpc.p_jenis_survei_id===3)return send({paket_id:3,jenis_survei:{jenis_survei_id:3,kode:'LENDUTAN',nama:'Lendutan'},parameter:[
+          {kode:'LENDUTAN_INTERVAL_UJI_KM',tahap:'VALIDASI_PRODUKSI',operator:'=',nilai_min:.5,nilai_max:.5,status:'DRAFT'},
+          {kode:'LENDUTAN_DIAMETER_PLATE_MM',tahap:'KALIBRASI_VALIDASI_AWAL',operator:'=',nilai_min:300,nilai_max:300,status:'DRAFT'},
+          {kode:'LENDUTAN_DURASI_BEBAN_MS',tahap:'KALIBRASI_VALIDASI_AWAL',operator:'BETWEEN',nilai_min:25,nilai_max:35,status:'DRAFT'},
+          {kode:'LENDUTAN_KALIBRASI_REFERENSI_BULAN',tahap:'KALIBRASI_VALIDASI_AWAL',operator:'<=',nilai_min:null,nilai_max:12,status:'DRAFT'},
+          {kode:'LENDUTAN_INTERVAL_REPEATABILITY_HARI',tahap:'VALIDASI_PRODUKSI',operator:'<=',nilai_min:null,nilai_max:30,status:'DRAFT'},
+        ],lingkup:null,aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
         if(lastRpc.p_jenis_survei_id!==2)return send({code:'P0002',message:'Jenis survei tidak ditemukan'},404);
         return send({paket_id:3,jenis_survei:{jenis_survei_id:2,kode:'PCI',nama:'PCI'},parameter:[
           {kode:'PCI_DEKAT_ACUAN_5',operator:'>',nilai_min:50,nilai_max:null,status:'DRAFT'},
@@ -1073,4 +1080,12 @@ test('PCI criteria are readable without pretending SMD or automatic approval is 
  assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
  assert.equal((await request(path,'reviewer')).status,200);assert.equal((await request(path,'foreign-reviewer')).status,404);
  assert.equal((await request('/paket/3/uji-coba-kriteria/abc','provider')).status,400);assert.equal((await request('/paket/3/uji-coba-kriteria/1','provider')).status,404);
+});
+
+test('Lendutan exposes only documented operational criteria and remains manual',async()=>{
+ const r=await request('/paket/3/uji-coba-kriteria/3','provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'LENDUTAN');
+ assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['LENDUTAN_INTERVAL_UJI_KM','LENDUTAN_DIAMETER_PLATE_MM','LENDUTAN_DURASI_BEBAN_MS','LENDUTAN_KALIBRASI_REFERENSI_BULAN','LENDUTAN_INTERVAL_REPEATABILITY_HARI']);
+ const duration=r.body.data.parameter.find(item=>item.kode==='LENDUTAN_DURASI_BEBAN_MS');assert.equal(duration.operator,'BETWEEN');assert.equal(duration.nilai_min,25);assert.equal(duration.nilai_max,35);
+ assert.equal(r.body.data.lingkup,null);assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/3','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/3','foreign-reviewer')).status,404);
 });
