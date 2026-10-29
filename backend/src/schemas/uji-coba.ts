@@ -26,6 +26,36 @@ export const ujiCobaCreateSchema = z.object({
 
 const workflowVersionSchema = z.number().int().min(0).max(2147483646);
 
+const iriEvaluationCodeSchema = z.enum(['IRI_A', 'IRI_B', 'IRI_R2', 'IRI_CV']);
+
+export const ujiCobaEvaluationSchema = z.object({
+    expected_version: workflowVersionSchema,
+    hasil: z.array(z.object({
+        kode: iriEvaluationCodeSchema,
+        nilai: z.number().finite(),
+    }).strict()).length(4),
+}).strict().superRefine((value, ctx) => {
+    const codes = value.hasil.map(item => item.kode);
+    const uniqueCodes = new Set(codes);
+    if (uniqueCodes.size !== codes.length) {
+        ctx.addIssue({
+            code: z.ZodIssueCode.custom,
+            message: 'Setiap parameter evaluasi hanya boleh dihantar sekali',
+            path: ['hasil'],
+        });
+    }
+
+    for (const required of iriEvaluationCodeSchema.options) {
+        if (!uniqueCodes.has(required)) {
+            ctx.addIssue({
+                code: z.ZodIssueCode.custom,
+                message: `Parameter ${required} wajib dihantar`,
+                path: ['hasil'],
+            });
+        }
+    }
+});
+
 export const ujiCobaSubmitSchema = z.object({
     expected_version: workflowVersionSchema,
 }).strict();

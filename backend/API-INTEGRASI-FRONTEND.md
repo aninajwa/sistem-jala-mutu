@@ -134,11 +134,13 @@ Jangan gunakan role yang dipilih sendiri pada UI sebagai bukti hak akses. Gunaka
 | GET | `/paket/:id/uji-coba/:ujiCobaId` | Detail uji coba dan data berkaitan |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/seksi` | Tambah seksi |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran` | Tambah pengukuran |
+| GET | `/paket/:id/uji-coba/:ujiCobaId/evaluasi` | Baca pratinjau evaluasi parameter IRI |
+| POST | `/paket/:id/uji-coba/:ujiCobaId/evaluasi` | Simpan A, B, R² dan CV untuk dibandingkan dengan ambang DRAFT KAK 2026 |
 | GET | `/paket/:id/uji-coba/:ujiCobaId/pengajuan` | Baca status, versi, snapshot pengajuan, dan keputusan PIC |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/pengajuan` | Penyedia mengajukan uji coba DRAFT yang sudah mempunyai seksi dan pengukuran |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/pengajuan/review` | PIC Balai memberi keputusan `PERLU_REVISI` atau `DISETUJUI` |
 
-Semakan Tahap 2 masih manual. Sistem tidak mendakwa ambang teknikal lulus secara automatik. Jika keputusan `PERLU_REVISI`, rekod percobaan lama kekal sebagai sejarah dan Penyedia membuat uji coba baharu dengan `percobaan_ke` seterusnya.
+Semakan Tahap 2 masih manual. Endpoint evaluasi hanya menghasilkan **pratinjau** perbandingan empat parameter IRI dengan ambang KAK 2026 yang masih berstatus `DRAFT`; pratinjau tidak mengunci pengajuan dan tidak menggantikan keputusan PIC. Nilai statistik dimasukkan oleh Penyedia Jasa dan belum dikira daripada data mentah oleh backend. Jika keputusan `PERLU_REVISI`, rekod percobaan lama kekal sebagai sejarah dan Penyedia membuat uji coba baharu dengan `percobaan_ke` seterusnya.
 
 **Belum tersedia/disahkan untuk alur Tahap 2:** berita acara dan kelulusan automatik. Jangan paparkan sebagai fungsi siap.
 
@@ -205,7 +207,8 @@ Contoh di atas ialah data ujian, **bukan data production**.
 | Beberapa operasi paket, dokumen, kalibrasi, personel | Pernah dibangunkan/diuji secara berasingan; perlu regression test sebelum integrasi penuh |
 | Login React → Supabase Auth → Express | Belum diuji |
 | Semua kombinasi role dan endpoint | Belum diuji |
-| Keputusan validasi Tahap 2 dan BA | Belum dibina/disahkan sebagai alur lengkap |
+| Pratinjau parameter IRI Tahap 2 | API tersedia; membandingkan A, B, R² dan CV dengan ambang DRAFT tanpa auto-approval |
+| Keputusan validasi muktamad Tahap 2 dan BA | Belum dibina/disahkan sebagai alur lengkap |
 
 Untuk operasi POST/PATCH/upload, **jangan meneka body request** daripada jadual route. Rujuk schema Zod, implementasi route dan Postman collection berkaitan sebelum Dirah membina form.
 

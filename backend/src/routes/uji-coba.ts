@@ -3,7 +3,12 @@ import { ujiCobaSeksiCreateSchema } from '../schemas/uji-coba-seksi';
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
 import { paketIdSchema } from '../schemas/paket';
-import { ujiCobaCreateSchema, ujiCobaReviewSchema, ujiCobaSubmitSchema } from '../schemas/uji-coba';
+import {
+    ujiCobaCreateSchema,
+    ujiCobaEvaluationSchema,
+    ujiCobaReviewSchema,
+    ujiCobaSubmitSchema,
+} from '../schemas/uji-coba';
 
 const router = Router();
 
@@ -194,6 +199,55 @@ router.get('/paket/:id/uji-coba/:ujiCobaId/pengajuan', async (req, res) => {
             body: JSON.stringify({
                 p_paket_id: packageId,
                 p_uji_coba_id: ujiCobaId,
+            }),
+        },
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data });
+});
+
+router.get('/paket/:id/uji-coba/:ujiCobaId/evaluasi', async (req, res) => {
+    const packageId = routeId(req.params.id, 'ID paket');
+    const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
+    const data = await supabaseRequest(
+        '/rest/v1/rpc/baca_evaluasi_uji_coba',
+        res.locals.identity.token,
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                p_paket_id: packageId,
+                p_uji_coba_id: ujiCobaId,
+            }),
+        },
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data });
+});
+
+router.post('/paket/:id/uji-coba/:ujiCobaId/evaluasi', async (req, res) => {
+    const { identity } = res.locals;
+    if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) {
+        throw new ApiError(403, 'Hanya Penyedia Jasa boleh menyimpan evaluasi uji coba');
+    }
+
+    const packageId = routeId(req.params.id, 'ID paket');
+    const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
+    const parsed = ujiCobaEvaluationSchema.safeParse(req.body);
+    if (!parsed.success) {
+        res.status(400).json({ error: 'Evaluasi uji coba tidak valid', details: parsed.error.flatten() });
+        return;
+    }
+
+    const data = await supabaseRequest(
+        '/rest/v1/rpc/simpan_evaluasi_uji_coba',
+        identity.token,
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                p_paket_id: packageId,
+                p_uji_coba_id: ujiCobaId,
+                p_expected_version: parsed.data.expected_version,
+                p_hasil: parsed.data.hasil,
             }),
         },
     );

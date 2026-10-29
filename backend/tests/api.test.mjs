@@ -22,6 +22,7 @@ const assignmentRows = [];
 const trialRows = [];
 const trialSectionRows = [];
 const trialMeasurementRows = [];
+const trialEvaluationRows = new Map();
 let preparationState = { paket_id: 3, pengisian_id: 2, status: 'DRAFT', versi: 3, pengajuan: null, review: null, aturan: { mode: 'SEMAKAN_MANUAL_PIC', validasi_kelengkapan_resmi_aktif: false } };
 const profile = { pengguna_id: 3, auth_user_id: 'provider-id', username: 'penyedia.jasa', email: 'provider@example.test', terkunci: false };
 async function request(path, token, body, method) {
@@ -198,7 +199,7 @@ before(async () => {
       return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
     }
 
-    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba','/rest/v1/rpc/baca_pengajuan_uji_coba','/rest/v1/rpc/ajukan_uji_coba','/rest/v1/rpc/review_uji_coba'].includes(url.pathname)) {
+    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba','/rest/v1/rpc/baca_pengajuan_uji_coba','/rest/v1/rpc/ajukan_uji_coba','/rest/v1/rpc/review_uji_coba','/rest/v1/rpc/baca_evaluasi_uji_coba','/rest/v1/rpc/simpan_evaluasi_uji_coba'].includes(url.pathname)) {
       let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
       if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
       if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
@@ -208,6 +209,23 @@ before(async () => {
       }
       const trial=trialRows.find(row=>row.uji_coba_id===lastRpc.p_uji_coba_id&&row.paket_id===lastRpc.p_paket_id);
       const workflowState=()=>({paket_id:trial.paket_id,uji_coba_id:trial.uji_coba_id,status:trial.status,versi:trial.versi,pengajuan:trial.pengajuan_trail_id===null?null:{pengajuan_id:trial.pengajuan_trail_id,diajukan_oleh:trial.diajukan_oleh,diajukan_pada:trial.diajukan_pada,snapshot:trial.snapshot_pengajuan},review:trial.direview_oleh===null?null:{pengguna_id:trial.direview_oleh,keputusan:trial.status,catatan:trial.catatan_review,waktu:trial.direview_pada},aturan:{mode:'SEMAKAN_MANUAL_PIC',validasi_ambang_otomatis_aktif:false,revisi_membuat_percobaan_baru:true}});
+      const evaluationState=()=>{
+        const hasil=trialEvaluationRows.get(trial.uji_coba_id)??[];
+        return {paket_id:trial.paket_id,uji_coba_id:trial.uji_coba_id,versi:trial.versi,jenis_survei_id:trial.jenis_survei_id,hasil,lengkap:hasil.length===4,semua_lulus:hasil.length===4?hasil.every(item=>item.lulus):null,aturan:{mode:'PRATINJAU_KAK_2026',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}};
+      };
+      if(url.pathname.endsWith('/baca_evaluasi_uji_coba')) {
+        if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        return send(evaluationState());
+      }
+      if(url.pathname.endsWith('/simpan_evaluasi_uji_coba')) {
+        if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
+        if(lastRpc.p_expected_version!==trial.versi)return send({code:'40001',message:'Uji coba telah berubah'},409);
+        if(trial.status!=='DRAFT')return send({code:'55000',message:'Evaluasi hanya boleh diubah ketika uji coba masih DRAFT'},400);
+        if(trial.jenis_survei_id!==1)return send({code:'22023',message:'Evaluasi hanya tersedia untuk IRI'},400);
+        const limits={IRI_A:v=>v>=.95&&v<=1.05,IRI_B:v=>v>=-.25&&v<=.25,IRI_R2:v=>v>=.95,IRI_CV:v=>v<=5};
+        const hasil=lastRpc.p_hasil.map((item,index)=>({hasil_id:801+index,parameter_id:index+1,kode:item.kode,nama:item.kode,satuan:item.kode==='IRI_B'?'m/km':item.kode==='IRI_CV'?'%':null,nilai:item.nilai,operator:item.kode==='IRI_A'||item.kode==='IRI_B'?'BETWEEN':item.kode==='IRI_R2'?'>=':'<=',nilai_min:item.kode==='IRI_A' ? .95 : item.kode==='IRI_B' ? -.25 : item.kode==='IRI_R2' ? .95 : null,nilai_max:item.kode==='IRI_A' ? 1.05 : item.kode==='IRI_B' ? .25 : item.kode==='IRI_CV' ? 5 : null,lulus:limits[item.kode](item.nilai),dihitung_pada:'2026-10-29T02:00:00'}));
+        trialEvaluationRows.set(trial.uji_coba_id,hasil);trial.versi+=1;return send(evaluationState());
+      }
       if(url.pathname.endsWith('/baca_pengajuan_uji_coba')) {
         if(!trial)return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
         return send(workflowState());
@@ -996,4 +1014,42 @@ test('PIC can approve a complete retry without fabricating automatic threshold r
  await request(trialPath+'/42/seksi/52/pengukuran','provider',{ulangan_ke:1,kecepatan_kmh:40,nilai_alat:2.15,beban_kn:null,rater_personel_id:null});
  const submitted=await request(trialPath+'/42/pengajuan','provider',{expected_version:0});assert.equal(submitted.status,201);
  const approved=await request(trialPath+'/42/pengajuan/review','reviewer',{expected_version:1,keputusan:'DISETUJUI',catatan:''});assert.equal(approved.status,200);assert.equal(approved.body.data.status,'DISETUJUI');assert.equal(approved.body.data.versi,2);assert.equal(approved.body.data.aturan.validasi_ambang_otomatis_aktif,false);
+});
+
+const passingIriEvaluation={
+ expected_version:0,
+ hasil:[
+  {kode:'IRI_A',nilai:1.01},
+  {kode:'IRI_B',nilai:-0.1},
+  {kode:'IRI_R2',nilai:0.97},
+  {kode:'IRI_CV',nilai:4.2},
+ ],
+};
+test('trial evaluation preview is scoped and starts empty',async()=>{
+ const created=await request(trialPath,'provider',{...trialBody,percobaan_ke:3});assert.equal(created.status,201);assert.equal(created.body.data.uji_coba_id,43);
+ const r=await request(trialPath+'/43/evaluasi','reviewer');assert.equal(r.status,200);assert.deepEqual(r.body.data.hasil,[]);assert.equal(r.body.data.lengkap,false);assert.equal(r.body.data.semua_lulus,null);
+ assert.equal(r.body.data.aturan.mode,'PRATINJAU_KAK_2026');assert.equal(r.body.data.aturan.status_ambang,'DRAFT');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);
+ assert.equal((await request(trialPath+'/43/evaluasi','foreign-reviewer')).status,404);
+});
+test('trial evaluation accepts only provider and four unique IRI parameters',async()=>{
+ const path=trialPath+'/43/evaluasi';
+ assert.equal((await request(path,'reviewer',passingIriEvaluation)).status,403);
+ const duplicate={expected_version:0,hasil:[{kode:'IRI_A',nilai:1},{kode:'IRI_A',nilai:1},{kode:'IRI_R2',nilai:.96},{kode:'IRI_CV',nilai:4}]};
+ for(const body of [{},{...passingIriEvaluation,status:'LULUS'},{...passingIriEvaluation,expected_version:-1},{...passingIriEvaluation,hasil:passingIriEvaluation.hasil.slice(0,3)},duplicate])assert.equal((await request(path,'provider',body)).status,400);
+ assert.equal((await request(path,'provider',{...passingIriEvaluation,expected_version:9})).status,409);
+});
+test('backend compares IRI values with draft KAK thresholds without auto-approving',async()=>{
+ const path=trialPath+'/43/evaluasi';
+ const pass=await request(path,'provider',passingIriEvaluation);assert.equal(pass.status,200);assert.equal(pass.body.data.versi,1);assert.equal(pass.body.data.lengkap,true);assert.equal(pass.body.data.semua_lulus,true);
+ assert.deepEqual(lastRpc.p_hasil,passingIriEvaluation.hasil);assert.equal(pass.body.data.aturan.boleh_mengunci_pengajuan,false);
+ const fail=await request(path,'provider',{expected_version:1,hasil:[{kode:'IRI_A',nilai:1.08},{kode:'IRI_B',nilai:0},{kode:'IRI_R2',nilai:.94},{kode:'IRI_CV',nilai:5.1}]});
+ assert.equal(fail.status,200);assert.equal(fail.body.data.versi,2);assert.equal(fail.body.data.semua_lulus,false);assert.deepEqual(fail.body.data.hasil.map(item=>item.lulus),[false,true,false,false]);
+});
+test('IRI preview cannot be edited after submission and is not enabled for another survey type',async()=>{
+ await request(trialPath+'/43/seksi','provider',{nama_seksi:'Seksi evaluasi',sta_awal:0,sta_akhir:500,nilai_referensi:2.2,kategori_kondisi:'RENDAH'});
+ await request(trialPath+'/43/seksi/53/pengukuran','provider',{ulangan_ke:1,kecepatan_kmh:40,nilai_alat:2.15,beban_kn:null,rater_personel_id:null});
+ assert.equal((await request(trialPath+'/43/pengajuan','provider',{expected_version:2})).status,201);
+ assert.equal((await request(trialPath+'/43/evaluasi','provider',{...passingIriEvaluation,expected_version:3})).status,409);
+ const other=await request(trialPath,'provider',{...trialBody,jenis_survei_id:2,percobaan_ke:1});assert.equal(other.status,201);assert.equal(other.body.data.uji_coba_id,44);
+ assert.equal((await request(trialPath+'/44/evaluasi','provider',passingIriEvaluation)).status,400);
 });
