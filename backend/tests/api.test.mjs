@@ -204,6 +204,14 @@ before(async () => {
       if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
       if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
       if(url.pathname.endsWith('/baca_kriteria_uji_coba')) {
+        if(lastRpc.p_jenis_survei_id===4)return send({paket_id:3,jenis_survei:{jenis_survei_id:4,kode:'JEMBATAN',nama:'Jembatan'},parameter:[
+          {kode:'JEMBATAN_FREKUENSI_SURVEI_TAHUN',tahap:'VALIDASI_PRODUKSI',operator:'=',nilai_min:1,nilai_max:1,status:'DRAFT'},
+          {kode:'JEMBATAN_PANJANG_PRIORITAS_M',tahap:'VALIDASI_PRODUKSI',operator:'>=',nilai_min:6,nilai_max:null,status:'DRAFT'},
+          {kode:'JEMBATAN_INTERVAL_DETAIL_TAHUN',tahap:'VALIDASI_PRODUKSI',operator:'<=',nilai_min:null,nilai_max:5,status:'DRAFT'},
+          {kode:'JEMBATAN_NK_DETAIL_MIN',tahap:'VALIDASI_PRODUKSI',operator:'>=',nilai_min:3,nilai_max:null,status:'DRAFT'},
+          {kode:'JEMBATAN_UMUR_DETAIL_UMUM_TAHUN',tahap:'VALIDASI_PRODUKSI',operator:'>=',nilai_min:40,nilai_max:null,status:'DRAFT'},
+          {kode:'JEMBATAN_UMUR_DETAIL_BAJA_TAHUN',tahap:'VALIDASI_PRODUKSI',operator:'>=',nilai_min:30,nilai_max:null,status:'DRAFT'},
+        ],lingkup:null,aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
         if(lastRpc.p_jenis_survei_id===3)return send({paket_id:3,jenis_survei:{jenis_survei_id:3,kode:'LENDUTAN',nama:'Lendutan'},parameter:[
           {kode:'LENDUTAN_INTERVAL_UJI_KM',tahap:'VALIDASI_PRODUKSI',operator:'=',nilai_min:.5,nilai_max:.5,status:'DRAFT'},
           {kode:'LENDUTAN_DIAMETER_PLATE_MM',tahap:'KALIBRASI_VALIDASI_AWAL',operator:'=',nilai_min:300,nilai_max:300,status:'DRAFT'},
@@ -1088,4 +1096,13 @@ test('Lendutan exposes only documented operational criteria and remains manual',
  const duration=r.body.data.parameter.find(item=>item.kode==='LENDUTAN_DURASI_BEBAN_MS');assert.equal(duration.operator,'BETWEEN');assert.equal(duration.nilai_min,25);assert.equal(duration.nilai_max,35);
  assert.equal(r.body.data.lingkup,null);assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
  assert.equal((await request('/paket/3/uji-coba-kriteria/3','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/3','foreign-reviewer')).status,404);
+});
+
+test('Jembatan exposes conditional inspection rules without auto-approving results',async()=>{
+ const r=await request('/paket/3/uji-coba-kriteria/4','provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'JEMBATAN');
+ assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['JEMBATAN_FREKUENSI_SURVEI_TAHUN','JEMBATAN_PANJANG_PRIORITAS_M','JEMBATAN_INTERVAL_DETAIL_TAHUN','JEMBATAN_NK_DETAIL_MIN','JEMBATAN_UMUR_DETAIL_UMUM_TAHUN','JEMBATAN_UMUR_DETAIL_BAJA_TAHUN']);
+ const detailInterval=r.body.data.parameter.find(item=>item.kode==='JEMBATAN_INTERVAL_DETAIL_TAHUN');assert.equal(detailInterval.operator,'<=');assert.equal(detailInterval.nilai_max,5);
+ const condition=r.body.data.parameter.find(item=>item.kode==='JEMBATAN_NK_DETAIL_MIN');assert.equal(condition.operator,'>=');assert.equal(condition.nilai_min,3);
+ assert.equal(r.body.data.lingkup,null);assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/4','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/4','foreign-reviewer')).status,404);
 });

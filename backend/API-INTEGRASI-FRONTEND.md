@@ -247,3 +247,9 @@ Respons menetapkan `sumber_nilai: BELUM_TERSAMBUNG_SMD`, `boleh_mengunci_pengaju
 Endpoint kriteria yang sama menerima `jenisSurveiId` Lendutan dan mengembalikan lima syarat operasi daripada KAK 2026: interval pengukuran 0.5 km, loading plate 300 mm untuk kaedah yang menggunakannya, durasi pembebanan 25 hingga 35 ms, kalibrasi referensi maksimum 12 bulan, dan pemeriksaan repeatability maksimum setiap 30 hari.
 
 Konfigurasi ini berstatus `DRAFT`, tidak mengandungi ambang penerimaan nilai lendutan, belum menerima data SMD, dan tidak mengubah keputusan manual PIC.
+
+## Tahap 2F Kriteria operasi Jembatan
+
+`GET /api/paket/:id/uji-coba-kriteria/:jenisSurveiId` juga menerima `jenisSurveiId` Jembatan dan mengembalikan enam aturan operasi daripada KAK 2026: frekuensi survei satu kali setahun, batas panjang prioritas 6 meter, interval maksimum Pemeriksaan Detail 5 tahun, pemicu NK 3, pemicu umur umum 40 tahun, dan pemicu umur bangunan atas baja 30 tahun.
+
+Angka tersebut ialah aturan pemilihan atau frekuensi pemeriksaan yang bergantung pada konteks jembatan. Semua konfigurasi berstatus `DRAFT`, tidak menjadi keputusan lulus otomatis, dan tidak menggantikan verifikasi INVI-J atau keputusan manual PIC.
