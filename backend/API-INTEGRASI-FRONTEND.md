@@ -236,3 +236,8 @@ Untuk operasi POST/PATCH/upload, **jangan meneka body request** daripada jadual 
 ---
 
 Dokumen ini ialah **panduan integrasi awal**, bukan spesifikasi API muktamad. Kemas kini apabila kontrak request/response, aturan akses, atau route berubah.
+# Tahap 2D — Kriteria PCI pratinjau
+
+`GET /api/paket/:id/uji-coba-kriteria/:jenisSurveiId` membaca konfigurasi kriteria uji coba mengikut skop paket. Untuk PCI, konfigurasi KAK 2026 disimpan sebagai `DRAFT`: enam seksi percobaan, lima ulangan, ketepatan terhadap ground truth, standar deviasi, mAP dan F1-Score.
+
+Respons menetapkan `sumber_nilai: BELUM_TERSAMBUNG_SMD`, `boleh_mengunci_pengajuan: false`, dan `keputusan_pic_tetap_manual: true`. Endpoint ini hanya membaca kriteria; ia tidak menerima nilai manual, tidak menghitung PCI ASTM D6433 daripada data yang belum tersedia, dan tidak meluluskan uji coba secara automatik.

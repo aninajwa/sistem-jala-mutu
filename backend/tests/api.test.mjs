@@ -199,10 +199,21 @@ before(async () => {
       return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
     }
 
-    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba','/rest/v1/rpc/baca_pengajuan_uji_coba','/rest/v1/rpc/ajukan_uji_coba','/rest/v1/rpc/review_uji_coba','/rest/v1/rpc/baca_evaluasi_uji_coba','/rest/v1/rpc/simpan_evaluasi_uji_coba'].includes(url.pathname)) {
+    if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba','/rest/v1/rpc/baca_pengajuan_uji_coba','/rest/v1/rpc/ajukan_uji_coba','/rest/v1/rpc/review_uji_coba','/rest/v1/rpc/baca_evaluasi_uji_coba','/rest/v1/rpc/simpan_evaluasi_uji_coba','/rest/v1/rpc/baca_kriteria_uji_coba'].includes(url.pathname)) {
       let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
       if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
       if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
+      if(url.pathname.endsWith('/baca_kriteria_uji_coba')) {
+        if(lastRpc.p_jenis_survei_id!==2)return send({code:'P0002',message:'Jenis survei tidak ditemukan'},404);
+        return send({paket_id:3,jenis_survei:{jenis_survei_id:2,kode:'PCI',nama:'PCI'},parameter:[
+          {kode:'PCI_DEKAT_ACUAN_5',operator:'>',nilai_min:50,nilai_max:null,status:'DRAFT'},
+          {kode:'PCI_MENYIMPANG_15',operator:'<=',nilai_min:null,nilai_max:12,status:'DRAFT'},
+          {kode:'PCI_STANDAR_DEVIASI',operator:'<=',nilai_min:null,nilai_max:8,status:'DRAFT'},
+          {kode:'PCI_MAP',operator:'>=',nilai_min:.9,nilai_max:null,status:'DRAFT'},
+          {kode:'PCI_F1_PRA_QA',operator:'>=',nilai_min:.8,nilai_max:null,status:'DRAFT'},
+          {kode:'PCI_F1_PASCA_QA',operator:'>=',nilai_min:.9,nilai_max:null,status:'DRAFT'},
+        ],lingkup:{tahap:'UJI_COBA',jumlah_lokasi_min:6,jumlah_ulangan:5},aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
+      }
       if(url.pathname.endsWith('/simpan_uji_coba')) {
         const row={uji_coba_id:41+trialRows.length,paket_id:lastRpc.p_paket_id,tim_id:lastRpc.p_tim_id,jenis_survei_id:lastRpc.p_jenis_survei_id,alat_id:lastRpc.p_alat_id,ruas_id:lastRpc.p_ruas_id,tanggal:lastRpc.p_tanggal,panjang_km:lastRpc.p_panjang_km,percobaan_ke:lastRpc.p_percobaan_ke,status:'DRAFT',versi:0,status_personel_jembatan:null,laporan_dokumen_id:null,pengajuan_trail_id:null,snapshot_pengajuan:null,diajukan_oleh:null,diajukan_pada:null,direview_oleh:null,direview_pada:null,catatan_review:null};
         trialRows.push(row);return send(row);
@@ -1052,4 +1063,14 @@ test('IRI preview cannot be edited after submission and is not enabled for anoth
  assert.equal((await request(trialPath+'/43/evaluasi','provider',{...passingIriEvaluation,expected_version:3})).status,409);
  const other=await request(trialPath,'provider',{...trialBody,jenis_survei_id:2,percobaan_ke:1});assert.equal(other.status,201);assert.equal(other.body.data.uji_coba_id,44);
  assert.equal((await request(trialPath+'/44/evaluasi','provider',passingIriEvaluation)).status,400);
+});
+
+test('PCI criteria are readable without pretending SMD or automatic approval is active',async()=>{
+ const path='/paket/3/uji-coba-kriteria/2';
+ const r=await request(path,'provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'PCI');
+ assert.equal(r.body.data.parameter.length,6);assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['PCI_DEKAT_ACUAN_5','PCI_MENYIMPANG_15','PCI_STANDAR_DEVIASI','PCI_MAP','PCI_F1_PRA_QA','PCI_F1_PASCA_QA']);
+ assert.equal(r.body.data.lingkup.jumlah_lokasi_min,6);assert.equal(r.body.data.lingkup.jumlah_ulangan,5);
+ assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request(path,'reviewer')).status,200);assert.equal((await request(path,'foreign-reviewer')).status,404);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/abc','provider')).status,400);assert.equal((await request('/paket/3/uji-coba-kriteria/1','provider')).status,404);
 });

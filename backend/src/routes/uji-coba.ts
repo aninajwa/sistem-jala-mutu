@@ -163,6 +163,24 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran', async (r
     res.status(201).json({ data });
 });
 
+router.get('/paket/:id/uji-coba-kriteria/:jenisSurveiId', async (req, res) => {
+    const packageId = routeId(req.params.id, 'ID paket');
+    const surveyTypeId = routeId(req.params.jenisSurveiId, 'ID jenis survei');
+    const data = await supabaseRequest(
+        '/rest/v1/rpc/baca_kriteria_uji_coba',
+        res.locals.identity.token,
+        {
+            method: 'POST',
+            body: JSON.stringify({
+                p_paket_id: packageId,
+                p_jenis_survei_id: surveyTypeId,
+            }),
+        },
+    );
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data });
+});
+
 router.get('/paket/:id/uji-coba/:ujiCobaId', async (req, res, next) => {
     try {
         const { identity } = res.locals;
