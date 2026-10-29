@@ -204,6 +204,35 @@ before(async () => {
       if(lastRpc.p_paket_id===999 || token==='foreign-reviewer')return send({code:'P0002',message:'Uji coba tidak ditemukan'},404);
       if(token==='closed-trial')return send({code:'55000',message:'Uji coba bukan DRAFT'},400);
       if(url.pathname.endsWith('/baca_kriteria_uji_coba')) {
+        if(lastRpc.p_jenis_survei_id===8)return send({paket_id:3,jenis_survei:{jenis_survei_id:8,kode:'RNI',nama:'RNI'},parameter:[
+          {kode:'RNI_INTERVAL_PEMUTAKHIRAN_TAHUN',operator:'<=',nilai_min:null,nilai_max:5,status:'DRAFT'},
+          {kode:'RNI_KETELITIAN_JARAK_PERSEN',operator:'<=',nilai_min:null,nilai_max:.1,status:'DRAFT'},
+          {kode:'RNI_AKURASI_GPS_M',operator:'<=',nilai_min:null,nilai_max:6,status:'DRAFT'},
+          {kode:'RNI_CAKUPAN_AKURASI_GPS_PERSEN',operator:'>=',nilai_min:90,nilai_max:null,status:'DRAFT'},
+          {kode:'RNI_INTERVAL_KOORDINAT_M',operator:'<=',nilai_min:null,nilai_max:10,status:'DRAFT'},
+          {kode:'RNI_TOLERANSI_SELISIH_JARAK_M',operator:'<=',nilai_min:null,nilai_max:30,status:'DRAFT'},
+          {kode:'RNI_KETELITIAN_DIMENSI_M',operator:'<=',nilai_min:null,nilai_max:.1,status:'DRAFT'},
+        ],lingkup:null,aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
+        if(lastRpc.p_jenis_survei_id===7)return send({paket_id:3,jenis_survei:{jenis_survei_id:7,kode:'LALU_LINTAS',nama:'Lalu Lintas'},parameter:[
+          {kode:'LALU_LINTAS_DURASI_LHRT_RENDAH_HARI',operator:'=',nilai_min:3,nilai_max:3,status:'DRAFT'},
+          {kode:'LALU_LINTAS_DURASI_LHRT_TINGGI_HARI',operator:'=',nilai_min:7,nilai_max:7,status:'DRAFT'},
+          {kode:'LALU_LINTAS_PEMANTAUAN_AI_HARI',operator:'=',nilai_min:365,nilai_max:365,status:'DRAFT'},
+          {kode:'LALU_LINTAS_FRAME_RATE_MIN_FPS',operator:'>=',nilai_min:24,nilai_max:null,status:'DRAFT'},
+          {kode:'LALU_LINTAS_TINGGI_TRIPOD_MIN_M',operator:'>=',nilai_min:5,nilai_max:null,status:'DRAFT'},
+          {kode:'LALU_LINTAS_RESOLUSI_LEBAR_MIN_PX',operator:'>=',nilai_min:800,nilai_max:null,status:'DRAFT'},
+          {kode:'LALU_LINTAS_RESOLUSI_TINGGI_MIN_PX',operator:'>=',nilai_min:600,nilai_max:null,status:'DRAFT'},
+        ],lingkup:null,aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
+        if(lastRpc.p_jenis_survei_id===6)return send({paket_id:3,jenis_survei:{jenis_survei_id:6,kode:'DRAINASE',nama:'Drainase'},parameter:[
+          {kode:'DRAINASE_FREKUENSI_SURVEI_TAHUN',operator:'=',nilai_min:1,nilai_max:1,status:'DRAFT'},
+          {kode:'DRAINASE_PERIODE_SURVEI_BULAN',operator:'BETWEEN',nilai_min:2,nilai_max:5,status:'DRAFT'},
+          {kode:'DRAINASE_JUMLAH_KATEGORI_KONDISI',operator:'=',nilai_min:5,nilai_max:5,status:'DRAFT'},
+        ],lingkup:null,aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
+        if(lastRpc.p_jenis_survei_id===5)return send({paket_id:3,jenis_survei:{jenis_survei_id:5,kode:'LERENG',nama:'Lereng'},parameter:[
+          {kode:'LERENG_FREKUENSI_SURVEI_TAHUN',tahap:'VALIDASI_PRODUKSI',operator:'=',nilai_min:1,nilai_max:1,status:'DRAFT'},
+          {kode:'LERENG_PERIODE_SURVEI_BULAN',tahap:'VALIDASI_PRODUKSI',operator:'BETWEEN',nilai_min:2,nilai_max:10,status:'DRAFT'},
+          {kode:'LERENG_TINGGI_INVENTARISASI_M',tahap:'VALIDASI_PRODUKSI',operator:'>',nilai_min:5,nilai_max:null,status:'DRAFT'},
+          {kode:'LERENG_JUMLAH_KATEGORI_RISIKO',tahap:'VALIDASI_PRODUKSI',operator:'=',nilai_min:4,nilai_max:4,status:'DRAFT'},
+        ],lingkup:null,aturan:{mode:'PRATINJAU_KAK_2026',sumber_nilai:'BELUM_TERSAMBUNG_SMD',status_ambang:'DRAFT',boleh_mengunci_pengajuan:false,keputusan_pic_tetap_manual:true}});
         if(lastRpc.p_jenis_survei_id===4)return send({paket_id:3,jenis_survei:{jenis_survei_id:4,kode:'JEMBATAN',nama:'Jembatan'},parameter:[
           {kode:'JEMBATAN_FREKUENSI_SURVEI_TAHUN',tahap:'VALIDASI_PRODUKSI',operator:'=',nilai_min:1,nilai_max:1,status:'DRAFT'},
           {kode:'JEMBATAN_PANJANG_PRIORITAS_M',tahap:'VALIDASI_PRODUKSI',operator:'>=',nilai_min:6,nilai_max:null,status:'DRAFT'},
@@ -1105,4 +1134,37 @@ test('Jembatan exposes conditional inspection rules without auto-approving resul
  const condition=r.body.data.parameter.find(item=>item.kode==='JEMBATAN_NK_DETAIL_MIN');assert.equal(condition.operator,'>=');assert.equal(condition.nilai_min,3);
  assert.equal(r.body.data.lingkup,null);assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
  assert.equal((await request('/paket/3/uji-coba-kriteria/4','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/4','foreign-reviewer')).status,404);
+});
+
+test('Lereng exposes documented survey scope while In-Slope results remain external',async()=>{
+ const r=await request('/paket/3/uji-coba-kriteria/5','provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'LERENG');
+ assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['LERENG_FREKUENSI_SURVEI_TAHUN','LERENG_PERIODE_SURVEI_BULAN','LERENG_TINGGI_INVENTARISASI_M','LERENG_JUMLAH_KATEGORI_RISIKO']);
+ const period=r.body.data.parameter.find(item=>item.kode==='LERENG_PERIODE_SURVEI_BULAN');assert.equal(period.operator,'BETWEEN');assert.equal(period.nilai_min,2);assert.equal(period.nilai_max,10);
+ const height=r.body.data.parameter.find(item=>item.kode==='LERENG_TINGGI_INVENTARISASI_M');assert.equal(height.operator,'>');assert.equal(height.nilai_min,5);
+ assert.equal(r.body.data.lingkup,null);assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/5','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/5','foreign-reviewer')).status,404);
+});
+
+test('Drainase exposes documented inspection frequency and InDrain categories',async()=>{
+ const r=await request('/paket/3/uji-coba-kriteria/6','provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'DRAINASE');
+ assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['DRAINASE_FREKUENSI_SURVEI_TAHUN','DRAINASE_PERIODE_SURVEI_BULAN','DRAINASE_JUMLAH_KATEGORI_KONDISI']);
+ const period=r.body.data.parameter.find(item=>item.kode==='DRAINASE_PERIODE_SURVEI_BULAN');assert.equal(period.operator,'BETWEEN');assert.equal(period.nilai_min,2);assert.equal(period.nilai_max,5);
+ assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/6','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/6','foreign-reviewer')).status,404);
+});
+
+test('Lalu Lintas keeps the undefined LHRT 5000 boundary manual',async()=>{
+ const r=await request('/paket/3/uji-coba-kriteria/7','provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'LALU_LINTAS');
+ assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['LALU_LINTAS_DURASI_LHRT_RENDAH_HARI','LALU_LINTAS_DURASI_LHRT_TINGGI_HARI','LALU_LINTAS_PEMANTAUAN_AI_HARI','LALU_LINTAS_FRAME_RATE_MIN_FPS','LALU_LINTAS_TINGGI_TRIPOD_MIN_M','LALU_LINTAS_RESOLUSI_LEBAR_MIN_PX','LALU_LINTAS_RESOLUSI_TINGGI_MIN_PX']);
+ assert.equal(r.body.data.parameter.some(item=>item.kode==='LALU_LINTAS_LHRT_AMBANG_5000'),false);assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/7','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/7','foreign-reviewer')).status,404);
+});
+
+test('RNI exposes documented precision rules without fabricating SMD acceptance',async()=>{
+ const r=await request('/paket/3/uji-coba-kriteria/8','provider');assert.equal(r.status,200);assert.equal(r.body.data.jenis_survei.kode,'RNI');
+ assert.deepEqual(r.body.data.parameter.map(item=>item.kode),['RNI_INTERVAL_PEMUTAKHIRAN_TAHUN','RNI_KETELITIAN_JARAK_PERSEN','RNI_AKURASI_GPS_M','RNI_CAKUPAN_AKURASI_GPS_PERSEN','RNI_INTERVAL_KOORDINAT_M','RNI_TOLERANSI_SELISIH_JARAK_M','RNI_KETELITIAN_DIMENSI_M']);
+ const gps=r.body.data.parameter.find(item=>item.kode==='RNI_AKURASI_GPS_M');assert.equal(gps.operator,'<=');assert.equal(gps.nilai_max,6);
+ const coverage=r.body.data.parameter.find(item=>item.kode==='RNI_CAKUPAN_AKURASI_GPS_PERSEN');assert.equal(coverage.operator,'>=');assert.equal(coverage.nilai_min,90);
+ assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
+ assert.equal((await request('/paket/3/uji-coba-kriteria/8','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/8','foreign-reviewer')).status,404);
 });

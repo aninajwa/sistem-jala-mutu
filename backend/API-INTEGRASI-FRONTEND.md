@@ -253,3 +253,21 @@ Konfigurasi ini berstatus `DRAFT`, tidak mengandungi ambang penerimaan nilai len
 `GET /api/paket/:id/uji-coba-kriteria/:jenisSurveiId` juga menerima `jenisSurveiId` Jembatan dan mengembalikan enam aturan operasi daripada KAK 2026: frekuensi survei satu kali setahun, batas panjang prioritas 6 meter, interval maksimum Pemeriksaan Detail 5 tahun, pemicu NK 3, pemicu umur umum 40 tahun, dan pemicu umur bangunan atas baja 30 tahun.
 
 Angka tersebut ialah aturan pemilihan atau frekuensi pemeriksaan yang bergantung pada konteks jembatan. Semua konfigurasi berstatus `DRAFT`, tidak menjadi keputusan lulus otomatis, dan tidak menggantikan verifikasi INVI-J atau keputusan manual PIC.
+
+## Tahap 2G Kriteria operasi Lereng
+
+Endpoint kriteria yang sama menerima `jenisSurveiId` Lereng dan mengembalikan empat aturan daripada KAK 2026: survei satu kali setahun, periode Februari hingga Oktober, inventarisasi umumnya untuk lereng lebih dari 5 meter dengan pengecualian gejala keruntuhan, dan empat kategori tingkat risiko.
+
+Konfigurasi ini berstatus `DRAFT`. Hasil penilaian risiko tetap berasal daripada In-Slope dan keputusan penerimaan kekal melalui audit serta semakan manual PIC.
+
+## Tahap 2H Kriteria operasi Drainase
+
+Endpoint kriteria menerima `jenisSurveiId` Drainase dan mengembalikan tiga aturan KAK 2026: inspeksi satu kali setahun, periode Februari hingga Mei, dan lima kategori kondisi. Hasil sebenar kekal berasal daripada InDrain serta melalui audit manual.
+
+## Tahap 2I Kriteria operasi Lalu Lintas
+
+Konfigurasi Lalu Lintas memuat durasi 3 x 24 jam bagi LHRT di bawah 5000, 7 x 24 jam bagi LHRT di atas 5000, pengecualian survei konvensional selepas pemantauan AI 365 hari, dan spesifikasi minimum kamera, tripod, serta resolusi rekaman. KAK belum menetapkan metode bagi LHRT tepat 5000, maka kes itu tidak diputuskan secara automatik.
+
+## Tahap 2J Kriteria operasi RNI
+
+Konfigurasi RNI memuat interval umum pemutakhiran lima tahun, ketelitian jarak 0.1 persen, ketelitian GPS 6 meter pada minimum 90 persen waktu, interval koordinat maksimum 10 meter, toleransi selisih jarak 30 meter per ruas, dan ketelitian dimensi 0.1 meter. Semua aturan berstatus `DRAFT` dan tidak menggantikan pemeriksaan SMD/LRS atau keputusan manual PIC.
