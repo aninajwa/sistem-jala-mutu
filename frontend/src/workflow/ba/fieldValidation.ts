@@ -20,10 +20,14 @@ export function baFieldRequiredForDraft(field:TemplateField,all:TemplateField[])
 export function baFieldErrors(kind:BaKind,survey:SurveyType,fields:Record<string,string>){
  const template=BA_TEMPLATES.find(item=>item.id===kind);if(!template)return ['Format BA tidak tersedia.'];
  const applicable=fieldsFor(template,survey);
- return applicable.flatMap(field=>{
+ return [...(kind==='penerimaan'&&!/^(19|20|21|22)\d{2}$/.test(fields.__year??'')?['Tahun pelaksanaan BA belum dilengkapi dengan empat digit.']:[]),...applicable.flatMap(field=>{
   const value=fields[field.id]?.trim()??'',required=baFieldRequiredForDraft(field,applicable);
-  if(required&&(!baValuePresent(value)||value===field.placeholder))return [`Isian ${field.label} belum dilengkapi.`];
+  if(required&&!baFieldComplete(field,value))return [`Isian ${field.label} belum dilengkapi.`];
   if(value&&field.choices&&!field.choices.includes(value))return [`Pilihan ${field.label} tidak sesuai formulir.`];
   return [];
- });
+ })];
+}
+
+export function baFieldComplete(field:TemplateField,value:string|undefined){
+ return baValuePresent(value)&&value?.trim()!==field.placeholder&&(!field.choices||field.choices.includes(value?.trim()??''));
 }

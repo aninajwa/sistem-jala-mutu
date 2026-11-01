@@ -1,3 +1,4 @@
+import {stagedSurveyReviewMode,stagedFallbackReviewReady} from '../stagedReviewPolicy';
 import type {OperationalWorkflowState,SurveyType} from '../model';
 import {sourceInspectionStatus} from './sourceChecklistRepository';
 import {sourceDocument,sourceDocumentKey,documentAnswersComplete} from '../sourceDocumentModel';
@@ -11,7 +12,7 @@ export function workflowFormIssues(state:OperationalWorkflowState):Reconciliatio
  for(const type of state.project.surveyTypes){
   if(type==='Lendutan'&&(state.acceptance.finalAcceptance||state.audits.every(audit=>audit.status==='Lulus')))check(state.project.id,type,'acceptance','Tahap 6','formulir penerimaan');
   if(state.calibrationChecklist[type])check(state.project.id,type,'calibration','Tahap 1','isian kalibrasi');
-  if(state.submission.validationStatus==='VALID')check(state.project.id,type,'staged','Tahap 4','pemeriksaan bertahap');
+  if(state.submission.validationStatus==='VALID'){if(stagedSurveyReviewMode(type,state.productionTests.PCI.pciManual!==false)==='generic-review'){if(!stagedFallbackReviewReady(state,type))issues.push({stage:'Tahap 4',message:`${type}: pemeriksaan bertahap Balai belum tercatat sesuai sumber yang tersedia.`});}else check(state.project.id,type,'staged','Tahap 4','pemeriksaan bertahap');}
   for(const audit of state.audits)if(audit.status==='Lulus')check(`${state.project.id}::audit-${audit.level}`,type,'audit','Tahap 5',`Audit Tingkat ${audit.level}`);
  }
  const periods={...state.cycleHistory,[String(state.activeCyclePeriod??1)]:state.cycle};

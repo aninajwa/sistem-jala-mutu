@@ -1,3 +1,5 @@
+import {StageChecklistIndex} from './Checkpoint09Package';
+import './checkpoint09.css';
 import {StageActionContext} from './StageActionContext';
 import type { ComponentType } from "react";
 import "./workflow.css";
@@ -65,6 +67,7 @@ export function OperationalWorkflowWorkspace(
   return (
     <div className="wf" data-testid="operational-workflow-workspace">
       <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate}/>
+      <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection}/>
       <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />
     </div>
   );

@@ -16,6 +16,7 @@ import { useCorrectionSelection } from "./useCorrectionSelection";
 
 import { AuditReadOnlySummary } from "../AuditReadOnlySummary";
 import { auditSampleIntegrity } from "../auditSampleIntegrity";
+import { resolveAuditRejectionRecords, hasOpenAuditRejectionCase } from "../auditRejectionCases";
 import { buildAuditSamplePlan } from "../auditSamplePlan";
 import { EvidenceAttachment } from "../EvidenceAttachment";
 import { AUDIT_REVIEW_CHECKS, fieldReadiness } from "../flowRules";
@@ -301,35 +302,42 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       return;
     }
     const rejectionSource = `Penolakan audit tingkat ${auditLevel}`;
-    const existingCase =
-      patch.status === "Ditolak"
-        ? state.corrections.find(
-            (item) =>
-              item.source === rejectionSource && item.surveyType === rejectionType && item.status !== "Ditutup",
-          )
-        : undefined;
-    let rejectionCase: CorrectionCase | undefined;
-    if (patch.status === "Ditolak" && !existingCase) {
-      rejectionCase = defaultCase(state);
-      rejectionCase.source = rejectionSource;
-      rejectionCase.blockedStage = `Audit tingkat ${auditLevel}`;
-      rejectionCase.returnStage = `Audit tingkat ${auditLevel}`;
-      rejectionCase.owner =
-        auditLevel === 3
+    const rejectionResolution = resolveAuditRejectionRecords({
+      units: audit.sampleUnits ?? [],
+      surveyType: rejectionType as typeof scopedTypes[number],
+      records: state.dailyRecords,
+    });
+    if (patch.status === "Ditolak" && rejectionResolution.error) {
+      setNotice(rejectionResolution.error);
+      return;
+    }
+    const recordIds = patch.status === "Ditolak" ? rejectionResolution.recordIds : [];
+    const rejectionCases: CorrectionCase[] = [];
+    if (patch.status === "Ditolak") {
+      for (const recordId of recordIds) {
+        if (hasOpenAuditRejectionCase({
+          cases: state.corrections,
+          source: rejectionSource,
+          surveyType: rejectionType as typeof scopedTypes[number],
+          recordId,
+        })) continue;
+        const rejectionCase = defaultCase(state);
+        rejectionCase.source = rejectionSource;
+        rejectionCase.blockedStage = `Audit tingkat ${auditLevel}`;
+        rejectionCase.returnStage = `Audit tingkat ${auditLevel}`;
+        rejectionCase.owner = auditLevel === 3
           ? "PIC Balai / Pengguna Jasa"
           : "Penyedia Jasa / Ketua Tim";
-      rejectionCase.surveyType = rejectionType as typeof scopedTypes[number];
-      rejectionCase.originalValue =
-        state.dailyRecords.find(
-          (record) => record.surveyType === rejectionCase?.surveyType,
-        )?.rawValue || "Belum ada nilai raw tertaut";
-      rejectionCase.rejectionReason = (
-        draft[`audit-rejection-${auditLevel}`] ?? ""
-      ).trim();
-      rejectionCase.linkedRecordId = state.dailyRecords.find(
-        (record) => record.surveyType === rejectionCase?.surveyType,
-      )?.id;
-      rejectionCase.severity = auditLevel === 3 ? "Kritis" : "Mayor";
+        rejectionCase.surveyType = rejectionType as typeof scopedTypes[number];
+        const auditRecord = state.dailyRecords.find(record =>
+          record.id === recordId && record.surveyType === rejectionType,
+        );
+        rejectionCase.originalValue = auditRecord?.rawValue || "Belum ada nilai raw tertaut";
+        rejectionCase.rejectionReason = (draft[`audit-rejection-${auditLevel}`] ?? "").trim();
+        rejectionCase.linkedRecordId = auditRecord?.id;
+        rejectionCase.severity = auditLevel === 3 ? "Kritis" : "Mayor";
+        rejectionCases.push(rejectionCase);
+      }
     }
     if (patch.status === "Ditolak") patch = { ...patch, decisionNote: (draft[`audit-rejection-${auditLevel}`] ?? "").trim() };
     const invalidates =
@@ -353,9 +361,9 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             ? x.status === "Belum Dimulai" ? x : { ...x, requiresReview: true, reviewReason: `Audit tingkat ${auditLevel} berubah; periksa kembali keterkaitan keputusan.` }
             : x,
       ) as OperationalWorkflowState["audits"],
-      corrections: rejectionCase
-        ? [rejectionCase, ...s.corrections]
-        : existingCase ? s.corrections.map(item => item.id === existingCase.id ? { ...item, rejectionReason: patch.decisionNote ?? item.rejectionReason } : item) : s.corrections,
+      corrections: rejectionCases.length
+        ? [...rejectionCases, ...s.corrections]
+        : s.corrections,
       acceptance:
         invalidates || patch.status === "Ditolak"
           ? {
@@ -368,8 +376,21 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             }
           : s.acceptance,
     }));
-    if (rejectionCase) setCaseId(rejectionCase.id);
-    else if (existingCase) setCaseId(existingCase.id);
+    if (patch.status === "Ditolak") {
+      if (rejectionCases.length) {
+        setCaseId(rejectionCases[0].id);
+      } else {
+        const existingCase = state.corrections.find(item =>
+          recordIds.some(recordId =>
+            item.source === rejectionSource &&
+            item.surveyType === rejectionType &&
+            item.status !== "Ditutup" &&
+            item.linkedRecordId === recordId,
+          ),
+        );
+        if (existingCase) setCaseId(existingCase.id);
+      }
+    }
   };
   const levelLabels = ([1, 2, 3] as const).map(
     (level) => AUDIT_LEVEL_PRESENTATION[level].label,
@@ -502,6 +523,8 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           {baAccess(
             "audit",
             `Lihat / susun dokumen audit tingkat ${auditLevel}`,
+            0,
+            {auditLevel},
           )}
           <Badge
             tone={

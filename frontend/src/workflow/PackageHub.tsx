@@ -1,3 +1,6 @@
+import {PackageStageNavigator} from './Checkpoint09Package';
+import {packageStageStatus} from './Checkpoint09Package';
+import './checkpoint09.css';
 import {useWorkflowReconciliation} from '../hooks/useWorkflowReconciliation';
 import {workflowFormIssues} from './repository/workflowReconciliation';
 
@@ -43,7 +46,7 @@ export { packageMenuLabel } from './roleNavigation';
 function nextAction(state: OperationalWorkflowState) {
   const pendingCorrections=state.corrections.filter(item=>item.status!=='Ditutup');
   if(state.role==='Penyedia Jasa / Ketua Tim'&&pendingCorrections.length){return {label:`${pendingCorrections.length} temuan perlu tindak lanjut`,detail:'Buka daftar temuan, lengkapi tindakan dan bukti, lalu ajukan pemeriksaan ulang. Data survei sumber tidak diubah di sini.',button:'Tindak lanjuti temuan',selection:'/actions:Koreksi berbukti',passive:false};}
-  const issues=workflowFormIssues(state);if(issues.length){const target=PACKAGE_WORKFLOW_ITEMS.find(item=>item.code===issues[0].stage);const canEdit=state.role==='Penyedia Jasa / Ketua Tim';return {label:canEdit?'Lengkapi formulir yang tertahan':'Formulir belum lengkap',detail:canEdit?issues[0].message:'Persyaratan yang belum dilengkapi dapat dipantau di tahap terkait. Isian milik petugas lain tidak dapat Anda ubah.',button:canEdit?'Buka pekerjaan':'Lihat status',selection:target?.selection??'/packages:Ringkasan Paket',passive:!canEdit};}
+  const issues=workflowFormIssues(state);if(issues.length){const target=PACKAGE_WORKFLOW_ITEMS.find(item=>item.code===issues[0].stage);const issue=issues[0];const level=issue.message.match(/Audit Tingkat ([123])/i)?.[1];const actor=level?(['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat'][Number(level)-1]):issue.stage==='Tahap 6'||/V&V Bersama|bertahap Balai/.test(issue.message)?'PIC Balai / Pengguna Jasa':'Penyedia Jasa / Ketua Tim';const canEdit=state.role===actor;return {label:canEdit?'Lengkapi formulir yang tertahan':'Formulir belum lengkap',detail:canEdit?issues[0].message:'Persyaratan yang belum dilengkapi dapat dipantau di tahap terkait. Isian milik petugas lain tidak dapat Anda ubah.',button:canEdit?'Buka pekerjaan':'Lihat status',selection:target?.selection??'/packages:Ringkasan Paket',passive:!canEdit};}
 
   const stage = derivePackageStage(state);
   const role = state.role;
@@ -265,15 +268,13 @@ export function PackagesPage({
    HEADER DETAIL PAKET
    ===================================================== */
 
-export function PackageContextHeader({state,selection,onBack,onNavigate}:{state:OperationalWorkflowState;selection?:string;onBack:()=>void;onNavigate:(selection:string)=>void}){
- const stage=derivePackageStage(state);const formIssues=useWorkflowReconciliation(state);
- return <section className="package-context compact-context">
- <div className="package-context-top"><button className="wf-button" onClick={onBack}><ArrowLeft size={14}/> Daftar paket</button><span className="wf-status info">{formIssues.length?'Perlu pemeriksaan formulir':packageStatus(state)}</span><span className="wf-note">{formIssues.length?'Kelengkapan formulir perlu ditinjau':`Menunggu ${packageWaitingFor(state)}`}</span></div>
- {formIssues.length>0&&<details className="wf-note"><summary>{formIssues.length} kelengkapan formulir perlu ditinjau · keputusan lama tetap diarsipkan</summary><ul>{formIssues.map((issue,index)=><li key={index}>{issue.stage} · {issue.message}</li>)}</ul></details>}
- <div className="package-identity"><div><div className="eyebrow">{state.project.contractNumber||state.project.id}</div><h1>{state.project.packageName}</h1><p>{state.project.balai} · {state.project.semester} · {state.project.surveyStartDate||'Jadwal belum diisi'} — {state.project.surveyEndDate||'Belum diisi'}</p></div><div className="package-context-actions"><button className="wf-button" onClick={()=>onNavigate('/packages:Ringkasan Paket')}>Ringkasan</button><button className="wf-button" onClick={()=>onNavigate('/documents:BA & dokumen workflow')}><FileText size={14}/> Dokumen & BA</button><button className="wf-button" onClick={()=>onNavigate('/actions:Koreksi berbukti')}><ShieldCheck size={14}/> Tindak lanjut</button></div></div>
- <details className="package-identity-detail"><summary>Identitas kontrak dan lingkup</summary><div className="package-context-grid">{[['Penyedia',state.project.contractor],['Satker',state.project.satker],['PPK',state.project.ppk],['Ruas',state.project.routes.join(', ')],['Jenis survei',state.project.surveyTypes.join(', ')]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value||'Belum diisi'}</strong></div>)}</div></details>
- <label className="package-stage-picker">Tahap yang dibuka<select aria-label="Tahap paket yang dibuka" value={PACKAGE_WORKFLOW_ITEMS.some(item=>item.selection===selection)?selection:''} onChange={event=>{if(event.target.value)onNavigate(event.target.value);}}><option value="">{selection==='/packages:Ringkasan Paket'?'Ringkasan paket':'Dokumen dan kegiatan pendukung'}</option>{PACKAGE_WORKFLOW_ITEMS.map(item=><option key={item.code} value={item.selection}>{item.code} · {item.shortLabel} · {(formIssues.some(issue=>issue.stage===item.code)||item.code==='Tahap 6'&&formIssues.length>0)?'Perlu pemeriksaan formulir':getStageDisplayStatus(state,item.code)==='completed'?'Selesai':stage===item.code?'Dalam proses':'Lihat tahap'}</option>)}</select></label>
- </section>;
+export function PackageContextHeader({state,selection,onBack,onNavigate,onCorrections}:{state:OperationalWorkflowState;selection?:string;onBack:()=>void;onNavigate:(selection:string)=>void;onCorrections:()=>void}){
+ const issues=useWorkflowReconciliation(state);
+ return <header className="package-context ui09-package-header">
+  <div className="ui09-package-title"><button type="button" className="wf-button" onClick={onBack}><ArrowLeft size={15}/> Daftar paket</button><div><span className="ui09-meta">{state.project.contractNumber||state.project.id}</span><h1>{state.project.packageName}</h1></div><span className="wf-status info">{issues.length?'Perlu pemeriksaan':packageStatus(state)}</span></div>
+  <div className="ui09-package-tools"><details className="ui09-package-info"><summary>Identitas & status paket</summary><div className="package-context-grid">{[['Balai',state.project.balai],['Penyedia',state.project.contractor],['Satker',state.project.satker],['PPK',state.project.ppk],['Ruas',state.project.routes.join(', ')],['Jenis survei',state.project.surveyTypes.join(', ')],['Jadwal',`${state.project.surveyStartDate||'Belum diisi'} — ${state.project.surveyEndDate||'Belum diisi'}`]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value||'Belum diisi'}</strong></div>)}</div>{issues.length>0&&<details className="ui09-source-issues"><summary>{issues.length} kelengkapan perlu ditinjau</summary><ul>{issues.map((issue,index)=><li key={index}>{issue.stage} · {issue.message}</li>)}</ul></details>}</details><div className="package-context-actions"><button type="button" className="wf-button" aria-current={selection==='/packages:Ringkasan Paket'?'page':undefined} onClick={()=>onNavigate('/packages:Ringkasan Paket')}>Ringkasan</button><button type="button" className="wf-button" onClick={()=>onNavigate('/documents:Semua')}><FileText size={14}/> Dokumen & BA</button><button type="button" className="wf-button" onClick={onCorrections}><ShieldCheck size={14}/> Tindak lanjut</button></div></div>
+  <PackageStageNavigator state={state} selection={selection} onNavigate={onNavigate}/>
+ </header>;
 }
 
 /* =====================================================
@@ -283,9 +284,11 @@ export function PackageContextHeader({state,selection,onBack,onNavigate}:{state:
 export function PackageOverview({
   state,
   onNavigate,
+  onCorrections,
 }: {
   state: OperationalWorkflowState;
   onNavigate: (selection: string) => void;
+  onCorrections: () => void;
 }) {
   const stage = derivePackageStage(state);
   const sourceIssues=useWorkflowReconciliation(state);
@@ -315,7 +318,7 @@ export function PackageOverview({
           className={`wf-button ${
             action.passive ? '' : 'primary'
           }`}
-          onClick={() => onNavigate(action.selection)}
+          onClick={() => action.selection==='/actions:Koreksi berbukti'?onCorrections():onNavigate(action.selection)}
         >
           {action.button}
           <ArrowRight size={13} />
@@ -366,87 +369,6 @@ export function PackageOverview({
         </div>
       </div>
 
-      <section className="wf-panel">
-        <div className="wf-panel-head">
-          <h3>
-            <ClipboardList size={14} />
-            Progres QA/QC Paket
-          </h3>
-        </div>
-
-        <div className="wf-body">
-          <div className="package-flow-list">
-            {PACKAGE_WORKFLOW_ITEMS.map(item => {
-              const displayStatus =
-                getStageDisplayStatus(
-                  state,
-                  item.code,
-                );
-
-              const held=sourceIssues.some(issue=>issue.stage===item.code)||item.code==='Tahap 6'&&sourceIssues.length>0;
-              const current =
-                displayStatus === 'current';
-
-              const done =
-                displayStatus === 'completed'&&!held;
-
-              const upcoming =
-                displayStatus === 'upcoming';
-
-              return (
-                <button
-                  key={item.code}
-                  type="button"
-                  aria-label={`${item.label}. ${held?'Perlu pemeriksaan formulir':getStageDisplayLabel(displayStatus)}`}
-                  className={[
-                    'package-flow-row',
-                    current ? 'current' : '',
-                    done ? 'done' : '',
-                    upcoming ? 'upcoming' : '',
-                  ]
-                    .filter(Boolean)
-                    .join(' ')}
-                  onClick={() =>
-                    onNavigate(item.selection)
-                  }
-                >
-                  <div className="package-flow-icon">
-                    {done ? (
-                      <CheckCircle2 size={16} />
-                    ) : (
-                      <span>
-                        {item.code.replace('Tahap ', '')}
-                      </span>
-                    )}
-                  </div>
-
-                  <div className="package-flow-copy">
-                    <small>{item.code}</small>
-                    <strong>{item.label}</strong>
-
-                    <span>
-                      {held?'Perlu pemeriksaan formulir':current
-                        ? 'Posisi proses saat ini'
-                        : getStageDisplayLabel(
-                            displayStatus,
-                          )}
-                    </span>
-                  </div>
-
-                  <div className="package-flow-status">
-                    {held?'Perlu pemeriksaan':current
-                      ? 'Sedang berjalan'
-                      : done
-                        ? 'Tahap sebelumnya'
-                        : 'Belum aktif'}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
       {openFindings.length > 0 && (
         <section className="wf-panel">
           <div className="wf-panel-head">
@@ -484,11 +406,7 @@ export function PackageOverview({
                 <button
                   type="button"
                   className="wf-button"
-                  onClick={() =>
-                    onNavigate(
-                      '/actions:Koreksi berbukti',
-                    )
-                  }
+                  onClick={onCorrections}
                 >
                   Buka Tindakan Perbaikan
                 </button>

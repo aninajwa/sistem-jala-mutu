@@ -127,8 +127,10 @@ function App() {
 
   useEffect(() => {
     setMobileOpen(false);
-    setSearch('');
-    setActiveTab('Semua');
+    let documentSearch='';
+    if(location==='/documents'){try{documentSearch=JSON.parse(sessionStorage.getItem('jala-document-filters')??'{}').search??'';}catch{/* Optional list navigation context. */}}
+    setSearch(documentSearch);
+    setActiveTab(location==='/documents'?(new URLSearchParams(window.location.search).get('tab')||'Semua'):'Semua');
 
     const selected =
       normalizeWorkflowSelection(new URLSearchParams(
@@ -136,7 +138,7 @@ function App() {
       ).get('submodule') || '');
 
     setSelectedSubmodule(
-      selected.startsWith(`${location}:`)
+      selected.startsWith(`${location}:`) && !(location==='/documents'&&!workflowSubmodules.has(selected))
         ? selected
         : '',
     );
@@ -181,6 +183,12 @@ function App() {
   };
 
   const navigateSubmodule = (selection: string) => {
+    if (selection.startsWith('/documents:') && !workflowSubmodules.has(selection)) {
+      setSelectedSubmodule('');
+      setActiveTab(selection.split(':')[1] || 'Semua');
+      setLocation('/documents?tab='+encodeURIComponent(selection.split(':')[1] || 'Semua')+(isRoleTestMode()?'&testRoles=1':''));
+      return;
+    }
     const url = new URL(window.location.href);
 
     url.searchParams.set(
@@ -260,6 +268,7 @@ function App() {
   const openPackageBA = (
     id: string,
     kind: string,
+    context?: {survey?:string;period?:number;auditLevel?:number;returnTo?:string},
   ) => {
     if (!selectPackage(id)) {
       setNotice('Paket tidak ditemukan.');
@@ -272,13 +281,22 @@ function App() {
         JSON.stringify({
           packageId: id,
           kind,
-          period: 1,
+          period: context?.period ?? scopedPackages[id]?.activeCyclePeriod ?? 1,
+          survey: context?.survey,
+          auditLevel: context?.auditLevel,
         }),
       );
 
       localPersistence.setItem(
         'jala-ba-return-to',
-        '/packages:Ringkasan Paket',
+        context?.returnTo ??
+  (packageStore.activeRole === 'Penyedia Jasa / Ketua Tim'
+    ? '/documents:Tugas Dokumen'
+    : packageStore.activeRole === 'PIC Balai / Pengguna Jasa'
+      ? '/documents:Dokumen Paket'
+      : packageStore.activeRole === 'Direktorat / Pusat'
+        ? '/documents:Audit & Dokumen Pusat'
+        : '/documents:Monitoring Dokumen'),
       );
     } catch {
       // Preferensi navigasi lokal bersifat opsional.
@@ -393,7 +411,10 @@ function App() {
 
         <main className="main-area">
           <AppTopbar
-            isPackageWorkspace={isPackageWorkspace}
+  isPackageWorkspace={
+    isPackageWorkspace &&
+    selectedSubmodule !== "/documents:BA & dokumen workflow"
+  }
             packageName={
               activePackage?.project.packageName
             }
@@ -432,7 +453,7 @@ function App() {
               showJenis={location === '/'}
             />}
 
-            {selectedSubmodule ? (
+            {selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
               workflowSubmodules.has(
                 selectedSubmodule,
               ) ? (

@@ -1,3 +1,4 @@
+import {documentIdentityErrors} from './documentContext09';
 import {baFieldErrors} from './fieldValidation';
 import type {SurveyType} from '../model';
 import {documentSourceSnapshot} from './documentSourceSnapshot';
@@ -14,8 +15,17 @@ export function transitionDocument(state:OperationalWorkflowState,identity:BaIde
  return documentRepository.addVersion(identity,{actor:state.role,templateHash,status,fields:action==='submit'||action==='reopen'?fields:latest!.fields,sourceFingerprint:documentFingerprint(state,identity),sourceSnapshot:action==='submit'||action==='reopen'?documentSourceSnapshot(state,identity):latest?.sourceSnapshot,reviewNote:note.trim(),basedOnVersion:latest?.version});
 }
 export function saveDocumentDraft(state:OperationalWorkflowState,identity:BaIdentity,fields:Record<string,string>){
+ const errors=documentIdentityErrors(state,identity);if(errors.length)throw new Error(errors.join(' '));
  if(!documentActors(identity).authors.includes(state.role))throw new Error('Peran Anda hanya dapat membaca draft ini.');
  const latest=documentRepository.read(identity).versions.at(-1);
  if(latest?.status==='submitted-local'||latest?.status==='reviewed-local')throw new Error('Revisi ini terkunci. Buka revisi baru setelah pemeriksaan.');
  documentRepository.saveDraft(identity,fields);
+}
+
+/** Explicit immutable draft checkpoint; preview and download never change status or history. */
+export function saveDraftVersion(state:OperationalWorkflowState,identity:BaIdentity,fields:Record<string,string>,templateHash:string,expectedVersion:number){
+ const latest=documentRepository.read(identity).versions.at(-1);
+ if((latest?.version??0)!==expectedVersion)throw new Error('Dokumen berubah di tab lain. Muat ulang sebelum melanjutkan.');
+ saveDocumentDraft(state,identity,documentRepository.read(identity).draft);
+ return documentRepository.addVersion(identity,{actor:state.role,templateHash,status:'local-draft',fields,sourceFingerprint:documentFingerprint(state,identity),sourceSnapshot:documentSourceSnapshot(state,identity)});
 }

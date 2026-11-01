@@ -1,3 +1,4 @@
+import {correctionNextStep} from '../../../workflow/checkpoint09Corrections';
 import { AlertTriangle, CalendarClock, ClipboardCheck, FileText, ShieldCheck } from "lucide-react";
 import type { OperationalWorkflowState } from "../../../workflow/model";
 import { findOpenedCorrection } from "./CorrectionCaseHeader";
@@ -19,8 +20,8 @@ export default function CorrectionReadOnlyDetail({ workflow }: Props) {
     </section>
   );
   const evidencePresent = Boolean(item.evidence?.trim());
-  const total = [item.rootCause, item.actionType, item.evidence, item.owner, item.dueDate].filter(Boolean).length;
-  return <div className="corr-readonly-layout">
+  const total = [item.rootCause, item.actionType, item.evidence, item.owner].filter(Boolean).length;
+  return <div className="corr-readonly-layout"><section className="corr-readonly-panel"><strong>Langkah berikutnya · {correctionNextStep(item).actor}</strong><p>{correctionNextStep(item).label}</p><dl><DataPoint label="Referensi pelaksanaan" value={item.executionReference}/><DataPoint label="Referensi pemeriksaan ulang" value={item.retestReference}/><DataPoint label="Alasan uji ulang gagal" value={item.retestFailureReason}/></dl></section>
     {isPusat ? <>
       <section className="corr-readonly-panel">
         <div className="corr-readonly-heading"><ShieldCheck size={19} /><div><h3>Pengawasan tindak lanjut Balai</h3><p>Ringkasan kasus untuk penelaahan tingkat pusat. Keputusan Audit Tingkat 3 tetap melalui Tahap 5.</p></div></div>
@@ -54,7 +55,7 @@ export default function CorrectionReadOnlyDetail({ workflow }: Props) {
         <div className="corr-readonly-heading"><CalendarClock size={19}/><div><h3>Monitoring administrasi kasus</h3><p>Pantau tanggung jawab, tenggat, dan kelengkapan pencatatan tanpa tindakan teknis.</p></div></div>
         <div className="corr-readonly-stat-row">
           <div><small>Status kasus</small><strong>{item.status}</strong></div>
-          <div><small>Data terisi</small><strong>{total} dari 5 indikator</strong></div>
+          <div><small>Data terisi</small><strong>{total} dari 4 indikator</strong></div>
           <div><small>Referensi bukti</small><strong>{evidencePresent ? "Tercatat" : "Belum tercatat"}</strong></div>
         </div>
         <dl className="corr-readonly-grid">

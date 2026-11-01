@@ -1,4 +1,4 @@
-﻿import type { LucideIcon } from 'lucide-react';
+import type { LucideIcon } from 'lucide-react';
 import {
   BarChart3,
   Bell,
@@ -167,16 +167,16 @@ export function buildRoleNavigation(
         ],
       },
       packageNav,
-     {
-  path: '/actions',
-  label: 'Tindakan Perbaikan',
-  icon: Wrench,
-  children: [
-    { label: 'Tugas Saya', href: '/actions', tab: 'Tugas Saya' },
-    { label: 'Menunggu Verifikasi', href: '/actions', tab: 'Menunggu Verifikasi' },
-    { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
-  ],
-},
+      {
+        path: '/actions',
+        label: 'Tindakan Perbaikan',
+        icon: Wrench,
+        children: [
+          { label: 'Tugas Saya', href: '/actions', tab: 'Tugas Saya' },
+          { label: 'Menunggu Verifikasi', href: '/actions', tab: 'Menunggu Verifikasi' },
+          { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
+        ],
+      },
       {
         path: '/reports',
         label: 'Dashboard & Laporan',
@@ -191,10 +191,9 @@ export function buildRoleNavigation(
         label: 'Dokumen Mutu',
         icon: BookOpen,
         children: [
-          { label: 'Kalibrasi', href: '/documents', tab: 'Kalibrasi' },
-          { label: 'Validasi', href: '/documents', tab: 'Validasi' },
-          { label: 'Verifikasi berkala', href: '/documents', tab: 'Verifikasi berkala' },
-          { label: 'Berita acara', href: '/documents', tab: 'Berita acara' },
+          { label: 'Tugas Dokumen', href: '/documents', tab: 'Tugas Dokumen' },
+          { label: 'Siapkan BA', href: '/documents', tab: 'Siapkan BA' },
+          { label: 'Riwayat Dokumen', href: '/documents', tab: 'Riwayat Dokumen' },
         ],
       },
       {
@@ -234,16 +233,16 @@ export function buildRoleNavigation(
         ],
       },
       {
-  path: '/actions',
-  label: 'Tindakan Perbaikan',
-  icon: Wrench,
-  children: [
-    { label: 'Antrian Verifikasi', href: '/actions', tab: 'Antrian Verifikasi' },
-    { label: 'Tindak Lanjut Paket', href: '/actions', tab: 'Tindak Lanjut Paket' },
-    { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
-    { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
-  ],
-},
+        path: '/actions',
+        label: 'Tindakan Perbaikan',
+        icon: Wrench,
+        children: [
+          { label: 'Antrian Verifikasi', href: '/actions', tab: 'Antrian Verifikasi' },
+           { label: 'Tindak Lanjut Paket', href: '/actions', tab: 'Tindak Lanjut Paket' },
+           { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
+           { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
+        ],
+      },
       {
         path: '/compliance',
         label: 'Analisis & Kepatuhan',
@@ -268,10 +267,9 @@ export function buildRoleNavigation(
         label: 'Dokumen Mutu',
         icon: BookOpen,
         children: [
-          { label: 'Kalibrasi', href: '/documents', tab: 'Kalibrasi' },
-          { label: 'Validasi', href: '/documents', tab: 'Validasi' },
-          { label: 'Verifikasi berkala', href: '/documents', tab: 'Verifikasi berkala' },
-          { label: 'Berita acara', href: '/documents', tab: 'Berita acara' },
+          { label: 'Antrian Pemeriksaan', href: '/documents', tab: 'Antrian Pemeriksaan' },
+          { label: 'Dokumen Paket', href: '/documents', tab: 'Dokumen Paket' },
+          { label: 'Riwayat Pemeriksaan', href: '/documents', tab: 'Riwayat Pemeriksaan' },
         ],
       },
       {
@@ -311,16 +309,16 @@ export function buildRoleNavigation(
         ],
       },
       {
-  path: '/actions',
-  label: 'Tindakan Perbaikan',
-  icon: Wrench,
-  children: [
-    { label: 'Temuan Lintas Paket', href: '/actions', tab: 'Temuan Lintas Paket' },
-    { label: 'Audit Tingkat 3', href: '/actions', tab: 'Audit Tingkat 3' },
-    { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
-    { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
-  ],
-},
+        path: '/actions',
+        label: 'Tindakan Perbaikan',
+        icon: Wrench,
+        children: [
+          { label: 'Temuan Lintas Paket', href: '/actions', tab: 'Temuan Lintas Paket' },
+           { label: 'Audit Tingkat 3', href: '/actions', tab: 'Audit Tingkat 3' },
+           { label: 'Verifikasi Ulang', href: '/actions', tab: 'Verifikasi Ulang' },
+           { label: 'Riwayat', href: '/actions', tab: 'Riwayat' },
+        ],
+      },
       {
         path: '/compliance',
         label: 'Analisis & Kepatuhan',
@@ -345,8 +343,9 @@ export function buildRoleNavigation(
         label: 'Dokumen Mutu',
         icon: BookOpen,
         children: [
-          { label: 'Berita acara', href: '/documents', tab: 'Berita acara' },
-          { label: 'Verifikasi berkala', href: '/documents', tab: 'Verifikasi berkala' },
+          { label: 'Audit & Dokumen Pusat', href: '/documents', tab: 'Audit & Dokumen Pusat' },
+          { label: 'Monitoring Lintas Balai', href: '/documents', tab: 'Monitoring Lintas Balai' },
+          { label: 'Riwayat Audit', href: '/documents', tab: 'Riwayat Audit' },
         ],
       },
       {
@@ -393,15 +392,15 @@ export function buildRoleNavigation(
       ],
     },
     {
-  path: '/actions',
-  label: 'Tindakan Perbaikan',
-  icon: Wrench,
-  children: [
-    { label: 'Monitoring Kasus', href: '/actions', tab: 'Monitoring Kasus' },
-    { label: 'Notifikasi & SLA', href: '/actions', tab: 'Notifikasi & SLA' },
-    { label: 'Data Referensi', href: '/actions', tab: 'Data Referensi' },
-  ],
-},
+      path: '/actions',
+      label: 'Tindakan Perbaikan',
+      icon: Wrench,
+      children: [
+        { label: 'Monitoring Kasus', href: '/actions', tab: 'Monitoring Kasus' },
+        { label: 'Notifikasi & SLA', href: '/actions', tab: 'Notifikasi & SLA' },
+        { label: 'Data Referensi', href: '/actions', tab: 'Data Referensi' },
+      ],
+    },
     {
       path: '/compliance',
       label: 'Analisis & Kepatuhan',
@@ -421,15 +420,14 @@ export function buildRoleNavigation(
       ],
     },
     {
-      path: '/documents',
-      label: 'Dokumen Mutu',
-      icon: BookOpen,
-      children: [
-        { label: 'Kalibrasi', href: '/documents', tab: 'Kalibrasi' },
-        { label: 'Validasi', href: '/documents', tab: 'Validasi' },
-        { label: 'Berita acara', href: '/documents', tab: 'Berita acara' },
-      ],
-    },
+        path: '/documents',
+        label: 'Dokumen Mutu',
+        icon: BookOpen,
+        children: [
+          { label: 'Monitoring Dokumen', href: '/documents', tab: 'Monitoring Dokumen' },
+          { label: 'Arsip & Lampiran', href: '/documents', tab: 'Arsip & Lampiran' },
+        ],
+      },
     {
       path: '/notifications',
       label: 'Notifikasi',

@@ -1,161 +1,29 @@
+.corr-sub-charts{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,340px),1fr));gap:14px;align-items:start;margin:14px 0 18px}
+.corr-sub-chart-card{background:#fff;border:1px solid #d7e4ee;border-radius:12px;padding:16px;min-width:0;box-shadow:0 2px 8px #132f4706}
+.corr-sub-chart-card h4{margin:0 0 12px;color:#1b3e60;font-size:14px;font-weight:700}
+.corr-sub-chart-empty{min-height:74px;display:grid;place-items:center;color:#64748b;font-size:13px;margin:0;text-align:center}
+.corr-chart-content{display:grid;grid-template-columns:140px minmax(0,1fr);gap:16px;align-items:center;min-height:152px}
+.corr-donut{width:132px;height:132px;position:relative;display:grid;place-items:center;margin:auto}
+.corr-donut-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible}.corr-donut-slice{cursor:pointer;transition:stroke-width .15s,opacity .15s}.corr-donut-slice:hover,.corr-donut-slice:focus-visible{stroke-width:31;outline:none;filter:brightness(.95)}.corr-donut-slice:focus-visible{filter:drop-shadow(0 0 3px #2563eb)}
+.corr-donut-center{position:relative;z-index:1;text-align:center;display:grid;gap:1px}
+.corr-donut-center strong{font-size:23px;color:#14385b}.corr-donut-center span{font-size:11px;color:#60758a}
+.corr-chart-legend{display:grid;gap:4px}.corr-chart-choice,.corr-chart-bar-row{appearance:none;border:1px solid transparent;background:transparent;border-radius:7px;font:inherit;color:#30475d;cursor:pointer;text-align:left}
+.corr-chart-choice{display:grid;grid-template-columns:9px minmax(0,1fr) auto;align-items:center;gap:9px;width:100%;padding:6px;font-size:12px}.corr-chart-choice i{width:9px;height:9px;border-radius:50%}.corr-chart-choice span{overflow-wrap:anywhere}
+.corr-chart-choice:hover,.corr-chart-bar-row:hover{background:#f1f7fc}.corr-chart-choice.is-selected,.corr-chart-bar-row.is-selected{border-color:#a7c8e8;background:#eef6ff}
+.corr-chart-bars{display:grid;gap:6px;align-content:center;min-height:120px}.corr-chart-bar-row{width:100%;display:grid;grid-template-columns:minmax(100px,34%) minmax(0,1fr) 22px;gap:10px;align-items:center;padding:7px 5px;font-size:12px}
+.corr-chart-bar-label{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}.corr-chart-bar-track{height:9px;background:#e9eff6;border-radius:100px;overflow:hidden}.corr-chart-bar-track i{display:block;height:100%;border-radius:100px}.corr-chart-bar-row strong{text-align:right}
+.corr-chart-selection{margin-top:12px;padding-top:9px;border-top:1px solid #edf1f5;color:#61788b;font-size:11px;line-height:1.5;min-height:27px}
+@media(max-width:620px){.corr-chart-content{grid-template-columns:1fr}.corr-chart-bar-row{grid-template-columns:minmax(80px,37%) minmax(0,1fr) 22px}}
 
-.corr-sub-charts {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 16px;
-  margin: 16px 0;
-}
-
-.corr-sub-chart-card {
-  min-width: 0;
-  padding: 20px;
-  border: 1px solid #e2e8f0;
-  border-radius: 14px;
-  background: #fff;
-}
-
-.corr-sub-chart-card h4 {
-  margin: 0 0 18px;
-  color: #172b4d;
-  font-size: 14px;
-  font-weight: 650;
-}
-
-.corr-chart-content {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 24px;
-  min-height: 170px;
-}
-
-.corr-donut {
-  display: grid;
-  flex: 0 0 144px;
-  width: 144px;
-  height: 144px;
-  place-items: center;
-  border-radius: 50%;
-}
-
-.corr-donut-center {
-  display: flex;
-  width: 88px;
-  height: 88px;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  border-radius: 50%;
-  background: #fff;
-}
-
-.corr-donut-center strong {
-  color: #172b4d;
-  font-size: 25px;
-}
-
-.corr-donut-center span {
-  color: #64748b;
-  font-size: 11px;
-}
-
-.corr-chart-legend {
-  display: grid;
-  flex: 1;
-  gap: 12px;
-  min-width: 0;
-}
-
-.corr-legend-item {
-  display: grid;
-  grid-template-columns: 9px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 8px;
-  color: #475569;
-  font-size: 12px;
-}
-
-.corr-legend-item strong {
-  color: #172b4d;
-  font-size: 12px;
-}
-
-.corr-legend-dot {
-  width: 9px;
-  height: 9px;
-  border-radius: 3px;
-}
-
-.corr-chart-bars {
-  display: grid;
-  gap: 17px;
-  padding: 8px 0;
-}
-
-.corr-chart-bar-row {
-  display: grid;
-  grid-template-columns: minmax(90px, 1fr) minmax(60px, 1.5fr) 24px;
-  align-items: center;
-  gap: 12px;
-}
-
-.corr-chart-bar-label {
-  overflow: hidden;
-  color: #475569;
-  font-size: 12px;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.corr-chart-bar-track {
-  height: 9px;
-  overflow: hidden;
-  border-radius: 99px;
-  background: #edf2f7;
-}
-
-.corr-chart-bar-track span {
-  display: block;
-  height: 100%;
-  min-width: 0;
-  border-radius: inherit;
-  background: #2563eb;
-  transition: width 180ms ease;
-}
-
-.corr-chart-bar-row strong {
-  color: #172b4d;
-  font-size: 12px;
-  text-align: right;
-}
-
-.corr-sub-chart-empty {
-  display: grid;
-  min-height: 130px;
-  place-items: center;
-  color: #64748b;
-  font-size: 13px;
-  text-align: center;
-}
-
-@media (max-width: 900px) {
-  .corr-sub-charts {
-    grid-template-columns: 1fr;
-  }
-}
-
-@media (max-width: 520px) {
-  .corr-chart-content {
-    flex-wrap: wrap;
-    gap: 18px;
-  }
-
-  .corr-chart-legend {
-    flex-basis: 100%;
-  }
-
-  .corr-chart-bar-row {
-    grid-template-columns: minmax(80px, 1fr) minmax(45px, 1fr) 22px;
-    gap: 8px;
-  }
-}
+/* Rincian muncul setelah klik, tanpa membuat grafik mengambil tempat berlebihan */
+.corr-chart-selection.has-selection{background:#f1f7fd;border:1px solid #cbdff2;border-radius:9px;padding:10px 12px;display:flex;align-items:center;flex-wrap:wrap;gap:8px;color:#1b3e60}
+.corr-selection-kicker{font-size:10px;text-transform:uppercase;letter-spacing:.04em;color:#64748b}
+.corr-chart-selection.has-selection strong{font-size:12px}
+.corr-chart-selection.has-selection span:not(.corr-selection-kicker){font-size:12px}
+.corr-chart-selection.has-selection button{margin-left:auto;border:1px solid #c4d8eb;background:white;border-radius:6px;padding:5px 9px;cursor:pointer;font-size:11px;color:#23547b}
+/* Riwayat Direktorat: cukup satu kartu padat, bukan panel selebar dashboard */
+.corr-sub-charts.corr-history-compact{display:block;max-width:680px}
+.corr-history-compact .corr-sub-chart-card{width:100%}
+.corr-history-compact .corr-chart-bars{min-height:0}
+.corr-history-compact .corr-chart-bar-row{grid-template-columns:minmax(110px,35%) minmax(0,1fr) 26px}
+@media(max-width:720px){.corr-sub-charts.corr-history-compact{max-width:100%}}

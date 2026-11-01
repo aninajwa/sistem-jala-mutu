@@ -274,6 +274,8 @@ export type CorrectionCase = {
   executionReference?: string;
   /** Referensi hasil pemeriksaan ulang oleh Pengguna Jasa pada tahap sumber. */
   retestReference?: string;
+  /** Alasan ketidaklulusan hasil uji ulang, ditulis oleh pemeriksa. */
+  retestFailureReason?: string;
   verification?: { surveyor: boolean; teamLeader: boolean; balai: boolean };
   reviewNote?: string;
   ruleScenario?: string;
@@ -1546,7 +1548,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
 }
 
 export function samplingRule(type: SurveyType, level: 1 | 2 | 3) {
-  if (type === 'Lendutan' && level === 2) return {label:'Sampling Pengguna Jasa · ketentuan sementara',rate:5,unit:'titik lendutan'};
+  if (type === 'Lendutan' && level === 2) return {label:'Sampling Pengguna Jasa · formulir Lendutan T31',rate:5,unit:'5% titik menurut formulir; KAK 11.10.5 maksimum 10%'};
   if (level === 1) return { label: 'Audit Penyedia Jasa', rate: 100, unit: 'seluruh data' };
   if (level === 3) return { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% data' };
   if (type === 'Jembatan' || type === 'Lereng' || type === 'Lendutan') {
