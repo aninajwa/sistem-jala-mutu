@@ -32,6 +32,7 @@ import type { WorkflowRole } from '../workflow/model';
 import { PACKAGE_WORKFLOW_ITEMS } from '../workflow/roleNavigation';
 import { ChecklistPanel } from '../workflow/WorkflowComponents';
 import { ServerCalibrationWorkspace } from './ServerCalibrationWorkspace';
+import { ServerStage2Workspace } from './ServerStage2Workspace';
 import {
   buildChecklistPayload,
   buildContractPatch,
@@ -56,6 +57,7 @@ import '../workflow/workflow.css';
 const OVERVIEW = '/packages:Ringkasan Paket';
 const PREPARATION = '/entry:Persiapan & SPMK';
 const CALIBRATION = '/documents:Kalibrasi & personel';
+const STAGE2 = '/entry:Validasi produksi';
 
 function display(value: unknown): string {
   return value === null || value === undefined || value === '' ? 'Belum diisi' : String(value);
@@ -514,7 +516,9 @@ export function ServerPackageWorkspace({
       : checkLoading ? 'Memuat checklist' : 'Checklist belum tersedia'
     : code === 'Tahap 1'
       ? 'Bacaan data server tersedia'
-      : 'Data tahap belum terhubung';
+      : code === 'Tahap 2'
+        ? 'Uji Coba menggunakan data server'
+        : 'Data tahap belum terhubung';
   const info: Array<[string, string]> = [
     ['Nomor kontrak', display(contract.nomor_kontrak)],
     ['Balai', balai],
@@ -571,7 +575,7 @@ export function ServerPackageWorkspace({
       <label className="package-stage-picker">Tahap yang dibuka<select aria-label="Tahap paket yang dibuka" value={stageItem ? selection : ''} onChange={event => { if (event.target.value) onNavigate(event.target.value); }}><option value="">{selection === OVERVIEW ? 'Ringkasan paket' : 'Dokumen dan kegiatan pendukung'}</option>{PACKAGE_WORKFLOW_ITEMS.map(item => <option key={item.code} value={item.selection}>{item.code} · {item.shortLabel}</option>)}</select></label>
     </section>
 
-    <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>
+    {selection !== STAGE2 && <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>}
     {contractMessage && <p role="status" className="wf-callout">{contractMessage}</p>}
 
     {selection === OVERVIEW ? <div className="package-overview">
@@ -757,7 +761,7 @@ export function ServerPackageWorkspace({
       packageId={packageId}
       role={role}
       preparationStatus={submission?.status || checklist?.pengisian.status}
-    /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
+    /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
   </div>;
 }

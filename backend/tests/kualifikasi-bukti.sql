@@ -4,7 +4,7 @@ do $$
 declare provider_auth uuid; provider_user integer; pid integer; team integer; person integer; qualification integer; balai_a integer; balai_b integer; template integer; org integer; team_b integer; doc integer; kind integer; path text; policy text; actual boolean; r record; shared boolean; expected boolean;
 begin
  select u.pengguna_id,u.auth_user_id into provider_user,provider_auth from public.pengguna u join public.pengguna_peran pp using(pengguna_id) join public.peran pr using(peran_id) where pr.nama='penyedia_jasa' and not coalesce(u.terkunci,false) limit 1;
- select q.kualifikasi_id,q.personel_id,a.tim_id,t.paket_id,p.balai_id,p.penyedia_id,c.template_id into qualification,person,team,pid,balai_a,org,template from public.kualifikasi_personel q join public.anggota_tim a using(personel_id) join public.tim_survei t using(tim_id) join public.paket_kontrak p using(paket_id) join public.checklist_pengisian c using(paket_id) join public.checklist_template ct using(template_id) where q.dokumen_id is null and c.status='DISETUJUI' and ct.no_dokumen='JM-PERSIAPAN-TAHAP0' order by q.kualifikasi_id limit 1;
+ select q.kualifikasi_id,q.personel_id,a.tim_id,t.paket_id,p.balai_id,p.penyedia_id,c.template_id into qualification,person,team,pid,balai_a,org,template from public.kualifikasi_personel q join public.anggota_tim a using(personel_id) join public.tim_survei t using(tim_id) join public.paket_kontrak p using(paket_id) join public.checklist_pengisian c using(paket_id) join public.checklist_template ct using(template_id) where q.dokumen_id is null and c.status='DISETUJUI' and ct.no_dokumen='JM-PERSIAPAN-TAHAP0' and p.created_by=provider_user order by q.kualifikasi_id limit 1;
  if qualification is null then raise exception 'Need a qualification without evidence on approved package';end if;
  path:=person||'/'||qualification||'/00000000-0000-4000-8000-000000000013.pdf';
  perform set_config('request.jwt.claim.sub',provider_auth::text,true);execute 'set local role authenticated';
@@ -25,7 +25,7 @@ begin
  insert into public.dokumen_versi(dokumen_id,versi_ke,bucket_id,object_path,nama_file,mime_type,hash_file,ukuran_byte) values(doc,1,'dokumen-kualifikasi',path,'fixture.pdf','application/pdf',repeat('a',64),100),(doc,2,'dokumen-kualifikasi',person||'/'||qualification||'/00000000-0000-4000-8000-000000000014.pdf','fixture2.pdf','application/pdf',repeat('b',64),100);
  update public.kualifikasi_personel set dokumen_id=doc,versi=3 where kualifikasi_id=qualification;
  select min(scope_balai_id) into balai_b from public.pengguna_peran where scope_balai_id<>balai_a;
- insert into public.paket_kontrak(paket_id,balai_id,penyedia_id,nama_paket,status) overriding system value values(2100000013,balai_b,org,'Rollback qualification B','DRAFT');
+ insert into public.paket_kontrak(paket_id,balai_id,penyedia_id,nama_paket,status,created_by) overriding system value values(2100000013,balai_b,org,'Rollback qualification B','DRAFT',provider_user);
  insert into public.checklist_pengisian(paket_id,template_id,status) values(2100000013,template,'DRAFT');
  insert into public.tim_survei(paket_id,jenis_survei_id,nama_tim) select 2100000013,jenis_survei_id,'Rollback evidence B' from public.tim_survei where tim_id=team returning tim_id into team_b;
  perform set_config('request.jwt.claim.sub',provider_auth::text,true);execute 'set local role authenticated';

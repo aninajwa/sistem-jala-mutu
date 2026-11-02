@@ -4,7 +4,7 @@ do $$
 declare provider_auth uuid; provider_user integer; pid integer; balai_a integer; balai_b integer; kind integer; other_kind integer; tpl integer; org integer; team integer; team2 integer; other_team integer; tool integer; state jsonb; before_snapshot jsonb; before_provider integer; r record; expected_a boolean; expected_b boolean; n integer;
 begin
  select u.pengguna_id,u.auth_user_id into provider_user,provider_auth from public.pengguna u join public.pengguna_peran pp using(pengguna_id) join public.peran pr using(peran_id) where pr.nama='penyedia_jasa' limit 1;
- select p.paket_id,p.balai_id,p.penyedia_id,q.snapshot_pengajuan,q.template_id into pid,balai_a,before_provider,before_snapshot,tpl from public.paket_kontrak p join public.checklist_pengisian q using(paket_id) join public.checklist_template t using(template_id) where q.status='DISETUJUI' and t.no_dokumen='JM-PERSIAPAN-TAHAP0' order by p.paket_id limit 1;
+ select p.paket_id,p.balai_id,p.penyedia_id,q.snapshot_pengajuan,q.template_id into pid,balai_a,before_provider,before_snapshot,tpl from public.paket_kontrak p join public.checklist_pengisian q using(paket_id) join public.checklist_template t using(template_id) where q.status='DISETUJUI' and t.no_dokumen='JM-PERSIAPAN-TAHAP0' and p.created_by=provider_user order by p.paket_id limit 1;
  if pid is null then raise exception 'Need an approved preparation package';end if;
  select jenis_survei_id into kind from public.jenis_survei where kode='IRI';select jenis_survei_id into other_kind from public.jenis_survei where kode='PCI';
  select min(scope_balai_id) into balai_b from public.pengguna_peran where scope_balai_id<>balai_a;
@@ -56,7 +56,7 @@ begin
  begin perform public.daftar_alat_tim(pid,team,'{"nama_alat":"Bad","nomor_seri":"BAD-DATE","kondisi":"Unknown","milik_djbm":false,"mulai":"2026-02-30"}');raise exception 'Invalid date allowed';exception when invalid_parameter_value then null;end;
  begin perform public.daftar_alat_tim(pid,team,'{"nama_alat":"Bad","nomor_seri":"BAD-FIELD","kondisi":"Unknown","milik_djbm":false,"status":"LULUS"}');raise exception 'Fake pass allowed';exception when invalid_parameter_value then null;end;
  execute 'reset role';
- insert into public.paket_kontrak(paket_id,balai_id,nama_paket,status) overriding system value values(2100000010,balai_b,'Rollback package B','DRAFT');
+ insert into public.paket_kontrak(paket_id,balai_id,nama_paket,status,created_by) overriding system value values(2100000010,balai_b,'Rollback package B','DRAFT',provider_user);
  insert into public.checklist_pengisian(paket_id,template_id,status) values(2100000010,tpl,'DRAFT');
  execute 'set local role authenticated';
  begin perform public.daftar_tim_survei(2100000010,org,kind,'Not yet approved');raise exception 'Unapproved package allowed';exception when object_not_in_prerequisite_state then null;end;

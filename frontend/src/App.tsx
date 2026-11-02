@@ -488,7 +488,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
             ) : (
               <Switch>
                 <Route path="/">
-                  <DashboardPage {...pageProps} />
+                  <DashboardPage {...pageProps} canCreatePackage={authenticatedRole === 'Penyedia Jasa / Ketua Tim'} />
                 </Route>
 
                 <Route path="/data-master">
@@ -535,7 +535,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 </Route>
 
                 <Route>
-                  <DashboardPage {...pageProps} />
+                  <DashboardPage {...pageProps} canCreatePackage={authenticatedRole === 'Penyedia Jasa / Ketua Tim'} />
                 </Route>
               </Switch>
             )}

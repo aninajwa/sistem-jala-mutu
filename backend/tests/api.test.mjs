@@ -23,6 +23,7 @@ const trialRows = [];
 const trialSectionRows = [];
 const trialMeasurementRows = [];
 const trialEvaluationRows = new Map();
+const correctionRows = [];
 let preparationState = { paket_id: 3, pengisian_id: 2, status: 'DRAFT', versi: 3, pengajuan: null, review: null, aturan: { mode: 'SEMAKAN_MANUAL_PIC', validasi_kelengkapan_resmi_aktif: false } };
 const profile = { pengguna_id: 3, auth_user_id: 'provider-id', username: 'penyedia.jasa', email: 'provider@example.test', terkunci: false };
 async function request(path, token, body, method) {
@@ -36,11 +37,14 @@ before(async () => {
     res.setHeader('Content-Type', 'application/json');
     const url = new URL(req.url, 'http://localhost');
     const send = (data, code = 200) => { res.statusCode = code; res.end(JSON.stringify(data)); };
-    if (url.pathname === '/auth/v1/user') return token === 'expired' ? send({ error: 'expired' }, 401) : send({ id: token?.includes('reviewer') ? 'reviewer-id' : 'provider-id' });
-    if (url.pathname === '/rest/v1/pengguna') return send(token === 'unlinked' ? [] : [{ ...profile, auth_user_id: token?.includes('reviewer') ? 'reviewer-id' : 'provider-id', terkunci: token === 'locked' }]);
+    const isDirector = token === 'director';
+    const isReviewer = Boolean(token?.includes('reviewer'));
+    const authId = isDirector ? 'director-id' : isReviewer ? 'reviewer-id' : 'provider-id';
+    if (url.pathname === '/auth/v1/user') return token === 'expired' ? send({ error: 'expired' }, 401) : send({ id: authId });
+    if (url.pathname === '/rest/v1/pengguna') return send(token === 'unlinked' ? [] : [{ ...profile, pengguna_id: isDirector ? 4 : profile.pengguna_id, auth_user_id: authId, username: isDirector ? 'direktorat' : profile.username, terkunci: token === 'locked' }]);
     if (url.pathname === '/rest/v1/pengguna_peran') {
       roleQueries.push(url.search);
-      return send([{ peran_id: token?.includes('reviewer') ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
+      return send([{ peran_id: isDirector ? 4 : isReviewer ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
     }
     if (url.pathname === '/rest/v1/peran') {
       roleQueries.push(url.search);
@@ -442,6 +446,111 @@ before(async () => {
       lastRpc = JSON.parse(raw);
       if (lastRpc.p_nomor_kontrak === 'DUPLICATE') return send({ code: '23505' }, 409);
       return send({ paket_id: 1, nama_paket: lastRpc.p_nama_paket, status: 'DRAFT', created_by: 3 });
+    }
+    if (url.pathname.startsWith('/rest/v1/rpc/') && url.pathname.split('/').pop()?.includes('koreksi')) {
+      let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
+      if (token === 'foreign-reviewer') {
+        return url.pathname.startsWith('/rest/v1/rpc/baca_')
+          ? send({ code: 'P0002', message: 'Kasus koreksi tidak ditemukan' }, 404)
+          : send({ code: '42501', message: 'Akses tidak dibenarkan' }, 403);
+      }
+      const role = isDirector ? 'director' : isReviewer ? 'reviewer' : 'provider';
+      const findCase = () => {
+        const row = correctionRows.find(item => item.koreksi_id === lastRpc.p_koreksi_id && item.paket_id === lastRpc.p_paket_id);
+        if (!row) return null;
+        return row;
+      };
+      const versioned = row => {
+        if (lastRpc.p_expected_version !== row.versi) { send({ code: '40001', message: 'Kasus koreksi telah berubah' }, 409); return true; }
+        return null;
+      };
+      const deny = () => send({ code: '42501', message: 'Akses tidak dibenarkan' }, 403);
+      const transition = message => send({ code: '55000', message }, 409);
+
+      if (url.pathname.endsWith('/baca_senarai_koreksi')) {
+        return send(correctionRows.filter(row => row.paket_id === lastRpc.p_paket_id));
+      }
+      if (url.pathname.endsWith('/baca_koreksi')) {
+        const row = findCase();
+        return row ? send(row) : send({ code: 'P0002', message: 'Kasus koreksi tidak ditemukan' }, 404);
+      }
+      if (url.pathname.endsWith('/buat_koreksi')) {
+        if (role !== 'provider') return deny();
+        const row = { koreksi_id: 71 + correctionRows.length, paket_id: lastRpc.p_paket_id, ...lastRpc.p_data, approval: 'Draft', retest: 'Belum Diuji', status: 'Terbuka', verification_surveyor: false, verification_team_leader: false, verification_balai: false, review_note: null, execution_reference: null, retest_reference: null, versi: 0, created_at: '2026-11-02T00:00:00.000Z', updated_at: '2026-11-02T00:00:00.000Z' };
+        correctionRows.push(row); return send(row);
+      }
+      const row = findCase();
+      if (!row) return send({ code: 'P0002', message: 'Kasus koreksi tidak ditemukan' }, 404);
+      const stale = versioned(row); if (stale) return stale;
+
+      if (url.pathname.endsWith('/ubah_koreksi')) {
+        if (role !== 'provider') return deny();
+        if (row.status !== 'Terbuka' && !(row.status === 'Verifikasi Ulang' && row.retest === 'Gagal')) return transition('Usulan hanya boleh diubah ketika Terbuka atau selepas ujian ulang Gagal');
+        Object.assign(row, lastRpc.p_data, { status: 'Terbuka', approval: 'Draft', retest: 'Belum Diuji', verification_surveyor: false, verification_team_leader: false, verification_balai: false, versi: row.versi + 1 });
+        return send(row);
+      }
+      if (url.pathname.endsWith('/verifikasi_koreksi')) {
+        if (lastRpc.p_tahap === 'balai') {
+          if (role !== 'reviewer') return deny();
+          if (row.status !== 'Menunggu Persetujuan') return transition('Verifikasi Balai hanya tersedia untuk usulan yang telah diajukan');
+          if (lastRpc.p_nilai && !row.verification_team_leader) return transition('Ikuti urutan Surveyor, Team Leader, Balai');
+          row.verification_balai = lastRpc.p_nilai;
+        } else {
+          if (role !== 'provider') return deny();
+          if (row.status !== 'Terbuka') return transition('Verifikasi usulan hanya tersedia ketika kasus Terbuka');
+          if (lastRpc.p_tahap === 'team_leader' && lastRpc.p_nilai && !row.verification_surveyor) return transition('Ikuti urutan Surveyor, Team Leader, Balai');
+          if (lastRpc.p_tahap === 'surveyor') {
+            row.verification_surveyor = lastRpc.p_nilai;
+            if (!lastRpc.p_nilai) { row.verification_team_leader = false; row.verification_balai = false; }
+          } else {
+            row.verification_team_leader = lastRpc.p_nilai;
+            if (!lastRpc.p_nilai) row.verification_balai = false;
+          }
+        }
+        if (!lastRpc.p_nilai && row.status === 'Menunggu Persetujuan') { row.status = 'Terbuka'; row.approval = 'Draft'; }
+        row.versi += 1; return send(row);
+      }
+      if (url.pathname.endsWith('/ajukan_koreksi')) {
+        if (role !== 'provider') return deny();
+        if (row.status !== 'Terbuka' && !(row.status === 'Verifikasi Ulang' && row.retest === 'Gagal')) return transition('Tindakan hanya boleh diajukan dari kasus Terbuka atau ujian ulang Gagal');
+        if (!row.root_cause || !row.field_data_valid || !row.action_type || !row.evidence.trim()) return send({ code: '22023', message: 'Lengkapi usulan' }, 400);
+        if (row.field_data_valid === 'Ya' && row.action_type !== 'Koreksi pemrosesan dengan bukti') return send({ code: '22023', message: 'Data lapangan valid hanya boleh dikoreksi melalui pemrosesan berbukti' }, 400);
+        if (row.field_data_valid === 'Tidak' && row.action_type === 'Koreksi pemrosesan dengan bukti') return send({ code: '22023', message: 'Data lapangan tidak valid memerlukan tindakan lapangan' }, 400);
+        if (row.field_data_valid === 'Ya' && (!row.original_value || row.original_value === 'Belum ada nilai raw tertaut' || !row.proposed_value)) return send({ code: '22023', message: 'Koreksi data memerlukan nilai raw dan usulan' }, 400);
+        if (!row.verification_surveyor || !row.verification_team_leader) return transition('Surveyor dan Team Leader mesti memverifikasi bukti');
+        if (row.verification_balai) return transition('Verifikasi Balai dilakukan selepas usulan dihantar');
+        row.status = 'Menunggu Persetujuan'; row.approval = 'Diajukan'; row.versi += 1; return send(row);
+      }
+      if (url.pathname.endsWith('/review_koreksi')) {
+        if (role !== 'reviewer') return deny();
+        if (row.status !== 'Menunggu Persetujuan' || row.approval !== 'Diajukan') return transition('Usulan belum diajukan atau sudah diputuskan');
+        if (lastRpc.p_keputusan === 'Disetujui' && !row.verification_balai) return transition('Balai mesti memverifikasi bukti sebelum menyetujui');
+        row.review_note = lastRpc.p_catatan;
+        if (lastRpc.p_keputusan === 'Disetujui') { row.approval = 'Disetujui'; row.status = 'Disetujui'; }
+        else { row.approval = 'Perlu Revisi'; row.status = 'Terbuka'; row.retest = 'Belum Diuji'; row.verification_surveyor = false; row.verification_team_leader = false; row.verification_balai = false; }
+        row.versi += 1; return send(row);
+      }
+      if (url.pathname.endsWith('/laksana_koreksi')) {
+        if (role !== 'provider') return deny();
+        if (row.status !== 'Disetujui' || row.approval !== 'Disetujui') return transition('Tindakan belum memperoleh persetujuan Pengguna Jasa');
+        row.status = 'Dilaksanakan'; row.execution_reference = lastRpc.p_execution_reference; row.versi += 1; return send(row);
+      }
+      if (url.pathname.endsWith('/uji_ulang_koreksi') || url.pathname.endsWith('/tutup_koreksi')) {
+        const required = /^Audit tingkat 1$/i.test(row.blocked_stage) ? 'provider' : /^Audit tingkat 3$/i.test(row.blocked_stage) ? 'director' : 'reviewer';
+        if (role !== required) return deny();
+        if (url.pathname.endsWith('/uji_ulang_koreksi')) {
+          if (!['Dilaksanakan', 'Verifikasi Ulang'].includes(row.status)) return transition('Laksanakan tindakan terlebih dahulu sebelum uji ulang');
+          if (!row.execution_reference) return transition('Hasil pelaksanaan belum ditautkan');
+          row.status = 'Verifikasi Ulang'; row.retest = lastRpc.p_hasil; row.retest_reference = lastRpc.p_retest_reference; row.versi += 1; return send(row);
+        }
+        if (row.status !== 'Verifikasi Ulang' || row.retest !== 'Lulus') return transition('Kasus hanya boleh ditutup selepas uji ulang Lulus');
+        if (!row.verification_surveyor || !row.verification_team_leader || !row.verification_balai) return transition('Verifikasi Surveyor, Team Leader dan Balai belum lengkap');
+        if (!row.evidence.trim() || !row.execution_reference || !row.retest_reference) return transition('Bukti atau rujukan belum lengkap');
+        if (row.field_data_valid === 'Ya' && (!row.linked_record_id || !row.original_value || !row.proposed_value)) return transition('Referensi raw tidak lengkap');
+        row.status = 'Ditutup'; row.versi += 1; return send(row);
+      }
+      return send({ code: 'P0002' }, 404);
     }
     send({}, 404);
   });
@@ -1167,4 +1276,130 @@ test('RNI exposes documented precision rules without fabricating SMD acceptance'
  const coverage=r.body.data.parameter.find(item=>item.kode==='RNI_CAKUPAN_AKURASI_GPS_PERSEN');assert.equal(coverage.operator,'>=');assert.equal(coverage.nilai_min,90);
  assert.equal(r.body.data.aturan.sumber_nilai,'BELUM_TERSAMBUNG_SMD');assert.equal(r.body.data.aturan.boleh_mengunci_pengajuan,false);assert.equal(r.body.data.aturan.keputusan_pic_tetap_manual,true);
  assert.equal((await request('/paket/3/uji-coba-kriteria/8','reviewer')).status,200);assert.equal((await request('/paket/3/uji-coba-kriteria/8','foreign-reviewer')).status,404);
+});
+
+const correctionPath='/paket/3/koreksi';
+const correctionBody={source:'Uji coba gagal',blocked_stage:'Kalibrasi',road:'Ruas Uji',stationing:'STA 0+000 - 0+500',rejection_reason:'Hasil tidak konsisten',severity:'Mayor',owner:'Ketua Tim',due_date:'2026-12-31',survey_type:'IRI',return_stage:'Kalibrasi',root_cause:'Alat',field_data_valid:'Tidak',action_type:'Kalibrasi ulang alat',evidence:'Sertifikat kalibrasi baharu',original_value:'',proposed_value:''};
+const correctionBodyAudit3={...correctionBody,source:'Penolakan audit tingkat 3',blocked_stage:'Audit tingkat 3',road:'Ruas Audit',return_stage:'Audit tingkat 3',action_type:'Survei ulang sebagian ruas',evidence:'Berita acara survei ulang'};
+
+test('correction routes require login, package scope and the correct writing role',async()=>{
+ assert.equal((await request(correctionPath)).status,401);
+ assert.equal((await request(correctionPath,'reviewer',correctionBody)).status,403);
+ assert.equal((await request(correctionPath,'director',correctionBody)).status,403);
+ assert.equal((await request(correctionPath,'foreign-reviewer')).status,404);
+ const list=await request(correctionPath,'provider');assert.equal(list.status,200);assert.deepEqual(list.body.data,[]);
+ for(const path of ['/paket/0/koreksi','/paket/2147483648/koreksi','/paket/3/koreksi/no','/paket/3/koreksi/2147483648'])assert.equal((await request(path,'provider')).status,400,path);
+});
+
+test('correction creation validates immutable identity, enums and strict fields',async()=>{
+ for(const extra of [{status:'Ditutup'},{version:1},{severity:'Tinggi'},{survey_type:'Lain'},{due_date:'2026-02-30'},{due_date:'2026-13-01'},{source:' '},{owner:''},{action_type:'Tindakan rekaan'},{rule_checks:{x:1}},{rule_numbers:{x:'1'}}])assert.equal((await request(correctionPath,'provider',{...correctionBody,...extra})).status,400,JSON.stringify(extra));
+ const r=await request(correctionPath,'provider',correctionBody);assert.equal(r.status,201);assert.equal(r.body.data.koreksi_id,71);assert.equal(r.body.data.status,'Terbuka');assert.equal(r.body.data.approval,'Draft');assert.equal(r.body.data.retest,'Belum Diuji');assert.equal(r.body.data.versi,0);
+ assert.equal(lastRpc.p_paket_id,3);assert.equal(lastRpc.p_data.source,'Uji coba gagal');assert.deepEqual(lastRpc.p_data.rule_checks,{});
+});
+
+test('correction update is provider-only, versioned and limited to proposal fields',async()=>{
+ const path=correctionPath+'/71';
+ assert.equal((await request(path,'reviewer',{expected_version:0,evidence:'x'},'PATCH')).status,403);
+ for(const body of [{},{evidence:'x'},{expected_version:-1,evidence:'x'},{expected_version:0},{expected_version:0,severity:'Kritis'},{expected_version:0,source:'lain'}])assert.equal((await request(path,'provider',body,'PATCH')).status,400,JSON.stringify(body));
+ assert.equal((await request(path,'provider',{expected_version:9,evidence:'x'},'PATCH')).status,409);
+ const r=await request(path,'provider',{expected_version:0,root_cause:'Metode',field_data_valid:'Tidak',action_type:'Survei ulang sebagian ruas',evidence:' Metode diperbaiki '},'PATCH');
+ assert.equal(r.status,200);assert.equal(r.body.data.versi,1);assert.equal(r.body.data.evidence,'Metode diperbaiki');assert.equal(r.body.data.status,'Terbuka');assert.equal(r.body.data.verification_surveyor,false);
+});
+
+test('correction verification enforces role, stage order and submitted state',async()=>{
+ const path=correctionPath+'/71/verifikasi';
+ const surveyor={expected_version:1,tahap:'surveyor',nilai:true};
+ assert.equal((await request(path,'reviewer',surveyor)).status,403);
+ assert.equal((await request(path,'director',surveyor)).status,403);
+ assert.equal((await request(path,'provider',{expected_version:1,tahap:'balai',nilai:true})).status,403);
+ assert.equal((await request(path,'provider',{expected_version:1,tahap:'surveyor',nilai:'ya'})).status,400);
+ assert.equal((await request(path,'provider',{expected_version:1,tahap:'team_leader',nilai:true})).status,409);
+ assert.equal((await request(path,'provider',{expected_version:9,tahap:'surveyor',nilai:true})).status,409);
+ const first=await request(path,'provider',surveyor);assert.equal(first.status,200);assert.equal(first.body.data.verification_surveyor,true);assert.equal(first.body.data.versi,2);
+ const second=await request(path,'provider',{expected_version:2,tahap:'team_leader',nilai:true});assert.equal(second.status,200);assert.equal(second.body.data.verification_team_leader,true);assert.equal(second.body.data.versi,3);
+ assert.equal((await request(path,'reviewer',{expected_version:3,tahap:'balai',nilai:true})).status,409);
+});
+
+test('correction submission requires complete plan and both provider verifications',async()=>{
+ const path=correctionPath+'/71/ajukan';
+ assert.equal((await request(path,'reviewer',{expected_version:3})).status,403);
+ for(const body of [{},{expected_version:-1},{expected_version:3,status:'Disetujui'}])assert.equal((await request(path,'provider',body)).status,400);
+ assert.equal((await request(path,'provider',{expected_version:2})).status,409);
+ const submitted=await request(path,'provider',{expected_version:3});assert.equal(submitted.status,201);assert.equal(submitted.body.data.status,'Menunggu Persetujuan');assert.equal(submitted.body.data.approval,'Diajukan');assert.equal(submitted.body.data.versi,4);
+ assert.equal((await request(correctionPath+'/71','provider',{expected_version:4,evidence:'x'},'PATCH')).status,409);
+ assert.equal((await request(correctionPath+'/71/laksana','provider',{expected_version:4,execution_reference:'REF-1'})).status,409);
+});
+
+test('PIC revision returns the case to Terbuka and clears verification',async()=>{
+ const path=correctionPath+'/71';
+ assert.equal((await request(path+'/verifikasi','reviewer',{expected_version:4,tahap:'balai',nilai:true})).status,200);
+ assert.equal((await request(path+'/review','provider',{expected_version:5,keputusan:'Disetujui',catatan:''})).status,403);
+ for(const body of [{expected_version:5,keputusan:'Perlu Revisi',catatan:' '},{expected_version:5,keputusan:'Ditolak',catatan:'x'},{expected_version:5,keputusan:'Disetujui',catatan:'',pengguna_id:12}])assert.equal((await request(path+'/review','reviewer',body)).status,400);
+ const revised=await request(path+'/review','reviewer',{expected_version:5,keputusan:'Perlu Revisi',catatan:' Tambah bukti '});assert.equal(revised.status,200);assert.equal(revised.body.data.status,'Terbuka');assert.equal(revised.body.data.approval,'Perlu Revisi');assert.equal(revised.body.data.retest,'Belum Diuji');assert.equal(revised.body.data.verification_surveyor,false);assert.equal(revised.body.data.verification_team_leader,false);assert.equal(revised.body.data.verification_balai,false);assert.equal(revised.body.data.review_note,'Tambah bukti');assert.equal(revised.body.data.versi,6);
+ assert.equal((await request(path+'/ajukan','provider',{expected_version:6})).status,409);
+});
+
+test('correction can be resubmitted after revision and approved by PIC',async()=>{
+ const path=correctionPath+'/71';
+ const updated=await request(path,'provider',{expected_version:6,evidence:' Bukti diperbaiki '},'PATCH');assert.equal(updated.status,200);assert.equal(updated.body.data.versi,7);
+ assert.equal((await request(path+'/verifikasi','provider',{expected_version:7,tahap:'surveyor',nilai:true})).status,200);
+ assert.equal((await request(path+'/verifikasi','provider',{expected_version:8,tahap:'team_leader',nilai:true})).status,200);
+ const submitted=await request(path+'/ajukan','provider',{expected_version:9});assert.equal(submitted.status,201);assert.equal(submitted.body.data.versi,10);
+ assert.equal((await request(path+'/verifikasi','reviewer',{expected_version:9,tahap:'balai',nilai:true})).status,409);
+ assert.equal((await request(path+'/verifikasi','reviewer',{expected_version:10,tahap:'balai',nilai:true})).status,200);
+ const approved=await request(path+'/review','reviewer',{expected_version:11,keputusan:'Disetujui',catatan:' Bukti lengkap '});assert.equal(approved.status,200);assert.equal(approved.body.data.status,'Disetujui');assert.equal(approved.body.data.approval,'Disetujui');assert.equal(approved.body.data.review_note,'Bukti lengkap');assert.equal(approved.body.data.versi,12);
+});
+
+test('correction execution, failed retest, resubmission, passing retest and closure follow the source workflow',async()=>{
+ const path=correctionPath+'/71';
+ assert.equal((await request(path+'/laksana','reviewer',{expected_version:12,execution_reference:'REF-1'})).status,403);
+ assert.equal((await request(path+'/laksana','provider',{expected_version:12,execution_reference:' '})).status,400);
+ assert.equal((await request(path+'/laksana','provider',{expected_version:9,execution_reference:'REF-1'})).status,409);
+ const executed=await request(path+'/laksana','provider',{expected_version:12,execution_reference:' REF-1 '});assert.equal(executed.status,200);assert.equal(executed.body.data.status,'Dilaksanakan');assert.equal(executed.body.data.execution_reference,'REF-1');assert.equal(executed.body.data.versi,13);
+ assert.equal((await request(path+'/uji-ulang','provider',{expected_version:13,hasil:'Lulus',retest_reference:'RT-1'})).status,403);
+ assert.equal((await request(path+'/uji-ulang','reviewer',{expected_version:13,hasil:'Gagal',retest_reference:' '})).status,400);
+ const failed=await request(path+'/uji-ulang','reviewer',{expected_version:13,hasil:'Gagal',retest_reference:'RT-1'});assert.equal(failed.status,200);assert.equal(failed.body.data.status,'Verifikasi Ulang');assert.equal(failed.body.data.retest,'Gagal');assert.equal(failed.body.data.versi,14);
+ assert.equal((await request(path+'/tutup','reviewer',{expected_version:14})).status,409);
+
+ const reopened=await request(path,'provider',{expected_version:14,action_type:'Survei ulang sebagian ruas'},'PATCH');assert.equal(reopened.status,200);assert.equal(reopened.body.data.status,'Terbuka');assert.equal(reopened.body.data.retest,'Belum Diuji');assert.equal(reopened.body.data.versi,15);
+ assert.equal((await request(path+'/verifikasi','provider',{expected_version:15,tahap:'surveyor',nilai:true})).status,200);
+ assert.equal((await request(path+'/verifikasi','provider',{expected_version:16,tahap:'team_leader',nilai:true})).status,200);
+ assert.equal((await request(path+'/ajukan','provider',{expected_version:17})).status,201);
+ assert.equal((await request(path+'/verifikasi','reviewer',{expected_version:18,tahap:'balai',nilai:true})).status,200);
+ assert.equal((await request(path+'/review','reviewer',{expected_version:19,keputusan:'Disetujui',catatan:'Lulus ulang'})).status,200);
+ assert.equal((await request(path+'/laksana','provider',{expected_version:20,execution_reference:'REF-2'})).status,200);
+ const passed=await request(path+'/uji-ulang','reviewer',{expected_version:21,hasil:'Lulus',retest_reference:'RT-2'});assert.equal(passed.status,200);assert.equal(passed.body.data.status,'Verifikasi Ulang');assert.equal(passed.body.data.retest,'Lulus');
+ const closed=await request(path+'/tutup','reviewer',{expected_version:22});assert.equal(closed.status,200);assert.equal(closed.body.data.status,'Ditutup');assert.equal(closed.body.data.versi,23);
+ assert.equal((await request(path,'provider',{expected_version:23,evidence:'lagi'},'PATCH')).status,409);
+});
+
+test('Audit tingkat 3 retest and closure require Direktorat, not PIC or Penyedia',async()=>{
+ const created=await request(correctionPath,'provider',correctionBodyAudit3);assert.equal(created.status,201);assert.equal(created.body.data.koreksi_id,72);assert.equal(created.body.data.blocked_stage,'Audit tingkat 3');
+ const path=correctionPath+'/72';
+ await request(path+'/verifikasi','provider',{expected_version:0,tahap:'surveyor',nilai:true});
+ await request(path+'/verifikasi','provider',{expected_version:1,tahap:'team_leader',nilai:true});
+ assert.equal((await request(path+'/ajukan','provider',{expected_version:2})).status,201);
+ assert.equal((await request(path+'/verifikasi','reviewer',{expected_version:3,tahap:'balai',nilai:true})).status,200);
+ assert.equal((await request(path+'/review','reviewer',{expected_version:4,keputusan:'Disetujui',catatan:'Setuju'})).status,200);
+ assert.equal((await request(path+'/laksana','provider',{expected_version:5,execution_reference:'AUD-REF'})).status,200);
+ assert.equal((await request(path+'/uji-ulang','reviewer',{expected_version:6,hasil:'Lulus',retest_reference:'AUD-RT'})).status,403);
+ assert.equal((await request(path+'/uji-ulang','provider',{expected_version:6,hasil:'Lulus',retest_reference:'AUD-RT'})).status,403);
+ const retested=await request(path+'/uji-ulang','director',{expected_version:6,hasil:'Lulus',retest_reference:'AUD-RT'});assert.equal(retested.status,200);assert.equal(retested.body.data.retest,'Lulus');assert.equal(retested.body.data.versi,7);
+ assert.equal((await request(path+'/tutup','reviewer',{expected_version:7})).status,403);
+ const closed=await request(path+'/tutup','director',{expected_version:7});assert.equal(closed.status,200);assert.equal(closed.body.data.status,'Ditutup');assert.equal(closed.body.data.versi,8);
+});
+
+test('Audit tingkat 1 retest and closure are owned by the Penyedia Jasa',async()=>{
+ const body={...correctionBody,source:'Penolakan audit tingkat 1',blocked_stage:'Audit tingkat 1',return_stage:'Audit tingkat 1',action_type:'Survei ulang seluruh ruas',evidence:'Berita acara audit satu'};
+ const created=await request(correctionPath,'provider',body);assert.equal(created.status,201);assert.equal(created.body.data.koreksi_id,73);
+ const path=correctionPath+'/73';
+ await request(path+'/verifikasi','provider',{expected_version:0,tahap:'surveyor',nilai:true});
+ await request(path+'/verifikasi','provider',{expected_version:1,tahap:'team_leader',nilai:true});
+ await request(path+'/ajukan','provider',{expected_version:2});
+ await request(path+'/verifikasi','reviewer',{expected_version:3,tahap:'balai',nilai:true});
+ await request(path+'/review','reviewer',{expected_version:4,keputusan:'Disetujui',catatan:'Setuju'});
+ await request(path+'/laksana','provider',{expected_version:5,execution_reference:'AUD1-REF'});
+ assert.equal((await request(path+'/uji-ulang','reviewer',{expected_version:6,hasil:'Lulus',retest_reference:'AUD1-RT'})).status,403);
+ const retested=await request(path+'/uji-ulang','provider',{expected_version:6,hasil:'Lulus',retest_reference:'AUD1-RT'});assert.equal(retested.status,200);
+ const closed=await request(path+'/tutup','provider',{expected_version:7});assert.equal(closed.status,200);assert.equal(closed.body.data.status,'Ditutup');
 });

@@ -17,10 +17,12 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
   if (!response.ok) {
     const failure = await response.json().catch(() => null) as { code?: string; message?: string; error?: string } | null;
     if (path === '/auth/v1/user') throw new ApiError(401, 'Sesi tidak valid atau telah tamat');
+    if (failure?.code === 'P0002' && /koreksi/.test(path)) throw new ApiError(404, failure.message ?? 'Kasus koreksi tidak ditemukan');
     if (failure?.code === 'P0002') throw new ApiError(404, 'Paket tidak ditemukan');
     if (failure?.code === '40001' && /kalibrasi/.test(path)) throw new ApiError(409, 'Rekod kalibrasi telah berubah. Baca semula');
+    if (failure?.code === '40001' && /koreksi/.test(path)) throw new ApiError(409, failure.message ?? 'Kasus koreksi telah berubah. Baca semula');
     if (failure?.code === '40001') throw new ApiError(409, path.endsWith('/tambah_versi_dokumen_persiapan') ? 'Versi dokumen telah berubah. Baca senarai dokumen semula' : 'Checklist telah berubah. Baca semula sebelum menyimpan');
-    if (failure?.code === '55000') throw new ApiError(409, failure.message ?? 'Rekod bukan berstatus DRAFT');
+    if (failure?.code === '55000') throw new ApiError(409, /koreksi/.test(path) ? (failure.message ?? 'Peralihan kasus koreksi tidak sah') : (failure.message ?? 'Rekod bukan berstatus DRAFT'));
     if (failure?.code === '23505') throw new ApiError(409, 'Rekod unik sudah digunakan');
     if (failure?.code === '22023') throw new ApiError(400, failure.message ?? 'Data tidak valid');
     if (failure?.code === '42501' || response.status === 403) throw new ApiError(403, 'Akses tidak dibenarkan');

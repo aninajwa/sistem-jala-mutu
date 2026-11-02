@@ -11,12 +11,14 @@ import { Chart, KPI, PageHeading, Section, Status, SurveyTable } from '../compon
 import { surveiTypes } from '../lib/demoData';
 import type { PageProps } from '../types';
 import { evaluateProductionTest, type SurveyType } from '../workflow/model';
+import { CreatePackageDialog } from './CreatePackageDialog';
 import {
   ROLE_HOME_LABELS, ROLE_HOME_PRIORITIES, ROLE_HOME_QUICK_LINKS, WORKFLOW_ROLE_SCOPE, canAccessRoute,
 } from '../workflow/workflowConfig';
 
-export default function DashboardPage(p:PageProps){
+export default function DashboardPage(p:PageProps & { canCreatePackage?: boolean }){
  const [q,setQ]=useState('');
+ const [createPackageOpen,setCreatePackageOpen]=useState(false);
  const surveys=p.scoped.filter(s=>!q||`${s.ruas} ${s.id} ${s.jenis}`.toLowerCase().includes(q.toLowerCase()));
  const role=p.workflow.role;
  const loggedKm=p.workflow.dailyRecords.filter(record=>record.state==='Tercatat').reduce((total,record)=>total+record.lengthKm,0);
@@ -31,9 +33,9 @@ export default function DashboardPage(p:PageProps){
    const result=evaluateProductionTest(surveyType,p.workflow.productionTests[surveyType]);
    return {type,rate:result.checks.length?Math.round(result.checks.filter(check=>check.pass).length/result.checks.length*100):0};
  });
- const quickLinks=ROLE_HOME_QUICK_LINKS[role].filter(item=>canAccessRoute(role,item.href));
- const roleAction=role==='Penyedia Jasa / Ketua Tim'
-   ?<button className="btn primary" onClick={()=>p.openNew('survey')} data-testid="button-add-survey"><Plus size={13}/>Entri survei</button>
+  const quickLinks=ROLE_HOME_QUICK_LINKS[role].filter(item=>canAccessRoute(role,item.href));
+  const roleAction=role==='Penyedia Jasa / Ketua Tim'
+    ?<div className="toolbar"><button className="btn" onClick={()=>p.openNew('survey')} data-testid="button-add-survey"><Plus size={13}/>Entri survei</button>{p.canCreatePackage&&<button className="btn primary" onClick={()=>setCreatePackageOpen(true)} data-testid="button-create-package"><Plus size={13}/>Buat Paket</button>}</div>
    :role==='PIC Balai / Pengguna Jasa'
      ?<Link className="btn primary" href="/verification" data-testid="link-dashboard-review"><ClipboardCheck size={13}/>Buka antrean review</Link>
      :role==='Direktorat / Pusat'
@@ -101,5 +103,6 @@ export default function DashboardPage(p:PageProps){
    <Section title="Aktivitas frontend terbaru" icon={ClipboardList}><div className="panel-body">{p.store.logs.slice(0,5).map(log=><div className="quality-check" key={log.id}><span><strong>{log.aktivitas}</strong><div className="subtle">{log.objek}</div></span><Status value={log.hasil}/></div>)}</div></Section></div>
  </>}
  <div className="subtle" style={{textAlign:'right',marginTop:10}}>Data ilustratif · Dashboard role-based frontend · API/persistence/auth final belum terhubung</div>
- </>;
+  {createPackageOpen&&p.canCreatePackage&&<CreatePackageDialog onClose={()=>setCreatePackageOpen(false)} onCreated={item=>{setCreatePackageOpen(false);p.setNotice(`Paket DRAFT #${item.paket_id} berhasil dibuat di server.`);}}/>}
+  </>;
 }

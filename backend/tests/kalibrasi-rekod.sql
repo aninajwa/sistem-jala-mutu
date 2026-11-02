@@ -4,7 +4,7 @@ do $$
 declare provider_auth uuid; provider_user integer; pid integer; alat integer; balai integer; k integer; v integer; data jsonb; state jsonb; old_state jsonb; row_data public.kalibrasi_alat; r record; can_read boolean; policy text; allowed boolean; doc integer; kind integer; path text;
 begin
  select u.pengguna_id,u.auth_user_id into provider_user,provider_auth from public.pengguna u join public.pengguna_peran pp using(pengguna_id) join public.peran pr using(peran_id) where pr.nama='penyedia_jasa' limit 1;
- select a.alat_id,t.paket_id,p.balai_id into alat,pid,balai from public.penugasan_alat a join public.tim_survei t using(tim_id) join public.paket_kontrak p using(paket_id) join public.checklist_pengisian q using(paket_id) where q.status='DISETUJUI' order by a.penugasan_id limit 1;
+ select a.alat_id,t.paket_id,p.balai_id into alat,pid,balai from public.penugasan_alat a join public.tim_survei t using(tim_id) join public.paket_kontrak p using(paket_id) join public.checklist_pengisian q using(paket_id) where q.status='DISETUJUI' and p.created_by=provider_user order by a.penugasan_id limit 1;
  if alat is null then raise exception 'Need an assigned tool on approved package';end if;
  data:=jsonb_build_object('alat_id',alat,'jenis','RELATIF','standar','UJIAN - standard sijil','komponen','Transduser jarak','tgl_kalibrasi','2026-10-18','berlaku_sd',null,'pelaksana','UJIAN - pelaksana');
  perform set_config('request.jwt.claim.sub',provider_auth::text,true);execute 'set local role authenticated';
