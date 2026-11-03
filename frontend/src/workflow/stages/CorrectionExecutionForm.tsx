@@ -1,4 +1,4 @@
-
+﻿
 import { useState } from "react";
 import { usePersistedDraft } from "../../hooks/usePersistedDraft";
 import type { CorrectionCase } from "../model";
@@ -56,7 +56,7 @@ export function CorrectionExecutionForm({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const [draft, setDraft] = usePersistedDraft<ExecutionDraft>(
+  const [storedDraft, setDraft] = usePersistedDraft<ExecutionDraft>(
     `jala-correction-execution:${projectId}:${correction.id}`,
     {
       ...emptyDraft,
@@ -66,11 +66,19 @@ export function CorrectionExecutionForm({
     }
   );
 
+  // Draft lama dari localStorage dapat tidak memiliki field yang ditambahkan
+  // pada patch berikutnya. Normalisasi setiap render, tanpa menghapus isian lama.
+  const draft: ExecutionDraft = {
+    ...emptyDraft,
+    ...storedDraft,
+    actionFields: storedDraft?.actionFields ?? {},
+  };
+
   const setValue = <K extends keyof ExecutionDraft>(
     key: K,
     value: ExecutionDraft[K]
   ) => {
-    setDraft((current) => ({ ...current, [key]: value }));
+    setDraft((current) => ({ ...emptyDraft, ...current, [key]: value }));
     setError("");
   };
 
@@ -155,7 +163,7 @@ export function CorrectionExecutionForm({
     }
 
     if (isResurvey &&
-        (!draft.lane.trim() || !draft.equipment.trim())) {
+        (!draft.lane.trim() || !(draft.equipment.trim() || actionValues.instrumentId?.trim()))) {
       setError(
         "Survei ulang memerlukan lajur/arah dan identitas alat."
       );
@@ -181,11 +189,11 @@ export function CorrectionExecutionForm({
       return;
     }
 
-    if (!actionSpec.fields.length && (isTraining || isPersonnel || isComponent || isRating || isProcessing) && !draft.changeDetail.trim()) {
+    if (!actionSpec.fields.length && (isTraining || isPersonnel || isComponent || isRating || isProcessing) && !(draft.changeDetail ?? "").trim()) {
       setError("Jelaskan objek, metode, atau bagian yang diperbaiki sesuai jenis tindakan.");
       return;
     }
-    if (!actionSpec.fields.length && (isRating || isTraining || isCalibration || isComponent || isPersonnel) && !draft.resultEvaluation.trim()) {
+    if (!actionSpec.fields.length && (isRating || isTraining || isCalibration || isComponent || isPersonnel) && !(draft.resultEvaluation ?? "").trim()) {
       setError("Catat hasil pemeriksaan atau evaluasi setelah tindakan.");
       return;
     }
@@ -249,8 +257,8 @@ export function CorrectionExecutionForm({
         draft.lane.trim()
           ? `Lajur dan arah: ${draft.lane.trim()}`
           : "",
-        draft.equipment.trim()
-          ? `Identitas alat: ${draft.equipment.trim()}`
+        (draft.equipment.trim() || actionValues.instrumentId?.trim())
+          ? `Identitas alat: ${draft.equipment.trim() || actionValues.instrumentId?.trim()}`
           : "",
         `Referensi hasil sumber: ${effectiveSourceReference}`,
         draft.verificationReference.trim()
@@ -270,8 +278,9 @@ export function CorrectionExecutionForm({
 
       // Mencatat referensi pelaksanaan, bukan mengedit raw/cleaned SMD.
       onSubmit(reference);
-    } catch {
-      setError("Pemeriksaan lampiran gagal. Periksa kembali bukti.");
+    } catch (cause) {
+      console.error("Gagal mengirim hasil pelaksanaan perbaikan", cause);
+      setError("Pengiriman hasil pelaksanaan gagal. Periksa penyimpanan bukti dan coba kembali; jika berulang, lihat Console browser.");
     } finally {
       setSubmitting(false);
     }
@@ -306,7 +315,7 @@ export function CorrectionExecutionForm({
           <div className="wf-callout">
             <strong>{correction.actionType}</strong>
             <p className="wf-note">
-              {correction.source} · {correction.surveyType} ·{" "}
+              {correction.source} Â· {correction.surveyType} Â·{" "}
               {correction.road}
             </p>
             <p className="wf-note">
@@ -362,7 +371,7 @@ export function CorrectionExecutionForm({
 
           <div className="wf-fields">
             <div className="wf-field full">
-              <strong>{actionSpec.family} — rincian bukti tindakan</strong>
+              <strong>{actionSpec.family} â€” rincian bukti tindakan</strong>
 
             </div>
             {actionSpec.fields.map((item) => (
@@ -420,7 +429,7 @@ export function CorrectionExecutionForm({
                 "Lajur dan arah survei ulang"
               )}
 
-            {!actionSpec.fields.length && (isResurvey || isCalibration) &&
+            {(isResurvey || (isCalibration && !actionSpec.fields.length)) &&
               field(
                 "Identitas alat",
                 "equipment",
@@ -461,7 +470,7 @@ export function CorrectionExecutionForm({
                    isTraining ? "Peserta dan kegiatan pelatihan ulang" :
                    isPersonnel ? "Personel atau penugasan yang diganti" :
                    isComponent ? "Identitas komponen dan alat terkait" :
-                   "Dataset, versi raw–cleaned, dan metode koreksi"} *
+                   "Dataset, versi rawâ€“cleaned, dan metode koreksi"} *
                 </label>
                 <textarea id={`execution-change-${correction.id}`} rows={3} value={draft.changeDetail}
                   disabled={!editable} onChange={(e) => setValue("changeDetail", e.target.value)}
@@ -546,3 +555,4 @@ export function CorrectionExecutionForm({
     </section>
   );
 }
+
