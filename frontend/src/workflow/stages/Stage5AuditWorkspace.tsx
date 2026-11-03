@@ -55,7 +55,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
   const { baAccess, commit, heading } = useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage5AuditWorkspace`,{});
   const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
-  const [auditLevel, setAuditLevel] = useState<1 | 2 | 3>(state.role==='PIC Balai / Pengguna Jasa'?2:state.role==='Direktorat / Pusat'?3:1);
+  const [auditLevel, setAuditLevel] = useState<1 | 2 | 3>(()=>{const key=`jala-notification-audit:${state.project.id}`,level=Number(sessionStorage.getItem(key));sessionStorage.removeItem(key);return [1,2,3].includes(level)?level as 1|2|3:state.role==='PIC Balai / Pengguna Jasa'?2:state.role==='Direktorat / Pusat'?3:1;});
   const lrs = evaluateLrsGate(state.submission, state.simulationDate);
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));

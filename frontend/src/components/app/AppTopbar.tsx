@@ -70,7 +70,7 @@ export function AppTopbar({
         </div>
       </div>
       <div className="global-filters">
-        {!isPackageWorkspace&&location!=="/packages"&&<><div className="filter-wrap">
+        {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&<><div className="filter-wrap">
           <label>Balai:</label>
           <select value={balai} onChange={e => setBalai(e.target.value)} data-testid="select-global-balai">
             <option>Semua Balai</option>

@@ -36,6 +36,8 @@ import DocumentsPage from './pages/DocumentsPage';
 import EntryPage from './pages/EntryPage';
 import MasterPage from './pages/MasterPage';
 import NotificationsPage from './pages/NotificationsPage';
+import {startNotificationScheduler,resolveNotification,targetAvailable} from './workflow/notifications/notificationService';
+import type {Target} from './workflow/notifications/notificationEvents';
 import PackageDetailPage from './pages/PackageDetailPage';
 import PackagesPage from './pages/PackagesPage';
 import ReportsPage from './pages/ReportsPage';
@@ -52,6 +54,7 @@ import { canAccessRoute } from './workflow/workflowConfig';
 function App() {
   const {
     packageStore,
+    principal,
     scopedPackages,
     activePackageId,
     activePackage,
@@ -76,6 +79,7 @@ function App() {
     closeDialog,
   } = useDemoStore(packageStore.activeRole);
 
+  useEffect(startNotificationScheduler, []);
   const [location, setLocation] = useLocation();
 
   const [balai, setBalai] = useState('Semua Balai');
@@ -265,6 +269,18 @@ function App() {
   navigateSubmodule("/actions:Koreksi berbukti");
 };
 
+  const openNotificationTarget = (target:Target, notificationId?:string) => {
+    const checked=notificationId?resolveNotification(notificationId,scopedPackages,principal).target:target;
+    const state=scopedPackages[checked.packageId];
+    if(!state||!principal.packageIds.includes(checked.packageId)||!targetAvailable(checked,state))throw new Error('Pekerjaan tidak tersedia atau tidak dapat diakses.');
+    if(checked.module==='correction'){openCorrection(checked.packageId,checked.caseId);return;}
+    if(checked.module==='document'){openPackageBA(checked.packageId,checked.identity.kind,{...checked.identity,returnTo:'/notifications'});return;}
+    if(!selectPackage(checked.packageId))throw new Error('Penugasan paket tidak tersedia.');
+    if(checked.period)sessionStorage.setItem(`jala-notification-period:${checked.packageId}`,String(checked.period));
+    if(checked.auditLevel)sessionStorage.setItem(`jala-notification-audit:${checked.packageId}`,String(checked.auditLevel));
+    navigateSubmodule(checked.selection);
+  };
+
   const openPackageBA = (
     id: string,
     kind: string,
@@ -443,7 +459,7 @@ function App() {
               </div>
             )}
 
-            {!isPackageWorkspace&&location!=="/packages"&&<MobileFilters
+            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&<MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
@@ -453,7 +469,7 @@ function App() {
               showJenis={location === '/'}
             />}
 
-            {selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
+            {location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
               workflowSubmodules.has(
                 selectedSubmodule,
               ) ? (
@@ -523,7 +539,7 @@ function App() {
                 </Route>
 
                 <Route path="/notifications">
-                  <NotificationsPage {...pageProps} />
+                  <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/>
                 </Route>
 
                 <Route path="/audit">

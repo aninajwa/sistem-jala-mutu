@@ -200,11 +200,9 @@ export function buildRoleNavigation(
         path: '/notifications',
         label: 'Notifikasi',
         icon: Bell,
-        children: [
-          { label: 'Belum dibaca', href: '/notifications', tab: 'Belum dibaca' },
-          { label: 'Jatuh tempo', href: '/notifications', tab: 'Jatuh tempo' },
-          { label: 'Peringatan mutu', href: '/notifications', tab: 'Mutu' },
-        ],
+        children: [{ label: 'Semua notifikasi', href: '/notifications', tab: 'Semua' },
+{ label: 'Perlu ditindaklanjuti', href: '/notifications', tab: 'Tugas' },
+{ label: 'Jadwal & pengingat', href: '/notifications', tab: 'Jadwal' }],
       },
     ];
   }
@@ -276,11 +274,9 @@ export function buildRoleNavigation(
         path: '/notifications',
         label: 'Notifikasi',
         icon: Bell,
-        children: [
-          { label: 'Belum dibaca', href: '/notifications', tab: 'Belum dibaca' },
-          { label: 'Jatuh tempo', href: '/notifications', tab: 'Jatuh tempo' },
-          { label: 'Peringatan mutu', href: '/notifications', tab: 'Mutu' },
-        ],
+        children: [{ label: 'Semua notifikasi', href: '/notifications', tab: 'Semua' },
+{ label: 'Menunggu pemeriksaan', href: '/notifications', tab: 'Tugas' },
+{ label: 'Jadwal & pengingat', href: '/notifications', tab: 'Jadwal' }],
       },
     ];
   }
@@ -352,11 +348,9 @@ export function buildRoleNavigation(
         path: '/notifications',
         label: 'Notifikasi',
         icon: Bell,
-        children: [
-          { label: 'Belum dibaca', href: '/notifications', tab: 'Belum dibaca' },
-          { label: 'Jatuh tempo', href: '/notifications', tab: 'Jatuh tempo' },
-          { label: 'Peringatan mutu', href: '/notifications', tab: 'Mutu' },
-        ],
+        children: [{ label: 'Semua notifikasi', href: '/notifications', tab: 'Semua' },
+{ label: 'Menunggu pemeriksaan', href: '/notifications', tab: 'Tugas' },
+{ label: 'Jadwal & pengingat', href: '/notifications', tab: 'Jadwal' }],
       },
     ];
   }
@@ -432,10 +426,8 @@ export function buildRoleNavigation(
       path: '/notifications',
       label: 'Notifikasi',
       icon: Bell,
-      children: [
-        { label: 'Belum dibaca', href: '/notifications', tab: 'Belum dibaca' },
-        { label: 'Jatuh tempo', href: '/notifications', tab: 'Jatuh tempo' },
-      ],
+      children: [{ label: 'Semua notifikasi', href: '/notifications', tab: 'Semua' },
+{ label: 'Pengaturan Notifikasi', href: '/notifications', tab: 'Tugas' }],
     },
     {
       path: '/audit',

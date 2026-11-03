@@ -23,7 +23,9 @@
     "test:checkpoint09": "node --import tsx scripts/verifyCheckpoint09.ts",
     "test:checkpoint09:states": "node --import tsx scripts/verifyCheckpoint09States.ts",
     "test:ui09": "node --import tsx scripts/verifyUi09Final.ts",
-    "test:ui09:states": "node --import tsx scripts/verifyUi09States.ts"
+    "test:ui09:states": "node --import tsx scripts/verifyUi09States.ts",
+    "test:notifications": "node --import tsx --test src/workflow/notifications/notificationRules.test.ts",
+    "test:notifications:browser": "node --import tsx scripts/verifyNotifications.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
