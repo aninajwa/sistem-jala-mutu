@@ -24,6 +24,8 @@ const trialSectionRows = [];
 const trialMeasurementRows = [];
 const trialEvaluationRows = new Map();
 const correctionRows = [];
+const surveySessionRows = [];
+const surveySegmentRows = [];
 const correctionReadPayload = row => ({
   kasus_temuan: { paket_id: row.paket_id, status: row.status, uraian: row.rejection_reason, tingkat: row.severity },
   tindakan_perbaikan: [],
@@ -207,6 +209,33 @@ before(async () => {
       if(assignmentRows.some(a=>a.tim_id===team.tim_id && a.alat_id===e.alat_id && a.mulai===(d.mulai??null) && a.selesai===(d.selesai??null))) return send({code:'23505'},409);
       const a={penugasan_id:31+assignmentRows.length,tim_id:team.tim_id,alat_id:e.alat_id,kendaraan:d.kendaraan??null,mulai:d.mulai??null,selesai:d.selesai??null};assignmentRows.push(a);
       return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
+    }
+
+    if (['/rest/v1/rpc/simpan_sesi_survei','/rest/v1/rpc/baca_senarai_sesi_survei','/rest/v1/rpc/baca_sesi_survei','/rest/v1/rpc/simpan_data_segmen','/rest/v1/rpc/baca_senarai_data_segmen','/rest/v1/rpc/baca_data_segmen'].includes(url.pathname)) {
+      let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
+      if(lastRpc.p_paket_id===999)return send({code:'P0002',message:'Paket tidak ditemukan'},404);
+      if(token==='foreign-package')return send({code:'42501',message:'Akses ke paket ini ditolak'},403);
+      if(url.pathname.endsWith('/simpan_sesi_survei')) {
+        if(token==='unapproved-survey')return send({code:'55000',message:'Uji coba untuk tim, alat dan ruas ini belum disetujui'},400);
+        if(lastRpc.p_data.tim_id!==21)return send({code:'22023',message:'Tim tidak ditemukan dalam paket ini'},400);
+        if(lastRpc.p_data.alat_id!==7 || token==='mismatched-survey-type')return send({code:'22023',message:'Alat tidak sesuai dengan tim, jenis survei atau penyedia paket'},400);
+        if(lastRpc.p_data.ruas_id!==12)return send({code:'22023',message:'Ruas tidak ditemukan pada Balai paket ini'},400);
+        const row={sesi_id:surveySessionRows.length+1,paket_id:lastRpc.p_paket_id,...lastRpc.p_data,status:null};surveySessionRows.push(row);return send(row);
+      }
+      if(url.pathname.endsWith('/baca_senarai_sesi_survei'))return send(surveySessionRows.filter(row=>row.paket_id===lastRpc.p_paket_id));
+      if(url.pathname.endsWith('/simpan_data_segmen')) {
+        if(token==='foreign-package')return send({code:'42501',message:'Akses ke paket ini ditolak'},403);
+        if(lastRpc.p_sesi_id!==1)return send({code:'P0002',message:'Sesi survei tidak ditemukan dalam paket ini'},404);
+        if(lastRpc.p_data.jenis_survei_id!==8)return send({code:'22023',message:'Jenis survei data tidak sama dengan jenis survei sesi'},400);
+        const row={data_id:surveySegmentRows.length+1,sesi_id:1,jenis_survei_id:8,ruas_id:12,status_qc:null,versi_aktif:null,...lastRpc.p_data};surveySegmentRows.push(row);return send(row);
+      }
+      if(url.pathname.endsWith('/baca_senarai_data_segmen'))return send(surveySegmentRows.filter(row=>row.sesi_id===lastRpc.p_sesi_id));
+      if(url.pathname.endsWith('/baca_data_segmen')) {
+        const row=surveySegmentRows.find(item=>item.sesi_id===lastRpc.p_sesi_id&&item.data_id===lastRpc.p_data_id);
+        return row?send(row):send({code:'P0002',message:'Data segmen tidak ditemukan dalam sesi ini'},404);
+      }
+      const row=surveySessionRows.find(row=>row.paket_id===lastRpc.p_paket_id&&row.sesi_id===lastRpc.p_sesi_id);
+      return row?send(row):send({code:'P0002',message:'Sesi survei tidak ditemukan'},404);
     }
 
     if (['/rest/v1/rpc/simpan_uji_coba','/rest/v1/rpc/simpan_uji_coba_seksi','/rest/v1/rpc/simpan_uji_coba_pengukuran','/rest/v1/rpc/ambil_detail_uji_coba','/rest/v1/rpc/ambil_senarai_uji_coba','/rest/v1/rpc/baca_pengajuan_uji_coba','/rest/v1/rpc/ajukan_uji_coba','/rest/v1/rpc/review_uji_coba','/rest/v1/rpc/baca_evaluasi_uji_coba','/rest/v1/rpc/simpan_evaluasi_uji_coba','/rest/v1/rpc/baca_kriteria_uji_coba'].includes(url.pathname)) {
@@ -1151,6 +1180,53 @@ test('authorized viewers read trial list and nested detail without cross-scope l
 });
 test('trial routes reject malformed and overflow path identifiers',async()=>{
  for(const path of ['/paket/no/uji-coba','/paket/3/uji-coba/no','/paket/3/uji-coba/2147483648'])assert.equal((await request(path,'provider')).status,400,path);
+});
+const surveySessionPath='/paket/3/sesi-survei';
+const surveySessionBody={tim_id:21,ruas_id:12,alat_id:7,tanggal:'2026-10-28',jam_mulai:'08:00',jam_selesai:'10:30',operator_id:91,pengemudi_id:null,lajur:'Kiri',arah:'Normal',cuaca:'Cerah',kondisi_permukaan:'Kering',panjang_tercapai_km:2.5,link_video:null};
+test('survey session creation requires authentication and provider role',async()=>{
+  assert.equal((await request(surveySessionPath,null,surveySessionBody)).status,401);
+  assert.equal((await request(surveySessionPath,'reviewer',surveySessionBody)).status,403);
+});
+test('survey session creation validates payload and path identifiers',async()=>{
+  for(const bad of [{...surveySessionBody,status:'SELESAI'},{...surveySessionBody,ruas_id:0},{...surveySessionBody,tanggal:'2026-02-30'},{...surveySessionBody,tanggal:undefined},{...surveySessionBody,jam_mulai:'25:00'},{...surveySessionBody,panjang_tercapai_km:-1},{...surveySessionBody,tim_id:21.5},{...surveySessionBody,operator_id:'91'},{...surveySessionBody,lajur:'x'.repeat(256)}])assert.equal((await request(surveySessionPath,'provider',bad)).status,400);
+  assert.equal((await request('/paket/0/sesi-survei','provider',surveySessionBody)).status,400);
+});
+test('approved trial creates a survey session and read endpoints return it',async()=>{
+  const created=await request(surveySessionPath,'provider',surveySessionBody);assert.equal(created.status,201);assert.equal(created.body.data.sesi_id,1);assert.equal(created.body.data.status,null);
+  assert.deepEqual(lastRpc,{p_paket_id:3,p_data:surveySessionBody});
+  const list=await request(surveySessionPath,'reviewer');assert.equal(list.status,200);assert.equal(list.body.data[0].sesi_id,1);
+  const detail=await request(surveySessionPath+'/1','reviewer');assert.equal(detail.status,200);assert.equal(detail.body.data.tim_id,21);
+  assert.equal((await request(surveySessionPath+'/999','reviewer')).status,404);
+});
+test('survey session creation rejects another users package and missing Tahap 2 approval',async()=>{
+  assert.equal((await request(surveySessionPath,'foreign-package',surveySessionBody)).status,403);
+  assert.equal((await request(surveySessionPath,'unapproved-survey',surveySessionBody)).status,409);
+  assert.equal((await request('/paket/999/sesi-survei','provider')).status,404);
+});
+test('survey session RPC rejects mismatched equipment, team and road relationships',async()=>{
+  assert.equal((await request(surveySessionPath,'mismatched-survey-type',surveySessionBody)).status,400);
+  assert.equal((await request(surveySessionPath,'provider',{...surveySessionBody,alat_id:8})).status,400);
+  assert.equal((await request(surveySessionPath,'provider',{...surveySessionBody,tim_id:22})).status,400);
+  assert.equal((await request(surveySessionPath,'provider',{...surveySessionBody,ruas_id:13})).status,400);
+});
+const surveySegmentPath='/paket/3/sesi-survei/1/data-segmen';
+const surveySegmentBody={jenis_survei_id:8,sta_awal:1.5,sta_akhir:2.25,lajur:'Kiri',nilai_utama:42.5,atribut_detail:{sample:'synthetic'},lat:-6.2,lon:106.8};
+test('survey segment results validate, create and read using the session-scoped RPC contract',async()=>{
+  const created=await request(surveySegmentPath,'provider',surveySegmentBody);
+  assert.equal(created.status,201);assert.equal(created.body.data.sesi_id,1);assert.equal(created.body.data.ruas_id,12);
+  assert.deepEqual(lastRpc,{p_paket_id:3,p_sesi_id:1,p_data:surveySegmentBody});
+  const list=await request(surveySegmentPath,'reviewer');assert.equal(list.status,200);assert.equal(list.body.data[0].data_id,1);
+  const detail=await request(`${surveySegmentPath}/1`,'reviewer');assert.equal(detail.status,200);assert.equal(detail.body.data.nilai_utama,42.5);
+});
+test('survey segment results reject unauthorized, out-of-session and invalid payloads',async()=>{
+  assert.equal((await request(surveySegmentPath,null,surveySegmentBody)).status,401);
+  assert.equal((await request(surveySegmentPath,'reviewer',surveySegmentBody)).status,403);
+  assert.equal((await request('/paket/3/sesi-survei/999/data-segmen','provider',surveySegmentBody)).status,404);
+  assert.equal((await request(surveySegmentPath,'foreign-package',surveySegmentBody)).status,403);
+  assert.equal((await request(surveySegmentPath,'provider',{...surveySegmentBody,jenis_survei_id:9})).status,400);
+  for(const bad of [{...surveySegmentBody,data_id:7},{...surveySegmentBody,status_qc:'LOLOS'},{...surveySegmentBody,versi_aktif:2},{...surveySegmentBody,nilai_utama:'42'},{jenis_survei_id:8}])assert.equal((await request(surveySegmentPath,'provider',bad)).status,400);
+  assert.equal((await request(`${surveySegmentPath}/0`,'provider')).status,400);
+  assert.equal((await request(`${surveySegmentPath}/999`,'reviewer')).status,404);
 });
 test('trial submission state is readable only within package scope',async()=>{
  const r=await request(trialPath+'/41/pengajuan','reviewer');assert.equal(r.status,200);assert.equal(r.body.data.status,'DRAFT');assert.equal(r.body.data.versi,0);

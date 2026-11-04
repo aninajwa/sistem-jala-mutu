@@ -24,6 +24,8 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
       throw new ApiError(503, `Fungsi database ${rpcName} belum tersedia atau belum masuk schema cache Supabase`);
     }
     if (failure?.code === 'P0002' && /koreksi/.test(path)) throw new ApiError(404, failure.message ?? 'Kasus koreksi tidak ditemukan');
+    if (failure?.code === 'P0002' && path.endsWith('/baca_sesi_survei')) throw new ApiError(404, failure.message ?? 'Sesi survei tidak ditemukan atau tidak boleh diakses');
+    if (failure?.code === 'P0002' && path.includes('data_segmen')) throw new ApiError(404, failure.message ?? 'Sesi atau data segmen tidak ditemukan');
     if (failure?.code === 'P0002') throw new ApiError(404, 'Paket tidak ditemukan');
     if (failure?.code === '40001' && /kalibrasi/.test(path)) throw new ApiError(409, 'Rekod kalibrasi telah berubah. Baca semula');
     if (failure?.code === '40001' && /koreksi/.test(path)) throw new ApiError(409, failure.message ?? 'Kasus koreksi telah berubah. Baca semula');
