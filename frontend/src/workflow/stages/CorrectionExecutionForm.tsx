@@ -315,7 +315,7 @@ export function CorrectionExecutionForm({
           <div className="wf-callout">
             <strong>{correction.actionType}</strong>
             <p className="wf-note">
-              {correction.source} Â· {correction.surveyType} Â·{" "}
+              {correction.source} · {correction.surveyType} ·{" "}
               {correction.road}
             </p>
             <p className="wf-note">
@@ -371,7 +371,7 @@ export function CorrectionExecutionForm({
 
           <div className="wf-fields">
             <div className="wf-field full">
-              <strong>{actionSpec.family} â€” rincian bukti tindakan</strong>
+              <strong>{actionSpec.family} — rincian bukti tindakan</strong>
 
             </div>
             {actionSpec.fields.map((item) => (
@@ -470,7 +470,7 @@ export function CorrectionExecutionForm({
                    isTraining ? "Peserta dan kegiatan pelatihan ulang" :
                    isPersonnel ? "Personel atau penugasan yang diganti" :
                    isComponent ? "Identitas komponen dan alat terkait" :
-                   "Dataset, versi rawâ€“cleaned, dan metode koreksi"} *
+                   "Dataset, versi raw–cleaned, dan metode koreksi"} *
                 </label>
                 <textarea id={`execution-change-${correction.id}`} rows={3} value={draft.changeDetail}
                   disabled={!editable} onChange={(e) => setValue("changeDetail", e.target.value)}
