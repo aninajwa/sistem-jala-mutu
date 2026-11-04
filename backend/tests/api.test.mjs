@@ -24,6 +24,12 @@ const trialSectionRows = [];
 const trialMeasurementRows = [];
 const trialEvaluationRows = new Map();
 const correctionRows = [];
+const correctionReadPayload = row => ({
+  kasus_temuan: { paket_id: row.paket_id, status: row.status, uraian: row.rejection_reason, tingkat: row.severity },
+  tindakan_perbaikan: [],
+  koreksi_data: [{ koreksi_data: { koreksi_id: row.koreksi_id }, verifikasi_koreksi: [] }],
+  riwayat_status_kasus: [],
+});
 let preparationState = { paket_id: 3, pengisian_id: 2, status: 'DRAFT', versi: 3, pengajuan: null, review: null, aturan: { mode: 'SEMAKAN_MANUAL_PIC', validasi_kelengkapan_resmi_aktif: false } };
 const profile = { pengguna_id: 3, auth_user_id: 'provider-id', username: 'penyedia.jasa', email: 'provider@example.test', terkunci: false };
 async function request(path, token, body, method) {
@@ -449,6 +455,7 @@ before(async () => {
     }
     if (url.pathname.startsWith('/rest/v1/rpc/') && url.pathname.split('/').pop()?.includes('koreksi')) {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (token === 'missing-correction-rpc') return send({ code: 'PGRST202', message: 'Could not find the function public.baca_senarai_koreksi' }, 404);
       if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
       if (token === 'foreign-reviewer') {
         return url.pathname.startsWith('/rest/v1/rpc/baca_')
@@ -469,11 +476,11 @@ before(async () => {
       const transition = message => send({ code: '55000', message }, 409);
 
       if (url.pathname.endsWith('/baca_senarai_koreksi')) {
-        return send(correctionRows.filter(row => row.paket_id === lastRpc.p_paket_id));
+        return send(correctionRows.filter(row => row.paket_id === lastRpc.p_paket_id).map(correctionReadPayload));
       }
       if (url.pathname.endsWith('/baca_koreksi')) {
         const row = findCase();
-        return row ? send(row) : send({ code: 'P0002', message: 'Kasus koreksi tidak ditemukan' }, 404);
+        return row ? send(correctionReadPayload(row)) : send({ code: 'P0002', message: 'Kasus koreksi tidak ditemukan' }, 404);
       }
       if (url.pathname.endsWith('/buat_koreksi')) {
         if (role !== 'provider') return deny();
@@ -1291,6 +1298,13 @@ test('correction routes require login, package scope and the correct writing rol
  for(const path of ['/paket/0/koreksi','/paket/2147483648/koreksi','/paket/3/koreksi/no','/paket/3/koreksi/2147483648'])assert.equal((await request(path,'provider')).status,400,path);
 });
 
+test('missing correction RPC is reported as an actionable database setup error', async () => {
+ const r = await request(correctionPath, 'missing-correction-rpc');
+ assert.equal(r.status, 503);
+ assert.match(r.body.error, /baca_senarai_koreksi/);
+ assert.match(r.body.error, /schema cache Supabase/);
+});
+
 test('correction creation validates immutable identity, enums and strict fields',async()=>{
  for(const extra of [{status:'Ditutup'},{version:1},{severity:'Tinggi'},{survey_type:'Lain'},{due_date:'2026-02-30'},{due_date:'2026-13-01'},{source:' '},{owner:''},{action_type:'Tindakan rekaan'},{rule_checks:{x:1}},{rule_numbers:{x:'1'}}])assert.equal((await request(correctionPath,'provider',{...correctionBody,...extra})).status,400,JSON.stringify(extra));
  const r=await request(correctionPath,'provider',correctionBody);assert.equal(r.status,201);assert.equal(r.body.data.koreksi_id,71);assert.equal(r.body.data.status,'Terbuka');assert.equal(r.body.data.approval,'Draft');assert.equal(r.body.data.retest,'Belum Diuji');assert.equal(r.body.data.versi,0);
@@ -1402,4 +1416,23 @@ test('Audit tingkat 1 retest and closure are owned by the Penyedia Jasa',async()
  assert.equal((await request(path+'/uji-ulang','reviewer',{expected_version:6,hasil:'Lulus',retest_reference:'AUD1-RT'})).status,403);
  const retested=await request(path+'/uji-ulang','provider',{expected_version:6,hasil:'Lulus',retest_reference:'AUD1-RT'});assert.equal(retested.status,200);
  const closed=await request(path+'/tutup','provider',{expected_version:7});assert.equal(closed.status,200);assert.equal(closed.body.data.status,'Ditutup');
+});
+
+test('correction read RPCs return the documented list/detail JSON shape', async () => {
+ const list = await request(correctionPath, 'provider');
+ assert.equal(list.status, 200);
+ assert.ok(Array.isArray(list.body.data));
+ assert.ok(list.body.data.length > 0);
+ const item = list.body.data[0];
+ assert.ok(item.kasus_temuan && typeof item.kasus_temuan === 'object');
+ assert.ok(Array.isArray(item.tindakan_perbaikan));
+ assert.ok(Array.isArray(item.koreksi_data));
+ assert.ok(Array.isArray(item.riwayat_status_kasus));
+ assert.ok(Array.isArray(item.koreksi_data[0].verifikasi_koreksi));
+ const id = item.koreksi_data[0].koreksi_data.koreksi_id;
+ const detail = await request(`${correctionPath}/${id}`, 'provider');
+ assert.equal(detail.status, 200);
+ assert.deepEqual(detail.body.data, item);
+ assert.equal(lastRpc.p_paket_id, 3);
+ assert.equal(lastRpc.p_koreksi_id, id);
 });

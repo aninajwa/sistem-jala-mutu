@@ -17,6 +17,12 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
   if (!response.ok) {
     const failure = await response.json().catch(() => null) as { code?: string; message?: string; error?: string } | null;
     if (path === '/auth/v1/user') throw new ApiError(401, 'Sesi tidak valid atau telah tamat');
+    // PostgREST uses PGRST202 when a requested RPC is absent from its schema cache.
+    // Surface this as a setup gap rather than a generic upstream failure.
+    if (failure?.code === 'PGRST202' && path.startsWith('/rest/v1/rpc/')) {
+      const rpcName = path.split('/').pop() ?? 'RPC';
+      throw new ApiError(503, `Fungsi database ${rpcName} belum tersedia atau belum masuk schema cache Supabase`);
+    }
     if (failure?.code === 'P0002' && /koreksi/.test(path)) throw new ApiError(404, failure.message ?? 'Kasus koreksi tidak ditemukan');
     if (failure?.code === 'P0002') throw new ApiError(404, 'Paket tidak ditemukan');
     if (failure?.code === '40001' && /kalibrasi/.test(path)) throw new ApiError(409, 'Rekod kalibrasi telah berubah. Baca semula');
