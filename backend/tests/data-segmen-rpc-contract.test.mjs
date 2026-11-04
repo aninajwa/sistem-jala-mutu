@@ -38,6 +38,7 @@ test('isolated fixture contains synthetic approved and unapproved Tahap 2 relati
   assert.match(fixture, /\(801, 501, 701\)/);
   assert.match(fixture, /\(901, 601, 801/);
   assert.match(fixture, /\(1001, 401\)/);
+  assert.match(fixture, /values \(401\), \(402\), \(999\)/);
   assert.match(fixture, /\(1101, 301, 601, 701, 801, 1001, 'DISETUJUI'\)/);
   assert.match(fixture, /\(1103, 301, 601, 701, 804, 1001, 'DRAFT'\)/);
 });

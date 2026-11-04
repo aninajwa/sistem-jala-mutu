@@ -10,6 +10,7 @@ end $$;
 create schema if not exists auth;
 create schema if not exists app_private;
 grant usage on schema auth, app_private to authenticated;
+grant usage on schema public to authenticated;
 
 create or replace function auth.uid()
 returns uuid language sql stable
@@ -131,7 +132,7 @@ insert into public.pengguna (pengguna_id, auth_user_id, terkunci) values
 on conflict (pengguna_id) do update set auth_user_id = excluded.auth_user_id, terkunci = excluded.terkunci;
 insert into public.peran (peran_id, nama) values (1, 'penyedia_jasa')
 on conflict (peran_id) do update set nama = excluded.nama;
-insert into public.balai (balai_id) values (401), (402)
+insert into public.balai (balai_id) values (401), (402), (999)
 on conflict (balai_id) do nothing;
 insert into public.jenis_survei (jenis_survei_id, kode, nama, aktif) values
   (701, 'UJI-SINTETIK-A', 'Jenis Survei Sintetik A', true),

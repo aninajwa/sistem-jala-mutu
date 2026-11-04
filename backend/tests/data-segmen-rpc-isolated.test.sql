@@ -24,7 +24,7 @@ begin
 
   v_list := public.baca_senarai_data_segmen(301, v_session_id);
   if jsonb_typeof(v_list) <> 'array' or not exists (
-    select 1 from jsonb_array_elements(v_list) item
+    select 1 from jsonb_array_elements(v_list) as a(item)
     where item->>'data_id' = v_data_id::text
       and item->>'sesi_id' = v_session_id::text
       and item->>'ruas_id' = '1001'
@@ -44,12 +44,12 @@ begin
   end if;
 end $$;
 
-select pg_temp.expect_error('42501', 'data segmen untuk paket milik orang lain',
+select app_private.t3a_test_expect_error('42501', 'data segmen untuk paket milik orang lain',
   format('select public.simpan_data_segmen(302, %s, ''{"jenis_survei_id":701,"nilai_utama":1}''::jsonb)', current_setting('jala_test.sesi_id')::integer),
   'Akses ke paket ini ditolak');
-select pg_temp.expect_error('P0002', 'sesi tidak berada dalam paket yang diberikan',
+select app_private.t3a_test_expect_error('P0002', 'sesi tidak berada dalam paket yang diberikan',
   $$select public.simpan_data_segmen(301, 999, '{"jenis_survei_id":701,"nilai_utama":1}'::jsonb)$$,
   'Sesi survei tidak ditemukan dalam paket ini');
-select pg_temp.expect_error('22023', 'jenis survei tidak cocok dengan sesi',
+select app_private.t3a_test_expect_error('22023', 'jenis survei tidak cocok dengan sesi',
   format('select public.simpan_data_segmen(301, %s, ''{"jenis_survei_id":702,"nilai_utama":1}''::jsonb)', current_setting('jala_test.sesi_id')::integer),
   'Jenis survei data tidak sama dengan jenis survei sesi');

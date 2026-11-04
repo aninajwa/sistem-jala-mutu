@@ -26,6 +26,7 @@ const trialEvaluationRows = new Map();
 const correctionRows = [];
 const surveySessionRows = [];
 const surveySegmentRows = [];
+const roadRows = [];
 const correctionReadPayload = row => ({
   kasus_temuan: { paket_id: row.paket_id, status: row.status, uraian: row.rejection_reason, tingkat: row.severity },
   tindakan_perbaikan: [],
@@ -52,7 +53,8 @@ before(async () => {
     if (url.pathname === '/rest/v1/pengguna') return send(token === 'unlinked' ? [] : [{ ...profile, pengguna_id: isDirector ? 4 : profile.pengguna_id, auth_user_id: authId, username: isDirector ? 'direktorat' : profile.username, terkunci: token === 'locked' }]);
     if (url.pathname === '/rest/v1/pengguna_peran') {
       roleQueries.push(url.search);
-      return send([{ peran_id: isDirector ? 4 : isReviewer ? 1 : 3, scope_balai_id: null, scope_paket_id: null }]);
+      const scope = token === 'balai1-reviewer' ? 1 : token === 'balai999-reviewer' ? 999 : null;
+      return send([{ peran_id: isDirector ? 4 : isReviewer ? 1 : 3, scope_balai_id: scope, scope_paket_id: null }]);
     }
     if (url.pathname === '/rest/v1/peran') {
       roleQueries.push(url.search);
@@ -60,6 +62,21 @@ before(async () => {
       return send([{ peran_id: 1, nama: 'pic_balai' }, { peran_id: 2, nama: 'admin' }, { peran_id: 3, nama: 'penyedia_jasa' }, { peran_id: 4, nama: 'direktorat' }]);
     }
     if (url.pathname === '/rest/v1/balai') return send([{ balai_id: 1, nama: 'Balai Ujian', aktif: true }]);
+    if (url.pathname === '/rest/v1/rpc/baca_ruas_paket') {
+      let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id !== 3 || token === 'foreign-reviewer') return send({ code: 'P0002' }, 404);
+      return send(roadRows.filter(row => row.balai_id === 1));
+    }
+    if (url.pathname === '/rest/v1/rpc/buat_ruas_jalan') {
+      let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      const assignedBalai = token === 'balai1-reviewer' ? 1 : token === 'balai999-reviewer' ? 999 : null;
+      const authorized = token === 'director' || (isReviewer && assignedBalai === lastRpc.p_balai_id);
+      if (!authorized) return send({ code: '42501' }, 403);
+      if (lastRpc.p_balai_id !== 1) return send({ code: '22023', message: 'Balai tidak ditemukan atau tidak aktif' }, 400);
+      if (roadRows.some(row => row.nomor_ruas === lastRpc.p_nomor_ruas)) return send({ code: '23505' }, 409);
+      const row = { ruas_id: 71 + roadRows.length, balai_id: lastRpc.p_balai_id, nomor_ruas: lastRpc.p_nomor_ruas, nama_ruas: lastRpc.p_nama_ruas, panjang_km: null, fungsi: null, status_jalan: null, trase: null, tgl_update_lrs: null };
+      roadRows.push(row); return send(row);
+    }
     if (url.pathname === '/rest/v1/anggota_tim') {
       if(token==='foreign-reviewer')return send([]);
       const rows=membershipRows.filter(a=>url.searchParams.get('tim_id')===`eq.${a.tim_id}` && (!url.searchParams.has('personel_id')||url.searchParams.get('personel_id')===`eq.${a.personel_id}`));
@@ -381,7 +398,7 @@ before(async () => {
     if (url.pathname === '/rest/v1/paket_kontrak') {
       const filter = url.searchParams.get('paket_id');
       if (!filter) return send([]);
-      return send(filter === 'eq.3' && token !== 'foreign-reviewer' ? [{ paket_id: 3, nama_paket: 'Paket Ujian', status: 'DRAFT', nama_ppk: null, tgl_spmk: null }] : []);
+      return send(filter === 'eq.3' && token !== 'foreign-reviewer' ? [{ paket_id: 3, balai_id: 1, created_by: 3, nama_paket: 'Paket Ujian', status: 'DRAFT', nama_ppk: null, tgl_spmk: null }] : []);
     }
     if (url.pathname === '/rest/v1/jenis_dokumen') return send([{ jenis_dokumen_id: 1, kode: 'LAPORAN_PENDAHULUAN', nama: 'Laporan Pendahuluan' }]);
     if (url.pathname === '/rest/v1/dokumen') {
@@ -635,6 +652,31 @@ test('valid edit forwards only supplied fields', async () => { const r = await r
 test('optional fields can be cleared', async () => { const r = await request('/paket/3', 'provider', { nama_ppk: '', tgl_spmk: null }, 'PATCH'); assert.equal(r.status, 200); assert.equal(lastRpc.p_patch.nama_ppk, null); assert.equal(lastRpc.p_patch.tgl_spmk, null); });
 test('non-draft and duplicate edit return 409', async () => { assert.equal((await request('/paket/4', 'provider', { nama_ppk: 'PPK' }, 'PATCH')).status, 409); assert.equal((await request('/paket/3', 'provider', { nomor_kontrak: 'DUPLICATE' }, 'PATCH')).status, 409); });
 test('missing edit target returns 404', async () => assert.equal((await request('/paket/999', 'provider', { nama_ppk: 'PPK' }, 'PATCH')).status, 404));
+
+test('only admin or PIC scoped to the Balai can create a road master', async () => {
+  const body = { nomor_ruas: 'TEST-QA-P9-001', nama_ruas: 'SIMULASI TEST/QA PAKET #9' };
+  assert.equal((await request('/balai/1/ruas-jalan', 'provider', body)).status, 403);
+  assert.equal((await request('/balai/1/ruas-jalan', 'reviewer', body)).status, 403);
+  const created = await request('/balai/1/ruas-jalan', 'balai1-reviewer', body);
+  assert.equal(created.status, 201);
+  assert.deepEqual(lastRpc, { p_balai_id: 1, p_nomor_ruas: body.nomor_ruas, p_nama_ruas: body.nama_ruas });
+  assert.equal(created.body.data.balai_id, 1);
+});
+
+test('road master requires valid names and an active existing Balai', async () => {
+  assert.equal((await request('/balai/1/ruas-jalan', 'balai1-reviewer', { nomor_ruas: 'R-1', nama_ruas: ' ' })).status, 400);
+  assert.equal((await request('/balai/1/ruas-jalan', 'balai1-reviewer', { nomor_ruas: 'R-1' })).status, 400);
+  assert.equal((await request('/balai/999/ruas-jalan', 'balai999-reviewer', { nomor_ruas: 'R-999', nama_ruas: 'Road' })).status, 400);
+});
+
+test('duplicate road number maps to conflict and package-scoped read returns the saved row', async () => {
+  const body = { nomor_ruas: 'TEST-QA-P9-001', nama_ruas: 'SIMULASI TEST/QA PAKET #9' };
+  assert.equal((await request('/balai/1/ruas-jalan', 'balai1-reviewer', body)).status, 409);
+  const listed = await request('/paket/3/ruas-jalan', 'balai1-reviewer');
+  assert.equal(listed.status, 200);
+  assert.equal(listed.body.data.length, 1);
+  assert.equal(listed.body.data[0].nomor_ruas, body.nomor_ruas);
+});
 
 const checklistPath = '/paket/3/checklist-persiapan';
 const checklistBody = { expected_version: 0, jawaban: [{ item_id: 1, jawaban: 'Ya', keterangan: ' Catatan ujian ' }] };

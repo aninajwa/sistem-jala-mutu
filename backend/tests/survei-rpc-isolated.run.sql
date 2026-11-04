@@ -6,8 +6,8 @@ do $$ begin
   if exists (
     select 1 from information_schema.tables
     where table_schema = 'public'
-      and table_name in ('pengguna','paket_kontrak','tim_survei','alat_survei','penugasan_alat',
-        'ruas_jalan','uji_coba','sesi_survei','jenis_survei','data_segmen')
+      and table_name in ('pengguna','peran','pengguna_peran','balai','jenis_survei','paket_kontrak',
+        'tim_survei','alat_survei','penugasan_alat','ruas_jalan','anggota_tim','uji_coba','sesi_survei','data_segmen')
   ) then
     raise exception 'Database ujian mesti kosong dari tabel aplikasi Tahap 3A; runner menolak mengubah skema/data yang telah ada';
   end if;
