@@ -145,7 +145,7 @@ export type DailySurveyRecord = {
 
 export type VervalCycle = {
   reviewPendingTypes?: SurveyType[];
-  surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string}>>;
+  surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string; evidenceReferences?:string[]}>>;
   requiresReview?: boolean;
   reviewReason?: string;
   lastCompletedDate: string;
