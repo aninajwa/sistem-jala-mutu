@@ -45,11 +45,12 @@ export function useWorkflowStage({
       | "audit"
       | "penerimaan",
     period = 0,
+    context?: {survey?:string;auditLevel?:1|2|3},
   ) => {
     try {
       localPersistence.setItem(
         "jala-ba-navigation-v2",
-        JSON.stringify({ packageId: state.project.id, kind, period }),
+        JSON.stringify({ packageId: state.project.id, kind, period, ...context }),
       );
     } catch {}
     try {
@@ -68,11 +69,12 @@ export function useWorkflowStage({
       | "penerimaan",
     label: string,
     period = 0,
+    context?: {survey?:string;auditLevel?:1|2|3},
   ) => (
     <button
       type="button"
       className="wf-button"
-      onClick={() => goToBA(kind, period)}
+      onClick={() => goToBA(kind, period, context)}
     >
       <FileText size={14} />
       {label}

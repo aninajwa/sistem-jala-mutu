@@ -70,7 +70,7 @@ export function AppTopbar({
         </div>
       </div>
       <div className="global-filters">
-        {!isPackageWorkspace&&location!=="/packages"&&<><div className="filter-wrap">
+        {!isPackageWorkspace&&location!=="/"&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&<><div className="filter-wrap">
           <label>Balai:</label>
           <select value={balai} onChange={e => setBalai(e.target.value)} data-testid="select-global-balai">
             <option>Semua Balai</option>
@@ -84,15 +84,6 @@ export function AppTopbar({
           </select>
         </div>
         </>}
-        {location === '/' && (
-          <div className="filter-wrap">
-            <label>Jenis survei:</label>
-            <select value={jenis} onChange={e => setJenis(e.target.value)} data-testid="select-survey-type">
-              <option>Semua</option>
-              {surveiTypes.map(x => <option key={x}>{x}</option>)}
-            </select>
-          </div>
-        )}
         <div className="filter-wrap">
           <label>Peran aktif:</label>
           {isRoleTestMode()?<button

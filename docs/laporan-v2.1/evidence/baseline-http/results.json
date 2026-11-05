@@ -1,0 +1,18 @@
+{
+  "browser": "153.0.8010.0",
+  "base": "http://jala-http.test:5184",
+  "baseline": true,
+  "results": [
+    {
+      "check": "original baseline reproduces randomUUID crash on actual insecure HTTP",
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "origin": "http://jala-http.test:5184",
+      "status": "pass"
+    }
+  ],
+  "errors": []
+}

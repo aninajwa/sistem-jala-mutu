@@ -25,7 +25,6 @@ import { RoleEntryScreen } from './components/app/RoleEntryScreen';
 import { useDemoStore } from './hooks/useDemoStore';
 import { usePackageStore } from './hooks/usePackageStore';
 
-import { exportDemoDataCsv } from './lib/csv';
 import { DEMO_SESSION_KEY } from './lib/demoData';
 import { isInPeriod } from './lib/periods';
 
@@ -38,6 +37,8 @@ import EntryPage from './pages/EntryPage';
 import MasterPage from './pages/MasterPage';
 import NotificationsPage from './pages/NotificationsPage';
 import PackageDetailPage, { ServerPackageWorkspace } from './pages/PackageDetailPage';
+import {startNotificationScheduler,resolveNotification,targetAvailable} from './workflow/notifications/notificationService';
+import type {Target} from './workflow/notifications/notificationEvents';
 import PackagesPage from './pages/PackagesPage';
 import ReportsPage from './pages/ReportsPage';
 import VerificationPage from './pages/VerificationPage';
@@ -53,6 +54,7 @@ import { canAccessRoute } from './workflow/workflowConfig';
 function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: WorkflowRole; userLabel?: string; onSignOut?: () => void } = {}) {
   const {
     packageStore,
+    principal,
     scopedPackages,
     activePackageId,
     activePackage,
@@ -77,6 +79,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
     closeDialog,
   } = useDemoStore(packageStore.activeRole);
 
+  useEffect(startNotificationScheduler, []);
   const [location, setLocation] = useLocation();
   const query = useSearch();
   const requestedPackageId = new URLSearchParams(query).get('paket');
@@ -133,8 +136,10 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
 
   useEffect(() => {
     setMobileOpen(false);
-    setSearch('');
-    setActiveTab('Semua');
+    let documentSearch='';
+    if(location==='/documents'){try{documentSearch=JSON.parse(sessionStorage.getItem('jala-document-filters')??'{}').search??'';}catch{/* Optional list navigation context. */}}
+    setSearch(documentSearch);
+    setActiveTab(location==='/documents'?(new URLSearchParams(window.location.search).get('tab')||'Semua'):'Semua');
 
     const selected =
       normalizeWorkflowSelection(new URLSearchParams(
@@ -142,7 +147,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
       ).get('submodule') || '');
 
     setSelectedSubmodule(
-      selected.startsWith(`${location}:`)
+      selected.startsWith(`${location}:`) && !(location==='/documents'&&!workflowSubmodules.has(selected))
         ? selected
         : '',
     );
@@ -188,6 +193,12 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
   };
 
   const navigateSubmodule = (selection: string) => {
+    if (selection.startsWith('/documents:') && !workflowSubmodules.has(selection)) {
+      setSelectedSubmodule('');
+      setActiveTab(selection.split(':')[1] || 'Semua');
+      setLocation('/documents?tab='+encodeURIComponent(selection.split(':')[1] || 'Semua')+(isRoleTestMode()?'&testRoles=1':''));
+      return;
+    }
     const url = new URL(window.location.href);
 
     url.searchParams.set(
@@ -271,9 +282,22 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
   navigateSubmodule("/actions:Koreksi berbukti");
 };
 
+  const openNotificationTarget = (target:Target, notificationId?:string) => {
+    const checked=notificationId?resolveNotification(notificationId,scopedPackages,principal).target:target;
+    const state=scopedPackages[checked.packageId];
+    if(!state||!principal.packageIds.includes(checked.packageId)||!targetAvailable(checked,state))throw new Error('Pekerjaan tidak tersedia atau tidak dapat diakses.');
+    if(checked.module==='correction'){openCorrection(checked.packageId,checked.caseId);return;}
+    if(checked.module==='document'){openPackageBA(checked.packageId,checked.identity.kind,{...checked.identity,returnTo:'/notifications'});return;}
+    if(!selectPackage(checked.packageId))throw new Error('Penugasan paket tidak tersedia.');
+    if(checked.period)sessionStorage.setItem(`jala-notification-period:${checked.packageId}`,String(checked.period));
+    if(checked.auditLevel)sessionStorage.setItem(`jala-notification-audit:${checked.packageId}`,String(checked.auditLevel));
+    navigateSubmodule(checked.selection);
+  };
+
   const openPackageBA = (
     id: string,
     kind: string,
+    context?: {survey?:string;period?:number;auditLevel?:number;returnTo?:string},
   ) => {
     if (authenticatedRole) { setNotice('Dokumen & BA paket server belum terhubung. Buka paket dari menu Paket.'); return; }
     if (!selectPackage(id)) {
@@ -287,13 +311,22 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
         JSON.stringify({
           packageId: id,
           kind,
-          period: 1,
+          period: context?.period ?? scopedPackages[id]?.activeCyclePeriod ?? 1,
+          survey: context?.survey,
+          auditLevel: context?.auditLevel,
         }),
       );
 
       localPersistence.setItem(
         'jala-ba-return-to',
-        '/packages:Ringkasan Paket',
+        context?.returnTo ??
+  (packageStore.activeRole === 'Penyedia Jasa / Ketua Tim'
+    ? '/documents:Tugas Dokumen'
+    : packageStore.activeRole === 'PIC Balai / Pengguna Jasa'
+      ? '/documents:Dokumen Paket'
+      : packageStore.activeRole === 'Direktorat / Pusat'
+        ? '/documents:Audit & Dokumen Pusat'
+        : '/documents:Monitoring Dokumen'),
       );
     } catch {
       // Preferensi navigasi lokal bersifat opsional.
@@ -378,18 +411,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
     <WouterRouter>
       <div
         className="app-shell"
-        onClickCapture={event => {
-          const target =
-            event.target as HTMLElement;
 
-          if (
-            target.closest(
-              '[data-testid="button-export-report"]',
-            )
-          ) {
-            exportDemoDataCsv(store);
-          }
-        }}
       >
         <AppSidebar
           mobileOpen={mobileOpen}
@@ -409,7 +431,10 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
         <main className="main-area">
           {authenticatedRole && <div className="auth-local-notice">Masuk sebagai {userLabel}. Login, daftar paket, dan identitas paket terhubung ke server. Perhatikan status koneksi di setiap modul; dashboard umum masih pratinjau lokal.</div>}
           <AppTopbar
-            isPackageWorkspace={isPackageWorkspace}
+  isPackageWorkspace={
+    isPackageWorkspace &&
+    selectedSubmodule !== "/documents:BA & dokumen workflow"
+  }
             packageName={
               serverPackageId ? `Paket #${serverPackageId}` : activePackage?.project.packageName
             }
@@ -438,7 +463,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
               </div>
             )}
 
-            {!isPackageWorkspace && location !== "/packages" && <MobileFilters
+            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&<MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
@@ -448,7 +473,11 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
               showJenis={location === '/'}
             />}
 
-            {authenticatedRole && serverPackageId && workflowSubmodules.has(selectedSubmodule) ? (
+            {location === '/notifications' || selectedSubmodule.startsWith('/notifications:') ? (
+              <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget} />
+            ) : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? (
+              <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]} />
+            ) : authenticatedRole && serverPackageId && workflowSubmodules.has(selectedSubmodule) ? (
               <ServerPackageWorkspace
                 key={`${serverPackageId}:${authenticatedRole}`}
                 packageId={serverPackageId}
@@ -519,7 +548,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 </Route>
 
                 <Route path="/reports">
-                  <ReportsPage {...pageProps} />
+                  <ReportsPage key={principal.id+principal.role} {...pageProps} principal={principal} />
                 </Route>
 
                 <Route path="/documents">
@@ -527,7 +556,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 </Route>
 
                 <Route path="/notifications">
-                  <NotificationsPage {...pageProps} />
+                  <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/>
                 </Route>
 
                 <Route path="/audit">

@@ -21,7 +21,7 @@ export function fieldReadiness(state:OperationalWorkflowState): string[] {
     c.userReview!=='Sesuai'?'Pemeriksaan proses/hasil verval oleh Pengguna Jasa belum sesuai':'',
     state.project.surveyTypes.includes('Jembatan')&&(!c.bridgeFieldValidation||(c.bridgeValidatedPercent??0)<10||!c.bridgeValidationReport?.trim())?'Validasi lapangan jembatan ≥10% dan referensi laporan wajib':'',
     !c.finalPeriodValidation||!c.finalValidationLocation?.trim()||!c.finalToolUnchanged?'Uji lokasi validasi akhir dan konfirmasi alat tidak berubah wajib':'',
-    state.corrections.some(item=>item.status!=='Ditutup'&&!item.source.startsWith('Notifikasi H+0'))?'Kasus mutu masih terbuka':'',
+    pendingQualityCases(state).length?'Kasus mutu masih terbuka':'',
   ].filter(Boolean);
 }
 
@@ -47,13 +47,21 @@ export function semesterTwoReadiness(state:OperationalWorkflowState):string[] {
   ].filter(Boolean);
 }
 
+/** Only substantive open corrective cases block downstream gates.
+ * H+0 reminders are notifications, not QA/QC findings. */
+export function pendingQualityCases(state:OperationalWorkflowState):CorrectionCase[] {
+  return state.corrections.filter(item=>item.status!=='Ditutup'&&!item.source.startsWith('Notifikasi H+0'));
+}
+
 export function canMarkFinalReport(state:OperationalWorkflowState):boolean {
-  return state.acceptance.terms.filter(t=>t.id!=='T4').every(t=>t.complete)
+  return pendingQualityCases(state).length===0
+    &&state.acceptance.terms.filter(t=>t.id!=='T4').every(t=>t.complete)
     &&state.audits.every(a=>a.status==='Lulus'&&!a.requiresReview)
     &&!!state.acceptance.semesterTwoEvidence?.finalReportReference.trim();
 }
 
 export function termReadiness(state:OperationalWorkflowState,id:string):string[] {
+  if(['T2','T3','T4'].includes(id)&&pendingQualityCases(state).length)return ['Kasus tindakan perbaikan masih terbuka; seluruh temuan terkait harus ditutup dan gate asal diperiksa ulang'];
   if(id==='T1')return state.project.preparation.reportApproval==='Disetujui'&&state.productionApproval==='Disetujui'&&state.calibrations.length>0&&state.calibrations.every(c=>c.dueDate>=state.simulationDate&&c.condition==='Baik'&&c.qualificationValid&&c.trainingVerified)&&state.project.surveyTypes.every(t=>state.calibrationChecklist[t]&&evaluateProductionTest(t,state.productionTests[t]).passed)?[]:['Persiapan, kalibrasi, metode dan uji produksi belum disetujui'];
   if(id==='T2'&&(state.cycle.requiresReview||Object.values(state.cycleHistory??{}).some(c=>c.requiresReview)))return ['Pemeriksaan ulang periode belum selesai'];
   if(id==='T3'&&state.audits.some(a=>a.requiresReview))return ['Pemeriksaan ulang audit belum selesai'];

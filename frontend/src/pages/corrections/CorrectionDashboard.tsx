@@ -1,14 +1,14 @@
 
 import { useMemo, useState } from "react";
 import {
-  AlertTriangle, ArrowRight, CheckCircle2, ClipboardList,
-  Clock3, FileText, FolderOpen, Search, ShieldCheck, Wrench,
+  CheckCircle2, ClipboardList,
+  Clock3, FileText, FolderOpen, Search, ShieldCheck,
 } from "lucide-react";
 import type { CorrectionPageProps } from "../ActionsPage";
 import type { CorrectionRow } from "./correctionViewModel";
-import {
+import { correctionDisplayStatus,
   STATUS_LABEL, STATUS_ORDER, ROLE_TABS, collectCorrections,
-  correctionMetrics, matchesRoleTab, isOverdue,
+  correctionMetrics, matchesRoleTab, isOverdue, dueInSevenDays,
 } from "./correctionViewModel";
 import "./corrections.css";
 import CorrectionSubmodule from "./components/CorrectionSubmodule";
@@ -30,71 +30,6 @@ function SummaryCard({ item, index }: { item: Metric; index: number }) {
         <span className="corr-metric-foot">Kasus pada cakupan akses</span>
       </span>
     </div>
-  );
-}
-
-function StatusChart({ rows }: { rows: CorrectionRow[] }) {
-  return (
-    <section className="corr-panel">
-      <h3>Tahapan Tindakan Perbaikan</h3>
-      {rows.length === 0 ? (
-        <div className="corr-empty-chart">
-          <ClipboardList size={24} />
-          <strong>Belum ada temuan</strong>
-          <span>Status akan muncul ketika temuan tercatat.</span>
-        </div>
-      ) : (
-        <div className="corr-steps">
-          {STATUS_ORDER.map((status, index) => {
-            const count = rows.filter(r => r.status === status).length;
-            return (
-              <div className="corr-step" key={status}>
-                <span className={`corr-step-number ${status === "Ditutup" ? "done" : ""}`}>
-                  {count}
-                </span>
-                <small>{STATUS_LABEL[status]}</small>
-                {index < STATUS_ORDER.length - 1 && <ArrowRight className="corr-step-arrow" size={15} />}
-              </div>
-            );
-          })}
-        </div>
-      )}
-    </section>
-  );
-}
-
-function ActionChart({ rows }: { rows: CorrectionRow[] }) {
-  const counts = rows.reduce<Record<string, number>>((acc, row) => {
-    const action = row.actionType?.trim() || "Belum ditetapkan";
-    acc[action] = (acc[action] ?? 0) + 1;
-    return acc;
-  }, {});
-  const entries = Object.entries(counts).sort((a, b) => b[1] - a[1]);
-  const max = Math.max(1, ...entries.map(([, value]) => value));
-
-  return (
-    <section className="corr-panel">
-      <h3>Jenis Tindakan</h3>
-      {entries.length === 0 ? (
-        <div className="corr-empty-chart">
-          <Wrench size={24} />
-          <strong>Belum ada jenis tindakan</strong>
-          <span>Grafik akan dihitung dari kasus yang tercatat.</span>
-        </div>
-      ) : (
-        <div className="corr-bars">
-          {entries.slice(0, 7).map(([name, count]) => (
-            <div className="corr-bar" key={name}>
-              <span title={name}>{name}</span>
-              <div className="corr-bar-track">
-                <i style={{ width: `${count / max * 100}%` }} />
-              </div>
-              <strong>{count}</strong>
-            </div>
-          ))}
-        </div>
-      )}
-    </section>
   );
 }
 
@@ -139,7 +74,7 @@ function CaseDetail({
 
       <div className="corr-detail-id">
         <strong>{item.id}</strong>
-        <span className="corr-status">{STATUS_LABEL[item.status]}</span>
+        <span className="corr-status">{correctionDisplayStatus(item)}</span>
       </div>
 
       <div className="corr-source">
@@ -229,11 +164,23 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
     ].join(" ").toLowerCase().includes(query.toLowerCase());
   });
 
+  const overviewTab = ['Tugas Saya', 'Temuan Lintas Paket', 'Monitoring Kasus', 'Tindak Lanjut Paket'].includes(currentTab);
+  const hasCaseMetrics = currentTab !== "Data Referensi";
   const selected = filtered.find(r => r.key === selectedKey);
   const metrics = useMemo(
   () => correctionMetrics(filtered, role),
   [filtered, role],
 );
+
+  const compactMetrics = overviewTab ? metrics : [
+    {label: "Kasus pada halaman", value: filtered.length, tone: "blue"},
+    currentTab === "Riwayat"
+      ? {label: "Prioritas mayor/kritis", value: filtered.filter(r => r.severity === "Mayor" || r.severity === "Kritis").length, tone: "amber"}
+      : {label: "Mendekati tenggat", value: filtered.filter(dueInSevenDays).length, tone: "amber"},
+    currentTab === "Riwayat"
+      ? {label: "Selesai", value: filtered.filter(r => r.status === "Ditutup").length, tone: "green"}
+      : {label: "Melewati tenggat", value: filtered.filter(isOverdue).length, tone: "purple"},
+  ];
 
   const headingByRole: Record<string, string> = {
     "Penyedia Jasa / Ketua Tim": "Kelola tindak lanjut dan bukti perbaikan dari seluruh paket Anda.",
@@ -245,13 +192,28 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
   const tableTitle = currentTab === "Tugas Saya"
     ? "Daftar Tindak Lanjut Saya"
     : currentTab;
+  const tabDescriptions: Record<string, string> = {
+    "Tugas Saya": "Kerjakan temuan terbuka dan lengkapi bukti pada paket Anda.",
+    "Menunggu Verifikasi": "Pantau pengajuan yang menunggu keputusan, tanpa mengubah isian terkunci.",
+    "Riwayat": "Telusuri hasil, keputusan, dan rekaman kasus yang selesai.",
+    "Antrian Verifikasi": "Periksa usulan Penyedia yang benar-benar menunggu persetujuan Balai.",
+    "Tindak Lanjut Paket": "Pantau status dan prioritas tindak lanjut per paket dalam kewenangan Balai.",
+    "Verifikasi Ulang": role === "Direktorat / Pusat"
+      ? "Pantau pemeriksaan ulang lintas Balai tanpa mengambil keputusan Balai."
+      : "Periksa hasil dan bukti uji ulang yang diajukan Penyedia.",
+    "Temuan Lintas Paket": "Lihat sebaran temuan lintas Balai dan paket yang memerlukan perhatian.",
+    "Audit Tingkat 3": "Telusuri temuan yang terkait audit pusat pada Tahap 5.",
+    "Monitoring Kasus": "Pantau status kasus, tanggung jawab, dan tenggat tanpa mengubah keputusan.",
+    "Notifikasi & SLA": "Fokus kasus terlambat dan mendekati tenggat.",
+    "Data Referensi": "Lihat kategori tindakan dan sumber temuan yang benar-benar tercatat.",
+  };
 
   return (
     <div className="corr-dashboard">
       <header className="corr-heading">
         <div>
-          <h2>Temuan & Tindakan Perbaikan</h2>
-          <p>{headingByRole[role]}</p>
+          <h2>{currentTab}</h2>
+          <p>{tabDescriptions[currentTab] ?? headingByRole[role]}</p>
         </div>
         <div className="corr-role">
           <ShieldCheck size={21} />
@@ -259,7 +221,7 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
         </div>
       </header>
 
-      <div className="corr-filters">
+      {currentTab !== "Data Referensi" && <details className="ui09-case-filters"><summary>Filter kasus</summary><div className="corr-filters">
         <label>Paket
           <select value={packageFilter} onChange={e => setPackageFilter(e.target.value)}>
             <option value="">Semua paket dalam kewenangan</option>
@@ -286,12 +248,12 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
             {STATUS_ORDER.map(s => <option value={s} key={s}>{STATUS_LABEL[s]}</option>)}
           </select>
         </label>
-      </div>
+      </div></details>}
 
-      <div className="corr-metrics">
-        {metrics.map((item, index) =>
+      {hasCaseMetrics && <div className="corr-metrics">
+        {compactMetrics.map((item, index) =>
           <SummaryCard key={item.label} item={item} index={index} />)}
-      </div>
+      </div>}
 
 {role === "Direktorat / Pusat" &&
   currentTab === "Audit Tingkat 3" && (
@@ -304,40 +266,30 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
 />
   )}
 
-      {["Tugas Saya", "Temuan Lintas Paket", "Monitoring Kasus"].includes(currentTab) && (
-  <div className="corr-chart-grid">
-  <StatusChart rows={filtered} />
-  <ActionChart rows={filtered} />
-</div>
-)}
+      <details className="ui09-case-charts"><summary>Grafik temuan & tindak lanjut</summary><CorrectionSubmoduleCharts role={role} tab={currentTab} rows={filtered} /></details>
 
-{currentTab !== "Tugas Saya" &&
- currentTab !== "Temuan Lintas Paket" &&
- currentTab !== "Monitoring Kasus" ? (
+{!overviewTab ? (
   <>
-    {(currentTab !== "Audit Tingkat 3" || filtered.length > 0) && (
-  <CorrectionSubmoduleCharts
-    role={role}
-    tab={currentTab}
-    rows={filtered}
-  />
-)}
-
-    <div className="corr-main-grid">
+    <div
+      className={currentTab === "Data Referensi" ? "corr-reference-layout" : "corr-main-grid"}
+      style={currentTab === "Data Referensi" ? { display: "block", width: "100%" } : undefined}
+    >
       <CorrectionSubmodule
         role={role}
         tab={currentTab}
-        rows={rows}
+        rows={filtered}
         selectedKey={selectedKey}
         onSelect={setSelectedKey}
         onOpen={p.onOpenCorrection}
       />
 
-      <CaseDetail
-        item={rows.find(item => item.key === selectedKey)}
-        role={role}
-        onOpenCorrection={p.onOpenCorrection}
-      />
+      {currentTab !== "Data Referensi" && (
+        <CaseDetail
+          item={selected}
+          role={role}
+          onOpenCorrection={p.onOpenCorrection}
+        />
+      )}
     </div>
   </>
 ) : (
@@ -381,37 +333,37 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
     style={{ cursor: "pointer" }}
     aria-selected={selected?.key === item.key}
   >
-    <td>
+    <td data-label="ID temuan">
       <strong>{item.id}</strong>
     </td>
 
-    <td>
+    <td data-label="Paket / ruas">
       <strong>{item.packageName}</strong>
       <small>{item.road}</small>
     </td>
 
-    <td>
+    <td data-label="Sumber">
       <span className="corr-source-tag">{item.source}</span>
     </td>
 
-    <td>{item.rejectionReason}</td>
+    <td data-label="Jenis temuan">{item.rejectionReason}</td>
 
-    <td>
+    <td data-label="Prioritas">
       <span className={`corr-severity sev-${item.severity}`}>
         {item.severity}
       </span>
     </td>
 
-    <td>
+    <td data-label="Status">
       <span className="corr-status">
-        {STATUS_LABEL[item.status]}
+        {correctionDisplayStatus(item)}
       </span>
       {isOverdue(item) && (
         <small className="corr-late">Melewati tenggat</small>
       )}
     </td>
 
-    <td>
+    <td data-label="Aksi">
       <div className="corr-row-actions">
         <button
           type="button"
