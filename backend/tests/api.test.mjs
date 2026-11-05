@@ -67,6 +67,30 @@ before(async () => {
       if (lastRpc.p_paket_id !== 3 || token === 'foreign-reviewer') return send({ code: 'P0002' }, 404);
       return send(roadRows.filter(row => row.balai_id === 1));
     }
+    if (['/rest/v1/rpc/baca_senarai_siklus_verval','/rest/v1/rpc/baca_siklus_verval'].includes(url.pathname)) {
+      let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id !== 3 || token === 'foreign-reviewer') return send({ code: 'P0002', message: 'Paket tidak ditemukan atau tidak boleh diakses' }, 404);
+      const cycles = [
+        { siklus_id: 700, paket_id: 3, siklus_ke: 1, periode_mulai: '2026-10-01', periode_selesai: '2026-10-14', jatuh_tempo: '2026-10-15', panjang_periode_km: null, status: null },
+        { siklus_id: 701, paket_id: 3, siklus_ke: 2, periode_mulai: null, periode_selesai: null, jatuh_tempo: null, panjang_periode_km: null, status: null },
+      ];
+      if (url.pathname.endsWith('/baca_senarai_siklus_verval')) return send(cycles);
+      const cycle = cycles.find(row => row.siklus_id === lastRpc.p_siklus_id && row.paket_id === lastRpc.p_paket_id);
+      return cycle ? send(cycle) : send({ code: 'P0002', message: 'Siklus Verval tidak ditemukan dalam paket ini' }, 404);
+    }
+    if (url.pathname === '/rest/v1/rpc/baca_uji_konsistensi_verval') {
+      let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id !== 3 || token === 'foreign-reviewer') return send({ code: 'P0002', message: 'Paket tidak ditemukan atau tidak boleh diakses' }, 404);
+      if (lastRpc.p_siklus_id !== 700) return send({ code: 'P0002', message: 'Siklus Verval tidak ditemukan dalam paket ini' }, 404);
+      return send([{
+        konsistensi_id: 801, siklus_id: 700, jenis_survei_id: 1, tim_id: 21, ruas_id: 12,
+        sta_awal: 1, sta_akhir: 2, jumlah_ulangan: 2, status: null,
+        ulangan: [
+          { ulangan_id: 901, konsistensi_id: 801, rater_personel_id: 91, ulangan_ke: 1, nilai: 4.2 },
+          { ulangan_id: 902, konsistensi_id: 801, rater_personel_id: 92, ulangan_ke: 2, nilai: 4.3 },
+        ],
+      }]);
+    }
     if (url.pathname === '/rest/v1/rpc/buat_ruas_jalan') {
       let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       const assignedBalai = token === 'balai1-reviewer' ? 1 : token === 'balai999-reviewer' ? 999 : null;
@@ -1553,4 +1577,57 @@ test('correction read RPCs return the documented list/detail JSON shape', async 
  assert.deepEqual(detail.body.data, item);
  assert.equal(lastRpc.p_paket_id, 3);
  assert.equal(lastRpc.p_koreksi_id, id);
+});
+
+const cyclePath = '/paket/3/siklus-verval';
+test('Verval cycle READ requires authentication and returns package-scoped list/detail for provider and assigned PIC', async () => {
+  assert.equal((await request(cyclePath, null)).status, 401);
+  for (const token of ['provider', 'reviewer']) {
+    const list = await request(cyclePath, token);
+    assert.equal(list.status, 200);
+    assert.equal(list.body.data[0].siklus_id, 700);
+    assert.deepEqual(lastRpc, { p_paket_id: 3 });
+    const detail = await request(`${cyclePath}/700`, token);
+    assert.equal(detail.status, 200);
+    assert.equal(detail.body.data.paket_id, 3);
+    assert.deepEqual(lastRpc, { p_paket_id: 3, p_siklus_id: 700 });
+  }
+});
+
+test('Verval cycle READ hides foreign package and missing or cross-package cycles as 404', async () => {
+  assert.equal((await request(cyclePath, 'foreign-reviewer')).status, 404);
+  assert.equal((await request('/paket/999/siklus-verval', 'provider')).status, 404);
+  assert.equal((await request(`${cyclePath}/702`, 'provider')).status, 404);
+  assert.equal((await request('/paket/4/siklus-verval/700', 'provider')).status, 404);
+});
+
+test('Verval cycle READ rejects invalid path identifiers', async () => {
+  for (const path of ['/paket/no/siklus-verval', '/paket/0/siklus-verval', `${cyclePath}/0`, `${cyclePath}/2147483648`]) {
+    assert.equal((await request(path, 'provider')).status, 400, path);
+  }
+});
+
+const consistencyPath = `${cyclePath}/700/uji-konsistensi`;
+test('Verval consistency READ returns consistency rows with only their linked repeat measurements', async () => {
+  assert.equal((await request(consistencyPath, null)).status, 401);
+  for (const token of ['provider', 'reviewer']) {
+    const response = await request(consistencyPath, token);
+    assert.equal(response.status, 200);
+    assert.ok(Array.isArray(response.body.data));
+    assert.equal(response.body.data[0].konsistensi_id, 801);
+    assert.deepEqual(response.body.data[0].ulangan.map(item => item.konsistensi_id), [801, 801]);
+    assert.deepEqual(lastRpc, { p_paket_id: 3, p_siklus_id: 700 });
+  }
+});
+
+test('Verval consistency READ hides unauthorized packages and cycles outside the package', async () => {
+  assert.equal((await request(consistencyPath, 'foreign-reviewer')).status, 404);
+  assert.equal((await request('/paket/10/siklus-verval/700/uji-konsistensi', 'provider')).status, 404);
+  assert.equal((await request(`${cyclePath}/701/uji-konsistensi`, 'provider')).status, 404);
+});
+
+test('Verval consistency READ rejects malformed package and cycle IDs', async () => {
+  for (const path of ['/paket/no/siklus-verval/700/uji-konsistensi', `${cyclePath}/0/uji-konsistensi`, `${cyclePath}/2147483648/uji-konsistensi`]) {
+    assert.equal((await request(path, 'provider')).status, 400, path);
+  }
 });
