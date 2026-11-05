@@ -1,3 +1,4 @@
+import {correctionMutationError} from './checkpoint09Corrections';
 import type { OperationalWorkflowState } from "./model";
 import { canPerformAction, type WorkflowAction } from "./workflowPermissions";
 import { evaluateStageGate } from "./workflowGate";
@@ -15,6 +16,7 @@ export function workflowMutationError(
   if (selection === "/audit:Peran & backup")
     return allow("administration.manage") ? undefined : denied;
   if (role === "Admin") return denied;
+  if(selection==="/actions:Koreksi berbukti"){const error=correctionMutationError(before,after);if(error)return error;}
   // Check decisions separately from supporting-data edits and automatic invalidation.
   if (changed(before.project, after.project)) {
     const approval = after.project.preparation.reportApproval;

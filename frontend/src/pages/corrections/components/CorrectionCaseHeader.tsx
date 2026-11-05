@@ -36,59 +36,8 @@ export default function CorrectionCaseHeader({
     : role === "PIC Balai / Pengguna Jasa"
       ? "Periksa bukti Penyedia, catat keputusan, dan verifikasi ulang sesuai kewenangan."
       : role === "Direktorat / Pusat"
-        ? "Telaah temuan dan hasil pemeriksaan sebelumnya. Audit Tingkat 3 tetap berada pada Tahap 5."
+        ? "Telaah temuan. Pemeriksaan ulang dan penutupan temuan Audit Tingkat 3 dilakukan oleh Direktorat; keputusan audit ulang tetap pada Tahap 5."
         : "Pantau status kasus dan riwayat. Tidak memiliki kewenangan persetujuan teknis.";
 
-  return (
-    <header className="case-detail-header">
-      <button
-        type="button"
-        className="case-back"
-        onClick={onBack}
-      >
-        <ArrowLeft size={15} />
-        Kembali ke Tindakan Perbaikan
-      </button>
-
-      <div className="case-heading">
-        <div>
-          <span className="case-eyebrow">
-            TINDAKAN PERBAIKAN / DETAIL KASUS
-          </span>
-          <h2>{item?.id ?? "Detail Tindakan Perbaikan"}</h2>
-          <p>
-            {workflow.project.packageName} ·{" "}
-            {item?.source ?? "Belum ada kasus dipilih"} ·{" "}
-            {item?.surveyType ?? "—"}
-          </p>
-        </div>
-
-        <span className="case-status">
-          {item?.status ?? "Belum dipilih"}
-        </span>
-      </div>
-
-      <div className="case-problem">
-        <AlertCircle size={19} />
-        <div>
-          <strong>Temuan yang harus ditindaklanjuti</strong>
-          <p>
-            {item?.rejectionReason ??
-              "Pilih kasus dari daftar Tindakan Perbaikan."}
-          </p>
-        </div>
-      </div>
-
-      <div className="case-role-info">
-        {role === "Admin" || role === "Direktorat / Pusat"
-          ? <ShieldCheck size={17} />
-          : <ClipboardCheck size={17} />}
-
-        <div>
-          <strong>Pekerjaan {role}</strong>
-          <p>{duties}</p>
-        </div>
-      </div>
-    </header>
-  );
+  return <header className="case-detail-header ui09-case-header"><button type="button" className="case-back" onClick={onBack}><ArrowLeft size={15}/> Kembali ke Tindakan Perbaikan</button><div className="case-heading"><div><span className="case-eyebrow">{workflow.project.packageName}</span><h2>{item?.id??'Detail Tindakan Perbaikan'}</h2><p>{item?.source??'Belum ada kasus dipilih'} · {item?.surveyType??'—'}</p></div><span className="case-status">{item?.status??'Belum dipilih'}</span></div><details className="ui09-case-context"><summary>Asal temuan & kewenangan</summary><p><strong>Temuan:</strong> {item?.rejectionReason??'Pilih kasus dari daftar Tindakan Perbaikan.'}</p><p>{duties}</p></details></header>;
 }

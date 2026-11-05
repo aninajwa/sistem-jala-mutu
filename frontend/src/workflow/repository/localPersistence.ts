@@ -3,11 +3,13 @@ export function setPersistenceNamespace(value: string) { namespace = value; }
 /** Compatibility adapter. Existing keys are retained; reads never migrate or delete data. */
 export interface KeyValueRepository {
   getItem(key:string):string|null;
+  keys?():string[];
   setItem(key:string,value:string):void;
   removeItem(key:string):void;
 }
 function driver():Storage|undefined {return typeof globalThis.localStorage==='undefined'?undefined:globalThis.localStorage;}
 export const localPersistence:KeyValueRepository={
+  keys(){const storage=driver();if(!storage)return [];return Array.from({length:storage.length},(_,i)=>storage.key(i)).filter((key):key is string=>key!==null&&key.startsWith(namespace)).map(key=>key.slice(namespace.length));},
   getItem(key){return driver()?.getItem(namespace + key)??null;},
   setItem(key,value){const storage=driver();if(!storage)throw new Error('Penyimpanan lokal tidak tersedia.');storage.setItem(namespace + key,value);},
   removeItem(key){driver()?.removeItem(namespace + key);},

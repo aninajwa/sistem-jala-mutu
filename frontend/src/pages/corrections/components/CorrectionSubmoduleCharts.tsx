@@ -1,303 +1,61 @@
+import {useState} from 'react';
+import type {WorkflowRole} from '../../../workflow/model';
+import type {CorrectionRow} from '../correctionViewModel';
+import {STATUS_LABEL,STATUS_ORDER,isOverdue,dueInSevenDays} from '../correctionViewModel';
+import './CorrectionSubmoduleCharts.css';
 
-import type { CSSProperties } from "react";
-import type { WorkflowRole } from "../../../workflow/model";
-import type { CorrectionRow } from "../correctionViewModel";
-import {
-  STATUS_LABEL,
-  STATUS_ORDER,
-  isOverdue,
-  dueInSevenDays,
-} from "../correctionViewModel";
-import "./CorrectionSubmoduleCharts.css";
-
-type Datum = { label: string; value: number };
-type ChartSpec = {
-  donutTitle: string;
-  barTitle: string;
-  donut: Datum[];
-  bars: Datum[];
+type Datum={label:string;value:number};
+type Spec={title:string;kind:'donut'|'bars';data:Datum[]};
+const COLORS=['#2563eb','#0d9488','#d97706','#7c3aed','#e11d48','#64748b'];
+const counts=(rows:CorrectionRow[],fn:(r:CorrectionRow)=>string):Datum[]=>{
+ const map=new Map<string,number>();
+ rows.forEach(r=>{const key=fn(r)?.trim()||'Belum ditentukan';map.set(key,(map.get(key)??0)+1)});
+ return [...map].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,8);
 };
-
-function countBy(
-  rows: CorrectionRow[],
-  getLabel: (row: CorrectionRow) => string,
-): Datum[] {
-  const counts = new Map<string, number>();
-
-  rows.forEach((row) => {
-    const label = getLabel(row)?.trim() || "Belum ditentukan";
-    counts.set(label, (counts.get(label) ?? 0) + 1);
-  });
-
-  return [...counts.entries()]
-    .map(([label, value]) => ({ label, value }))
-    .sort((a, b) => b.value - a.value)
-    .slice(0, 6);
+const status=(rows:CorrectionRow[])=>STATUS_ORDER.map(s=>({label:STATUS_LABEL[s],value:rows.filter(r=>r.status===s).length})).filter(x=>x.value>0);
+function chartSpec(role:WorkflowRole,tab:string,rows:CorrectionRow[]):Spec[]{
+ const priority=()=>counts(rows,r=>r.severity),actions=()=>counts(rows,r=>r.actionType),balai=()=>counts(rows,r=>r.balai);
+ if(role==='Penyedia Jasa / Ketua Tim'){
+  if(tab==='Tugas Saya')return [{title:'Status tugas',kind:'donut',data:status(rows)},{title:'Jenis tindakan',kind:'bars',data:actions()}];
+  if(tab==='Menunggu Verifikasi')return [{title:'Status pengajuan',kind:'donut',data:status(rows)}];
+  return [];
+ }
+ if(role==='PIC Balai / Pengguna Jasa'){
+  if(tab==='Tindak Lanjut Paket')return [{title:'Progres kasus',kind:'donut',data:status(rows)},{title:'Prioritas kasus',kind:'bars',data:priority()}];
+  if(tab==='Verifikasi Ulang')return [{title:'Jenis tindakan yang diuji ulang',kind:'bars',data:actions()}];
+  return [];
+ }
+ if(role==='Direktorat / Pusat'){
+  if(tab==='Temuan Lintas Paket')return [{title:'Kasus per Balai',kind:'bars',data:balai()},{title:'Status lintas Balai',kind:'donut',data:status(rows)}];
+  if(tab==='Audit Tingkat 3')return [{title:'Status temuan terkait Audit Tingkat 3',kind:'donut',data:status(rows)}];
+  if(tab==='Verifikasi Ulang')return [{title:'Uji ulang menurut Balai',kind:'bars',data:balai()}];
+  if(tab==='Riwayat')return [{title:'Kasus selesai menurut Balai',kind:'bars',data:balai()}];
+  return [];
+ }
+ if(tab==='Monitoring Kasus')return [{title:'Status seluruh kasus',kind:'donut',data:status(rows)},{title:'Prioritas kasus',kind:'bars',data:priority()}];
+ if(tab==='Notifikasi & SLA')return [{title:'Kondisi tenggat',kind:'donut',data:[{label:'Terlambat',value:rows.filter(isOverdue).length},{label:'≤ 7 hari',value:rows.filter(r=>!isOverdue(r)&&dueInSevenDays(r)).length}].filter(x=>x.value>0)}];
+ return [];
 }
-
-function statusData(rows: CorrectionRow[]): Datum[] {
-  return STATUS_ORDER
-    .map((status) => ({
-      label: STATUS_LABEL[status],
-      value: rows.filter((row) => row.status === status).length,
-    }))
-    .filter((item) => item.value > 0);
+function Card({spec}:{spec:Spec}){
+ const [selected,setSelected]=useState<string|null>(null);
+ const total=spec.data.reduce((n,x)=>n+x.value,0);
+ const active=spec.data.find(x=>x.label===selected);
+ const circumference=2*Math.PI*48;
+ let segmentOffset=0;
+ const segments=spec.data.map((x,i)=>{const dash=total?circumference*x.value/total:0;const item={...x,color:COLORS[i%COLORS.length],dash,offset:segmentOffset};segmentOffset+=dash;return item;});
+ return <article className="corr-sub-chart-card"><h4>{spec.title}</h4>{total===0?<p className="corr-sub-chart-empty">Belum ada kasus pada kategori ini.</p>:<>
+ {spec.kind==='donut'?<div className="corr-chart-content"><div className="corr-donut">
+  <svg className="corr-donut-svg" viewBox="0 0 132 132" role="group" aria-label={`Distribusi ${spec.title.toLowerCase()}`}>
+   {segments.map(x=><circle key={x.label} className={`corr-donut-slice ${selected===x.label?'is-selected':''}`} cx="66" cy="66" r="48" fill="none" stroke={x.color} strokeWidth={selected===x.label?30:27} strokeDasharray={`${x.dash} ${circumference-x.dash}`} strokeDashoffset={-x.offset} transform="rotate(-90 66 66)" onClick={()=>setSelected(selected===x.label?null:x.label)} onKeyDown={e=>{if(e.key==='Enter'||e.key===' '){e.preventDefault();setSelected(selected===x.label?null:x.label)}}} role="button" tabIndex={0} aria-pressed={selected===x.label} aria-label={`${x.label}: ${x.value} kasus, ${Math.round(100*x.value/total)} persen`}/>) }
+  </svg>
+  <div className="corr-donut-center"><strong>{active?.value??total}</strong><span>{active?'Terpilih':'Kasus'}</span></div>
+ </div><div className="corr-chart-legend">{spec.data.map((x,i)=><button type="button" key={x.label} className={`corr-chart-choice ${selected===x.label?'is-selected':''}`} onClick={()=>setSelected(selected===x.label?null:x.label)} aria-pressed={selected===x.label}><i style={{background:COLORS[i%COLORS.length]}}/><span>{x.label}</span><strong>{x.value}</strong></button>)}</div></div>
+ :<div className="corr-chart-bars">{spec.data.map((x,i)=><button type="button" className={`corr-chart-bar-row ${selected===x.label?'is-selected':''}`} key={x.label} onClick={()=>setSelected(selected===x.label?null:x.label)} aria-pressed={selected===x.label} title={`Lihat rincian ${x.label}`}><span className="corr-chart-bar-label">{x.label}</span><span className="corr-chart-bar-track"><i style={{width:`${100*x.value/Math.max(...spec.data.map(d=>d.value),1)}%`,background:COLORS[i%COLORS.length]}}/></span><strong>{x.value}</strong></button>)}</div>}
+ <div className={`corr-chart-selection ${active?'has-selection':''}`} aria-live="polite">{active?<><span className="corr-selection-kicker">Rincian kategori</span><strong>{active.label}</strong><span>{active.value} dari {total} kasus · {Math.round(active.value/total*100)}%</span><button type="button" onClick={()=>setSelected(null)} aria-label="Tutup rincian kategori">Tutup</button></>:<span>Klik warna donut, legenda, atau batang untuk melihat rincian.</span>}</div>
+ </>}</article>
 }
-
-function getSpec(
-  role: WorkflowRole,
-  tab: string,
-  rows: CorrectionRow[],
-): ChartSpec | null {
-  const byAction = () => countBy(rows, (row) => row.actionType);
-  const byPriority = () => countBy(rows, (row) => row.severity);
-  const byBalai = () => countBy(rows, (row) => row.balai);
-
-  if (role === "Penyedia Jasa / Ketua Tim") {
-    if (tab === "Menunggu Verifikasi") {
-      return {
-        donutTitle: "Status pemeriksaan",
-        barTitle: "Prioritas usulan",
-        donut: countBy(rows, (row) =>
-          row.status === "Menunggu Persetujuan"
-            ? "Menunggu persetujuan"
-            : "Menunggu verifikasi ulang",
-        ),
-        bars: byPriority(),
-      };
-    }
-
-    if (tab === "Riwayat") {
-      return {
-        donutTitle: "Prioritas kasus selesai",
-        barTitle: "Jenis tindakan selesai",
-        donut: byPriority(),
-        bars: byAction(),
-      };
-    }
-
-    return {
-      donutTitle: "Status tugas saya",
-      barTitle: "Jenis tindakan",
-      donut: statusData(rows),
-      bars: byAction(),
-    };
-  }
-
-  if (role === "PIC Balai / Pengguna Jasa") {
-    if (tab === "Antrian Verifikasi") {
-      return {
-        donutTitle: "Distribusi prioritas",
-        barTitle: "Jenis tindakan yang diajukan",
-        donut: byPriority(),
-        bars: byAction(),
-      };
-    }
-
-    if (tab === "Tindak Lanjut Paket") {
-      return {
-        donutTitle: "Progres status kasus",
-        barTitle: "Prioritas kasus aktif",
-        donut: statusData(rows),
-        bars: byPriority(),
-      };
-    }
-
-    if (tab === "Verifikasi Ulang") {
-      return {
-        donutTitle: "Prioritas pemeriksaan ulang",
-        barTitle: "Jenis tindakan yang diperiksa",
-        donut: byPriority(),
-        bars: byAction(),
-      };
-    }
-
-    return {
-      donutTitle: "Prioritas kasus selesai",
-      barTitle: "Jenis tindakan selesai",
-      donut: byPriority(),
-      bars: byAction(),
-    };
-  }
-
-  if (role === "Direktorat / Pusat") {
-    if (tab === "Audit Tingkat 3") {
-      return {
-        donutTitle: "Status kasus terkait audit",
-        barTitle: "Prioritas kasus audit",
-        donut: statusData(rows),
-        bars: byPriority(),
-      };
-    }
-
-    if (tab === "Verifikasi Ulang") {
-      return {
-        donutTitle: "Prioritas tindak lanjut",
-        barTitle: "Sebaran kasus menurut Balai",
-        donut: byPriority(),
-        bars: byBalai(),
-      };
-    }
-
-    if (tab === "Riwayat") {
-      return {
-        donutTitle: "Prioritas kasus selesai",
-        barTitle: "Sebaran riwayat menurut Balai",
-        donut: byPriority(),
-        bars: byBalai(),
-      };
-    }
-
-    return {
-      donutTitle: "Status temuan lintas Balai",
-      barTitle: "Jumlah kasus menurut Balai",
-      donut: statusData(rows),
-      bars: byBalai(),
-    };
-  }
-
-  if (tab === "Data Referensi") return null;
-
-  if (tab === "Notifikasi & SLA") {
-    return {
-      donutTitle: "Kategori tenggat",
-      barTitle: "Status kasus yang perlu perhatian",
-      donut: [
-        {
-          label: "Terlambat",
-          value: rows.filter(isOverdue).length,
-        },
-        {
-          label: "Jatuh tempo ≤ 7 hari",
-          value: rows.filter(
-            (row) => !isOverdue(row) && dueInSevenDays(row),
-          ).length,
-        },
-      ].filter((item) => item.value > 0),
-      bars: statusData(rows),
-    };
-  }
-
-  return {
-    donutTitle: "Status seluruh kasus",
-    barTitle: "Prioritas kasus",
-    donut: statusData(rows),
-    bars: byPriority(),
-  };
-}
-
-function DonutChart({ data }: { data: Datum[] }) {
-  const total = data.reduce((sum, item) => sum + item.value, 0);
-  const colors = [
-    "#2563eb",
-    "#0d9488",
-    "#d97706",
-    "#7c3aed",
-    "#dc2626",
-    "#64748b",
-  ];
-
-  let current = 0;
-  const segments = data.map((item, index) => {
-    const start = current;
-    current += total ? (item.value / total) * 100 : 0;
-    return `${colors[index % colors.length]} ${start}% ${current}%`;
-  });
-
-  const style: CSSProperties = {
-    background:
-      total > 0
-        ? `conic-gradient(${segments.join(", ")})`
-        : "#e5e7eb",
-  };
-
-  return (
-    <div className="corr-chart-content">
-      <div className="corr-donut" style={style}>
-        <div className="corr-donut-center">
-          <strong>{total}</strong>
-          <span>Kasus</span>
-        </div>
-      </div>
-
-      <div className="corr-chart-legend">
-        {data.map((item, index) => (
-          <div className="corr-legend-item" key={item.label}>
-            <span
-              className="corr-legend-dot"
-              style={{ background: colors[index % colors.length] }}
-            />
-            <span>{item.label}</span>
-            <strong>{item.value}</strong>
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
-function BarChart({ data }: { data: Datum[] }) {
-  const max = Math.max(1, ...data.map((item) => item.value));
-
-  return (
-    <div className="corr-chart-bars">
-      {data.map((item) => (
-        <div className="corr-chart-bar-row" key={item.label}>
-          <div className="corr-chart-bar-label" title={item.label}>
-            {item.label}
-          </div>
-          <div
-            className="corr-chart-bar-track"
-            role="img"
-            aria-label={`${item.label}: ${item.value} kasus`}
-          >
-            <span
-              style={{ width: `${(item.value / max) * 100}%` }}
-            />
-          </div>
-          <strong>{item.value}</strong>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-export default function CorrectionSubmoduleCharts({
-  role,
-  tab,
-  rows,
-}: {
-  role: WorkflowRole;
-  tab: string;
-  rows: CorrectionRow[];
-}) {
-  const spec = getSpec(role, tab, rows);
-
-  if (!spec) return null;
-
-  return (
-    <section className="corr-sub-charts" aria-label="Statistik tindakan perbaikan">
-      <article className="corr-sub-chart-card">
-        <h4>{spec.donutTitle}</h4>
-        {spec.donut.length ? (
-          <DonutChart data={spec.donut} />
-        ) : (
-          <p className="corr-sub-chart-empty">
-            Belum ada data untuk ditampilkan.
-          </p>
-        )}
-      </article>
-
-      <article className="corr-sub-chart-card">
-        <h4>{spec.barTitle}</h4>
-        {spec.bars.length ? (
-          <BarChart data={spec.bars} />
-        ) : (
-          <p className="corr-sub-chart-empty">
-            Belum ada data untuk ditampilkan.
-          </p>
-        )}
-      </article>
-    </section>
-  );
+export default function CorrectionSubmoduleCharts({role,tab,rows}:{role:WorkflowRole;tab:string;rows:CorrectionRow[]}){
+ const specs=chartSpec(role,tab,rows);
+ if(!specs.length)return null;
+ return <section className={`corr-sub-charts ${role==='Direktorat / Pusat'&&tab==='Riwayat'?'corr-history-compact':''}`} aria-label="Grafik tindakan perbaikan">{specs.map(s=><Card key={`${role}:${tab}:${s.title}`} spec={s}/>)}</section>;
 }

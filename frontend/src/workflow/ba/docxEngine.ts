@@ -8,13 +8,22 @@ export type BaTemplate={id:BaKind;title:string;filename:string;source:string;sha
 export const BA_TEMPLATES=rawCatalog as unknown as BaTemplate[];
 const W='http://schemas.openxmlformats.org/wordprocessingml/2006/main';
 const paragraphs=(doc:Document)=>Array.from(doc.getElementsByTagNameNS(W,'p'));
-export function fieldsFor(template:BaTemplate,survey:SurveyType){return template.fields.filter(f=>!f.survey||f.survey===survey);}
+/** Applicability follows the named survey sections in the original templates. */
+export function fieldsFor(template:BaTemplate,survey:SurveyType){return template.fields.filter(f=>{
+ if(f.survey)return f.survey===survey;
+ const section=f.section??'';
+ if(/Survei Profil Memanjang|Untuk Alat IRI/i.test(section))return survey==='IRI';
+ if(/Survei Kondisi Perkerasan Jalan \(PCI\)/i.test(section))return survey==='PCI';
+ if(/Survei Jembatan/i.test(section))return survey==='Jembatan';
+ if(/Survei Lainnya/i.test(section))return !['IRI','PCI','Jembatan'].includes(survey);
+ return true;
+});}
 export function automaticFields(template:BaTemplate,state:OperationalWorkflowState,survey:SurveyType,range:{start:string;end:string}){
  const values:Record<string,string>={};
  for(const field of fieldsFor(template,survey)){
   const label=field.label.toLowerCase().trim();let value='';
   if(/^(diisi nomor dokumen|nomor ba)/.test(label))value=template.id==='penerimaan'?state.acceptance.finalAcceptanceBa??'':template.id==='audit'?state.audits[0].baNumber:template.id==='kalibrasi'?state.productionApprovalBa:state.cycle.certificateId;
-  else if(/^(dd\/mm\/yyyy|tanggal)$/.test(label)&&(field.paragraph<6||/^Tanggal\s*:/i.test(field.context.trim()))&&!/berikut|selanjutnya|jatuh tempo|direncanakan|dijadwalkan/i.test(field.context))value=state.simulationDate;
+  // Enter the activity date explicitly; the simulation clock is not activity evidence.
   else if(/^jenis surve[yi]$/.test(label)&&(!field.tableRow||field.tableRow===1&&/^3\.1\b/.test(field.section??'')))value=survey;
   else if(/^(ruas|ruas\/lokasi)$/.test(label)&&!field.tableRow)value=state.project.routes.join(', ');
   else if(/^(lokasi kegiatan|lokasi inspeksi|lokasi audit|lokasi pelaksanaan konsistensi|lokasi pelaksanaan kalibrasi dan validasi|lokasi survei)$/.test(label))value=state.project.routes.join(', ');
@@ -42,7 +51,8 @@ export function fillDocx(bytes:Uint8Array,template:BaTemplate,values:Record<stri
    const ranges=nodes.map((node,i)=>({node,start:nodes.slice(0,i).reduce((n,x)=>n+(x.textContent?.length??0),0),length:node.textContent?.length??0}));
    for(let i=matches.length-1;i>=0;i--){const match=matches[i];if(match[0].startsWith('_'))continue;
     const fieldId=`${name}:p${index}:m${i}`;const field=template.fields.find(f=>f.id===fieldId);
-    const replacement=displayText(values[fieldId]?.trim()||'[BELUM DIISI]');
+    const applicable=!field||fieldsFor(template,survey).some(item=>item.id===field.id);
+    const replacement=applicable?displayText(values[fieldId]?.trim()||'[BELUM DIISI]'):'[TIDAK BERLAKU UNTUK '+survey+']';
     const start=match.index!,end=start+match[0].length;
     for(const {node,start:nodeStart,length} of ranges){const nodeEnd=nodeStart+length;if(nodeEnd<=start||nodeStart>=end)continue;const text=node.textContent??'';const a=Math.max(0,start-nodeStart),b=Math.min(length,end-nodeStart);node.textContent=text.slice(0,a)+(nodeStart<=start?replacement:'')+text.slice(b);node.setAttribute('xml:space','preserve');}
    }

@@ -145,7 +145,7 @@ export type DailySurveyRecord = {
 
 export type VervalCycle = {
   reviewPendingTypes?: SurveyType[];
-  surveyReviews?: Partial<Record<SurveyType, { decision: "Belum Diperiksa" | "Sesuai" | "Temuan"; note: string; reviewedAt: string }>>;
+  surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string; evidenceReferences?:string[]}>>;
   requiresReview?: boolean;
   reviewReason?: string;
   lastCompletedDate: string;
@@ -274,6 +274,8 @@ export type CorrectionCase = {
   executionReference?: string;
   /** Referensi hasil pemeriksaan ulang oleh Pengguna Jasa pada tahap sumber. */
   retestReference?: string;
+  /** Alasan ketidaklulusan hasil uji ulang, ditulis oleh pemeriksa. */
+  retestFailureReason?: string;
   verification?: { surveyor: boolean; teamLeader: boolean; balai: boolean };
   reviewNote?: string;
   ruleScenario?: string;
@@ -1545,7 +1547,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
 }
 
 export function samplingRule(type: SurveyType, level: 1 | 2 | 3) {
-  if (type === 'Lendutan' && level === 2) return { label: 'Sampling Pengguna Jasa · ketentuan sementara', rate: 5, unit: 'titik lendutan' };
+  if (type === 'Lendutan' && level === 2) return { label: 'Sampling Pengguna Jasa · ketentuan sementara, belum terverifikasi terhadap dokumen sumber', rate: 5, unit: 'titik lendutan; persentase belum terverifikasi' };
   if (level === 1) return { label: 'Audit Penyedia Jasa', rate: 100, unit: 'seluruh data' };
   if (level === 3) return { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% data' };
   if (type === 'Jembatan' || type === 'Lereng' || type === 'Lendutan') {

@@ -1,3 +1,9 @@
+import {periodRange} from '../stages/periodSchedule';
+import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
+import {sourceDocument} from '../sourceDocumentModel';
+import {stagedFallbackReviewReady} from '../stagedReviewPolicy';
+import type {SurveyType} from '../model';
+import {documentIdentityErrors,documentReviewContext} from './documentContext09';
 import {documentSourceSnapshot} from './documentSourceSnapshot';
 import type {OperationalWorkflowState, WorkflowRole} from '../model';
 import {baOwner,baDecisionErrors} from './baRules';
@@ -25,7 +31,13 @@ export function documentFingerprint(state:OperationalWorkflowState,identity:BaId
  return (hash>>>0).toString(16);
 }
 export function documentActionErrors(state:OperationalWorkflowState,identity:BaIdentity,action:DocumentAction,latest:BaVersion|undefined,missing:number,note:string){
+ const identityErrors=documentIdentityErrors(state,identity);if(identityErrors.length)return identityErrors;
  const actors=documentActors(identity),author=actors.authors.includes(state.role),reviewer=actors.reviewer===state.role;
+ // For jointly prepared periodic/staged BA, the Provider submits and Balai reviews.
+ // Draft collaboration does not confer permission to review one's own submission.
+ const joint=identity.kind==='duaMingguan'||identity.kind==='bertahap';
+ if(joint&&action==='submit'&&state.role!==PROVIDER)return ['BA kolaboratif diajukan oleh Penyedia Jasa untuk pemeriksaan PIC Balai.'];
+ if(joint&&['approve','revise','reject'].includes(action)&&latest?.actor===state.role)return ['Pengaju BA tidak dapat memeriksa pengajuannya sendiri.'];
  if(state.role==='Admin'||!(action==='submit'||action==='reopen'?author:reviewer))return ['Tindakan dokumen ini di luar kewenangan peran Anda.'];
  if(action==='reopen')return latest?.status==='submitted-local'?['Dokumen sedang diperiksa; tunggu keputusan pemeriksa.']:[];
  if(action==='submit'){
@@ -36,7 +48,15 @@ export function documentActionErrors(state:OperationalWorkflowState,identity:BaI
  if(latest?.status!=='submitted-local')return ['Hanya revisi yang telah diajukan yang dapat diperiksa.'];
  if((action==='revise'||action==='reject')&&!note.trim())return ['Catatan perbaikan atau alasan penolakan wajib diisi.'];
  if(action==='approve'){
-  const errors=baDecisionErrors(state,identity.kind,identity.auditLevel as 1|2|3);
+  const phase=({kalibrasi:'calibration',konsistensi:'consistency',internal:'internal',duaMingguan:'periodic14',bertahap:'staged',audit:'audit',penerimaan:'acceptance'} as const)[identity.kind];
+  const source=sourceDocument(identity.survey,phase,state.productionTests.PCI.pciManual!==false,identity.auditLevel);
+  const sourceScope=identity.kind==='audit'?`${identity.packageId}::audit-${identity.auditLevel}`:identity.period>1?`${identity.packageId}::period-${identity.period}`:identity.packageId;
+  const range=identity.period?periodRange(state.project.id,identity.period,state.project.surveyStartDate,state.project.surveyEndDate):undefined;
+  const sourceInfo=range?{...state.project,periodStart:range.start,periodEnd:range.end}:state.project;
+  const sourceStatus=source||identity.survey==='Lendutan'&&['internal','periodic14'].includes(phase)?sourceInspectionStatus(sourceScope,identity.survey,phase,state.productionTests.PCI.pciManual!==false,sourceInfo):undefined;
+  const errors=baDecisionErrors(documentReviewContext(state,identity),identity.kind,identity.auditLevel as 1|2|3);
+  if(sourceStatus&&(!sourceStatus.complete||sourceStatus.concerns.length))errors.push('Checklist atau evaluasi sumber belum lengkap/memenuhi; periksa tahap sumber.');
+  if(identity.kind==='bertahap'&&!source&&!stagedFallbackReviewReady(state,identity.survey as SurveyType))errors.push('Pemeriksaan bertahap jenis survei ini belum tercatat.');
   if(latest.sourceFingerprint!==documentFingerprint(state,identity))errors.push('Data pemeriksaan berubah setelah pengajuan; minta revisi dan ajukan ulang.');
   if(missing)errors.push('Masih ada isian template yang belum dilengkapi.');
   return errors;

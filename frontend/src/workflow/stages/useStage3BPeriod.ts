@@ -117,6 +117,11 @@ export function useStage3BPeriod(
     setStage3BPeriodRange({ start: "", end: "" });
   };
 
+  useEffect(()=>{
+    const key=`jala-notification-period:${packageId}`,value=Number(sessionStorage.getItem(key));
+    if(Number.isSafeInteger(value)&&value>0){sessionStorage.removeItem(key);switchStage3BPeriod(value);}
+  },[packageId]);
+
   return {
     stage3BCompletion,
     activeStage3BPeriod,

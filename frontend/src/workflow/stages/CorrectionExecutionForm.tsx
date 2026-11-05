@@ -1,10 +1,11 @@
-
+﻿
 import { useState } from "react";
 import { usePersistedDraft } from "../../hooks/usePersistedDraft";
 import type { CorrectionCase } from "../model";
 import { CorrectionEvidenceField } from "../CorrectionEvidenceField";
 import { attachmentRepository } from "../repository/attachmentRepository";
 import { readEvidenceLinks } from "../repository/evidenceLinks";
+import { resolveCorrectionForm, validateCorrectionExecutionFields } from "../correctionFormEngine";
 
 type Props = {
   correction: CorrectionCase;
@@ -24,6 +25,9 @@ type ExecutionDraft = {
   noFile: boolean;
   period: string;
   verificationReference: string;
+  changeDetail: string;
+  resultEvaluation: string;
+  actionFields?: Record<string, string>;
 };
 
 const emptyDraft: ExecutionDraft = {
@@ -37,6 +41,9 @@ const emptyDraft: ExecutionDraft = {
   noFile: false,
   period: "",
   verificationReference: "",
+  changeDetail: "",
+  resultEvaluation: "",
+  actionFields: {},
 };
 
 export function CorrectionExecutionForm({
@@ -49,7 +56,7 @@ export function CorrectionExecutionForm({
   const [error, setError] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
-  const [draft, setDraft] = usePersistedDraft<ExecutionDraft>(
+  const [storedDraft, setDraft] = usePersistedDraft<ExecutionDraft>(
     `jala-correction-execution:${projectId}:${correction.id}`,
     {
       ...emptyDraft,
@@ -59,14 +66,28 @@ export function CorrectionExecutionForm({
     }
   );
 
+  // Draft lama dari localStorage dapat tidak memiliki field yang ditambahkan
+  // pada patch berikutnya. Normalisasi setiap render, tanpa menghapus isian lama.
+  const draft: ExecutionDraft = {
+    ...emptyDraft,
+    ...storedDraft,
+    actionFields: storedDraft?.actionFields ?? {},
+  };
+
   const setValue = <K extends keyof ExecutionDraft>(
     key: K,
     value: ExecutionDraft[K]
   ) => {
-    setDraft((current) => ({ ...current, [key]: value }));
+    setDraft((current) => ({ ...emptyDraft, ...current, [key]: value }));
     setError("");
   };
 
+  const actionSpec = resolveCorrectionForm(correction);
+  const actionValues = draft.actionFields || {};
+  // Reuse the action-specific evidence reference; avoid asking twice for the same ID.
+  const actionReferenceKeys = ["newRecord", "comparison", "mediaReference", "trainingEvaluation", "calibrationEvidence", "postReplacement", "competence", "cleanedReference", "investigation"];
+  const actionReference = actionReferenceKeys.map(key => actionValues[key]?.trim()).find(Boolean) || "";
+  const effectiveSourceReference = actionSpec.fields.length ? actionReference : draft.sourceReference.trim();
   const action = (correction.actionType || "").toLowerCase();
   const stage = `${correction.source} ${correction.blockedStage}`.toLowerCase();
 
@@ -76,6 +97,10 @@ export function CorrectionExecutionForm({
     action.includes("kalibrasi") ||
     action.includes("validasi ulang alat");
   const isProcessing = action.includes("pemrosesan");
+  const isTraining = action.includes("pelatihan");
+  const isPersonnel = action.includes("penggantian personel");
+  const isComponent = action.includes("penggantian komponen");
+  const isRating = action.includes("penilaian ulang");
   const isPeriodic =
     stage.includes("14 hari") ||
     stage.includes("3b") ||
@@ -121,7 +146,10 @@ export function CorrectionExecutionForm({
   async function submit() {
     if (!editable || submitting) return;
 
-    if (!draft.date || !draft.sourceReference.trim() ||
+    const actionErrors = validateCorrectionExecutionFields(actionSpec, actionValues);
+    if (actionErrors.length) { setError(actionErrors[0]); return; }
+
+    if (!draft.date || !effectiveSourceReference ||
         !draft.summary.trim()) {
       setError(
         "Lengkapi tanggal, referensi hasil terbaru, dan uraian pelaksanaan."
@@ -129,20 +157,20 @@ export function CorrectionExecutionForm({
       return;
     }
 
-    if ((isResurvey || isPhoto) && !draft.location.trim()) {
+    if ((isResurvey || isPhoto) && !(draft.location.trim() || actionValues.coverage?.trim() || actionValues.mediaObject?.trim())) {
       setError("Lokasi atau segmen pekerjaan wajib diisi.");
       return;
     }
 
     if (isResurvey &&
-        (!draft.lane.trim() || !draft.equipment.trim())) {
+        (!draft.lane.trim() || !(draft.equipment.trim() || actionValues.instrumentId?.trim()))) {
       setError(
         "Survei ulang memerlukan lajur/arah dan identitas alat."
       );
       return;
     }
 
-    if (isCalibration && !draft.equipment.trim()) {
+    if (isCalibration && !actionValues.instrumentId?.trim() && !draft.equipment.trim()) {
       setError("Identitas alat wajib diisi.");
       return;
     }
@@ -158,6 +186,15 @@ export function CorrectionExecutionForm({
 
     if (isPeriodic && !draft.period.trim()) {
       setError("Periode pemeriksaan berkala harus tersedia.");
+      return;
+    }
+
+    if (!actionSpec.fields.length && (isTraining || isPersonnel || isComponent || isRating || isProcessing) && !(draft.changeDetail ?? "").trim()) {
+      setError("Jelaskan objek, metode, atau bagian yang diperbaiki sesuai jenis tindakan.");
+      return;
+    }
+    if (!actionSpec.fields.length && (isRating || isTraining || isCalibration || isComponent || isPersonnel) && !(draft.resultEvaluation ?? "").trim()) {
+      setError("Catat hasil pemeriksaan atau evaluasi setelah tindakan.");
       return;
     }
 
@@ -214,20 +251,23 @@ export function CorrectionExecutionForm({
         draft.period.trim()
           ? `Periode: ${draft.period.trim()}`
           : "",
-        draft.location.trim()
-          ? `Lokasi/segmen: ${draft.location.trim()}`
+        (draft.location.trim() || actionValues.coverage?.trim() || actionValues.mediaObject?.trim())
+          ? `Lokasi/segmen: ${draft.location.trim() || actionValues.coverage?.trim() || actionValues.mediaObject?.trim()}`
           : "",
         draft.lane.trim()
           ? `Lajur dan arah: ${draft.lane.trim()}`
           : "",
-        draft.equipment.trim()
-          ? `Identitas alat: ${draft.equipment.trim()}`
+        (draft.equipment.trim() || actionValues.instrumentId?.trim())
+          ? `Identitas alat: ${draft.equipment.trim() || actionValues.instrumentId?.trim()}`
           : "",
-        `Referensi hasil sumber: ${draft.sourceReference.trim()}`,
+        `Referensi hasil sumber: ${effectiveSourceReference}`,
         draft.verificationReference.trim()
           ? `Referensi pemeriksaan teknis terbaru: ${draft.verificationReference.trim()}`
           : "",
         `Uraian pelaksanaan: ${draft.summary.trim()}`,
+        ...actionSpec.fields.map(f => `${f.label}: ${actionValues[f.id] || ""}`),
+        draft.changeDetail.trim() ? `Lingkup atau rincian tindakan: ${draft.changeDetail.trim()}` : "",
+        draft.resultEvaluation.trim() ? `Hasil evaluasi tindakan: ${draft.resultEvaluation.trim()}` : "",
         `Lampiran lokal: ${hasFile ? "Ada" : "Tidak ada"}`,
         draft.evidenceNote.trim()
           ? `Catatan bukti: ${draft.evidenceNote.trim()}`
@@ -238,8 +278,9 @@ export function CorrectionExecutionForm({
 
       // Mencatat referensi pelaksanaan, bukan mengedit raw/cleaned SMD.
       onSubmit(reference);
-    } catch {
-      setError("Pemeriksaan lampiran gagal. Periksa kembali bukti.");
+    } catch (cause) {
+      console.error("Gagal mengirim hasil pelaksanaan perbaikan", cause);
+      setError("Pengiriman hasil pelaksanaan gagal. Periksa penyimpanan bukti dan coba kembali; jika berulang, lihat Console browser.");
     } finally {
       setSubmitting(false);
     }
@@ -329,6 +370,24 @@ export function CorrectionExecutionForm({
 </div>
 
           <div className="wf-fields">
+            <div className="wf-field full">
+              <strong>{actionSpec.family} — rincian bukti tindakan</strong>
+
+            </div>
+            {actionSpec.fields.map((item) => (
+              <div className="wf-field" key={item.id}>
+                <label htmlFor={`correction-action-${correction.id}-${item.id}`}>
+                  {item.label}{item.required ? " *" : ""}
+                </label>
+                <input
+                  id={`correction-action-${correction.id}-${item.id}`}
+                  value={actionValues[item.id] || ""}
+                  disabled={!editable}
+                  onChange={event => setValue("actionFields", {...actionValues, [item.id]: event.target.value})}
+                  placeholder={item.label}
+                />
+              </div>
+            ))}
             <div className="wf-field">
               <label htmlFor={`execution-date-${correction.id}`}>
                 Tanggal pelaksanaan *
@@ -352,7 +411,7 @@ export function CorrectionExecutionForm({
                 "Periode asal temuan"
               )}
 
-            {(isResurvey || isPhoto || isProcessing ||
+            {(!actionSpec.fields.length || isDataPreparation) && (isResurvey || isPhoto || isProcessing ||
               isDataPreparation) &&
               field(
                 isProcessing || isDataPreparation
@@ -370,7 +429,7 @@ export function CorrectionExecutionForm({
                 "Lajur dan arah survei ulang"
               )}
 
-            {(isResurvey || isCalibration) &&
+            {(isResurvey || (isCalibration && !actionSpec.fields.length)) &&
               field(
                 "Identitas alat",
                 "equipment",
@@ -378,7 +437,7 @@ export function CorrectionExecutionForm({
                 "Nama atau ID alat yang digunakan"
               )}
 
-            {field(
+            {!actionSpec.fields.length && field(
               actionLabel,
               "sourceReference",
               true,
@@ -404,6 +463,28 @@ export function CorrectionExecutionForm({
               </div>
             )}
 
+            {!actionSpec.fields.length && (isRating || isTraining || isPersonnel || isComponent || isProcessing) && (
+              <div className="wf-field full">
+                <label htmlFor={`execution-change-${correction.id}`}>
+                  {isRating ? "Objek/sampel dan metode penilaian ulang" :
+                   isTraining ? "Peserta dan kegiatan pelatihan ulang" :
+                   isPersonnel ? "Personel atau penugasan yang diganti" :
+                   isComponent ? "Identitas komponen dan alat terkait" :
+                   "Dataset, versi raw–cleaned, dan metode koreksi"} *
+                </label>
+                <textarea id={`execution-change-${correction.id}`} rows={3} value={draft.changeDetail}
+                  disabled={!editable} onChange={(e) => setValue("changeDetail", e.target.value)}
+                  placeholder="Cantumkan identitas atau referensi yang tersedia pada dokumen sumber; jangan mengubah rekaman raw." />
+              </div>
+            )}
+            {!actionSpec.fields.length && (isRating || isTraining || isCalibration || isComponent || isPersonnel) && (
+              <div className="wf-field full">
+                <label htmlFor={`execution-evaluation-${correction.id}`}>Hasil pemeriksaan/evaluasi setelah tindakan *</label>
+                <textarea id={`execution-evaluation-${correction.id}`} rows={3} value={draft.resultEvaluation}
+                  disabled={!editable} onChange={(e) => setValue("resultEvaluation", e.target.value)}
+                  placeholder="Tuliskan hasil dan rujukan bukti, bukan keputusan Lulus/Gagal yang menjadi kewenangan pemeriksa." />
+              </div>
+            )}
             <div className="wf-field full">
               <label htmlFor={`execution-summary-${correction.id}`}>
                 Uraian pekerjaan dan hasil *
@@ -436,12 +517,7 @@ export function CorrectionExecutionForm({
   }
   allowNoFile={!requiresFile}
 />
-              {requiresFile && (
-                <p className="wf-note">
-                  Lampiran hasil wajib tersedia untuk tindakan ini.
-                  Pilihan tanpa file tidak berlaku saat pengiriman.
-                </p>
-              )}
+
             </div>
 
             {error && (

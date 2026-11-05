@@ -25,10 +25,16 @@ export const STATUS_LABEL: Record<CorrectionCase["status"], string> = {
   Terbuka: "Perlu Ditindaklanjuti",
   "Menunggu Persetujuan": "Menunggu Balai",
   Disetujui: "Disetujui",
-  Dilaksanakan: "Dalam Pelaksanaan",
+  Dilaksanakan: "Menunggu Pemeriksaan Hasil",
   "Verifikasi Ulang": "Verifikasi Ulang",
   Ditutup: "Selesai",
 };
+
+export function correctionDisplayStatus(item: CorrectionCase): string {
+  if (item.status === "Terbuka" && item.retest === "Gagal") return "Uji Ulang Gagal";
+  if (item.status === "Terbuka" && item.approval === "Perlu Revisi") return "Perlu Revisi";
+  return STATUS_LABEL[item.status];
+}
 
 export const ROLE_TABS: Record<WorkflowRole, string[]> = {
   "Penyedia Jasa / Ketua Tim": [
@@ -93,20 +99,36 @@ export function matchesRoleTab(
   tab: string,
 ): boolean {
   if (role === "Penyedia Jasa / Ketua Tim") {
-    if (tab === "Menunggu Verifikasi") {
-      return ["Menunggu Persetujuan", "Verifikasi Ulang"].includes(item.status);
-    }
-    if (tab === "Riwayat") return item.status === "Ditutup";
-    return item.status !== "Ditutup" &&
-      !["Menunggu Persetujuan", "Verifikasi Ulang"].includes(item.status);
+  const waitingStatuses = [
+    "Menunggu Persetujuan",
+    "Dilaksanakan",
+    "Verifikasi Ulang",
+  ];
+
+  if (tab === "Menunggu Verifikasi") {
+    return waitingStatuses.includes(item.status);
   }
+
+  if (tab === "Riwayat") {
+    return item.status === "Ditutup";
+  }
+
+  if (tab === "Tugas Saya") {
+    return (
+      item.status !== "Ditutup" &&
+      !waitingStatuses.includes(item.status)
+    );
+  }
+
+  return false;
+}
 
   if (role === "PIC Balai / Pengguna Jasa") {
     if (tab === "Antrian Verifikasi") {
       return item.status === "Menunggu Persetujuan";
     }
     if (tab === "Verifikasi Ulang") {
-      return item.status === "Verifikasi Ulang";
+      return ["Dilaksanakan", "Verifikasi Ulang"].includes(item.status);
     }
     if (tab === "Riwayat") return item.status === "Ditutup";
     return true;
@@ -119,7 +141,7 @@ export function matchesRoleTab(
       );
     }
     if (tab === "Verifikasi Ulang") {
-      return item.status === "Verifikasi Ulang";
+      return ["Dilaksanakan", "Verifikasi Ulang"].includes(item.status);
     }
     if (tab === "Riwayat") return item.status === "Ditutup";
     return true;

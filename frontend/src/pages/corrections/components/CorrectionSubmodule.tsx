@@ -12,7 +12,7 @@ import {
 } from "lucide-react";
 
 import type { WorkflowRole } from "../../../workflow/model";
-import {
+import { correctionDisplayStatus,
   type CorrectionRow,
   STATUS_LABEL,
   dueInSevenDays,
@@ -47,8 +47,8 @@ function getConfig(role: WorkflowRole, tab: string): SubmoduleConfig {
         emptyText: "Belum ada usulan atau hasil uji ulang yang menunggu pemeriksaan.",
         action: "Lihat status",
         filter: row =>
-          row.status === "Menunggu Persetujuan" ||
-          row.status === "Verifikasi Ulang",
+  ["Menunggu Persetujuan", "Dilaksanakan", "Verifikasi Ulang"]
+    .includes(row.status),
       };
     }
     if (tab === "Riwayat") {
@@ -66,7 +66,7 @@ function getConfig(role: WorkflowRole, tab: string): SubmoduleConfig {
       emptyText: "Tidak ada kasus yang sedang membutuhkan tindakan Penyedia.",
       action: "Tindak lanjuti",
       filter: row =>
-        ["Terbuka", "Disetujui", "Dilaksanakan"].includes(row.status),
+  ["Terbuka", "Disetujui"].includes(row.status),
     };
   }
 
@@ -86,7 +86,8 @@ function getConfig(role: WorkflowRole, tab: string): SubmoduleConfig {
         description: "Periksa hasil tindakan dan tentukan tindak lanjut berdasarkan hasil uji.",
         emptyText: "Belum ada kasus dalam tahap verifikasi ulang.",
         action: "Periksa hasil",
-        filter: row => row.status === "Verifikasi Ulang",
+        filter: row =>
+  ["Dilaksanakan", "Verifikasi Ulang"].includes(row.status),
       };
     }
     if (tab === "Riwayat") {
@@ -126,7 +127,8 @@ function getConfig(role: WorkflowRole, tab: string): SubmoduleConfig {
         description: "Pantau hasil uji ulang yang tercatat tanpa mengambil alih keputusan Balai.",
         emptyText: "Belum ada kasus dalam verifikasi ulang.",
         action: "Lihat hasil",
-        filter: row => row.status === "Verifikasi Ulang",
+        filter: row =>
+  ["Dilaksanakan", "Verifikasi Ulang"].includes(row.status),
       };
     }
     if (tab === "Riwayat") {
@@ -197,7 +199,6 @@ export default function CorrectionSubmodule({
   );
 
   const filtered = rows.filter(row => {
-    if (!config.filter(row)) return false;
     if (balai && row.balai !== balai) return false;
 
     return [
@@ -322,7 +323,7 @@ export default function CorrectionSubmodule({
                 <td>{row.severity}</td>
                 <td>
                   <span className="corr-status">
-                    {STATUS_LABEL[row.status]}
+                    {correctionDisplayStatus(row)}
                   </span>
                 </td>
                 <td>{formatDate(row.dueDate)}</td>

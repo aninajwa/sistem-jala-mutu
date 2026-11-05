@@ -23,7 +23,7 @@ const safeRead = (key: string): DraftFields => {
   catch { return {}; }
 };
 const clean = (s?: string | null) => s?.trim() || 'Belum tersedia';
-export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigate}: {state: OperationalWorkflowState;period?:number;periodRange?:{start:string;end:string};onNavigate?:(selection:string)=>void}) {
+export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigate,readOnly=false}: {readOnly?:boolean;state: OperationalWorkflowState;period?:number;periodRange?:{start:string;end:string};onNavigate?:(selection:string)=>void}) {
   const initialNavigation=(()=>{try {return JSON.parse(localPersistence.getItem('jala-ba-navigation-v2')||'{}') as {packageId?:string;kind?:BaKind;period?:number};}catch{return {} as {packageId?:string;kind?:BaKind;period?:number};}})();
   const requested=initialNavigation.packageId===state.project.id?initialNavigation:{};
   const [kind,setKind] = useState<BaKind>(requested.kind||'konsistensi');
@@ -47,7 +47,7 @@ export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigat
   const presentRecords=useMemo(()=>state.dailyRecords.filter(row=>(!selectedSurvey||row.surveyType===selectedSurvey)&&(!isPeriodic||!periodRange?.start||row.date>=periodRange.start&&row.date<=periodRange.end)),[state.dailyRecords,selectedSurvey,isPeriodic,periodRange]);
   const isProvider=state.role==='Penyedia Jasa / Ketua Tim';
   const isBalai=state.role==='PIC Balai / Pengguna Jasa';
-  const mayEdit=(kind==='internal'||kind==='konsistensi'||kind==='kalibrasi')?isProvider:(kind==='duaMingguan'||kind==='bertahap'||kind==='penerimaan')?isBalai:state.role===(['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat'] as const)[auditLevel-1];
+  const mayEdit=!readOnly&&((kind==='internal'||kind==='konsistensi'||kind==='kalibrasi')?isProvider:(kind==='duaMingguan'||kind==='bertahap'||kind==='penerimaan')?isBalai:state.role===(['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat'] as const)[auditLevel-1]);
   const auditData=state.audits[auditLevel-1];
   const auditSamples=state.dailyRecords.filter(r=>auditData.sampleIds.includes(r.id)&&(!selectedSurvey||r.surveyType===selectedSurvey));
   const auditFindings=state.corrections.filter(c=>c.blockedStage===`Audit tingkat ${auditLevel}`);
@@ -164,7 +164,7 @@ export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigat
   return <div className="ba-workspace" style={{display:'grid',gap:16}}>
     <style>{`@media print { body * { visibility:hidden!important; } .ba-print-zone,.ba-print-zone * {visibility:visible!important;} .ba-print-zone{position:absolute!important;left:0!important;top:0!important;width:100%!important;padding:12mm!important;color:#111!important;background:white!important;} .ba-no-print{display:none!important;} .ba-print-zone textarea,.ba-print-zone input{border:0!important;color:#111!important;} .ba-print-zone table{break-inside:auto!important;} .ba-print-zone tr{break-inside:avoid!important;} .ba-print-zone p{orphans:3;widows:3;} @page{size:A4;margin:14mm 13mm;} }`}</style>
     <div className="wf-toolbar ba-no-print" style={{justifyContent:'space-between',flexWrap:'wrap'}}><button type="button" className="wf-button" onClick={()=>onNavigate?.(originSelection)}>← Kembali ke tahap asal</button><button type="button" className="wf-button" onClick={()=>{window.location.href='/documents?submodule=%2Fdocuments%3ABerita%20acara'}}>Daftar BA paket</button></div>
-    <section className="wf-panel ba-no-print"><div className="wf-panel-head"><h3>Susun Berita Acara</h3><span className="wf-status warn">Draft</span></div><div className="wf-body">
+    <section className="wf-panel ba-no-print"><div className="wf-panel-head"><h3>Arsip catatan Berita Acara</h3><span className="wf-status warn">Draft</span></div><div className="wf-body">
       <p className="wf-note" style={{margin:'0 0 12px'}}>Informasi teknis berasal dari tahap pemeriksaan; isian ini hanya untuk informasi yang belum tersedia. Paket: <strong>{state.project.packageName}</strong> · {periodText}. Data yang belum tercatat perlu dilengkapi sebelum diajukan.</p>
       <div className="wf-fields">
         <div className="wf-field"><label>Jenis dokumen</label>{lockedKind?<div className="wf-callout" style={{marginTop:4}}><strong>{spec.title}</strong><div>{spec.stage}</div></div>:<select value={kind} onChange={e=>setKind(e.target.value as BaKind)}>{CATALOG.map(item=><option key={item.id} value={item.id}>{item.title} — {item.stage}</option>)}</select>}</div>
@@ -195,4 +195,4 @@ export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigat
     <details className="wf-panel ba-no-print"><summary style={{padding:12,cursor:"pointer",fontWeight:600}}>Nomor / referensi dokumen dari sistem sumber ({references.length}, bukan berkas BA)</summary><div className="wf-body"><div className="wf-table"><table><thead><tr><th>Dokumen</th><th>Referensi</th><th>Status sumber</th></tr></thead><tbody>{references.map((row,index)=><tr key={`${row.name}-${index}`}><td>{row.name}</td><td>{row.reference}</td><td>{row.status}</td></tr>)}</tbody></table></div></div></details>
   </div>;
 }
-export function WorkflowDocuments(props:Parameters<typeof LegacyWorkflowDocuments>[0]){return <><BaGenerator {...props}/><details className="wf-panel"><summary className="wf-panel-head">Catatan dan pratinjau versi terdahulu (arsip)</summary><LegacyWorkflowDocuments {...props}/></details></>;}
+export function WorkflowDocuments(props:Parameters<typeof LegacyWorkflowDocuments>[0]){return <><BaGenerator key={props.state.project.id} {...props}/><details className="wf-panel"><summary className="wf-panel-head">Catatan dan pratinjau versi terdahulu (arsip baca saja)</summary><LegacyWorkflowDocuments {...props} readOnly/></details></>;}

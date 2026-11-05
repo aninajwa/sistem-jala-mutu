@@ -73,13 +73,13 @@ allowNoFile = true}: Props) {
   }
 
   return <section className="corr-evidence" aria-label="Bukti pendukung">
-    <div className="corr-evidence-head"><strong>Bukti pendukung</strong><span>{files.length} file</span></div>
-    <label className="corr-evidence-note-label">Catatan / referensi
+    <div className="corr-evidence-head"><strong>Dokumen dan foto pendukung</strong><span>{files.length} lampiran</span></div>
+    <label className="corr-evidence-note-label">Keterangan bukti dan referensi sumber
       {editable
         ? <textarea value={note} onChange={e => onNoteChange?.(e.target.value)} placeholder="Jelaskan lokasi, hasil pemeriksaan, dan bukti yang mendukung tindakan" rows={3}/>
         : <p className="corr-evidence-readonly">{note || 'Belum ada catatan.'}</p>}
     </label>
-    <div className="corr-evidence-list">
+    {files.length > 0 && <div className="corr-evidence-list">
       {files.map(file => <div className="corr-evidence-item" key={file.key}>
         <div className="corr-evidence-file"><strong>{file.name}</strong><small>{(file.size / 1024).toFixed(0)} KB · {file.record ? 'Berkas lokal' : 'Belum dapat dibuka'}</small></div>
         <div className="corr-evidence-buttons">
@@ -87,17 +87,17 @@ allowNoFile = true}: Props) {
           {editable && <button type="button" className="wf-button" onClick={() => detach(file.key)}>Hapus</button>}
         </div>
       </div>)}
-    </div>
+    </div>}
     {editable && <div className="corr-evidence-actions">
-      <label className="corr-evidence-upload">+ Tambah file
+      <label className="corr-evidence-upload">+ Unggah foto / PDF
         <input type="file" accept=".pdf,.jpg,.jpeg,.png,.webp,application/pdf,image/jpeg,image/png,image/webp" multiple disabled={busy || noFile} onChange={e => { void upload(e.currentTarget.files); e.currentTarget.value = ''; }}/>
       </label>
       {allowNoFile && files.length === 0 && (
-  <label className="corr-evidence-no-file"><input type="checkbox" checked={noFile} onChange={e => onNoFileChange?.(e.target.checked)}/> Tanpa file pendukung (sertakan alasan di catatan</label>
+  <label className="corr-evidence-no-file"><input type="checkbox" checked={noFile} onChange={e => onNoFileChange?.(e.target.checked)}/> Tanpa file pendukung — alasan wajib dicatat</label>
 )}
     </div>}
-    {files.length === 0 && !editable && <small className="corr-evidence-muted">Tidak ada berkas yang dapat diperiksa pada perangkat ini.</small>}
-    <small className="corr-evidence-muted">Lampiran tersimpan lokal; akses lintas perangkat memerlukan server dokumen.</small>
+    {files.length === 0 && <small className="corr-evidence-muted">{editable ? "Belum ada lampiran. Tambahkan file jika diperlukan untuk jenis tindakan ini." : "Belum ada lampiran yang tersedia pada perangkat ini."}</small>}
+    <small className="corr-evidence-muted">Bukti saat ini tersimpan lokal; belum otomatis tersedia untuk pemeriksa di perangkat lain.</small>
     {notice && <p role="status" className="corr-evidence-notice">{notice}</p>}
   </section>;
 }

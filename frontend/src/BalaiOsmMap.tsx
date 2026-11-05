@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+import { validMapPoints, type VerifiedMapPoint } from './mapGeometryValidation';
 
 type SurveyStatus = {
   id: string;
@@ -11,31 +12,8 @@ type SurveyStatus = {
 
 type BalaiOsmMapProps = {
   surveys: SurveyStatus[];
+  verifiedPoints?: readonly VerifiedMapPoint[];
 };
-
-const regions = [
-  { id: 'sumatera-utara', name: 'Sumatera Utara', balai: 'Balai Sumatera Utara', lat: 3.5952, lon: 98.6722 },
-  { id: 'jawa-barat', name: 'Jawa Barat', balai: 'Balai Jawa Barat', lat: -6.9175, lon: 107.6191 },
-  { id: 'kalimantan-timur', name: 'Kalimantan Timur', balai: 'Balai Kalimantan Timur', lat: -0.5022, lon: 117.1536 },
-  { id: 'sulawesi-selatan', name: 'Sulawesi Selatan', balai: 'Balai Sulawesi Selatan', lat: -5.1477, lon: 119.4327 },
-  { id: 'nusa-tenggara', name: 'Nusa Tenggara', balai: 'Balai Nusa Tenggara', lat: -8.5833, lon: 116.1167 },
-];
-
-function markerColor(status?: string) {
-  if (status === 'Lulus') return '#16a17a';
-  if (status === 'Verifikasi') return '#e6a72e';
-  if (status === 'Perlu Perbaikan') return '#d95450';
-  return '#8299a6';
-}
-
-function latestSurvey(surveys: SurveyStatus[], balai: string) {
-  return surveys
-    .filter(survey => survey.balai === balai)
-    .reduce<SurveyStatus | undefined>(
-      (latest, survey) => !latest || survey.tanggal > latest.tanggal ? survey : latest,
-      undefined,
-    );
-}
 
 const controlButtonStyle: React.CSSProperties = {
   width: 30,
@@ -52,7 +30,9 @@ const controlButtonStyle: React.CSSProperties = {
   boxShadow: '0 1px 4px rgba(29,64,80,.16)',
 };
 
-export function BalaiOsmMap({ surveys }: BalaiOsmMapProps) {
+const NO_POINTS: readonly VerifiedMapPoint[] = [];
+
+export function BalaiOsmMap({ surveys, verifiedPoints = NO_POINTS }: BalaiOsmMapProps) {
   const mapElement = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerLayer = useRef<L.LayerGroup | null>(null);
@@ -100,34 +80,22 @@ export function BalaiOsmMap({ surveys }: BalaiOsmMapProps) {
     if (!layer) return;
     layer.clearLayers();
 
-    for (const region of regions) {
-      const survey = latestSurvey(surveys, region.balai);
-      const status = survey?.status || 'Tidak ada data';
-      const marker = L.circleMarker([region.lat, region.lon], {
-        radius: 6,
-        color: '#ffffff',
-        weight: 2,
-        fillColor: markerColor(survey?.status),
-        fillOpacity: 1,
+    // Only explicitly sourced coordinates can become markers. Survey records alone have no geometry.
+    const points = validMapPoints(verifiedPoints);
+    for (const point of points) {
+      const marker = L.circleMarker([point.latitude, point.longitude], {
+        radius: 6, color: '#135b83', weight: 2, fillOpacity: 0.75,
       });
-      marker.bindTooltip(region.name, {
-        permanent: true,
-        direction: 'top',
-        offset: [0, -5],
-        opacity: 0.96,
-      });
-      marker.bindPopup(() => {
-        const content = document.createElement('div');
-        const title = document.createElement('strong');
-        title.textContent = region.name;
-        const detail = document.createElement('div');
-        detail.textContent = survey ? `${status} · ${survey.id} · ${survey.tanggal}` : 'Tidak ada survei pada filter ini';
-        content.append(title, detail);
-        return content;
-      });
-      layer.addLayer(marker);
+      // Leaflet text popup is not HTML; never interpolate external labels into HTML.
+      marker.bindTooltip(point.label, { direction: 'top' });
+      marker.addTo(layer);
     }
-  }, [surveys]);
+    if (points.length && mapRef.current) {
+      mapRef.current.fitBounds(L.latLngBounds(points.map(p => [p.latitude, p.longitude] as [number, number])),
+        { padding: [24, 24], maxZoom: 12, animate: false });
+    }
+    void surveys;
+  }, [surveys, verifiedPoints]);
 
   const zoom = (step: number) => mapRef.current?.setZoom((mapRef.current.getZoom() || 4) + step);
 
