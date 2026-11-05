@@ -9,6 +9,7 @@ const roleQueries = [];
 const storageFiles = new Map();
 let registeredDocument;
 let cleanupCalls = 0;
+let createdVervalCycle = null;
 let organisation = null;
 const personnelRows = [];
 const membershipRows = [];
@@ -90,6 +91,15 @@ before(async () => {
           { ulangan_id: 902, konsistensi_id: 801, rater_personel_id: 92, ulangan_ke: 2, nilai: 4.3 },
         ],
       }]);
+    }
+    if (url.pathname === '/rest/v1/rpc/buat_siklus_verval_testqa') {
+      let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (token === 'foreign-reviewer' || lastRpc.p_paket_id !== 9 || ['inactive-testqa','no-testqa-allowlist','blank-testqa-purpose'].includes(token)) return send({ code: '42501', message: 'Paket tidak terdaftar aktif untuk pengujian Verval TEST/QA' }, 403);
+      if (isReviewer) return send({ code: '42501', message: 'Hanya Penyedia Jasa aktif boleh membuat siklus Verval' }, 403);
+      if (createdVervalCycle) return send({ code: '23505', message: 'Siklus Verval pertama untuk paket ini sudah ada' }, 409);
+      if (token === 'no-first-session') return send({ code: '55000', message: 'Sesi survei bertanggal belum tersedia' }, 409);
+      createdVervalCycle = { siklus_id: 950, paket_id: 9, siklus_ke: 1, periode_mulai: '2026-11-05', periode_selesai: '2026-11-18', jatuh_tempo: null, panjang_periode_km: null, status: null };
+      return send(createdVervalCycle);
     }
     if (url.pathname === '/rest/v1/rpc/buat_ruas_jalan') {
       let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
@@ -1630,4 +1640,26 @@ test('Verval consistency READ rejects malformed package and cycle IDs', async ()
   for (const path of ['/paket/no/siklus-verval/700/uji-konsistensi', `${cyclePath}/0/uji-konsistensi`, `${cyclePath}/2147483648/uji-konsistensi`]) {
     assert.equal((await request(path, 'provider')).status, 400, path);
   }
+});
+
+test('TEST/QA Verval CREATE is authenticated, provider-only, package-limited and input-minimal', async () => {
+  const path = '/paket/9/siklus-verval';
+  assert.equal((await request(path, null, {})).status, 401);
+  assert.equal((await request(path, 'reviewer', {})).status, 403);
+  assert.equal((await request(path, 'inactive-testqa', {})).status, 403);
+  assert.equal((await request(path, 'no-testqa-allowlist', {})).status, 403);
+  assert.equal((await request(path, 'blank-testqa-purpose', {})).status, 403);
+  assert.equal((await request('/paket/10/siklus-verval', 'provider', {})).status, 403);
+  assert.equal((await request(path, 'provider', { periode_mulai: '2026-11-05', siklus_ke: 1, status: 'SELESAI' })).status, 400);
+  assert.equal((await request(path, 'no-first-session', {})).status, 409);
+
+  const created = await request(path, 'provider', {});
+  assert.equal(created.status, 201);
+  assert.deepEqual(lastRpc, { p_paket_id: 9 });
+  assert.deepEqual(created.body.data, {
+    siklus_id: 950, paket_id: 9, siklus_ke: 1,
+    periode_mulai: '2026-11-05', periode_selesai: '2026-11-18',
+    jatuh_tempo: null, panjang_periode_km: null, status: null,
+  });
+  assert.equal((await request(path, 'provider', {})).status, 409);
 });

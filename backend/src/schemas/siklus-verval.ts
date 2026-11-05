@@ -5,3 +5,5 @@ const id = z.string().regex(/^[1-9]\d*$/).transform(Number).pipe(
 );
 
 export const siklusVervalIdSchema = id;
+
+export const siklusVervalCreateBodySchema = z.object({}).strict();
