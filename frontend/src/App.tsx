@@ -24,7 +24,6 @@ import { RoleEntryScreen } from './components/app/RoleEntryScreen';
 import { useDemoStore } from './hooks/useDemoStore';
 import { usePackageStore } from './hooks/usePackageStore';
 
-import { exportDemoDataCsv } from './lib/csv';
 import { DEMO_SESSION_KEY } from './lib/demoData';
 import { isInPeriod } from './lib/periods';
 
@@ -397,18 +396,7 @@ function App() {
     <WouterRouter>
       <div
         className="app-shell"
-        onClickCapture={event => {
-          const target =
-            event.target as HTMLElement;
 
-          if (
-            target.closest(
-              '[data-testid="button-export-report"]',
-            )
-          ) {
-            exportDemoDataCsv(store);
-          }
-        }}
       >
         <AppSidebar
           mobileOpen={mobileOpen}
@@ -459,7 +447,7 @@ function App() {
               </div>
             )}
 
-            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&<MobileFilters
+            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&<MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
@@ -531,7 +519,7 @@ function App() {
                 </Route>
 
                 <Route path="/reports">
-                  <ReportsPage {...pageProps} />
+                  <ReportsPage key={principal.id+principal.role} {...pageProps} principal={principal} />
                 </Route>
 
                 <Route path="/documents">

@@ -1,0 +1,18 @@
+[
+  {
+    "log": "build.log",
+    "exitCode": 0
+  },
+  {
+    "log": "metrics.log",
+    "exitCode": 0
+  },
+  {
+    "log": "v2-legacy-browser.log",
+    "exitCode": 0
+  },
+  {
+    "log": "browser.log",
+    "exitCode": 0
+  }
+]

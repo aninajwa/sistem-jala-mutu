@@ -1,0 +1,14 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> jala-mutu-frontend@0.0.0 test:permissions
+> vitest run src/workflow/workflowPermissions.test.ts src/workflow/checkpoint09Permissions.test.ts
+
+
+ RUN  v5.0.5 /workspace/scratch/a06d06f0d024/v21-work/frontend
+
+
+ Test Files  2 passed (2)
+      Tests  9 passed (9)
+   Start at  14:18:34
+   Duration  621ms (transform 78%, import 16%, tests 5%, worker 2%)
+

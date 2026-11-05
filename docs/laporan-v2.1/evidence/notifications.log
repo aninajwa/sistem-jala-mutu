@@ -1,0 +1,48 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> jala-mutu-frontend@0.0.0 test:notifications
+> node --import tsx --test src/workflow/notifications/notificationRules.test.ts
+
+✔ event is delivered only after persisted workflow; refresh never duplicates (5.006141ms)
+✔ source persistence failure produces no event and leaves state unchanged (0.608145ms)
+✔ notification persistence failure does not undo workflow; scheduler retries once (2.059638ms)
+✔ role and actual assignment restrict recipients; owner does not receive Balai review queue (1.731445ms)
+✔ binding alone cannot bypass package scope (1.027016ms)
+✔ read and mark-all persist only authorized recipient records (0.801486ms)
+✔ resolved work is no longer an active queue item; missing destination fails safely (1.362479ms)
+✔ reassignment removes access to prior recipient (0.582396ms)
+✔ bootstrap existing workflow and BA creates no retrospective transition notifications (0.477909ms)
+✔ demo packages are excluded even if explicit members and confirmations exist (0.358179ms)
+✔ actual dates need explicit confirmation; simulationDate has no effect (0.583798ms)
+✔ cycle14 reminders H7 and H1; never H30 (0.722767ms)
+✔ long-term H30/H7 are separate from cycle14 (0.400292ms)
+✔ due and overdue notify without opening any correction case or default escalation (0.415395ms)
+✔ escalation requires explicit config and targets exact person rather than global role (0.519171ms)
+✔ completed or cancelled obligations generate no reminders (0.235224ms)
+✔ strict ISO dates reject impossible dates and Jakarta boundary uses local date (13.475203ms)
+✔ calendar respects actual assignment and does not expose Balai calendar to Directorate (0.523318ms)
+✔ audit ready3 requires valid upload and level2 passed, not merely global Directorate role (0.57186ms)
+✔ period navigation without submission generates no event (0.18609ms)
+✔ all seven BA formats use existing owner/reviewer authority, never Admin (0.576998ms)
+✔ BA submission after successful repository write creates one event; failed BA write creates none (1.330401ms)
+✔ returned BA is delivered to configured actual draft owner only (0.758701ms)
+✔ Admin configuration cannot grant Admin technical duties and cannot be saved by other roles (0.649497ms)
+✔ configuration conflict is safe and malformed dates/escalation recipient are rejected (0.550668ms)
+✔ corrupted inbox is preserved and explicitly rejected rather than reset (0.368244ms)
+✔ correction lifecycle event destinations preserve source reviewer and actual ownership (2.748154ms)
+✔ old H7 reminder becomes resolved on H6 without modifying workflow (1.423682ms)
+✔ nonperiodic BA identity uses period0 and canonical identity survives property reordering (0.791961ms)
+✔ invalid or inaccessible calendar target is rejected by configuration validation (0.553642ms)
+✔ previously passed audit requiring review re-enters only its authorized queue (0.427444ms)
+✔ relative periodic calibration never receives annual H30 policy (1.518354ms)
+✔ resubmission never reactivates old status-cycle tasks, including missed recipient delivery (3.229279ms)
+✔ Balai joint verification is not inferred from internal cycle and has its own agenda (0.504739ms)
+✔ H30 requires a confirmed effective start date; H7 remains available (0.267984ms)
+ℹ tests 35
+ℹ suites 0
+ℹ pass 35
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 384.33811

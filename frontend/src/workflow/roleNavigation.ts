@@ -182,7 +182,8 @@ export function buildRoleNavigation(
         label: 'Dashboard & Laporan',
         icon: TrendingUp,
         children: [
-          { label: 'Ringkasan kinerja', href: '/reports', tab: 'Semua' },
+          { label: 'Dashboard Operasional', href: '/reports', tab: 'Semua' },
+          { label: 'Rekap & Ekspor', href: '/reports', tab: 'Rekap & Ekspor' },
           { label: 'Laporan periodik', href: '/reports', tab: 'Laporan periodik' },
         ],
       },
@@ -256,7 +257,8 @@ export function buildRoleNavigation(
         label: 'Dashboard & Laporan',
         icon: TrendingUp,
         children: [
-          { label: 'Ringkasan kinerja', href: '/reports', tab: 'Semua' },
+          { label: 'Dashboard Operasional', href: '/reports', tab: 'Semua' },
+          { label: 'Rekap & Ekspor', href: '/reports', tab: 'Rekap & Ekspor' },
           { label: 'Laporan periodik', href: '/reports', tab: 'Laporan periodik' },
         ],
       },
@@ -330,7 +332,8 @@ export function buildRoleNavigation(
         label: 'Dashboard & Laporan',
         icon: TrendingUp,
         children: [
-          { label: 'Ringkasan nasional', href: '/reports', tab: 'Semua' },
+          { label: 'Dashboard Operasional', href: '/reports', tab: 'Semua' },
+          { label: 'Rekap & Ekspor', href: '/reports', tab: 'Rekap & Ekspor' },
           { label: 'Laporan periodik', href: '/reports', tab: 'Laporan periodik' },
         ],
       },
@@ -402,15 +405,6 @@ export function buildRoleNavigation(
       children: [
         { label: 'Monitoring Kepatuhan', href: '/compliance', tab: 'Semua' },
         { label: 'Peringkat Balai', href: '/compliance', tab: 'Peringkat' },
-      ],
-    },
-    {
-      path: '/reports',
-      label: 'Dashboard & Laporan',
-      icon: TrendingUp,
-      children: [
-        { label: 'Ringkasan kinerja', href: '/reports', tab: 'Semua' },
-        { label: 'Laporan periodik', href: '/reports', tab: 'Laporan periodik' },
       ],
     },
     {

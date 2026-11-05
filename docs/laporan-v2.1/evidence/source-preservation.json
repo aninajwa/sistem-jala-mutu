@@ -1,0 +1,16 @@
+{
+  "baselineZip": "JALA-WORK-DASHBOARD-LAPORAN-V2.1-SOURCE.zip",
+  "baselineZipSHA256": "66f6362758ab473feeb21cce3f5c0eb6430d712d70528bf6fb74f9e57e58ba45",
+  "baselineEntries": 734,
+  "existingCodeFilesCompared": 388,
+  "existingCodeChanged": [
+    "frontend/src/pages/ReportsPage.tsx",
+    "frontend/src/reports/Dashboard.tsx",
+    "frontend/src/reports/PeriodicReports.tsx",
+    "frontend/src/reports/reports-v2.css"
+  ],
+  "missingExistingCode": [],
+  "allOtherExistingCodeByteIdentical": true,
+  "backendChanged": false,
+  "dependencyChanged": false
+}

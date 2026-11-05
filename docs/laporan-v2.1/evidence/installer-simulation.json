@@ -1,0 +1,14 @@
+{
+  "method": "Python payload simulation; not native execution of PowerShell",
+  "sourcePayloads": 10,
+  "existingOverwritten": 4,
+  "baselineMismatchRejected": true,
+  "existingNewPathRejected": true,
+  "partialCopyFailureRestored": true,
+  "postCopyHashesVerified": true,
+  "rollbackRejectsLaterUserEdits": true,
+  "rollbackRestoresExactBaseline": true,
+  "newFilesRemovedOnRollback": true,
+  "unrelatedLocalChangesPreserved": true,
+  "powerShellAvailable": false
+}
