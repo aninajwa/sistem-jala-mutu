@@ -27,6 +27,7 @@ const trialEvaluationRows = new Map();
 const correctionRows = [];
 const surveySessionRows = [];
 const surveySegmentRows = [];
+const dailyEquipmentCheckRows = [];
 const roadRows = [];
 const correctionReadPayload = row => ({
   kasus_temuan: { paket_id: row.paket_id, status: row.status, uraian: row.rejection_reason, tingkat: row.severity },
@@ -260,6 +261,22 @@ before(async () => {
       if(assignmentRows.some(a=>a.tim_id===team.tim_id && a.alat_id===e.alat_id && a.mulai===(d.mulai??null) && a.selesai===(d.selesai??null))) return send({code:'23505'},409);
       const a={penugasan_id:31+assignmentRows.length,tim_id:team.tim_id,alat_id:e.alat_id,kendaraan:d.kendaraan??null,mulai:d.mulai??null,selesai:d.selesai??null};assignmentRows.push(a);
       return send({alat:e,penugasan:a,kalibrasi_belum_dinilai:true});
+    }
+
+    if (['/rest/v1/rpc/catat_pemeriksaan_harian_alat_prototype','/rest/v1/rpc/baca_senarai_pemeriksaan_harian_alat_prototype'].includes(url.pathname)) {
+      let raw='';for await(const chunk of req)raw+=chunk;lastRpc=JSON.parse(raw);
+      if(lastRpc.p_paket_id===999)return send({code:'P0002',message:'Paket tidak ditemukan'},404);
+      if(token==='foreign-package')return send({code:'42501',message:'Akses ke paket ini ditolak'},403);
+      if(url.pathname.endsWith('/baca_senarai_pemeriksaan_harian_alat_prototype')) {
+        const start=(lastRpc.p_page-1)*50;
+        return send(dailyEquipmentCheckRows.filter(row=>row.paket_id===lastRpc.p_paket_id).slice(start,start+50));
+      }
+      if(isReviewer)return send({code:'42501',message:'Hanya Penyedia Jasa aktif boleh mencatat pemeriksaan TEST/QA'},403);
+      const duplicate=dailyEquipmentCheckRows.some(row=>row.paket_id===lastRpc.p_paket_id&&row.alat_id===lastRpc.p_alat_id&&row.tanggal===lastRpc.p_tanggal&&row.item_pemeriksaan===lastRpc.p_item_pemeriksaan);
+      if(duplicate)return send({code:'23505',message:'Sudah dicatat'},409);
+      if(lastRpc.p_alat_id!==7)return send({code:'22023',message:'Alat tidak ditugaskan pada paket ini'},400);
+      const row={pemeriksaan_id:dailyEquipmentCheckRows.length+1,paket_id:lastRpc.p_paket_id,alat_id:lastRpc.p_alat_id,tanggal:lastRpc.p_tanggal,item_pemeriksaan:lastRpc.p_item_pemeriksaan,hasil_pemeriksaan:lastRpc.p_hasil_pemeriksaan,catatan:lastRpc.p_catatan,pencatat_id:3};
+      dailyEquipmentCheckRows.push(row);return send(row);
     }
 
     if (['/rest/v1/rpc/simpan_sesi_survei','/rest/v1/rpc/baca_senarai_sesi_survei','/rest/v1/rpc/baca_sesi_survei','/rest/v1/rpc/simpan_data_segmen','/rest/v1/rpc/baca_senarai_data_segmen','/rest/v1/rpc/baca_data_segmen'].includes(url.pathname)) {
@@ -1303,6 +1320,37 @@ test('survey segment results reject unauthorized, out-of-session and invalid pay
   for(const bad of [{...surveySegmentBody,data_id:7},{...surveySegmentBody,status_qc:'LOLOS'},{...surveySegmentBody,versi_aktif:2},{...surveySegmentBody,nilai_utama:'42'},{jenis_survei_id:8}])assert.equal((await request(surveySegmentPath,'provider',bad)).status,400);
   assert.equal((await request(`${surveySegmentPath}/0`,'provider')).status,400);
   assert.equal((await request(`${surveySegmentPath}/999`,'reviewer')).status,404);
+});
+const dailyEquipmentCheckPath='/paket/3/pemeriksaan-harian-alat';
+const dailyEquipmentCheckBody={alat_id:7,tanggal:'2026-10-28',item_pemeriksaan:'GPS',hasil_pemeriksaan:'OK',catatan:'Catatan sintetik TEST/QA'};
+test('prototype daily equipment checks require provider for CREATE and allow scoped READ',async()=>{
+  assert.equal((await request(dailyEquipmentCheckPath,null)).status,401);
+  assert.equal((await request(dailyEquipmentCheckPath,'reviewer',dailyEquipmentCheckBody)).status,403);
+  const created=await request(dailyEquipmentCheckPath,'provider',dailyEquipmentCheckBody);
+  assert.equal(created.status,201);assert.equal(created.body.data.pencatat_id,3);
+  assert.deepEqual(lastRpc,{p_paket_id:3,p_alat_id:7,p_tanggal:'2026-10-28',p_item_pemeriksaan:'GPS',p_hasil_pemeriksaan:'OK',p_catatan:'Catatan sintetik TEST/QA'});
+  const list=await request(dailyEquipmentCheckPath+'?page=1','reviewer');
+  assert.equal(list.status,200);assert.equal(list.body.data[0].pemeriksaan_id,created.body.data.pemeriksaan_id);
+  assert.deepEqual(lastRpc,{p_paket_id:3,p_page:1});
+});
+test('prototype daily equipment checks reject cross-package access and invalid input',async()=>{
+  assert.equal((await request(dailyEquipmentCheckPath,'foreign-package')).status,403);
+  assert.equal((await request(dailyEquipmentCheckPath,'foreign-package',dailyEquipmentCheckBody)).status,403);
+  assert.equal((await request('/paket/999/pemeriksaan-harian-alat','reviewer')).status,404);
+  assert.equal((await request(dailyEquipmentCheckPath+'?page=0','reviewer')).status,400);
+  assert.equal((await request('/paket/no/pemeriksaan-harian-alat','reviewer')).status,400);
+  for(const bad of [
+    {...dailyEquipmentCheckBody,hasil_pemeriksaan:'DISETUJUI'},
+    {...dailyEquipmentCheckBody,item_pemeriksaan:'KAMERA'},
+    {...dailyEquipmentCheckBody,tanggal:'2026-02-30'},
+    {...dailyEquipmentCheckBody,alat_id:0},
+    {...dailyEquipmentCheckBody,pencatat_id:999},
+    {...dailyEquipmentCheckBody,catatan:'x'.repeat(2001)},
+  ]) assert.equal((await request(dailyEquipmentCheckPath,'provider',bad)).status,400);
+});
+test('prototype daily equipment checks reject duplicate item for tool and date',async()=>{
+  const duplicate=await request(dailyEquipmentCheckPath,'provider',dailyEquipmentCheckBody);
+  assert.equal(duplicate.status,409);
 });
 test('trial submission state is readable only within package scope',async()=>{
  const r=await request(trialPath+'/41/pengajuan','reviewer');assert.equal(r.status,200);assert.equal(r.body.data.status,'DRAFT');assert.equal(r.body.data.versi,0);

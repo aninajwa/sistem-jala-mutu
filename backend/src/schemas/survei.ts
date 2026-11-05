@@ -24,3 +24,11 @@ export const sesiSurveiCreateSchema = z.object({
   panjang_tercapai_km: z.number().finite().nonnegative().nullable().optional(),
   link_video: optionalText(2000),
 }).strict();
+
+export const pemeriksaanHarianAlatPrototypeSchema = z.object({
+  alat_id: id,
+  tanggal: validDate,
+  item_pemeriksaan: z.enum(['GPS', 'BATERAI', 'PENYIMPANAN', 'BOUNCE_TEST_KELAS_I']),
+  hasil_pemeriksaan: z.enum(['OK', 'BERMASALAH', 'TIDAK_DILAKUKAN']),
+  catatan: optionalText(2000),
+}).strict();

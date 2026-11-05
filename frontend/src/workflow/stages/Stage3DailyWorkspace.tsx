@@ -51,8 +51,36 @@ import {
   testId,
 } from "./stageSupport";
 import { useWorkflowStage } from "./useWorkflowStage";
+import { getDailyEquipmentCheckMock } from "./dailyEquipmentCheckMock";
 
-export function Stage3DailyWorkspace(props: WorkflowStageProps) {
+export function Stage3DailyWorkspacePrototypePanel() {
+  const records = getDailyEquipmentCheckMock(301);
+  return (
+    <section className="wf-panel" aria-labelledby="daily-equipment-mock-title">
+      <div className="wf-panel-head">
+        <strong id="daily-equipment-mock-title">Pemeriksaan harian alat · PROTOTYPE / TEST/QA</strong>
+        <span className="wf-badge">DATA SIMULASI</span>
+      </div>
+      <div className="wf-note" role="note">
+        Contoh statik untuk paparan sahaja, bukan rekod sebenar atau checklist rasmi. Tidak disimpan dan tidak mengubah status workflow.
+      </div>
+      <div className="wf-table-wrap">
+        <table className="wf-table">
+          <thead><tr><th>Tanggal</th><th>Alat</th><th>Item contoh</th><th>Hasil contoh</th><th>Catatan simulasi</th></tr></thead>
+          <tbody>{records.map((record) => (
+            <tr key={record.id}>
+              <td>{record.date}</td><td>{record.equipmentName}</td><td>{record.item}</td>
+              <td><span className="wf-badge">{record.result}</span></td><td>{record.note}</td>
+            </tr>
+          ))}</tbody>
+        </table>
+      </div>
+      <small className="wf-note">Fixture paket sintetik QA-301 · pencatat: Pengguna QA · tiada operasi CREATE/backend.</small>
+    </section>
+  );
+}
+
+export function LocalStage3DailyWorkspace(props: WorkflowStageProps) {
   const { selection, state, onUpdate, setNotice, onNavigate } = props;
   const { commit, heading, toggleMap } = useWorkflowStage(props);
   const [entryOpen,setEntryOpen]=useState(false);
@@ -284,6 +312,7 @@ export function Stage3DailyWorkspace(props: WorkflowStageProps) {
         "Pantau pelaksanaan survei harian, kelengkapan bukti QA/QC, kondisi alat, dan kesiapan menuju verifikasi berkala.",
       )}
       <p className="wf-note">Rekaman harian dicatat Penyedia. PIC Balai dan Direktorat memantau; pemeriksaan bersama dilakukan pada Tahap 3B sesuai periode, bukan menyetujui setiap rekaman.</p>
+      <Stage3DailyWorkspacePrototypePanel />
       <Stage3DailyRecordsTable state={state} />
       {canEnterDaily&&<button type="button" className="wf-button primary" onClick={()=>setEntryOpen(value=>!value)}>{entryOpen?'Tutup pengisian':'Catat atau lengkapi kegiatan'}</button>}
       <RoleWorkSection primary={canEnterDaily} title="Kegiatan, pemeriksaan harian dan bukti Penyedia"><div hidden={!entryOpen&&canEnterDaily}>

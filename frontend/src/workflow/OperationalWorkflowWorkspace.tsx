@@ -5,7 +5,7 @@ import type { WorkflowStageProps } from "./stages/stageSupport";
 import { Stage0PreparationWorkspace } from "./stages/Stage0PreparationWorkspace";
 import { Stage1CalibrationWorkspace } from "./stages/Stage1CalibrationWorkspace";
 import { Stage2ProductionWorkspace } from "./stages/Stage2ProductionWorkspace";
-import { Stage3DailyWorkspace } from "./stages/Stage3DailyWorkspace";
+import { LocalStage3DailyWorkspace } from "./stages/Stage3DailyWorkspace";
 import { Stage3PeriodicWorkspace } from "./stages/Stage3PeriodicWorkspace";
 import { Stage4DataPreparationWorkspace } from "./stages/Stage4DataPreparationWorkspace";
 import { Stage5AuditWorkspace } from "./stages/Stage5AuditWorkspace";
@@ -22,7 +22,7 @@ const screens: Record<string, ComponentType<WorkflowStageProps>> = {
   "/entry:Persiapan & SPMK": Stage0PreparationWorkspace,
   "/documents:Kalibrasi & personel": Stage1CalibrationWorkspace,
   "/entry:Validasi produksi": Stage2ProductionWorkspace,
-  "/entry:Survei harian": Stage3DailyWorkspace,
+  "/entry:Survei harian": LocalStage3DailyWorkspace,
   "/verification:Verval 14 hari": Stage3PeriodicWorkspace,
   "/entry:Gerbang RNI/LRS": Stage4DataPreparationWorkspace,
   "/verification:Audit tingkat 1–3": Stage5AuditWorkspace,

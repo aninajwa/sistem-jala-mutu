@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const sql = await readFile(new URL('../proposals/siklus-verval-create-testqa-rpc.sql', import.meta.url), 'utf8');
+const sql = (await readFile(new URL('../proposals/siklus-verval-create-testqa-rpc.sql', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 const allowlist = await readFile(new URL('../proposals/siklus-verval-testqa-allowlist.sql', import.meta.url), 'utf8');
 const route = await readFile(new URL('../src/routes/siklus-verval.ts', import.meta.url), 'utf8');
 const schema = await readFile(new URL('../src/schemas/siklus-verval.ts', import.meta.url), 'utf8');

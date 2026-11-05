@@ -125,6 +125,8 @@ create table if not exists public.data_segmen (
   versi_aktif integer
 );
 
+-- Table pemeriksaan prototype dibuat oleh proposal sesudah fixture ini dimuat.
+
 -- Fixture identities are deliberately synthetic and deterministic.
 insert into public.pengguna (pengguna_id, auth_user_id, terkunci) values
   (101, '00000000-0000-4000-8000-000000000101', false),

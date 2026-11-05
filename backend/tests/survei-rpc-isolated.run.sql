@@ -11,11 +11,16 @@ do $$ begin
   ) then
     raise exception 'Database ujian mesti kosong dari tabel aplikasi Tahap 3A; runner menolak mengubah skema/data yang telah ada';
   end if;
+  if to_regclass('app_private.pemeriksaan_harian_alat_prototype') is not null then
+    raise exception 'Database ujian mesti kosong dari tabel prototipe pemeriksaan harian alat';
+  end if;
 end $$;
 \ir survei-rpc-fixture.sql
 \ir ../proposals/survei-sesi-rpc.sql
 \ir ../proposals/data-segmen-rpc.sql
+\ir ../proposals/pemeriksaan-harian-alat-prototype.sql
 \ir survei-rpc-isolated.test.sql
 \ir data-segmen-rpc-isolated.test.sql
+\ir pemeriksaan-harian-alat-prototype.test.sql
 rollback;
-\echo 'OK: assertion selesai; fixture, kedua proposal, sesi, dan data segmen telah di-rollback.'
+\echo 'OK: assertion selesai; fixture dan proposal Tahap 3A prototipe telah di-rollback.'
