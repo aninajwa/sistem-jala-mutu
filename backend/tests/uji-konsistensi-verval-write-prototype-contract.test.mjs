@@ -9,19 +9,19 @@ const schema = await readFile(new URL('../src/schemas/siklus-verval.ts', import.
 
 test('write proposal remains review-only and cannot execute a database write', () => {
   assert.match(sql, /DOKUMEN REVIEW SAHAJA/i);
-  assert.match(sql, /<TABEL\/KOLOM YANG DISAHKAN>/);
+  assert.match(sql, /<KOLOM BISNIS YANG DISAHKAN>/);
   assert.doesNotMatch(sql, /^\s*(?:insert\s+into|update\s+public\.|delete\s+from|create\s+(?:or\s+replace\s+)?function)\b/im);
   assert.match(proposal, /belum ada endpoint POST atau write database/i);
-  assert.match(proposal, /tidak boleh dikirim/i);
+  assert.match(proposal, /contoh uji fixture, bukan/i);
 });
 
 test('proposed contract rejects client-controlled actor/status and requires scoped authorization', () => {
-  assert.match(proposal, /auth\.uid\(\)/);
-  assert.match(proposal, /assignment paket/i);
+  assert.match(proposal, /role penulis juga \*\*belum diputuskan\*\*/i);
+  assert.match(proposal, /assignment\/scope paket/i);
   assert.match(proposal, /siklus milik paket/i);
   assert.match(proposal, /referensi survei\/ruas\/[\s\S]*?milik paket\/siklus yang sama/i);
-  assert.match(proposal, /tidak dari body/i);
-  assert.match(proposal, /tidak boleh menetapkan status\s+kelulusan/i);
+  assert.match(proposal, /tidak menambah `pencatat_id`/i);
+  assert.match(proposal, /status `null` dan tidak mengira kelulusan/i);
   assert.match(proposal, /service-role/i);
   assert.match(proposal, /duplikasi/i);
 });

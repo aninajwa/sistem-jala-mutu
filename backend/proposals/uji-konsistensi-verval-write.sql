@@ -1,17 +1,22 @@
 -- JALA MUTU — proposal WRITE pencatatan uji konsistensi Verval Tahap 3B.
 -- DOKUMEN REVIEW SAHAJA. Seluruh isi komentar; jangan jalankan/deploy.
--- Tidak ada target INSERT/RPC yang dipilih karena sumber skema lokal yang
--- tersedia hanya uji-konsistensi-verval-read-rpc.sql (kontrak READ).
+-- Skema READ-only live disahkan oleh peminta: parent uji_konsistensi mempunyai
+-- FK siklus_verval, jenis_survei, tim_survei, ruas_jalan; child
+-- uji_konsistensi_ulangan mempunyai FK uji_konsistensi dan personel. Kolom selain
+-- PK nullable. Fakta ini tidak menetapkan kebijakan WRITE atau hubungan gabungan
+-- rujukan ke paket/siklus; tidak ada target SQL write dipilih.
 --
 -- Kontrak yang harus dipenuhi oleh implementasi setelah skema dan KAK disahkan:
 -- 1. Endpoint/RPC menerima paket_id dan siklus_id sebagai scope eksplisit.
--- 2. Aktor diambil dari auth.uid() -> public.pengguna.auth_user_id, bukan body.
--- 3. Periksa profil aktif, peran yang dibenarkan, dan assignment/scope paket
+-- 2. JWT/auth.uid() dipakai untuk autentikasi/otorisasi. Skema fakta tidak
+--    memiliki kolom pencatat; jangan menulis aktor ke kedua tabel ini.
+-- 3. Periksa profil aktif, peran penulis (BELUM DIPUTUSKAN), dan assignment/scope paket
 --    menggunakan kebijakan database terotorisasi (pola
 --    app_private.assert_survei_read hanya membuktikan akses baca, bukan izin tulis).
 -- 4. Pastikan public.siklus_verval(siklus_id, paket_id) cocok sebelum penulisan.
--- 5. Validasi referensi sesi/ruas/segmen dan hubungan datanya ke paket/siklus
---    setelah tabel serta foreign key-nya dikonfirmasi dari skema aktual.
+-- 5. Validasi referensi jenis survei, tim, ruas, dan personel serta hubungan
+--    gabungannya ke paket/siklus. FK individu diketahui; tabel/aturan untuk
+--    membuktikan hubungan gabungan belum dikonfirmasi.
 -- 6. Tetapkan parameter pemeriksaan, nilai, catatan dan bukti hanya setelah
 --    struktur dan definisi bisnis resminya disahkan. Jangan menerima kolom
 --    pencatat atau status kelulusan yang dikendalikan klien.
@@ -30,7 +35,7 @@
 --   assert_validated_survey_reference(paket_id, ...);
 --   validate_against_approved_test_rules(payload);
 --   reject_duplicate_using_approved_natural_key(...);
---   INSERT INTO <TABEL/KOLOM YANG DISAHKAN> (... actor from auth.uid() ...);
+--   INSERT INTO <KOLOM BISNIS YANG DISAHKAN> (...); -- tanpa kolom aktor dugaan
 --   RETURN <bentuk yang dapat dibaca GET uji-konsistensi>;
 -- END
 --

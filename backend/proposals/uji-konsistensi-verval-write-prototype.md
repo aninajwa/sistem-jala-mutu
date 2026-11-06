@@ -4,62 +4,78 @@
 Tiada SQL dijalankan, tiada allowlist TEST/QA diaktifkan dan tiada mutasi
 Supabase live dibuat. Perubahan ini bukan izin menjalankan POST terhadap Paket #9.
 
-## Bukti skema yang tersedia
+## Fakta skema yang disahkan melalui pemeriksaan live READ-only
 
-`uji-konsistensi-verval-read-rpc.sql` membaca `public.siklus_verval` dengan
-`siklus_id` dan `paket_id`, `public.uji_konsistensi` dengan
-`konsistensi_id`, `siklus_id`, `jenis_survei_id`, `tim_id`, `ruas_id`,
-`sta_awal`, `sta_akhir`, `jumlah_ulangan`, `status`, serta
-`public.uji_konsistensi_ulangan` dengan `ulangan_id`, `konsistensi_id`,
-`rater_personel_id`, `ulangan_ke`, `nilai`. Ini bukti adanya kontrak READ
-sahaja, bukan pengesahan semua tipe/nullability, FK, constraint, atau arti
-bisnis kolom tersebut. Tidak ditemukan definisi skema dua tabel uji konsistensi
-dalam `backend/db-reference` atau migrasi yang diperiksa.
+`public.uji_konsistensi`: `konsistensi_id integer` PK; `siklus_id integer` FK
+ke `siklus_verval`; `jenis_survei_id integer` FK ke `jenis_survei`;
+`tim_id integer` FK ke `tim_survei`; `ruas_id integer` FK ke `ruas_jalan`;
+`sta_awal numeric`; `sta_akhir numeric`; `jumlah_ulangan integer`; `status
+varchar`.
 
-Belum diketahui target rekod pemeriksaan baru, hubungan sumber data survei,
-jenis pemeriksaan dan unit nilai, penanganan bukti, catatan, kunci duplikasi,
-aktor pencatat, daftar peran penulis yang berwenang, maupun lifecycle/status.
-Kolom `status` yang dibaca GET tidak membenarkan implementasi keputusan
-lulus/gagal otomatis.
+`public.uji_konsistensi_ulangan`: `ulangan_id integer` PK;
+`konsistensi_id integer` FK ke `uji_konsistensi`; `ulangan_ke integer`;
+`rater_personel_id integer` FK ke `personel`; `nilai numeric`. Metadata live
+melaporkan semua kolom selain PK nullable. Tidak ditemukan RLS atau direct
+table grants untuk `anon`/`authenticated`; ini **bukan** izin write. GET RPC
+lokal membaca subset kolom yang sama, tetapi bukan bukti izin atau aturan write.
 
-## Kontrak calon endpoint (belum dipasang)
+Fakta FK membuktikan referensi ke tabel induk, tetapi belum membuktikan bahawa
+gabungan jenis survei/tim/ruas/personel tersebut ditugaskan kepada paket atau
+siklus yang sama. RPC write harus memeriksa hubungan lintas tabel tersebut.
+Belum ada keputusan bisnis tentang field wajib, pemetaan survei ke siklus,
+hubungan tim/personel/ruas ke paket, format/rentang STA, makna nilai dan jumlah
+ulangan, status, batas/pengulangan, duplikasi, catatan/bukti, atau lifecycle.
+Role penulis juga **belum diputuskan**. Kolom `status` tidak membenarkan
+keputusan lulus/gagal otomatis.
 
-`POST /api/paket/{paketId}/siklus-verval/{siklusId}/uji-konsistensi`
+## Bentuk payload untuk simulasi lokal sahaja (bukan API)
 
-Payload dummy untuk menunjukkan scope sahaja — **bukan payload valid untuk
-write dan tidak boleh dikirim**:
+Validator/repository in-memory berada di `backend/prototypes/` dan tidak
+diregistrasikan ke Express. Bentuk berikut adalah contoh uji fixture, bukan
+kontrak POST atau payload untuk dikirim ke server:
 
 ```json
 {
-  "paket_id": 9,
   "siklus_id": 1,
-  "referensi_survei": "<ID sesi/ruas/segmen yang mesti disahkan>",
-  "pemeriksaan": "<jenis dan parameter yang mesti disahkan>",
-  "hasil": "<nilai atau rujukan bukti yang mesti disahkan>",
-  "catatan": "<catatan opsional; batas panjang mesti disahkan>"
+  "jenis_survei_id": 4,
+  "tim_id": 12,
+  "ruas_id": 30,
+  "sta_awal": 1.2,
+  "sta_akhir": 2.4,
+  "jumlah_ulangan": 2,
+  "ulangan": [
+    { "ulangan_ke": 1, "rater_personel_id": 101, "nilai": 3.5 },
+    { "ulangan_ke": 2, "rater_personel_id": 102, "nilai": 3.7 }
+  ]
 }
 ```
 
-Identiti paket dan siklus sebaiknya daripada path sahaja; contoh body
-memperlihatkan scope semantik, bukan cadangan menerima ID rangkap. Bentuk
-minimum final belum dapat ditetapkan: sesi/ruas/segmen, jenis/parameter, nilai
-hasil/bukti dan catatan perlu dipetakan ke skema yang disahkan. Identiti
-pencatat wajib berasal dari JWT di database (`auth.uid()` lalu profil
-`pengguna`), tidak dari body. Body juga tidak boleh menetapkan status
-kelulusan.
+`paket_id` ialah konteks pemanggilan repository lokal, bukan field payload
+simulasi. Input mengacu kolom yang disahkan; ia tidak menambah `pencatat_id`
+atau `evidence_id`. Validator melakukan validasi sintaks/tipe, strict keys,
+dan validasi referensi terhadap katalog fixture. Hubungan fixture hanya
+simulasi, bukan bukti FK/ownership yang tersedia live. Simulasi memulangkan
+status `null` dan tidak mengira kelulusan. Keperluan field tersebut sebagai
+payload write sebenar masih perlu pengesahan bisnis.
 
 ## Pengawalan akses calon
 
 - Middleware Express sedia ada mengesahkan Bearer JWT, profil `pengguna` aktif,
   assignment `pengguna_peran`, dan mengisi `res.locals.identity`.
-- Untuk write, database mesti mengulang pengesahan identiti dan autorisasi
-  peran+assignment paket. Helper `assert_survei_read(p_paket_id)` yang ada hanya
-  menetapkan akses baca berdasarkan pemilik Penyedia Jasa atau PIC Balai;
-  ia **bukan** kebenaran write atau peraturan role write.
+- Simulasi menerima callback otorisasi fixture, tanpa menetapkan nama role atau
+  polisi role. Database mesti mengulang pengesahan identiti, role yang kelak
+  disahkan, serta assignment/scope paket. Helper `assert_survei_read` hanya
+  membuktikan akses baca, bukan izin tulis.
+- `actorId` hanya konteks auth fixture untuk menjalankan simulasi dan tidak
+  disimpan ke salah satu tabel. Skema yang diberikan tidak memiliki kolom
+  pencatat; jangan menambahkannya. Jika audit pelaku diwajibkan, tentukan desain
+  audit resmi terpisah sebelum implementasi.
 - Database mengesahkan siklus milik paket, dan setiap referensi survei/ruas/
   segmen milik paket/siklus yang sama.
-- Penolakan lintas paket, siklus tidak cocok, referensi tidak sah, duplikasi
-  atomik, dan payload tambahan/ID aktor/status harus menjadi validasi kontrak.
+- Simulasi menguji siklus lintas paket, akses paket ditolak, referensi fixture
+  yang tidak terkait, input tambahan, dan rollback jika insert ulangan gagal.
+  Ia tidak menguji konkurensi atau duplikasi atomik. Definisi kunci duplikasi
+  masih belum disahkan.
 - Express kelak hanya memanggil RPC dengan JWT pengguna; tiada service-role
   ataupun direct insert. HTTP yang dicadangkan: 201 sukses; 400 payload/ID
   tidak sah; 401 tiada/sesi tidak sah; 403 role/scope ditolak; 404 siklus atau
@@ -69,8 +85,8 @@ kelulusan.
 ## Batas tahap ini
 
 SQL pendamping `uji-konsistensi-verval-write.sql` ialah komentar proposal yang
-tidak executable. GET uji konsistensi kekal tanpa perubahan kontrak.
-Sebelum write boleh diuji di PostgreSQL terasing, sahkan skema aktual dan
-constraints/FK, aturan KAK, role/assignment penulis, sumber nilai dan bukti,
-definisi duplikasi, serta bentuk respons. Jangan tetapkan toleransi, formula,
-sampling, kelulusan, BA atau transisi lifecycle tanpa sumber resmi.
+tidak executable. GET uji konsistensi kekal tanpa perubahan kontrak. Sebelum
+POST boleh dibuat, sahkan aturan KAK/field wajib, role dan assignment penulis,
+relasi referensi paket/siklus dari sumber survei, aturan STA/nilai/jumlah
+ulangan, duplikasi, status, serta bentuk respons. Jangan tetapkan toleransi,
+formula, sampling, kelulusan, BA atau transisi lifecycle tanpa sumber rasmi.
