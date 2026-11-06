@@ -37,6 +37,13 @@ test('Verval list/detail/consistency surface authentication and authorization fa
 
 test('null status is never presented as approval and available attributes remain visible as values', () => {
   assert.equal(displayVervalValue('status', null), 'Belum ditetapkan');
-  assert.equal(displayVervalValue('periode_mulai', '2026-11-05'), '2026-11-05');
+  assert.equal(displayVervalValue('periode_mulai', '2026-11-05'), '5 November 2026');
   assert.equal(displayVervalValue('jumlah_ulangan', 2), '2');
+});
+
+test('cycle date formatting preserves calendar date and leaves invalid/non-date values unchanged', () => {
+  assert.equal(displayVervalValue('periode_selesai', '2026-11-18'), '18 November 2026');
+  assert.equal(displayVervalValue('jatuh_tempo', null), '—');
+  assert.equal(displayVervalValue('periode_mulai', '2026-02-30'), '2026-02-30');
+  assert.equal(displayVervalValue('catatan', '2026-11-05'), '2026-11-05');
 });

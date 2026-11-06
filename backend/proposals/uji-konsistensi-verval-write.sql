@@ -1,0 +1,38 @@
+-- JALA MUTU — proposal WRITE pencatatan uji konsistensi Verval Tahap 3B.
+-- DOKUMEN REVIEW SAHAJA. Seluruh isi komentar; jangan jalankan/deploy.
+-- Tidak ada target INSERT/RPC yang dipilih karena sumber skema lokal yang
+-- tersedia hanya uji-konsistensi-verval-read-rpc.sql (kontrak READ).
+--
+-- Kontrak yang harus dipenuhi oleh implementasi setelah skema dan KAK disahkan:
+-- 1. Endpoint/RPC menerima paket_id dan siklus_id sebagai scope eksplisit.
+-- 2. Aktor diambil dari auth.uid() -> public.pengguna.auth_user_id, bukan body.
+-- 3. Periksa profil aktif, peran yang dibenarkan, dan assignment/scope paket
+--    menggunakan kebijakan database terotorisasi (pola
+--    app_private.assert_survei_read hanya membuktikan akses baca, bukan izin tulis).
+-- 4. Pastikan public.siklus_verval(siklus_id, paket_id) cocok sebelum penulisan.
+-- 5. Validasi referensi sesi/ruas/segmen dan hubungan datanya ke paket/siklus
+--    setelah tabel serta foreign key-nya dikonfirmasi dari skema aktual.
+-- 6. Tetapkan parameter pemeriksaan, nilai, catatan dan bukti hanya setelah
+--    struktur dan definisi bisnis resminya disahkan. Jangan menerima kolom
+--    pencatat atau status kelulusan yang dikendalikan klien.
+-- 7. Tolak referensi lintas paket, data invalid dan duplikasi secara atomik;
+--    definisi kunci idempotensi/unik perlu persetujuan terlebih dahulu.
+-- 8. Gunakan RPC SECURITY DEFINER yang terikat auth.uid() dan search_path kosong,
+--    atau mekanisme setara yang terbukti aman. Backend meneruskan JWT pengguna;
+--    jangan memakai service-role atau menulis langsung dari Express.
+-- 9. Kembalikan hasil rekod yang ditulis dalam bentuk kompatibel dengan
+--    public.baca_uji_konsistensi_verval. Jangan mengubah kontrak GET tersebut.
+--
+-- Pseudocode konseptual — tidak executable:
+-- BEGIN
+--   authenticate; authorize_user_and_write_assignment(auth.uid(), paket_id);
+--   assert_siklus_owner(paket_id, siklus_id);
+--   assert_validated_survey_reference(paket_id, ...);
+--   validate_against_approved_test_rules(payload);
+--   reject_duplicate_using_approved_natural_key(...);
+--   INSERT INTO <TABEL/KOLOM YANG DISAHKAN> (... actor from auth.uid() ...);
+--   RETURN <bentuk yang dapat dibaca GET uji-konsistensi>;
+-- END
+--
+-- Pseudocode sengaja memakai placeholder. Jangan menggantinya dengan nama
+-- tabel/kolom dugaan berdasarkan kontrak READ saja.

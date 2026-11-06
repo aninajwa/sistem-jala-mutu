@@ -58,6 +58,18 @@ export async function getVervalConsistency(packageId: string, cycleId: number, r
 export function displayVervalValue(key: string, value: unknown) {
   if (key === 'status' && (value === null || value === undefined || value === '')) return 'Belum ditetapkan';
   if (value === null || value === undefined || value === '') return '—';
+  if (['periode_mulai', 'periode_selesai', 'jatuh_tempo'].includes(key) && typeof value === 'string') {
+    // Parse SQL DATE as calendar components, not Date(string), which can shift
+    // the displayed day when the browser timezone differs.
+    const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(value);
+    if (match) {
+      const [, year, month, day] = match;
+      const date = new Date(Date.UTC(Number(year), Number(month) - 1, Number(day)));
+      if (date.getUTCFullYear() === Number(year) && date.getUTCMonth() === Number(month) - 1 && date.getUTCDate() === Number(day)) {
+        return new Intl.DateTimeFormat('id-ID', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }).format(date);
+      }
+    }
+  }
   if (typeof value === 'object') return JSON.stringify(value);
   return String(value);
 }

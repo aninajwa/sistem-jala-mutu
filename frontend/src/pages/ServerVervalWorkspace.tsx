@@ -103,7 +103,7 @@ export function ServerVervalWorkspace({ packageId }: { packageId: string }) {
         <div className="wf-body">
           {cycleLoading && <p role="status">Memuat detail siklus…</p>}
           {!cycleLoading && cycleError && <div role="alert" className="wf-callout danger">{cycleError}<button type="button" className="wf-button" onClick={() => setDetailRevision(value => value + 1)}>Coba lagi</button></div>}
-          {!cycleLoading && cycle && <div className="package-context-grid" data-testid="verval-cycle-attributes">{attributes(cycle as Record<string, unknown>)}</div>}
+          {!cycleLoading && cycle && <div className="package-context-grid verval-cycle-attributes" data-testid="verval-cycle-attributes">{attributes(cycle as Record<string, unknown>)}</div>}
         </div>
       </section>
 

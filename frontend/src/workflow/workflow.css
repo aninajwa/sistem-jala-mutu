@@ -42,6 +42,10 @@
 .package-context-status span{background:#f4f9fc;border:1px solid #d9e8f0;border-radius:999px;padding:4px 7px;font-size:8px;font-weight:800;color:#39647f}
 .package-context-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:7px}
 .package-context-grid>div{background:#fbfdfe;border:1px solid #e7eef2;border-radius:6px;padding:7px 8px;min-width:0}
+.verval-cycle-attributes{grid-template-columns:repeat(auto-fit,minmax(min(100%,220px),1fr));gap:10px}
+.verval-cycle-attributes>div{min-width:0;padding:10px 12px}
+.verval-cycle-attributes small{font-size:11px;line-height:1.35;overflow-wrap:anywhere}
+.verval-cycle-attributes strong{font-size:14px;line-height:1.45;white-space:normal;overflow:visible;text-overflow:clip;overflow-wrap:anywhere;word-break:normal}
 .package-context-grid .wide{grid-column:span 1}
 .package-context-grid .package-scope{margin-top:4px}
 .package-stage-nav{display:flex;gap:5px;overflow-x:auto;padding-top:2px}
