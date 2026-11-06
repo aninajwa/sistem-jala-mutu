@@ -8,11 +8,46 @@ const route = await readFile(new URL('../src/routes/siklus-verval.ts', import.me
 const schema = await readFile(new URL('../src/schemas/siklus-verval.ts', import.meta.url), 'utf8');
 
 test('write proposal remains review-only and cannot execute a database write', () => {
-  assert.match(sql, /DOKUMEN REVIEW SAHAJA/i);
-  assert.match(sql, /<KOLOM BISNIS YANG DISAHKAN>/);
+  assert.match(sql, /NON-EXECUTABLE/i);
+  assert.match(sql, /<APPROVED PARENT COLUMNS>/);
   assert.doesNotMatch(sql, /^\s*(?:insert\s+into|update\s+public\.|delete\s+from|create\s+(?:or\s+replace\s+)?function)\b/im);
   assert.match(proposal, /belum ada endpoint POST atau write database/i);
   assert.match(proposal, /contoh uji fixture, bukan/i);
+});
+
+test('RPC draft is entirely non-executable and contains no grants or RLS mutation', () => {
+  const lines = sql.split(/\r?\n/).filter((line) => line.trim());
+  assert.ok(lines.length > 20);
+  assert.ok(lines.every((line) => /^\s*--/.test(line)), 'every draft line must remain a SQL comment');
+  assert.doesNotMatch(sql, /\b(?:service_role|SUPABASE_SERVICE_ROLE_KEY)\b/i);
+  assert.doesNotMatch(sql, /\b(?:ALTER\s+TABLE|CREATE\s+POLICY|DROP\s+POLICY|GRANT\s+EXECUTE|REVOKE\s+ALL)\b/i);
+  assert.doesNotMatch(sql, /postgres(?:ql)?:\/\//i);
+});
+
+test('RPC draft orders authorization and package relationship checks before atomic inserts', () => {
+  const orderedSteps = [
+    'v_actor := auth.uid()',
+    '<AUTHORIZATION CHECK:',
+    '<VALIDATE INPUT:',
+    '<ASSERT CYCLE OWNERSHIP:',
+    '<ASSERT PACKAGE-CYCLE-SURVEY-TEAM-ROAD-PERSONNEL RELATIONSHIPS>',
+    '<DUPLICATE CHECK USING APPROVED KEY',
+    'INSERT INTO public.uji_konsistensi',
+    'INSERT INTO public.uji_konsistensi_ulangan',
+    'RETURN <GET-COMPATIBLE RESULT',
+    'RAISE;\n-- END;',
+  ];
+  let lastPosition = -1;
+  for (const step of orderedSteps) {
+    const position = sql.indexOf(step);
+    assert.ok(position > lastPosition, `RPC draft step out of order or absent: ${step}`);
+    lastPosition = position;
+  }
+  assert.match(sql, /FK ke jenis_survei[\s\S]*?tidak cukup/i);
+  assert.match(sql, /role writer yang DISETUJUI/i);
+  assert.match(sql, /natural key\/idempotency policy/i);
+  assert.match(sql, /exception yang tidak ditelan membatalkan parent dan/);
+  assert.match(sql, /Jangan menyisipkan status keputusan atau actor column/i);
 });
 
 test('proposed contract rejects client-controlled actor/status and requires scoped authorization', () => {

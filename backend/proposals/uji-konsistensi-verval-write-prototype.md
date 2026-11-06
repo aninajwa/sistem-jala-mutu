@@ -82,11 +82,32 @@ payload write sebenar masih perlu pengesahan bisnis.
   referensi tidak ditemukan/di luar scope; 409 duplikasi; 502/503 kegagalan
   upstream atau RPC belum tersedia. Pemetaan tepat perlu selaras dengan RPC.
 
+## Urutan transaksi RPC yang dicadangkan (belum executable)
+
+Draft SQL komentar-only memodelkan satu invokasi RPC sebagai satu transaksi:
+authenticate `auth.uid()` → periksa profil aktif, role writer yang telah
+disahkan dan assignment paket → validasi payload → pastikan pasangan
+`(siklus_id, paket_id)` → periksa relasi gabungan jenis survei/tim/ruas/personel
+terhadap paket/siklus → periksa duplikasi dengan kunci dan concurrency control
+yang disetujui → insert parent → insert semua ulangan memakai parent ID server
+→ pulangkan bentuk serasi GET. Exception apa pun mesti di-raise agar parent dan
+semua child rollback bersama. Tidak ada actor column pada skema fakta ini;
+authentication tidak bermaksud menambahkan pencatat ke tabel tersebut.
+
+`SECURITY DEFINER`, `search_path` kosong, revoke/grant dan wrapper RPC hanya
+opsi desain yang perlu review keamanan dan policy. Draft belum memberi grant,
+tidak mengubah RLS, dan tidak mengandalkan FK biasa untuk scope gabungan.
+
 ## Batas tahap ini
 
 SQL pendamping `uji-konsistensi-verval-write.sql` ialah komentar proposal yang
 tidak executable. GET uji konsistensi kekal tanpa perubahan kontrak. Sebelum
-POST boleh dibuat, sahkan aturan KAK/field wajib, role dan assignment penulis,
-relasi referensi paket/siklus dari sumber survei, aturan STA/nilai/jumlah
-ulangan, duplikasi, status, serta bentuk respons. Jangan tetapkan toleransi,
-formula, sampling, kelulusan, BA atau transisi lifecycle tanpa sumber rasmi.
+implementasi sebenar, sahkan sekurang-kurangnya: (1) role writer dan polisi
+assignment paket, (2) sumber relasi gabungan bagi jenis survei/tim/ruas/personel
+ke paket/siklus termasuk strategi lock, (3) natural key dan constraint
+duplikasi/idempotency, (4) payload required-vs-nullable, format STA dan semantik
+jumlah/urutan ulangan, (5) default serta makna `status`, (6) apakah audit aktor
+diperlukan dan skema resminya, (7) bentuk response/error, (8) review RLS,
+SECURITY DEFINER, search_path, grants dan privilege minimum. Jangan tetapkan
+toleransi, formula, sampling, kelulusan, BA atau transisi lifecycle tanpa sumber
+rasmi.

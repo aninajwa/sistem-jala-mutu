@@ -1,43 +1,99 @@
--- JALA MUTU — proposal WRITE pencatatan uji konsistensi Verval Tahap 3B.
--- DOKUMEN REVIEW SAHAJA. Seluruh isi komentar; jangan jalankan/deploy.
--- Skema READ-only live disahkan oleh peminta: parent uji_konsistensi mempunyai
--- FK siklus_verval, jenis_survei, tim_survei, ruas_jalan; child
--- uji_konsistensi_ulangan mempunyai FK uji_konsistensi dan personel. Kolom selain
--- PK nullable. Fakta ini tidak menetapkan kebijakan WRITE atau hubungan gabungan
--- rujukan ke paket/siklus; tidak ada target SQL write dipilih.
+-- JALA MUTU — draft desain RPC WRITE uji konsistensi Verval Tahap 3B.
+-- NON-EXECUTABLE. Setiap baris sengaja komentar; bukan migrasi atau fungsi siap deploy.
+-- Jangan uncomment/jalankan. Belum ada authorization role writer, duplicate key,
+-- actor/audit policy, aturan KAK, atau bukti relasi gabungan yang disepakati.
 --
--- Kontrak yang harus dipenuhi oleh implementasi setelah skema dan KAK disahkan:
--- 1. Endpoint/RPC menerima paket_id dan siklus_id sebagai scope eksplisit.
--- 2. JWT/auth.uid() dipakai untuk autentikasi/otorisasi. Skema fakta tidak
---    memiliki kolom pencatat; jangan menulis aktor ke kedua tabel ini.
--- 3. Periksa profil aktif, peran penulis (BELUM DIPUTUSKAN), dan assignment/scope paket
---    menggunakan kebijakan database terotorisasi (pola
---    app_private.assert_survei_read hanya membuktikan akses baca, bukan izin tulis).
--- 4. Pastikan public.siklus_verval(siklus_id, paket_id) cocok sebelum penulisan.
--- 5. Validasi referensi jenis survei, tim, ruas, dan personel serta hubungan
---    gabungannya ke paket/siklus. FK individu diketahui; tabel/aturan untuk
---    membuktikan hubungan gabungan belum dikonfirmasi.
--- 6. Tetapkan parameter pemeriksaan, nilai, catatan dan bukti hanya setelah
---    struktur dan definisi bisnis resminya disahkan. Jangan menerima kolom
---    pencatat atau status kelulusan yang dikendalikan klien.
--- 7. Tolak referensi lintas paket, data invalid dan duplikasi secara atomik;
---    definisi kunci idempotensi/unik perlu persetujuan terlebih dahulu.
--- 8. Gunakan RPC SECURITY DEFINER yang terikat auth.uid() dan search_path kosong,
---    atau mekanisme setara yang terbukti aman. Backend meneruskan JWT pengguna;
---    jangan memakai service-role atau menulis langsung dari Express.
--- 9. Kembalikan hasil rekod yang ditulis dalam bentuk kompatibel dengan
---    public.baca_uji_konsistensi_verval. Jangan mengubah kontrak GET tersebut.
+-- Fakta skema dari pemeriksaan READ-only:
+-- * public.uji_konsistensi: konsistensi_id integer PK; siklus_id integer FK;
+--   jenis_survei_id integer FK; tim_id integer FK; ruas_id integer FK;
+--   sta_awal/sta_akhir numeric; jumlah_ulangan integer; status varchar.
+-- * public.uji_konsistensi_ulangan: ulangan_id integer PK; konsistensi_id integer FK;
+--   ulangan_ke integer; rater_personel_id integer FK; nilai numeric.
+-- * Semua kolom selain PK nullable. RLS aktif; polisi WRITE dan izin writer belum disahkan.
+-- * FK individual tidak membuktikan jenis/tim/ruas/personel berhubungan ke paket dan
+--   siklus yang sama. Jangan mengandalkan FK sebagai pemeriksaan scope gabungan.
 --
--- Pseudocode konseptual — tidak executable:
+-- Draft alur satu pemanggilan RPC (PostgreSQL membungkus satu statement/function
+-- invocation dalam transaksi; exception yang tidak ditelan membatalkan parent dan
+-- semua child yang telah dimasukkan oleh invocation tersebut):
+--
+-- CREATE FUNCTION <nama RPC belum disahkan>(p_paket_id integer, p_payload jsonb)
+-- RETURNS jsonb
+-- LANGUAGE plpgsql
+-- SECURITY DEFINER                         -- hanya jika review keamanan menyetujuinya
+-- SET search_path = ''                     -- wajib bila SECURITY DEFINER
+-- AS $draft$
+-- DECLARE
+--   v_actor uuid;
+--   v_parent_id integer;
+--   v_child jsonb;
 -- BEGIN
---   authenticate; authorize_user_and_write_assignment(auth.uid(), paket_id);
---   assert_siklus_owner(paket_id, siklus_id);
---   assert_validated_survey_reference(paket_id, ...);
---   validate_against_approved_test_rules(payload);
---   reject_duplicate_using_approved_natural_key(...);
---   INSERT INTO <KOLOM BISNIS YANG DISAHKAN> (...); -- tanpa kolom aktor dugaan
---   RETURN <bentuk yang dapat dibaca GET uji-konsistensi>;
--- END
+--   -- A. Authentication sebelum mengungkap keberadaan paket/siklus.
+--   v_actor := auth.uid();
+--   IF v_actor IS NULL THEN
+--     RAISE EXCEPTION 'Login diperlukan' USING ERRCODE = '42501';
+--   END IF;
 --
--- Pseudocode sengaja memakai placeholder. Jangan menggantinya dengan nama
--- tabel/kolom dugaan berdasarkan kontrak READ saja.
+--   -- B. Periksa profil aktif, role writer yang DISETUJUI, dan assignment/scope
+--   --    p_paket_id lewat helper authorization database yang sudah direview.
+--   --    Helper assert_survei_read bukan izin write. Nama role/helper belum ada;
+--   --    jangan ganti placeholder sebelum keputusan policy ditandatangani.
+--   PERFORM <AUTHORIZATION CHECK: active profile + approved writer role + package assignment>;
+--
+--   -- C. Validasi p_paket_id dan strict JSON shape/types/ranges dari schema API
+--   --    yang kelak disahkan. Tolak key actor/status/evidence yang tidak disahkan.
+--   --    Jangan menetapkan aturan STA order/range, nilai, jumlah/nomor ulangan
+--   --    atau required-vs-nullable selain aturan sintaks yang telah disepakati.
+--   PERFORM <VALIDATE INPUT: approved payload contract only>;
+--
+--   -- D. Verifikasi siklus secara scoped, bukan sekadar FK:
+--   --    SELECT 1 FROM public.siklus_verval
+--   --      WHERE siklus_id = parsed_siklus_id AND paket_id = p_paket_id;
+--   --    Missing/mismatch harus gagal tertutup. Tentukan lock/isolation yang tepat
+--   --    agar kepemilikan tidak berubah di antara verifikasi dan insert.
+--   PERFORM <ASSERT CYCLE OWNERSHIP: cycle_id belongs to requested package_id>;
+--
+--   -- E. Verifikasi relasi gabungan pada sumber pemetaan yang disahkan:
+--   --    jenis_survei_id, tim_id, ruas_id, dan setiap rater_personel_id mesti
+--   --    relevan dengan paket/siklus sesuai hubungan domain yang ditemukan.
+--   --    FK ke jenis_survei/tim_survei/ruas_jalan/personel sahaja tidak cukup.
+--   --    Sumber/join/row locks belum diketahui; jangan menebak nama tabel relasi.
+--   PERFORM <ASSERT PACKAGE-CYCLE-SURVEY-TEAM-ROAD-PERSONNEL RELATIONSHIPS>;
+--
+--   -- F. Duplikasi: belum ada natural key/idempotency policy yang disahkan.
+--   --    Jangan menganggap (siklus, jenis, tim, ruas, STA) unik. Setelah aturan
+--   --    diputuskan, serialkan pemeriksaan dan enforce dengan constraint/index
+--   --    database yang sesuai; map conflict ke error kontrak.
+--   PERFORM <DUPLICATE CHECK USING APPROVED KEY AND CONCURRENCY CONTROL>;
+--
+--   -- G. Insert parent hanya kolom bisnis yang disetujui:
+--   --    siklus_id, jenis_survei_id, tim_id, ruas_id, sta_awal, sta_akhir,
+--   --    jumlah_ulangan. Jangan menyisipkan status keputusan atau actor column.
+--   --    Status nullable, tetapi default/semantik harus dikonfirmasi sebelum write.
+--   INSERT INTO public.uji_konsistensi (<APPROVED PARENT COLUMNS>)
+--     VALUES (<VALIDATED VALUES>) RETURNING konsistensi_id INTO v_parent_id;
+--
+--   -- H. Untuk tiap elemen ulangan, insert konsistensi_id dari v_parent_id,
+--   --    bukan dari payload; masukkan hanya ulangan_ke, rater_personel_id, nilai
+--   --    setelah validasi relasi dan business contract.
+--   FOR v_child IN SELECT value FROM jsonb_array_elements(<VALIDATED ULANGAN ARRAY>) LOOP
+--     INSERT INTO public.uji_konsistensi_ulangan
+--       (konsistensi_id, ulangan_ke, rater_personel_id, nilai)
+--     VALUES (v_parent_id, <VALIDATED CHILD VALUES>);
+--   END LOOP;
+--
+--   -- I. Kembalikan bentuk kompatibel dengan GET baca_uji_konsistensi_verval.
+--   --    Tidak membuat keputusan lulus/gagal. Actor audit hanya jika skema audit
+--   --    terpisah dan policy-nya disahkan; kedua tabel fakta tidak punya actor col.
+--   RETURN <GET-COMPATIBLE RESULT WITHOUT INVENTED FIELDS>;
+-- EXCEPTION WHEN OTHERS THEN
+--   -- Rethrow. Jangan menelan exception: statement transaction mesti rollback.
+--   RAISE;
+-- END;
+-- $draft$;
+--
+-- Grant/revoke dan wrapper public belum ditulis dengan sengaja. Setelah policy
+-- disahkan, beri EXECUTE hanya ke role database yang tepat, cabut PUBLIC/anon,
+-- audit RLS/SECURITY DEFINER, dan uji authorization/cross-package/rollback pada
+-- PostgreSQL terisolasi. Backend kelak harus meneruskan JWT pengguna; jangan
+-- menggunakan service-role atau direct table write.

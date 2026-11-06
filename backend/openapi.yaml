@@ -3,34 +3,546 @@ info:
   # Do not change the title, if the title changes, the import paths will be broken
   title: Api
   version: 0.1.0
-  description: API specification
+  description: >-
+    Kontrak untuk route Tahap 3A dan 3B yang terdaftar di Express. Bentuk `data`
+    mengikuti JSON dari RPC dan tidak menambahkan field yang tidak dijamin route.
 servers:
   - url: /api
     description: Base API path
 tags:
   - name: health
     description: Health operations
+  - name: survei
+    description: Sesi survei dan data segmen Tahap 3A
+  - name: test-qa
+    description: Operasi prototype TEST/QA; bukan aturan produksi/KAK
+  - name: verval
+    description: READ siklus Verval Tahap 3B dan CREATE siklus TEST/QA
+security:
+  - bearerAuth: []
 paths:
   /healthz:
     get:
       operationId: healthCheck
       tags: [health]
-      summary: Health check
-      description: Returns server health status
+      summary: Health check (publik)
+      description: Endpoint ini tidak memerlukan authentication.
+      security: []
       responses:
         "200":
-          description: Healthy
+          description: Server sehat.
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /paket/{id}/sesi-survei:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    get:
+      operationId: listSurveySessions
+      tags: [survei]
+      summary: Daftar sesi survei dalam paket
+      responses:
+        "200":
+          description: Daftar hasil RPC, dibungkus dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createSurveySession
+      tags: [survei]
+      summary: Catat sesi survei
+      description: Hanya role `penyedia_jasa`; relasi/persetujuan prasyarat divalidasi RPC.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveySessionCreate"
+      responses:
+        "201":
+          description: Sesi berhasil dicatat; `data` berisi hasil RPC.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/RequestTooLarge" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/sesi-survei/{sesiId}:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      operationId: getSurveySession
+      tags: [survei]
+      summary: Detail sesi survei
+      responses:
+        "200":
+          description: Satu sesi dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/sesi-survei/{sesiId}/data-segmen:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+      - $ref: "#/components/parameters/SessionId"
+    get:
+      operationId: listSurveySegments
+      tags: [survei]
+      summary: Daftar data segmen untuk sesi
+      responses:
+        "200":
+          description: Daftar hasil RPC dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createSurveySegment
+      tags: [survei]
+      summary: Catat data segmen
+      description: Hanya role `penyedia_jasa`; paket, sesi dan relasi rujukan diperiksa di RPC.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/SurveySegmentCreate"
+      responses:
+        "201":
+          description: Data segmen berhasil dicatat; `data` berisi hasil RPC.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/RequestTooLarge" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/sesi-survei/{sesiId}/data-segmen/{dataId}:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+      - $ref: "#/components/parameters/SessionId"
+      - $ref: "#/components/parameters/DataId"
+    get:
+      operationId: getSurveySegment
+      tags: [survei]
+      summary: Detail data segmen dalam sesi
+      responses:
+        "200":
+          description: Satu data segmen dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/pemeriksaan-harian-alat:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    get:
+      operationId: listDailyEquipmentChecksTestQa
+      tags: [test-qa]
+      summary: Daftar pemeriksaan harian alat (TEST/QA prototype)
+      description: Endpoint prototype; enum dan perilakunya bukan ketentuan KAK/produksi yang disahkan.
+      parameters:
+        - name: page
+          in: query
+          required: false
+          description: Halaman 1-based; default 1, maksimum 1000000. Setiap halaman berukuran 50.
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 1000000
+            default: 1
+      responses:
+        "200":
+          description: Hasil berhalaman; `data` ialah senarai rekod.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/PaginatedArrayDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createDailyEquipmentCheckTestQa
+      tags: [test-qa]
+      summary: Catat pemeriksaan harian alat (TEST/QA prototype)
+      description: >-
+        Hanya role `penyedia_jasa`. Endpoint prototype TEST/QA; enum pemeriksaan
+        dan hasil bukan standard KAK yang disahkan. Validasi hubungan paket/alat
+        dilakukan RPC prototype; ketersediaan fungsi database tetap diperlukan.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/DailyEquipmentCheckTestQaCreate"
+      responses:
+        "201":
+          description: Rekod prototype dibuat; `data` berisi hasil RPC.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/RequestTooLarge" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/siklus-verval:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+    get:
+      operationId: listVervalCycles
+      tags: [verval]
+      summary: Daftar siklus Verval
+      responses:
+        "200":
+          description: Senarai siklus dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+    post:
+      operationId: createFirstVervalCycleTestQa
+      tags: [verval, test-qa]
+      summary: CREATE siklus pertama (TEST/QA allowlist)
+      description: >-
+        Route aktif hanya untuk RPC `buat_siklus_verval_testqa`. Payload body
+        mesti kosong (jika dikirim); CREATE dibatasi oleh role/ownership dan
+        TEST/QA allowlist database aktif. Dokumentasi ini tidak menyatakan paket tertentu
+        telah di-allowlist. Bukan CREATE siklus produksi umum.
+      requestBody:
+        required: false
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/EmptyObject"
+      responses:
+        "201":
+          description: Siklus dibuat; `data` berisi hasil RPC.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "413": { $ref: "#/components/responses/RequestTooLarge" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/siklus-verval/{siklusId}:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+      - $ref: "#/components/parameters/CycleId"
+    get:
+      operationId: getVervalCycle
+      tags: [verval]
+      summary: Detail siklus Verval
+      responses:
+        "200":
+          description: Satu objek siklus dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ObjectDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
+  /paket/{id}/siklus-verval/{siklusId}/uji-konsistensi:
+    parameters:
+      - $ref: "#/components/parameters/PackageId"
+      - $ref: "#/components/parameters/CycleId"
+    get:
+      operationId: listVervalConsistencyChecks
+      tags: [verval]
+      summary: Daftar uji konsistensi untuk siklus Verval
+      description: READ sahaja. Tiada POST uji konsistensi yang didaftarkan.
+      responses:
+        "200":
+          description: Senarai hasil uji konsistensi dalam `data`.
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ArrayDataEnvelope"
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "500": { $ref: "#/components/responses/InternalError" }
+        "502": { $ref: "#/components/responses/UpstreamError" }
+        "503": { $ref: "#/components/responses/ServiceUnavailable" }
+
 components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: "Supabase access token dikirim sebagai Authorization: Bearer <token>."
+  parameters:
+    PackageId:
+      name: id
+      in: path
+      required: true
+      description: ID paket positif, maksimum integer 32-bit.
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]*$"
+        maxLength: 10
+    SessionId:
+      name: sesiId
+      in: path
+      required: true
+      description: ID sesi survei positif, maksimum integer 32-bit.
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]*$"
+        maxLength: 10
+    DataId:
+      name: dataId
+      in: path
+      required: true
+      description: ID data segmen positif dan safe integer JavaScript.
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]*$"
+        maxLength: 16
+    CycleId:
+      name: siklusId
+      in: path
+      required: true
+      description: ID siklus Verval positif, maksimum integer 32-bit.
+      schema:
+        type: string
+        pattern: "^[1-9][0-9]*$"
+        maxLength: 10
   schemas:
     HealthStatus:
       type: object
       properties:
         status:
           type: string
-      required:
-        - status
-
+          const: ok
+      required: [status]
+      additionalProperties: false
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        details: {}
+      required: [error]
+      additionalProperties: true
+    EmptyObject:
+      type: object
+      properties: {}
+      additionalProperties: false
+    ObjectDataEnvelope:
+      type: object
+      properties:
+        data:
+          type: object
+          additionalProperties: true
+      required: [data]
+      additionalProperties: false
+    ArrayDataEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+      required: [data]
+      additionalProperties: false
+    PaginatedArrayDataEnvelope:
+      type: object
+      properties:
+        data:
+          type: array
+          items: {}
+        page:
+          type: integer
+          minimum: 1
+        page_size:
+          type: integer
+          const: 50
+      required: [data, page, page_size]
+      additionalProperties: false
+    SurveySessionCreate:
+      type: object
+      properties:
+        tim_id: { type: integer, minimum: 1, maximum: 2147483647 }
+        ruas_id: { type: integer, minimum: 1, maximum: 2147483647 }
+        alat_id: { type: integer, minimum: 1, maximum: 2147483647 }
+        operator_id: { type: [integer, "null"], minimum: 1, maximum: 2147483647 }
+        pengemudi_id: { type: [integer, "null"], minimum: 1, maximum: 2147483647 }
+        tanggal:
+          type: string
+          format: date
+          description: Tanggal kalender valid berformat YYYY-MM-DD.
+        jam_mulai:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$"
+        jam_selesai:
+          type: [string, "null"]
+          pattern: "^([01][0-9]|2[0-3]):[0-5][0-9](:[0-5][0-9])?$"
+        lajur: { type: [string, "null"], maxLength: 255 }
+        arah: { type: [string, "null"], maxLength: 255 }
+        cuaca: { type: [string, "null"], maxLength: 255 }
+        kondisi_permukaan: { type: [string, "null"], maxLength: 255 }
+        panjang_tercapai_km:
+          type: [number, "null"]
+          minimum: 0
+        link_video: { type: [string, "null"], maxLength: 2000 }
+      required: [tim_id, ruas_id, alat_id, tanggal]
+      additionalProperties: false
+    SurveySegmentCreate:
+      type: object
+      description: >-
+        Selain jenis_survei_id, seluruh atribut opsional/null; sekurang-kurangnya
+        satu atribut selain jenis_survei_id mesti mempunyai nilai bukan null.
+      properties:
+        jenis_survei_id: { type: integer, minimum: 1, maximum: 2147483647 }
+        sta_awal: { type: [number, "null"] }
+        sta_akhir: { type: [number, "null"] }
+        lajur: { type: [string, "null"] }
+        nilai_utama: { type: [number, "null"] }
+        atribut_detail: {}
+        lat: { type: [number, "null"] }
+        lon: { type: [number, "null"] }
+      required: [jenis_survei_id]
+      additionalProperties: false
+    DailyEquipmentCheckTestQaCreate:
+      type: object
+      properties:
+        alat_id: { type: integer, minimum: 1, maximum: 2147483647 }
+        tanggal: { type: string, format: date }
+        item_pemeriksaan:
+          type: string
+          enum: [GPS, BATERAI, PENYIMPANAN, BOUNCE_TEST_KELAS_I]
+          description: Enum prototype TEST/QA sahaja.
+        hasil_pemeriksaan:
+          type: string
+          enum: [OK, BERMASALAH, TIDAK_DILAKUKAN]
+          description: Catatan hasil prototype; bukan keputusan QA/QC.
+        catatan: { type: [string, "null"], maxLength: 2000 }
+      required: [alat_id, tanggal, item_pemeriksaan, hasil_pemeriksaan]
+      additionalProperties: false
+  responses:
+    BadRequest:
+      description: ID, query, body, atau format JSON tidak valid.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Unauthorized:
+      description: Bearer token tiada atau sesi tidak sah/tamat.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Forbidden:
+      description: Profil, role, assignment, atau akses ditolak.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    NotFound:
+      description: Paket, siklus, sesi, data segmen, atau rujukan tidak ditemukan/tidak terlihat.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    Conflict:
+      description: Konflik unik atau prasyarat/transisi state ditolak RPC.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    RequestTooLarge:
+      description: Request melebihi limit JSON backend.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    InternalError:
+      description: Kesalahan dalaman server.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    UpstreamError:
+      description: Permintaan kepada Supabase gagal.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
+    ServiceUnavailable:
+      description: Konfigurasi/upstream/RPC belum tersedia.
+      content:
+        application/json:
+          schema: { $ref: "#/components/schemas/Error" }
