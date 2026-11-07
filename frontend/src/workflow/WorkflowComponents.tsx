@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import { CheckCircle2, CircleAlert, FileCheck2, LockKeyhole } from 'lucide-react';
 
 export type ChecklistItemModel = {
@@ -7,25 +7,34 @@ export type ChecklistItemModel = {
   checked: boolean;
   disabled?: boolean;
   note?: string;
+  answer?: 'Ya' | 'Tidak' | null;
+  onAnswer?: (answer: 'Ya' | 'Tidak' | null) => void;
 };
 
-export function ChecklistStatus({complete,total}:{complete:number;total:number}) {
+export function nextChecklistAnswer(answer: 'Ya' | 'Tidak' | null): 'Ya' | 'Tidak' | null {
+  return answer === null ? 'Ya' : answer === 'Ya' ? 'Tidak' : null;
+}
+
+export function ChecklistStatus({complete,total,label='siap'}:{complete:number;total:number;label?:string}) {
   const ready=total>0&&complete===total;
-  return <span className={`wf-status ${ready?'good':'warn'}`}>{complete}/{total} siap</span>;
+  return <span className={`wf-status ${ready?'good':'warn'}`}>{complete}/{total} {label}</span>;
 }
 
 export function ChecklistItem({item,onChange}:{item:ChecklistItemModel;onChange:(checked:boolean)=>void}) {
+  const inputRef=useRef<HTMLInputElement>(null);
+  useEffect(()=>{if(inputRef.current)inputRef.current.indeterminate=item.onAnswer!==undefined&&item.answer==='Tidak';},[item.answer,item.onAnswer]);
+  const cycle=()=>item.onAnswer?.(nextChecklistAnswer(item.answer ?? null));
   return <label className="wf-row wf-check" data-testid={`row-${item.id}`}>
-    <input type="checkbox" data-testid={`check-${item.id}`} checked={item.checked} disabled={item.disabled} onChange={event=>onChange(event.target.checked)}/>
+    <input ref={inputRef} type="checkbox" data-testid={`check-${item.id}`} checked={item.onAnswer?item.answer==='Ya':item.checked} aria-checked={item.onAnswer&&item.answer==='Tidak'?'mixed':item.answer==='Ya'} data-answer={item.onAnswer?(item.answer??'Belum dijawab'):undefined} aria-label={item.onAnswer?`${item.label}: ${item.answer??'Belum dijawab'}`:undefined} disabled={item.disabled} onClick={item.onAnswer?event=>{event.preventDefault();cycle();}:undefined} onChange={item.onAnswer?undefined:event=>onChange(event.target.checked)}/>
     <span><strong>{item.label}</strong>{item.note&&<small className="wf-note" style={{display:'block'}}>{item.note}</small>}</span>
   </label>;
 }
 
-export function ChecklistPanel({title,items,onChange,icon:Icon=FileCheck2}:{title:string;items:ChecklistItemModel[];onChange:(id:string,checked:boolean)=>void;icon?:any}) {
+export function ChecklistPanel({title,items,onChange,onAnswer,answerLabel='siap',icon:Icon=FileCheck2}:{title:string;items:ChecklistItemModel[];onChange:(id:string,checked:boolean)=>void;onAnswer?:(id:string,answer:'Ya'|'Tidak'|null)=>void;answerLabel?:string;icon?:any}) {
   const complete=items.filter(item=>item.checked).length;
   return <section className="wf-panel" data-testid={`checklist-panel-${title.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`}>
-    <div className="wf-panel-head"><h3><Icon size={14}/>{title}</h3><ChecklistStatus complete={complete} total={items.length}/></div>
-    <div className="wf-body">{items.map(item=><ChecklistItem key={item.id} item={item} onChange={checked=>onChange(item.id,checked)}/>)}</div>
+    <div className="wf-panel-head"><h3><Icon size={14}/>{title}</h3><ChecklistStatus complete={complete} total={items.length} label={answerLabel}/></div>
+    <div className="wf-body">{items.map(item=><ChecklistItem key={item.id} item={onAnswer?{...item,onAnswer:answer=>onAnswer(item.id,answer)}:item} onChange={checked=>onChange(item.id,checked)} />)}</div>
   </section>;
 }
 

@@ -9,17 +9,19 @@ import type { WorkflowRole } from '../workflow/model';
  * Menyimpan seluruh state demo lokal beserta aksi CRUD dan state dialog.
  * Pakai satu hook agar App hanya mengurus shell, filter, dan routing.
  */
-export function useDemoStore(activeRole: WorkflowRole) {
-  const [store, setStore] = useState<DemoStore>(loadDemoStore);
+export function useDemoStore(activeRole: WorkflowRole, enabled = true) {
+  const [store, setStore] = useState<DemoStore>(() => enabled ? loadDemoStore() : { surveys: [], findings: [], docs: [], logs: [] });
   const [modal, setModal] = useState<RecordType | null>(null);
   const [editing, setEditing] = useState<string | null>(null);
   const [notice, setNotice] = useState('');
 
   useEffect(() => {
+    if (!enabled) return;
     localPersistence.setItem(DEMO_STORE_KEY, JSON.stringify(store));
-  }, [store]);
+  }, [store, enabled]);
 
-  const record = (activity: string, object: string) =>
+  const record = (activity: string, object: string) => {
+    if (!enabled) return;
     setStore(prev => ({
       ...prev,
       logs: [
@@ -40,8 +42,10 @@ export function useDemoStore(activeRole: WorkflowRole) {
         ...prev.logs,
       ],
     }));
+  };
 
   const addOrEdit = (type: RecordType, form: Record<string, string>) => {
+    if (!enabled) return;
     const id =
       editing ||
       `${type === 'survey' ? 'SRV' : type === 'finding' ? 'TP-027' : type === 'doc' ? 'DOC' : 'REF'}-${Date.now().toString().slice(-5)}`;
@@ -119,6 +123,7 @@ export function useDemoStore(activeRole: WorkflowRole) {
   };
 
   const updateStatus = (type: 'survey' | 'finding' | 'doc', id: string, status: string) => {
+    if (!enabled) return;
     setStore(p =>
       type === 'survey'
         ? { ...p, surveys: p.surveys.map(x => (x.id === id ? { ...x, status } : x)) }
@@ -132,11 +137,13 @@ export function useDemoStore(activeRole: WorkflowRole) {
   };
 
   const beginEdit = (type: RecordType, id: string) => {
+    if (!enabled) return;
     setEditing(id);
     setModal(type);
   };
 
   const openNew = (type: RecordType) => {
+    if (!enabled) return;
     setEditing(null);
     setModal(type);
   };

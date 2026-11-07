@@ -5,6 +5,8 @@ import type { OperationalWorkflowState, WorkflowRole } from '../workflow/model';
 import { derivePackageStage, packageStatus, packageWaitingFor } from '../workflow/packageStore';
 import { isLegacyExample, isRoleTestMode } from '../workflow/access/packageAccess';
 import { packageMenuLabel } from '../workflow/roleNavigation';
+import { mapServerPackagesToDirahPackages,
+  type ServerBalaiRow, type ServerPackageListResponse, type ServerPackageRow } from './serverPackageView';
 type Props = { packages: Record<string, OperationalWorkflowState>; role: WorkflowRole; onOpen: (id: string) => void };
 function LocalPackagesPage({ packages, role, onOpen }: Props) {
     const [search, setSearch] = useState(''), [balai, setBalai] = useState(''), [status, setStatus] = useState(''), [showLegacy, setShowLegacy] = useState(() => import.meta.env.DEV);
@@ -22,39 +24,27 @@ function LocalPackagesPage({ packages, role, onOpen }: Props) {
 }
 
 
-// Real sessions use the API. The legacy workflow adapter is only for explicit dev demos.
+// Real sessions stay on the Dirah UI. The list is refetched from the backend
+// and mapped into the exact view model the Dirah component already expects.
 export default function PackagesPage(props: Props) {
     return isRoleTestMode() ? <LocalPackagesPage {...props} /> : <ServerPackagesPage role={props.role} onOpen={props.onOpen} />;
 }
 
-type ServerPackage = {
-    paket_id: number;
-    nama_paket: string;
-    nomor_kontrak: string | null;
-    tahun_anggaran: number | null;
-    balai_id: number | null;
-    status: string;
-};
-type Balai = { balai_id: number; nama: string; kode: string };
-type PackageResponse = { data: ServerPackage[]; page: number; page_size: number };
+type Balai = ServerBalaiRow;
 
 function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id: string) => void }) {
-    const [packages, setPackages] = useState<ServerPackage[]>([]);
+    const [packages, setPackages] = useState<ServerPackageRow[]>([]);
     const [balais, setBalais] = useState<Balai[]>([]);
-    const [search, setSearch] = useState('');
-    const [balai, setBalai] = useState('');
-    const [status, setStatus] = useState('');
     const [page, setPage] = useState(1);
     const [revision, setRevision] = useState(0);
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
-    const [balaiError, setBalaiError] = useState('');
     const [hasMore, setHasMore] = useState(false);
 
     useEffect(() => {
         const controller = new AbortController();
         setLoading(true); setError('');
-        apiRequest<PackageResponse>(`/paket?page=${page}`, { signal: controller.signal })
+        apiRequest<ServerPackageListResponse>(`/paket?page=${page}`, { signal: controller.signal })
             .then(result => {
                 if (controller.signal.aborted) return;
                 if (!Array.isArray(result.data)) throw new Error('Format respons paket tidak sesuai.');
@@ -68,48 +58,35 @@ function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id:
 
     useEffect(() => {
         const controller = new AbortController();
-        setBalaiError('');
         apiRequest<{ data: Balai[] }>('/balai', { signal: controller.signal })
             .then(result => {
                 if (controller.signal.aborted) return;
                 if (!Array.isArray(result.data)) throw new Error('Format balai tidak sesuai.');
                 setBalais(result.data);
             })
-            .catch(() => { if (!controller.signal.aborted) setBalaiError('Nama balai belum dapat dimuat. ID balai tetap ditampilkan; tekan Muat ulang untuk mencoba lagi.'); });
+            .catch(() => { /* Nama balai tetap berjalan lewat fallback Balai #id pada mapping. */ });
         return () => controller.abort();
     }, [revision]);
 
-    const balaiNames = useMemo(() => new Map(balais.map(item => [String(item.balai_id), item.nama || item.kode])), [balais]);
-    const balaiName = (id: number | null) => id === null ? 'Balai belum ditetapkan' : balaiNames.get(String(id)) || `Balai #${id}`;
-    // Filter options are restricted to the returned packages, never a client-side access grant.
-    const balaiOptions = [...new Set(packages.filter(item => item.balai_id !== null).map(item => String(item.balai_id)))];
-    const statuses = [...new Set(packages.map(item => item.status))];
-    const rows = packages.filter(item => (!balai || String(item.balai_id) === balai) && (!status || item.status === status) &&
-        `${item.nama_paket} ${item.nomor_kontrak || ''} ${item.paket_id} ${balaiName(item.balai_id)}`.toLowerCase().includes(search.trim().toLowerCase()));
-    const reload = () => { setPackages([]); setPage(1); setHasMore(false); setError(''); setLoading(true); setRevision(value => value + 1); };
+    // Backend paket → view model UI Dirah. Tidak ada data demo yang dipakai.
+    const dirahPackages = useMemo(
+        () => mapServerPackagesToDirahPackages(packages, balais, role),
+        [packages, balais, role],
+    );
 
+    if (loading && !packages.length) {
+        return <div className="package-page operational-list">
+            <div className="package-page-head"><div><div className="eyebrow">PENGELOLAAN PAKET QA/QC</div><h1>{packageMenuLabel(role)}</h1><p>Daftar paket diambil dari server sesuai akun yang sedang masuk.</p></div></div>
+            <p role="status">Memuat paket dari server…</p>
+        </div>;
+    }
 
     return <div className="package-page operational-list">
-        <div className="package-page-head"><div><div className="eyebrow">PENGELOLAAN PAKET QA/QC</div><h1>{packageMenuLabel(role)}</h1>
-            <p>Daftar paket dari server, sesuai akses akun yang sedang masuk.</p></div>
-            <span className="package-count">{rows.length} dari {packages.length} paket dimuat</span>
-        </div>
-        <div className="wf-callout">Daftar dan detail paket menggunakan data server. Buka paket untuk melihat informasi kontrak.</div>
-        <div className="package-list-filters">
-            <label className="package-search"><Search size={16} /><input aria-label="Cari paket" placeholder="Cari nama paket, nomor kontrak, ID atau balai…" value={search} onChange={e => setSearch(e.target.value)} /></label>
-            <select aria-label="Filter Balai paket" value={balai} onChange={e => setBalai(e.target.value)}><option value="">Semua balai pada paket yang dimuat</option>{balaiOptions.map(id => <option key={id} value={id}>{balaiName(Number(id))}</option>)}</select>
-            <select aria-label="Filter status paket" value={status} onChange={e => setStatus(e.target.value)}><option value="">Semua status</option>{statuses.map(value => <option key={value} value={value}>{value}</option>)}</select>
-            <button type="button" className="wf-button" disabled={loading} onClick={reload}>Muat ulang</button>
-        </div>
-        {balaiError && <p role="status">{balaiError}</p>}
-        {error && <div role="alert" className="wf-callout"><p>{error}</p><button type="button" className="wf-button" disabled={loading} onClick={() => { setLoading(true); setRevision(value => value + 1); }}>Coba lagi</button></div>}
-        <div className="package-list">{rows.map(item => <article className="package-card" key={item.paket_id} data-testid={`server-package-card-${item.paket_id}`}>
-            <div className="package-card-main"><div className="package-id">{item.nomor_kontrak || `Paket #${item.paket_id}`}</div><h2>{item.nama_paket}</h2>
-                <div className="package-meta"><span><Building2 size={14} />{balaiName(item.balai_id)}</span><span>Tahun anggaran: {item.tahun_anggaran ?? 'Belum diisi'}</span></div><p>ID paket: {item.paket_id}</p>
-            </div><div className="package-card-status"><div><small>Status server</small><strong>{item.status}</strong></div><button type="button" className="wf-button primary" onClick={() => onOpen(String(item.paket_id))}>Buka paket <ArrowRight size={15} /></button></div>
-        </article>)}</div>
-        {loading && <p role="status">Memuat paket dari server…</p>}
-        {!loading && !error && !rows.length && <div className="package-empty"><FolderOpen size={32} /><h2>{packages.length ? 'Tidak ada paket yang sesuai filter' : 'Belum ada paket yang dapat diakses'}</h2><p>{packages.length ? 'Periksa carian dan filter pada paket yang sudah dimuat.' : 'Periksa penugasan akun atau buat paket melalui alur backend yang tersedia.'}</p></div>}
-        {hasMore && <div><p>Carian dan filter berlaku pada paket yang sudah dimuat. Muat berikutnya untuk melihat lebih banyak paket.</p><button type="button" className="wf-button primary" disabled={loading || !!error} onClick={() => { setLoading(true); setPage(value => value + 1); }}>Muat paket berikutnya <ArrowRight size={15} /></button></div>}
+        {error && <div role="alert" className="wf-callout"><p>{error}</p><button type="button" className="wf-button" disabled={loading} onClick={reload}>Coba lagi</button></div>}
+        {/* UI Dirah asli dipertahankan utuh; data di dalamnya dari backend. */}
+        <LocalPackagesPage packages={dirahPackages} role={role} onOpen={onOpen} />
+        {hasMore && <div><p>Carian dan filter berlaku pada paket yang sudah dimuat. Muat berikutnya untuk melihat lebih banyak paket.</p><button type="button" className="wf-button primary" disabled={loading || !!error} onClick={() => setPage(value => value + 1)}>Muat paket berikutnya <ArrowRight size={15} /></button></div>}
     </div>;
+
+    function reload() { setPackages([]); setPage(1); setHasMore(false); setError(''); setLoading(true); setRevision(value => value + 1); }
 }

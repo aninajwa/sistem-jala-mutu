@@ -12,7 +12,8 @@ WorkflowRole,
 } from '../workflow/model';
 
 import {
-PACKAGE_STORE_KEY,
+createInitialPackageStore,
+  PACKAGE_STORE_KEY,
 loadWorkflowPackageStore,
 type WorkflowPackageStore,
 } from '../workflow/packageStore';
@@ -21,8 +22,10 @@ type WorkflowPackageStore,
 export function usePackageStore(authenticatedRole?: WorkflowRole) {
   const [packageStore, setPackageStore] =
     useState<WorkflowPackageStore>(() => {
-      const saved = packageRepository.load();
-      const store = import.meta.env.DEV
+      const saved = authenticatedRole
+        ? { ...createInitialPackageStore(), activeRole: authenticatedRole, activePackageId: null, packages: {} }
+        : packageRepository.load();
+      const store = !authenticatedRole && import.meta.env.DEV
         ? addCorrectionDemoPackages(saved)
         : saved;
 
@@ -43,14 +46,17 @@ export function usePackageStore(authenticatedRole?: WorkflowRole) {
 
   // Penyimpanan sementara sebelum integrasi API.
   useEffect(() => {
+    if (authenticatedRole) return;
     try {
       packageRepository.save(packageStore);
     } catch (error) {
       console.error('Gagal menyimpan paket:', error);
     }
-  }, [packageStore]);
+  }, [packageStore, authenticatedRole]);
 
-  const principal=localPrincipal(packageStore.activeRole,packageStore.packages);
+  const principal=authenticatedRole
+    ? { id:`authenticated:${authenticatedRole}`, role:authenticatedRole, packageIds:[], balaiIds:[], source:'server' as const }
+    : localPrincipal(packageStore.activeRole,packageStore.packages);
   const scopedPackages=visiblePackages(packageStore.packages,principal);
   const activePackageId = packageStore.activePackageId&&scopedPackages[packageStore.activePackageId]?packageStore.activePackageId:null;
 

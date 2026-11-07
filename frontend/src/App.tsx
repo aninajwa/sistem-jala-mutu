@@ -77,9 +77,12 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
     beginEdit,
     openNew,
     closeDialog,
-  } = useDemoStore(packageStore.activeRole);
+  } = useDemoStore(packageStore.activeRole, !authenticatedRole);
 
-  useEffect(startNotificationScheduler, []);
+  useEffect(() => {
+    if (authenticatedRole) return;
+    return startNotificationScheduler();
+  }, [authenticatedRole]);
   const [location, setLocation] = useLocation();
   const query = useSearch();
   const requestedPackageId = new URLSearchParams(query).get('paket');
@@ -485,6 +488,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 selection={selectedSubmodule}
                 onBack={backToPackages}
                 onNavigate={navigateSubmodule}
+                dirahShell
               />
             ) : selectedSubmodule ? (
               workflowSubmodules.has(
@@ -517,7 +521,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
             ) : (
               <Switch>
                 <Route path="/">
-                  <DashboardPage {...pageProps} canCreatePackage={authenticatedRole === 'Penyedia Jasa / Ketua Tim'} />
+                  <DashboardPage {...pageProps} dashboardAuthenticated={Boolean(authenticatedRole)} canCreatePackage={authenticatedRole === 'Penyedia Jasa / Ketua Tim'} />
                 </Route>
 
                 <Route path="/data-master">
@@ -564,7 +568,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 </Route>
 
                 <Route>
-                  <DashboardPage {...pageProps} canCreatePackage={authenticatedRole === 'Penyedia Jasa / Ketua Tim'} />
+                  <DashboardPage {...pageProps} dashboardAuthenticated={Boolean(authenticatedRole)} canCreatePackage={authenticatedRole === 'Penyedia Jasa / Ketua Tim'} />
                 </Route>
               </Switch>
             )}

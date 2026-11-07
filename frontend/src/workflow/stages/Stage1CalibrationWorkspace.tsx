@@ -22,14 +22,16 @@ import {
   idNow,
   invalidateDependentStages,
   Panel,
+  SERVER_STAGE1_MUTATION_POLICY,
 } from "./stageSupport";
 import { useWorkflowStage } from "./useWorkflowStage";
 
 export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
-  const { selection, state, onUpdate, setNotice, onNavigate } = props;
+  const { selection, state, onUpdate, setNotice, onNavigate, serverReadOnly = false, serverStatusNote, serverAssignments = [] } = props;
   const { baAccess, commit, heading } = useWorkflowStage(props);
-  const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage1CalibrationWorkspace`,{});
-  const [newCalibration, setNewCalibration] = usePersistedDraft<Partial<CalibrationRecord>>(`jala-ui-draft:${state.project.id}:${state.role}:newCalibration`,{});
+  const localDraftsEnabled = !serverReadOnly || SERVER_STAGE1_MUTATION_POLICY.localPersistence;
+  const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage1CalibrationWorkspace`,{},localDraftsEnabled);
+  const [newCalibration, setNewCalibration] = usePersistedDraft<Partial<CalibrationRecord>>(`jala-ui-draft:${state.project.id}:${state.role}:newCalibration`,{},localDraftsEnabled);
   const [calEditId, setCalEditId] = useState("");
   const [calibrationSurvey, setCalibrationSurvey] = useState<SurveyType>(
     state.project.surveyTypes[0] || "IRI",
@@ -87,7 +89,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
     readySurveyCount === scopedSurveyTypes.length;
 
   const setTypeCheck = (type: SurveyType, value: boolean) => {
-    if (!canEditCalibration||state.calibrationChecklist[type]===value) return;
+    if ((serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.checklistWrite) || !canEditCalibration||state.calibrationChecklist[type]===value) return;
 
     commit(`Checklist kalibrasi & validasi ${type}`, type, (s) => ({
       ...invalidateDependentStages(
@@ -102,7 +104,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   };
 
   const beginAddCalibration = () => {
-    if (!canEditCalibration) return;
+    if (!canEditCalibration || (serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.calibrationWrite)) return;
 
     const id = idNow("CAL");
 
@@ -125,7 +127,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   };
 
   const beginEditCalibration = (record: CalibrationRecord) => {
-    if (!canEditCalibration) return;
+    if (!canEditCalibration || (serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.calibrationWrite)) return;
 
     setCalibrationSurvey(record.surveyType || activeSurvey);
 
@@ -146,7 +148,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   };
 
   const addCalibration = () => {
-    if (!canEditCalibration) {
+    if (!canEditCalibration || (serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.calibrationWrite)) {
       setNotice(
         "Hanya Penyedia Jasa / Ketua Tim yang dapat mengubah penugasan alat dan personel.",
       );
@@ -306,6 +308,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             <Button
               id="button-open-calibration-form"
               kind="primary"
+              disabled={serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.calibrationWrite}
               onClick={beginAddCalibration}
             >
               <Plus size={13} />
@@ -313,10 +316,11 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             </Button>
           )}
         </div>
+        {serverReadOnly && <p className="wf-note">Tambah/edit penugasan dan borang kalibrasi: Belum terhubung ke server.</p>}
 
         {surveyRecords.length === 0 ? (
           <div className="wf-callout warn">
-            Belum ada alat/personel yang ditugaskan untuk {activeSurvey}.
+            {serverReadOnly ? `Belum ada rekod kalibrasi server yang dapat dipadankan untuk ${activeSurvey}. Penugasan server yang tersedia dipaparkan di bawah.` : `Belum ada alat/personel yang ditugaskan untuk ${activeSurvey}.`}
           </div>
         ) : (
           <div className="calibration-record-list">
@@ -374,6 +378,10 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
                         <small>PIC / personel</small>
                         <strong>{record.personInCharge}</strong>
                       </div>
+                      {serverReadOnly && record.serverIds && <div className="full">
+                        <small>Relasi ID server (kalibrasi / alat / tim / personel)</small>
+                        <strong>#{record.serverIds.calibrationId} / #{record.serverIds.equipmentId} / #{record.serverIds.teamId} / {record.serverIds.personId ? `#${record.serverIds.personId}` : 'Belum ditetapkan'}</strong>
+                      </div>}
                     </div>
 
                     <div className="calibration-record-flags">
@@ -390,7 +398,10 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
                       </Badge>
                     </div>
 
-                    <div className="calibration-record-evidence">
+                    {serverReadOnly ? <div className="calibration-record-evidence">
+                      <div className="wf-callout">Sertifikat server: {record.certificateReference || 'Belum tersedia pada rekod server.'}</div>
+                      <div className="wf-callout">Bukti/personel: {record.personInCharge || 'Belum tersedia'} — kelayakan belum dinilai oleh backend.</div>
+                    </div> : <div className="calibration-record-evidence">
                       <EvidenceAttachment
                         packageId={state.project.id}
                         evidenceId={`calibration-certificate-${record.id}`}
@@ -406,12 +417,13 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
                         editable={false}
                         compact
                       />
-                    </div>
+                    </div>}
 
                     {canEditCalibration && (
                       <div className="wf-toolbar">
                         <Button
                           id={`button-edit-calibration-${record.id}`}
+                          disabled={serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.calibrationWrite}
                           onClick={() => beginEditCalibration(record)}
                         >
                           Edit penugasan
@@ -424,6 +436,12 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             })}
           </div>
         )}
+        {serverReadOnly && <div className="calibration-record-list" aria-label="Penugasan server">
+          {serverAssignments.filter(item => item.surveyType === activeSurvey).map(item => <div className="calibration-record-card" key={item.assignmentId}>
+            <div className="calibration-record-summary"><div><strong>{item.equipment}</strong><span>{item.serialNumber} · {item.personName}</span></div><Badge tone="info">Penugasan server</Badge></div>
+            <div className="package-readonly-grid"><div><small>Tim server</small><strong>#{item.teamId} · {item.teamName}</strong></div><div><small>Alat server</small><strong>#{item.equipmentId}</strong></div><div><small>Personel server</small><strong>{item.personId ? `#${item.personId}` : 'Belum ditetapkan'}</strong></div><div><small>Rekod kualifikasi</small><strong>{item.qualificationIds.length ? item.qualificationIds.map(id => `#${id}`).join(', ') : 'Belum tersedia'} · belum dinilai</strong></div></div>
+          </div>)}
+        </div>}
       </Panel>
 
       {/* ================================================
@@ -431,7 +449,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             hanya muncul ketika user meminta
             ================================================ */}
 
-      {canEditCalibration && calFormOpen && (
+      {canEditCalibration && !serverReadOnly && calFormOpen && (
         <Panel
           title={
             calEditId
@@ -703,10 +721,11 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
         phase="calibration"
         surveyTypes={[activeSurvey]}
         role={state.role}
-        editableRoles={["Penyedia Jasa / Ketua Tim"]}
+        editableRoles={serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.checklistWrite ? [] : ["Penyedia Jasa / Ketua Tim"]}
         title={`Checklist Kalibrasi & Validasi · ${activeSurvey}`}
         defaultSurvey={activeSurvey}
         hideSurveySelector
+        useLocalPersistence={localDraftsEnabled}
         onCompletionChange={(survey,complete)=>setSourceCompletion(old=>old[survey]===complete?old:{...old,[survey]:complete})}
         onAnswersChanged={()=>{if(state.calibrationChecklist[activeSurvey])setTypeCheck(activeSurvey,false);}}
       /></RoleWorkSection>
@@ -715,7 +734,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             STATUS OTOMATIS
             ================================================ */}
 
-      {canEditCalibration&&<div className="wf-toolbar"><button type="button" className="wf-button primary" data-testid="button-save-source-calibration" disabled={!sourceCompletion[activeSurvey]} onClick={()=>{if(canEditCalibration&&sourceCompletion[activeSurvey]){setTypeCheck(activeSurvey,true);setNotice('Hasil checklist kalibrasi disimpan.');}}}>Simpan hasil checklist {activeSurvey}</button><span className="wf-note">Membuka halaman tidak mengubah persetujuan. Perubahan jawaban harus diperiksa dan disimpan kembali.</span></div>}
+      {canEditCalibration&&<div className="wf-toolbar"><button type="button" className="wf-button primary" data-testid="button-save-source-calibration" disabled={serverReadOnly&&!SERVER_STAGE1_MUTATION_POLICY.checklistWrite||!sourceCompletion[activeSurvey]} onClick={()=>{if(!(serverReadOnly&&!SERVER_STAGE1_MUTATION_POLICY.checklistWrite)&&canEditCalibration&&sourceCompletion[activeSurvey]){setTypeCheck(activeSurvey,true);setNotice('Hasil checklist kalibrasi disimpan.');}}}>Simpan hasil checklist {activeSurvey}</button><span className="wf-note">{serverReadOnly ? 'Checklist kalibrasi: Belum terhubung ke server.' : 'Membuka halaman tidak mengubah persetujuan. Perubahan jawaban harus diperiksa dan disimpan kembali.'}</span></div>}
       <Panel title="Kesiapan per Jenis Survei" icon={ShieldCheck}>
         <div className="calibration-readiness-list">
           {scopedSurveyTypes.map((type) => {
@@ -742,7 +761,9 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
                     }}
                   >
                     {!records.length
-                      ? "Belum ada penugasan alat/personel."
+                      ? serverReadOnly && serverAssignments.some(item => item.surveyType === type)
+                        ? "Penugasan server tersedia; rekod kalibrasi/readiness belum lengkap."
+                        : "Belum ada penugasan alat/personel."
                       : !recordsReady
                         ? "Kesiapan alat/personel belum terpenuhi."
                         : !checklistReady
@@ -782,13 +803,14 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
           <Button
             id="button-stage1-next"
             kind="primary"
-            disabled={!allSurveyReady}
-            onClick={() => onNavigate("/entry:Validasi produksi")}
+            disabled={serverReadOnly&&!SERVER_STAGE1_MUTATION_POLICY.readinessNavigation || !allSurveyReady}
+            onClick={() => { if (!(serverReadOnly&&!SERVER_STAGE1_MUTATION_POLICY.readinessNavigation)) onNavigate("/entry:Validasi produksi"); }}
           >
             Lanjut ke Validasi Produksi
             <ArrowRight size={13} />
           </Button>
         </div>
+        {serverReadOnly && <p className="wf-note">{serverStatusNote || 'Readiness Tahap 1: Belum terhubung ke server. Navigasi seterusnya dinyahaktifkan.'}</p>}
       </Panel>
 
       <details className="stage-document-details"><summary>Dokumen hasil pemeriksaan · Berita Acara Kalibrasi dan Validasi</summary>

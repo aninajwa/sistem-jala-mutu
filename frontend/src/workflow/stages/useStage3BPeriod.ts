@@ -1,6 +1,7 @@
 import { localPersistence } from '../repository/localPersistence';
 import { useCallback, useEffect, useState } from "react";
 import type { OperationalWorkflowState, VervalCycle } from "../model";
+import { useDraftPersistenceAllowed } from "../../hooks/usePersistedDraft";
 
 type UpdateWorkflow = (
   updater: (current: OperationalWorkflowState) => OperationalWorkflowState,
@@ -28,24 +29,26 @@ export function useStage3BPeriod(
   clearBaDraft: () => void,
   currentPeriod?: number,
 ) {
+  const persistenceAllowed=useDraftPersistenceAllowed();
   const [stage3BCompletion, setStage3BCompletion] =
     useState<Completion>(emptyCompletion);
   const storageKey = `jala-stage3b-active-period:${packageId}`;
   const [activeStage3BPeriod, setActiveStage3BPeriod] = useState(() => {
     try {
-      const stored = currentPeriod ?? Number(localPersistence.getItem(storageKey));
+      const stored = currentPeriod ?? (persistenceAllowed ? Number(localPersistence.getItem(storageKey)) : NaN);
       return Number.isInteger(stored) && stored >= 1 ? stored : 1;
     } catch {
       return 1;
     }
   });
   useEffect(() => {
+    if(!persistenceAllowed)return;
     try {
       localPersistence.setItem(storageKey, String(activeStage3BPeriod));
     } catch {
       // Navigating periods still works without local persistence.
     }
-  }, [storageKey, activeStage3BPeriod]);
+  }, [storageKey, activeStage3BPeriod, persistenceAllowed]);
   const [stage3bPeriodRange, setStage3BPeriodRange] = useState<{
     start: string;
     end: string;

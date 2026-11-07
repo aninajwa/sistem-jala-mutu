@@ -27,6 +27,7 @@ import {
   invalidateDependentStages,
   invalidateVervalStages,
   testId,
+  SERVER_STAGE1_MUTATION_POLICY,
 } from "./stageSupport";
 export function useWorkflowStage({
   selection,
@@ -34,6 +35,7 @@ export function useWorkflowStage({
   onUpdate,
   setNotice,
   onNavigate,
+  serverReadOnly = false,
 }: WorkflowStageProps) {
   const goToBA = (
     kind:
@@ -47,6 +49,7 @@ export function useWorkflowStage({
     period = 0,
     context?: {survey?:string;auditLevel?:1|2|3},
   ) => {
+    if (serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.approval) return;
     try {
       localPersistence.setItem(
         "jala-ba-navigation-v2",
@@ -74,6 +77,7 @@ export function useWorkflowStage({
     <button
       type="button"
       className="wf-button"
+      disabled={serverReadOnly && !SERVER_STAGE1_MUTATION_POLICY.approval}
       onClick={() => goToBA(kind, period, context)}
     >
       <FileText size={14} />
@@ -278,16 +282,24 @@ export function useWorkflowStage({
     checked: Record<string, boolean>,
     onToggle: (key: string, on: boolean) => void,
     disabled = false,
+    triState?: Record<string, { answer: 'Ya' | 'Tidak' | null; note?: string; disabled?: boolean }>,
+    onAnswer?: (key: string, answer: 'Ya' | 'Tidak' | null) => void,
   ) => (
-    <RoleWorkSection primary={!disabled} title={displayText(title)}><ChecklistPanel
+    <RoleWorkSection primary={triState ? true : !disabled} title={displayText(title)}><ChecklistPanel
       title={displayText(title)}
       icon={icon}
-      items={items.map((item) => ({
-        id: `${testId(title)}-${testId(item)}`,
-        label: item,
-        checked: !!checked[item],
-        disabled,
-      }))}
+       items={items.map((item) => ({
+         id: `${testId(title)}-${testId(item)}`,
+         label: item,
+         checked: triState ? triState[item]?.answer === 'Ya' : !!checked[item],
+         ...(triState ? { answer: triState[item]?.answer ?? null, note: triState[item]?.note } : {}),
+         disabled: disabled || !!triState?.[item]?.disabled,
+       }))}
+       answerLabel={triState ? 'Ya' : 'siap'}
+       onAnswer={triState && onAnswer ? (id, answer) => {
+         const item = items.find(candidate => `${testId(title)}-${testId(candidate)}` === id);
+         if (item) onAnswer(item, answer);
+       } : undefined}
       onChange={(id, value) => {
         const item = items.find(
           (candidate) => `${testId(title)}-${testId(candidate)}` === id,

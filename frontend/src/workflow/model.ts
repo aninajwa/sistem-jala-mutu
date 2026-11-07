@@ -37,6 +37,8 @@ export type CalibrationRecord = {
   standardReference?: string;
   certificateReference?: string;
   surveyType?: SurveyType;
+  /** Stable references retained when this view model came from authenticated API data. */
+  serverIds?: { calibrationId: number; equipmentId: number; teamId: number; personId: number | null; qualificationIds: number[]; documentId: number | null };
 };
 
 export type ProductionTest = {

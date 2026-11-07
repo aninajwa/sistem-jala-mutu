@@ -26,6 +26,49 @@ export type ServerChecklistItem = {
   bukti_dokumen_id?: number | null;
 };
 
+import { PREPARATION_COORDINATION, PREPARATION_DOCUMENTS, PREPARATION_FIELD_PLAN, PREPARATION_SOURCE_REVIEWS } from '../workflow/model';
+
+const DIRAH_CHECKLIST_GROUPS = [
+  { section: 'Telaah data awal', codes: ['AWAL-01', 'AWAL-02', 'AWAL-03', 'AWAL-04'], labels: PREPARATION_SOURCE_REVIEWS },
+  { section: 'Rencana lapangan', codes: ['LAP-01', 'LAP-02', 'LAP-03', 'LAP-04', 'LAP-05'], labels: PREPARATION_FIELD_PLAN },
+  { section: 'Koordinasi', codes: ['KOOR-01', 'KOOR-02', 'KOOR-03', 'KOOR-04', 'KOOR-05'], labels: PREPARATION_COORDINATION },
+  { section: 'Dokumen persiapan', codes: ['DOK-01', 'DOK-02', 'DOK-03', 'DOK-04', 'DOK-05', 'DOK-06', 'DOK-07', 'DOK-08', 'DOK-09', 'DOK-10', 'DOK-11'], labels: PREPARATION_DOCUMENTS },
+] as const;
+
+export type MappedPreparationItem = {
+  code: string;
+  itemId: number;
+  section: string;
+  label: string;
+  answer: ServerChecklistItem['jawaban'];
+  note: string;
+  evidenceId: number | null;
+};
+
+/** Exact code + section + label matching only; ambiguous/mismatched rows are never presented as mapped. */
+export function mapPreparationChecklist(items: ServerChecklistItem[]) {
+  const mapped: MappedPreparationItem[] = [];
+  const gaps: string[] = [];
+  const seen = new Set<string>();
+  for (const group of DIRAH_CHECKLIST_GROUPS) {
+    group.codes.forEach((code, index) => {
+      const matches = items.filter(item => item.kode === code);
+      const item = matches[0];
+      const expectedLabel = group.labels[index];
+      if (matches.length !== 1 || !item || item.bagian !== group.section || item.uraian !== expectedLabel ||
+          !Number.isSafeInteger(item.item_id) || item.item_id < 1 || seen.has(code)) {
+        gaps.push(`${code}: item tidak unik atau field bagian/uraian tidak sepadan.`);
+        return;
+      }
+      seen.add(code);
+      mapped.push({ code, itemId: item.item_id, section: group.section, label: expectedLabel, answer: item.jawaban, note: item.keterangan ?? '', evidenceId: item.bukti_dokumen_id ?? null });
+    });
+  }
+  const known = new Set<string>(DIRAH_CHECKLIST_GROUPS.flatMap(group => [...group.codes]));
+  for (const item of items) if (!item.kode || !known.has(item.kode)) gaps.push(`${item.kode || `item_id ${item.item_id}`}: tiada padanan Dirah yang disahkan.`);
+  return { mapped, gaps };
+}
+
 export type ServerChecklist = {
   paket_id: number;
   pengisian: { status: string; versi: number };
@@ -33,6 +76,7 @@ export type ServerChecklist = {
     jumlah_item: number;
     jumlah_terjawab: number;
     persen_terisi?: number;
+    syarat_submit_aktif?: boolean;
   };
   items: ServerChecklistItem[];
 };
@@ -48,6 +92,8 @@ export type ServerPreparationDocument = {
     nama_file?: string;
     ukuran_byte?: number;
     versi_ke?: number;
+    mime_type?: string;
+    aktif?: boolean;
   }>;
 };
 
@@ -171,6 +217,15 @@ export function buildChecklistPayload(items: ServerChecklistItem[], draft: Check
       ...(keterangan ? { keterangan } : {}),
     };
   });
+}
+
+/** Mutation is successful to the UI only after a fresh authoritative GET succeeds. */
+export async function patchChecklistThenRefetch<T>(
+  patch: () => Promise<unknown>,
+  refetch: () => Promise<T>,
+): Promise<T> {
+  await patch();
+  return refetch();
 }
 
 export function canEditPreparation(role: WorkflowRole, contractStatus: string, checklistStatus?: string) {

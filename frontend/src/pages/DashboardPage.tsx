@@ -9,6 +9,8 @@ import { aggregateDashboard } from './dashboardMetrics';
 import { ReviewEvidenceLocalStatus } from './ReviewEvidenceLocalStatus';
 import { isReviewPackageInScope } from './reviewEvidenceAccess';
 import { CreatePackageDialog } from './CreatePackageDialog';
+import { filterServerPackages, type ResourceState, type ServerCorrection, type ServerDashboardPackage } from './serverDashboard';
+import { useServerDashboard } from './useServerDashboard';
 import './dashboardSummary.css';
 
 const empty = <div className="panel-body subtle">Belum ada data tercatat pada cakupan dan filter ini.</div>;
@@ -102,7 +104,75 @@ function AttentionList({items,onOpen}:{items:ReturnType<typeof aggregateDashboar
  if(!items.length)return empty;
  return <div className="panel-body ds-attention-list">{items.map(item=><div key={item.id} className="ds-attention-row"><div><strong>{item.name}</strong><span>{item.balai}</span><small>{item.open} koreksi terbuka · {item.pending} dalam proses tindak lanjut/review</small></div><button type="button" className="btn sm" onClick={()=>onOpen(item.id)}>Lihat paket</button></div>)}</div>;
 }
-export default function DashboardPage(p:PageProps & { canCreatePackage?: boolean }){
+type DashboardProps = PageProps & { canCreatePackage?: boolean; dashboardAuthenticated?: boolean };
+
+function ResourceMessage({state}:{state:ResourceState<unknown>}) {
+ if(state.status==='loading')return <div className="panel-body subtle" role="status">Memuat data dari server…</div>;
+ if(state.status==='error')return <div className="panel-body subtle" role="alert">Gagal memuat data: {state.message}</div>;
+ if(state.status==='unavailable')return <div className="panel-body subtle" role="status">Belum tersedia dari server. {state.message}</div>;
+ return <div className="panel-body subtle">Belum tersedia dari server.</div>;
+}
+
+function AuthenticatedDashboard({p}:{p:DashboardProps}) {
+ const role=p.workflow.role;
+ const {data,reload}=useServerDashboard(true,role);
+ const [balaiFilter,setBalaiFilter]=useState('Semua Balai');
+ const [packageFilter,setPackageFilter]=useState('Semua paket');
+ const [balaiLimit,setBalaiLimit]=useState('10');
+ const packages=data.packages.status==='ready'?data.packages.data:[];
+ const balaiOptions=[...new Set(packages.map(x=>x.balaiId).filter((x):x is number=>x!==null))].sort((a,b)=>a-b);
+ const packageOptions=filterServerPackages(packages,balaiFilter,'Semua paket').sort((a,b)=>a.name.localeCompare(b.name));
+ const filtered=filterServerPackages(packages,balaiFilter,packageFilter);
+ const corrections=data.corrections.status==='ready'?data.corrections.data:{};
+ const scopedIds=new Set(filtered.map(x=>x.id));
+ const rows=Object.entries(corrections).filter(([id])=>scopedIds.has(id)).flatMap(([packageId,items])=>{
+   const pkg=filtered.find(x=>x.id===packageId)!;
+   return items.map(item=>({packageId,packageName:pkg.name,...item}));
+ });
+ const open=rows.filter(x=>x.status!=='Ditutup');
+ const closed=rows.filter(x=>x.status==='Ditutup');
+ const correctionReady=data.corrections.status==='ready';
+ const errorForFiltered=Object.entries(data.correctionErrors).filter(([id])=>scopedIds.has(id));
+ const correctionPartial=errorForFiltered.length>0;
+ const packageLabel=role==='Penyedia Jasa / Ketua Tim'?'Paket saya':role==='PIC Balai / Pengguna Jasa'?'Paket kewenangan':'Paket monitoring';
+ const chartUnavailable={status:'unavailable',message:'Sumber rekaman harian yang tepat belum disediakan.'} as const;
+ const kpis:[[typeof FileText,string,ResourceState<unknown>],[typeof BarChart3,string,ResourceState<unknown>],[typeof AlertTriangle,string,ResourceState<unknown>],[typeof CheckCircle2,string,ResourceState<unknown>]]=[
+   [FileText,packageLabel,data.packages],
+   [BarChart3,'Rekaman survei',chartUnavailable],
+   [AlertTriangle,'Koreksi terbuka',data.corrections],
+   [CheckCircle2,'Penerimaan akhir',{status:'unavailable',message:'Belum tersedia dari server.'}],
+ ];
+ const valueFor=(label:string,resource:ResourceState<unknown>)=> {
+   if(resource.status==='loading')return 'Memuat…';
+   if(resource.status==='error')return 'Gagal';
+   if(resource.status==='unavailable')return 'Tidak tersedia';
+   if(label===packageLabel)return String(filtered.length);
+   if(label==='Koreksi terbuka')return correctionReady?`${open.length}${correctionPartial?'*':''}`:'—';
+   return 'Belum tersedia';
+ };
+ const correctionUnavailable:ResourceState<unknown>=data.corrections;
+ const balaiCounts=balaiOptions.map(id=>({name:`Balai #${id}`,value:packages.filter(x=>x.balaiId===id).length})).sort((a,b)=>b.value-a.value);
+ const visibleBalai=balaiLimit==='Semua'?balaiCounts:balaiCounts.slice(0,Number(balaiLimit));
+ return <>
+  <PageHeading id="dashboard-main" label={ROLE_HOME_LABELS[role]} detail={`${role} · Data dashboard melalui API server berautentikasi`} action={<Link href={role==='Penyedia Jasa / Ketua Tim'?'/packages':role==='PIC Balai / Pengguna Jasa'?'/verification':'/packages'} className="btn primary">{role==='Penyedia Jasa / Ketua Tim'?'Buka paket saya':role==='PIC Balai / Pengguna Jasa'?'Buka review':'Buka monitoring'}</Link>}/>
+  <div className="ds-filter-panel" aria-label="Filter ringkasan QA/QC"><div className="ds-filter-title"><strong>Cakupan ringkasan</strong></div><div className="ds-filter-fields">
+   <label>Paket<select value={packageFilter} onChange={e=>setPackageFilter(e.target.value)}><option>Semua paket</option>{packageOptions.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select></label>
+   <label>Wilayah Balai<select value={balaiFilter} onChange={e=>{setBalaiFilter(e.target.value);setPackageFilter('Semua paket')}}><option>Semua Balai</option>{balaiOptions.map(id=><option key={id} value={String(id)}>Balai #{id}</option>)}</select></label>
+   <button className="btn sm" type="button" onClick={()=>{setPackageFilter('Semua paket');setBalaiFilter('Semua Balai')}}>Atur ulang</button>
+   <button className="btn sm" type="button" onClick={reload}>Muat ulang</button>
+  </div></div>
+  <div className="kpi-grid ds-kpi-grid">{kpis.map(([Icon,label,resourceState])=>{const note=resourceState.status==='ready'&&label===packageLabel?'Hasil daftar paket server':resourceState.status==='ready'&&label==='Koreksi terbuka'?(correctionPartial?'Sebagian paket gagal dibaca':'Kasus server; selain Ditutup'):resourceState.status==='unavailable'?'Belum tersedia dari server':resourceState.status==='error'?'Gagal dimuat':'Sedang dimuat';return <KPI key={label} icon={Icon} label={label} value={valueFor(label,resourceState)} note={note} tone={label.includes('Koreksi')?'amber':'blue'} testId={`kpi-dashboard-${label.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`}/>;})}</div>
+  <div className="grid-two"><Section id="dashboard-compliance" title="Aktivitas survei menurut jenis" icon={BarChart3}><ResourceMessage state={chartUnavailable}/></Section><Section title="Komposisi kasus koreksi" icon={AlertTriangle}>{correctionReady?(rows.length?<Donut open={open.length} closed={closed.length}/>:<div className="panel-body subtle">Tidak ada kasus koreksi dalam paket/filter ini.</div>):<ResourceMessage state={correctionUnavailable}/>}</Section></div>
+  <div className="grid-two"><Section id="dashboard-trend" title="Tren pencatatan per bulan" icon={TrendingUp}><ResourceMessage state={chartUnavailable}/></Section><Section title="Koreksi terbuka menurut paket" icon={AlertTriangle}>{correctionReady?(open.length?<Bars rows={filtered.map(pkg=>({name:pkg.name,value:open.filter(x=>x.packageId===pkg.id).length})).filter(x=>x.value>0)} unit="koreksi terbuka"/>:<div className="panel-body subtle">Tidak ada koreksi terbuka dalam paket/filter ini.</div>):<ResourceMessage state={correctionUnavailable}/>}</Section></div>
+  <div className="grid-two ds-overview-secondary"><Section title="Progres penyelesaian" icon={ShieldCheck}>{correctionReady&&!correctionPartial?<div className="panel-body ds-progress-summary"><div className="ds-progress-top"><div><span>Paket dalam cakupan</span><strong>{filtered.length}</strong></div><div><span>Audit</span><strong>Belum tersedia</strong></div><div><span>Penerimaan akhir</span><strong>Belum tersedia</strong></div></div><div className="ds-progress-meter"><div><span>Kasus koreksi ditutup</span><strong>{rows.length?`${Math.round(closed.length/rows.length*100)}%`:'—'}</strong></div><div className="ds-progress-track"><span style={{width:`${rows.length?closed.length/rows.length*100:0}%`}}/></div><small>{closed.length} dari {rows.length} kasus</small></div><p className="ds-chart-note">Audit dan penerimaan akhir belum tersedia dari server.</p></div>:<ResourceMessage state={correctionReady?{status:'unavailable',message:'Peratus penutupan tidak dipaparkan kerana sebahagian paket gagal dimuat.'}:correctionUnavailable}/>}</Section>
+   <Section title="Langkah selanjutnya" icon={ClipboardCheck}><div className="panel-body ds-action-panel"><strong>Belum tersedia dari server</strong><p>Data status workflow/next action belum mempunyai sumber dashboard yang disahkan.</p><Link className="btn sm" href="/packages">Buka paket</Link></div></Section></div>
+  {errorForFiltered.length>0&&<p className="panel-body subtle" role="alert">Koreksi tidak tersedia untuk {errorForFiltered.length} paket. Paparan koreksi di atas mungkin tidak lengkap.</p>}
+  {data.packages.status==='ready'&&balaiCounts.length>0&&<Section title="Sebaran paket lintas Balai" icon={Building2}><div className="ds-ranking"><div className="ds-ranking-toolbar"><label>Jumlah Balai <select value={balaiLimit} onChange={e=>setBalaiLimit(e.target.value)}><option value="5">Top 5</option><option value="10">Top 10</option><option value="Semua">Semua</option></select></label><small>Data paket daripada server</small></div><Columns rows={visibleBalai} unit="paket"/></div></Section>}
+  {data.packages.status!=='ready'&&<Section title="Data paket" icon={Database}><ResourceMessage state={data.packages}/></Section>}
+  </>;
+}
+
+function DashboardPageContent(p:DashboardProps){
  const [createPackageOpen,setCreatePackageOpen]=useState(false);
  const role=p.workflow.role;
  const admin=role==='Admin',provider=role==='Penyedia Jasa / Ketua Tim',balai=role==='PIC Balai / Pengguna Jasa';
@@ -206,4 +276,8 @@ export default function DashboardPage(p:PageProps & { canCreatePackage?: boolean
 
    {createPackageOpen&&p.canCreatePackage&&<CreatePackageDialog onClose={()=>setCreatePackageOpen(false)} onCreated={item=>{setCreatePackageOpen(false);p.setNotice(`Paket DRAFT #${item.paket_id} berhasil dibuat di server.`);}}/>}
   </>;
+}
+
+export default function DashboardPage(p:DashboardProps){
+ return p.dashboardAuthenticated?<AuthenticatedDashboard p={p}/>:<DashboardPageContent {...p}/>;
 }

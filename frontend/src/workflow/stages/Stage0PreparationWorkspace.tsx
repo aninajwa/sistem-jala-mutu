@@ -33,12 +33,34 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
   const { commit, setPreparation, setCheck, heading, renderChecklist } =
     useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage0PreparationWorkspace`,{});
+  const server = props.serverPreparation;
+  if(props.serverReadOnly && !server){
+    return <section className="wf-panel" data-testid="dirah-stage0-server-readonly"><div className="wf-panel-head"><h2>Survei Pendahuluan & Persiapan QA/QC</h2></div><div className="wf-body"><p className="wf-note">{props.serverStatusNote||'Belum terhubung ke server. Checklist dan tindakan persiapan dinyahaktifkan.'}</p></div></section>;
+  }
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
 
   const prep = state.project.preparation;
   const canPrepareInput = state.role === "Penyedia Jasa / Ketua Tim";
   const canReviewPreparation = state.role === "PIC Balai / Pengguna Jasa";
+  const serverChecklistStatus = server?.checklist?.pengisian.status;
+  const serverSubmissionStatus = server?.submission?.status;
+  const officialServerGateActive = server?.checklist?.ringkasan.syarat_submit_aktif === true || server?.submission?.aturan.validasi_kelengkapan_resmi_aktif === true;
+  const officialServerReady = serverSubmissionStatus === 'DISETUJUI' && officialServerGateActive;
+  const serverYesCount = server?.mappedItems.filter(item => server.answers[item.itemId]?.jawaban === 'Ya').length ?? 0;
+  const triStateForSection = (section: string) => server ? Object.fromEntries(
+    (section === 'Telaah data awal' ? PREPARATION_SOURCE_REVIEWS : section === 'Rencana lapangan' ? PREPARATION_FIELD_PLAN : section === 'Koordinasi' ? PREPARATION_COORDINATION : PREPARATION_DOCUMENTS)
+      .map(label => {
+        const mapped = server.mappedItems.find(item => item.section === section && item.label === label);
+        return [label, mapped
+          ? { answer: server.answers[mapped.itemId]?.jawaban ?? null, note: server.answers[mapped.itemId]?.keterangan ?? '' }
+          : { answer: null, disabled: true, note: 'Item ini tidak mempunyai padanan server yang disahkan.' }];
+      }),
+  ) : undefined;
+  const onServerAnswer = (section: string, label: string, answer: 'Ya' | 'Tidak' | null) => {
+    const mapped = server?.mappedItems.find(item => item.section === section && item.label === label);
+    if (mapped && server) server.onAnswer(mapped.itemId, answer, server.answers[mapped.itemId]?.keterangan ?? '');
+  };
   const allItems = [
     ...PREPARATION_SOURCE_REVIEWS.map((x) => prep.sourceReviews[x]),
     ...PREPARATION_FIELD_PLAN.map((x) => prep.fieldPlan[x]),
@@ -252,16 +274,25 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
         items={[
           {
             label: "Checklist survei pendahuluan lengkap",
-            ready: complete === allItems.length,
-            detail: `${complete}/${allItems.length} item`,
+            ready: server ? officialServerReady : complete === allItems.length,
+            detail: server
+              ? `${server.checklist?.ringkasan.jumlah_terjawab ?? '—'}/${server.checklist?.ringkasan.jumlah_item ?? '—'} dijawab · gate rasmi ${officialServerGateActive ? 'aktif' : 'belum aktif'}`
+              : `${complete}/${allItems.length} item`,
           },
           {
             label: "Review PIC Balai selesai",
-            ready: prep.reportApproval === "Disetujui",
-            detail: prep.reportApproval,
+            ready: server ? officialServerReady : prep.reportApproval === "Disetujui",
+            detail: server ? (serverSubmissionStatus ?? 'Status server belum tersedia') : prep.reportApproval,
           },
         ]}
       />
+
+      {server && <div className="wf-note" role={server.error ? 'alert' : 'status'}>
+        {server.error || (server.loading ? 'Memuat status persiapan server…' : `Checklist server ${serverChecklistStatus ?? 'belum tersedia'} · pengajuan ${serverSubmissionStatus ?? 'belum tersedia'} · versi ${server.checklist?.pengisian.versi ?? '—'}.`)}
+        {server.message && <span> {server.message}</span>}
+        {server.error && <button type="button" className="wf-button" onClick={server.onReload}>Coba muat ulang</button>}
+        {server.mappingGaps.length > 0 && <span> Item tanpa mapping: {server.mappingGaps.join(' ')}</span>}
+      </div>}
 
       {state.role === "Penyedia Jasa / Ketua Tim" ? (
         <div className="workflow-role-block provider">
@@ -285,7 +316,9 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               PREPARATION_SOURCE_REVIEWS,
               prep.sourceReviews,
               (k, v) => setCheck("sourceReviews", k, v),
-              !canPrepareInput,
+              server ? !server.editable || server.saving : !canPrepareInput,
+              triStateForSection('Telaah data awal'),
+              (label, answer) => onServerAnswer('Telaah data awal', label, answer),
             )}
 
             {renderChecklist(
@@ -294,7 +327,9 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               PREPARATION_FIELD_PLAN,
               prep.fieldPlan,
               (k, v) => setCheck("fieldPlan", k, v),
-              !canPrepareInput,
+              server ? !server.editable || server.saving : !canPrepareInput,
+              triStateForSection('Rencana lapangan'),
+              (label, answer) => onServerAnswer('Rencana lapangan', label, answer),
             )}
 
             {renderChecklist(
@@ -303,7 +338,9 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               PREPARATION_COORDINATION,
               prep.coordination,
               (k, v) => setCheck("coordination", k, v),
-              !canPrepareInput,
+              server ? !server.editable || server.saving : !canPrepareInput,
+              triStateForSection('Koordinasi'),
+              (label, answer) => onServerAnswer('Koordinasi', label, answer),
             )}
 
             {renderChecklist(
@@ -312,31 +349,39 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               PREPARATION_DOCUMENTS,
               prep.documents,
               (k, v) => setCheck("documents", k, v),
-              !canPrepareInput,
+              server ? !server.editable || server.saving : !canPrepareInput,
+              triStateForSection('Dokumen persiapan'),
+              (label, answer) => onServerAnswer('Dokumen persiapan', label, answer),
             )}
           </div>
 
-          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-rmllp','stage0-koordinasi']} editable={canPrepareInput}/>
+          {server && <div className="wf-toolbar" style={{ marginTop: 12 }}>
+            <Button id="button-prep-save-server" kind="primary" disabled={!server.editable || server.saving || !server.mappedItems.length} onClick={server.onSave}>
+              {server.saving ? 'Menyimpan…' : 'Simpan checklist'}
+            </Button>
+          </div>}
+
+          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-koordinasi']} editable={server ? server.editable : canPrepareInput} server={server ? {packageId:String(server.checklist?.paket_id ?? state.project.id),checklist:server.checklist,documents:server.documents,loading:server.documentLoading,error:server.documentError,busy:server.documentBusy,editable:server.editable,onUpload:server.onDocumentUpload,onReuse:server.onDocumentReuse,onChanged:server.onDocumentsChanged} : undefined}/>
 
           <Panel title="Pengajuan ke PIC Balai" icon={ArrowRight}>
             <div className="workflow-action-copy">
               <strong>
-                {complete === allItems.length
+                {(server ? false : complete === allItems.length)
                   ? "Persiapan lengkap dan siap diajukan"
-                  : "Persiapan belum lengkap"}
+                  : server ? `Status server: ${serverSubmissionStatus ?? 'belum tersedia'}` : "Persiapan belum lengkap"}
               </strong>
               <span>
-                {complete === allItems.length
+                {(server ? false : complete === allItems.length)
                   ? "Setelah diajukan, isian Penyedia menjadi bahan review PIC Balai."
-                  : `Masih ada ${allItems.length - complete} item yang perlu dilengkapi.`}
+                  : server ? 'Pengajuan rasmi dinonaktifkan kerana syarat submit server belum aktif.' : `Masih ada ${allItems.length - complete} item yang perlu dilengkapi.`}
               </span>
             </div>
 
-            {prep.reportApproval === "Perlu Revisi" && prep.reviewerNote && (
+            {(server ? serverSubmissionStatus === 'PERLU_REVISI' && !!server.submission?.review?.catatan : prep.reportApproval === "Perlu Revisi" && !!prep.reviewerNote) && (
               <div className="review-note important">
                 <small>CATATAN PIC BALAI</small>
                 <strong>Perlu perbaikan</strong>
-                <p>{prep.reviewerNote}</p>
+                <p>{server ? server.submission?.review?.catatan : prep.reviewerNote}</p>
               </div>
             )}
 
@@ -345,13 +390,12 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
                 id="button-prep-submit"
                 kind="primary"
                 disabled={
-                  complete !== allItems.length ||
-                  prep.reportApproval === "Diajukan"
+                  !!server || complete !== allItems.length || prep.reportApproval === "Diajukan"
                 }
-                onClick={() => approve("Diajukan")}
+                onClick={() => server ? undefined : approve("Diajukan")}
               >
                 <ArrowRight size={13} />
-                {prep.reportApproval === "Diajukan"
+                {(server ? serverSubmissionStatus === 'DIAJUKAN' : prep.reportApproval === "Diajukan")
                   ? "Menunggu Review"
                   : "Ajukan untuk Review"}
               </Button>
@@ -377,14 +421,14 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
             extra={
               <Badge
                 tone={
-                  prep.reportApproval === "Disetujui"
+                  (server ? officialServerReady : prep.reportApproval === "Disetujui")
                     ? "good"
-                    : prep.reportApproval === "Perlu Revisi"
+                    : (server ? serverSubmissionStatus === 'PERLU_REVISI' : prep.reportApproval === "Perlu Revisi")
                       ? "bad"
                       : "warn"
                 }
               >
-                {prep.reportApproval}
+                {server ? (serverSubmissionStatus ?? 'Belum tersedia') : prep.reportApproval}
               </Badge>
             }
           >
@@ -392,13 +436,13 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               <div className="wf-kpi">
                 <div className="wf-kpi-label">Kelengkapan Penyedia</div>
                 <div className="wf-kpi-value">
-                  {complete}/{allItems.length}
+                  {server ? `${serverYesCount}/${server.checklist?.ringkasan.jumlah_item ?? '—'} Ya` : `${complete}/${allItems.length}`}
                 </div>
               </div>
               <div className="wf-kpi">
                 <div className="wf-kpi-label">Status</div>
                 <div className="wf-kpi-value" style={{ fontSize: 13 }}>
-                  {prep.reportApproval}
+                  {server ? (serverSubmissionStatus ?? 'Belum tersedia') : prep.reportApproval}
                 </div>
               </div>
             </div>
@@ -406,17 +450,17 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
             {canReviewPreparation?<Field label="Catatan PIC Balai" full>
               <textarea
                 data-testid="input-prep-review-note"
-                disabled={!canReviewPreparation}
-                value={draft.reviewerNote ?? prep.reviewerNote}
-                onChange={(e) => saveText("reviewerNote", e.target.value)}
+                disabled={server ? serverSubmissionStatus !== 'DIAJUKAN' || server.saving : !canReviewPreparation}
+                value={server ? server.reviewNote : draft.reviewerNote ?? prep.reviewerNote}
+                onChange={(e) => server ? server.onReviewNote(e.target.value) : saveText("reviewerNote", e.target.value)}
                 placeholder="Tuliskan catatan, klarifikasi, atau alasan perbaikan."
               />
-            </Field>:<p className="stage-readonly-note">Catatan Balai: {prep.reviewerNote||"Belum ada catatan"}. Peran Anda memantau hasil; keputusan dilakukan PIC Balai.</p>}
+            </Field>:<p className="stage-readonly-note">Catatan Balai: {(server ? server.submission?.review?.catatan : prep.reviewerNote)||"Belum ada catatan"}. Peran Anda memantau hasil; keputusan dilakukan PIC Balai.</p>}
 
-            {prep.reviewerNote && (
+            {(server ? server.submission?.review?.catatan : prep.reviewerNote) && (
               <div className="review-note">
                 <small>CATATAN REVIEW</small>
-                <p>{prep.reviewerNote}</p>
+                <p>{server ? server.submission?.review?.catatan : prep.reviewerNote}</p>
               </div>
             )}
 
@@ -424,8 +468,8 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               <Button
                 id="button-prep-revise"
                 kind="danger"
-                disabled={prep.reportApproval !== "Diajukan"}
-                onClick={() => approve("Perlu Revisi")}
+                disabled={server ? serverSubmissionStatus !== 'DIAJUKAN' || server.saving || !server.reviewNote.trim() : prep.reportApproval !== "Diajukan"}
+                onClick={() => server ? server.onReview('PERLU_REVISI') : approve("Perlu Revisi")}
               >
                 Minta Perbaikan
               </Button>
@@ -433,10 +477,9 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               <Button
                 id="button-prep-approve"
                 disabled={
-                  complete !== allItems.length ||
-                  prep.reportApproval !== "Diajukan"
+                  server ? serverSubmissionStatus !== 'DIAJUKAN' || server.saving : complete !== allItems.length || prep.reportApproval !== "Diajukan"
                 }
-                onClick={() => approve("Disetujui")}
+                onClick={() => server ? server.onReview('DISETUJUI') : approve("Disetujui")}
               >
                 <Check size={13} />
                 Setujui Persiapan
@@ -444,7 +487,7 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
             </div>}
           </Panel>
 
-          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-rmllp','stage0-koordinasi']} editable={canPrepareInput}/>
+          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-koordinasi']} editable={server ? server.editable : canPrepareInput} server={server ? {packageId:String(server.checklist?.paket_id ?? state.project.id),checklist:server.checklist,documents:server.documents,loading:server.documentLoading,error:server.documentError,busy:server.documentBusy,editable:false,onUpload:server.onDocumentUpload,onReuse:server.onDocumentReuse,onChanged:server.onDocumentsChanged} : undefined}/>
 
           <div className="wf-grid equal">
             {renderChecklist(
@@ -454,6 +497,8 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               prep.sourceReviews,
               () => {},
               true,
+              triStateForSection('Telaah data awal'),
+              (label, answer) => onServerAnswer('Telaah data awal', label, answer),
             )}
 
             {renderChecklist(
@@ -463,6 +508,8 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               prep.fieldPlan,
               () => {},
               true,
+              triStateForSection('Rencana lapangan'),
+              (label, answer) => onServerAnswer('Rencana lapangan', label, answer),
             )}
 
             {renderChecklist(
@@ -472,6 +519,8 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               prep.coordination,
               () => {},
               true,
+              triStateForSection('Koordinasi'),
+              (label, answer) => onServerAnswer('Koordinasi', label, answer),
             )}
 
             {renderChecklist(
@@ -481,6 +530,8 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               prep.documents,
               () => {},
               true,
+              triStateForSection('Dokumen persiapan'),
+              (label, answer) => onServerAnswer('Dokumen persiapan', label, answer),
             )}
           </div>
         </div>

@@ -32,6 +32,7 @@ import type { WorkflowRole } from '../workflow/model';
 import { PACKAGE_WORKFLOW_ITEMS } from '../workflow/roleNavigation';
 import { ChecklistPanel } from '../workflow/WorkflowComponents';
 import { ServerCalibrationWorkspace } from './ServerCalibrationWorkspace';
+import { ServerStage1DirahWorkspace } from './ServerStage1DirahWorkspace';
 import { ServerStage2Workspace } from './ServerStage2Workspace';
 import { Stage3DailyWorkspacePrototypePanel } from '../workflow/stages/Stage3DailyWorkspace';
 import { SERVER_STAGE3A, SERVER_STAGE3B } from './serverPackageStageRouting';
@@ -47,6 +48,8 @@ import {
   checklistDraft,
   contractDraft,
   groupChecklistItems,
+  mapPreparationChecklist,
+  patchChecklistThenRefetch,
   type ChecklistDraft,
   type ContractDraft,
   type ServerChecklist,
@@ -56,7 +59,12 @@ import {
   type PreparationReviewDecision,
   validatePreparationPdf,
 } from './serverPreparation';
+import { linkPreparationDocument, uploadPreparationDocument } from './serverPreparationDocuments';
 import '../workflow/workflow.css';
+import '../workflow/ui09.css';
+import { PackageContextHeader, PackageOverview } from '../workflow/PackageHub';
+import { OperationalWorkflowWorkspace } from '../workflow/OperationalWorkflowWorkspace';
+import { serverDetailToDirahState, type ServerBalaiRow } from './serverPackageView';
 
 const OVERVIEW = '/packages:Ringkasan Paket';
 const PREPARATION = '/entry:Persiapan & SPMK';
@@ -100,12 +108,15 @@ export function ServerPackageWorkspace({
   selection,
   onBack,
   onNavigate,
+  dirahShell = false,
 }: {
   packageId: string;
   role: WorkflowRole;
   selection: string;
   onBack: () => void;
   onNavigate: (selection: string) => void;
+  /** Saat aktif, kerangka dan ringkasan memakai komponen asli Dirah; panel tahap tetap data server. */
+  dirahShell?: boolean;
 }) {
   const [contract, setContract] = useState<ServerContract | null>(null);
   const [contractForm, setContractForm] = useState<ContractDraft | null>(null);
@@ -114,6 +125,7 @@ export function ServerPackageWorkspace({
   const [contractMessage, setContractMessage] = useState('');
   const [contractError, setContractError] = useState('');
   const [balaiNames, setBalaiNames] = useState<Record<string, string>>({});
+  const [balaiRows, setBalaiRows] = useState<ServerBalaiRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [revision, setRevision] = useState(0);
@@ -144,6 +156,20 @@ export function ServerPackageWorkspace({
   const [reviewDecision, setReviewDecision] = useState<PreparationReviewDecision | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
+
+  async function refetchPreparationState() {
+    const [checkResult, submissionResult] = await Promise.all([
+      apiRequest<{ data: ServerChecklist }>(`/paket/${encodeURIComponent(packageId)}/checklist-persiapan`),
+      apiRequest<{ data: ServerPreparationSubmission }>(`/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan`),
+    ]);
+    if (String(checkResult.data?.paket_id) !== packageId || String(submissionResult.data?.paket_id) !== packageId || !Array.isArray(checkResult.data.items)) {
+      throw new Error('Refetch persiapan tidak sepadan dengan paket aktif.');
+    }
+    setChecklist(checkResult.data);
+    setAnswers(checklistDraft(checkResult.data.items));
+    setSubmission(submissionResult.data);
+    return { checklist: checkResult.data, submission: submissionResult.data };
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -177,6 +203,7 @@ export function ServerPackageWorkspace({
     })
       .then(result => {
         if (!controller.signal.aborted) {
+          setBalaiRows(result.data);
           setBalaiNames(Object.fromEntries(result.data.map(item => [
             String(item.balai_id), item.nama || item.kode,
           ])));
@@ -276,6 +303,7 @@ export function ServerPackageWorkspace({
   const editable = contract
     ? canEditPreparation(role, contract.status, checklist?.pengisian.status)
     : false;
+  const preparationMapping = checklist ? mapPreparationChecklist(checklist.items) : { mapped: [], gaps: [] };
 
   async function saveContract(event: FormEvent) {
     event.preventDefault();
@@ -315,15 +343,14 @@ export function ServerPackageWorkspace({
     setCheckMessage('');
     setCheckBusy(true);
     try {
-      await apiRequest(`/paket/${encodeURIComponent(packageId)}/checklist-persiapan`, {
-        method: 'PATCH',
-        body: JSON.stringify({
-          expected_version: checklist.pengisian.versi,
-          jawaban: buildChecklistPayload(checklist.items, answers),
+      await patchChecklistThenRefetch(
+        () => apiRequest(`/paket/${encodeURIComponent(packageId)}/checklist-persiapan`, {
+          method: 'PATCH',
+          body: JSON.stringify({ expected_version: checklist.pengisian.versi, jawaban: buildChecklistPayload(checklist.items, answers) }),
         }),
-      });
+        refetchPreparationState,
+      );
       setCheckMessage('Checklist persiapan berjaya disimpan ke server.');
-      setCheckRevision(value => value + 1);
     } catch (cause) {
       setCheckError(errorMessage(cause, 'Gagal menyimpan checklist persiapan.'));
     } finally {
@@ -487,6 +514,24 @@ export function ServerPackageWorkspace({
     }
   }
 
+  async function reviewPreparationFromDirah(decision: PreparationReviewDecision) {
+    if (!submission || !contract || reviewBusy || !canReviewPreparation(role, contract.status, submission.status)) return;
+    setReviewBusy(true); setSubmissionError(''); setSubmissionMessage('');
+    try {
+      const payload = buildPreparationReviewPayload(submission.versi, decision, reviewNote);
+      await apiRequest(`/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan/review`, {
+        method: 'POST', body: JSON.stringify(payload),
+      });
+      const refreshed = await refetchPreparationState();
+      setSubmissionMessage(refreshed.submission.status === 'DISETUJUI'
+        ? `Persiapan berjaya disetujui · status disahkan semula (${refreshed.submission.status}).`
+        : `Persiapan dikembalikan untuk revisi · status disahkan semula (${refreshed.submission.status}).`);
+    } catch (cause) {
+      setSubmissionError(errorMessage(cause, 'Keputusan PIC gagal atau belum dapat disahkan. Muat ulang status.'));
+      try { await refetchPreparationState(); } catch { /* retain original operation/refetch error */ }
+    } finally { setReviewBusy(false); }
+  }
+
   const back = (
     <button type="button" className="wf-button" onClick={onBack}>
       <ArrowLeft size={14} /> Daftar paket
@@ -569,7 +614,7 @@ export function ServerPackageWorkspace({
     </section>
   );
 
-  return <div className="package-detail-page" data-testid="server-package-workspace">
+  const shell = (
     <section className="package-context compact-context">
       <div className="package-context-top">{back}<span className="wf-status info">{contract.status}</span><span className="wf-note">{role} · Paket #{contract.paket_id}</span></div>
       <div className="package-identity"><div style={{ minWidth: 0, overflowWrap: 'anywhere' }}><div className="eyebrow">{contract.nomor_kontrak || `Paket #${contract.paket_id}`}</div><h1>{contract.nama_paket}</h1><p>{balai} · Tahun {display(contract.tahun_anggaran)} · SPMK {date(contract.tgl_spmk)}</p></div>
@@ -578,7 +623,10 @@ export function ServerPackageWorkspace({
       <details className="package-identity-detail"><summary>Identitas kontrak dan lingkup</summary><div className="package-context-grid">{info.map(([label, value]) => <div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><p className="wf-note">Nama penyedia, satker, ruas, dan jenis survei belum tersedia dari sambungan ini.</p></details>
       <label className="package-stage-picker">Tahap yang dibuka<select aria-label="Tahap paket yang dibuka" value={stageItem ? selection : ''} onChange={event => { if (event.target.value) onNavigate(event.target.value); }}><option value="">{selection === OVERVIEW ? 'Ringkasan paket' : 'Dokumen dan kegiatan pendukung'}</option>{PACKAGE_WORKFLOW_ITEMS.map(item => <option key={item.code} value={item.selection}>{item.code} · {item.shortLabel}</option>)}</select></label>
     </section>
+  );
 
+  const content = (
+    <>
     {selection !== STAGE2 && <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>}
     {contractMessage && <p role="status" className="wf-callout">{contractMessage}</p>}
 
@@ -761,11 +809,109 @@ export function ServerPackageWorkspace({
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
-    </div> : selection === CALIBRATION ? <ServerCalibrationWorkspace
+    </div> : selection === CALIBRATION ? <ServerStage1DirahWorkspace
       packageId={packageId}
       role={role}
-      preparationStatus={submission?.status || checklist?.pengisian.status}
+      state={serverDetailToDirahState(contract, balaiRows, role)}
+      onNavigate={onNavigate}
     /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
-  </div>;
+    </>
+  );
+
+  // Shell Dirah: kerangka dan ringkasan memakai komponen asli Dirah.
+  // Panel tahap tetap sumber integrasi server yang sudah berjalan (task 7).
+  if (dirahShell) {
+    const dirahState = serverDetailToDirahState(contract, balaiRows, role);
+    const onCorrections = () => onNavigate('/actions:Koreksi berbukti');
+    const stageOne = selection === CALIBRATION;
+    const preparationStatus = checklist
+      ? `Tahap 0 menggunakan jawaban checklist server (${checklist.pengisian.status}, versi ${checklist.pengisian.versi}).`
+      : checkLoading ? 'Memuat status checklist persiapan dari server…' : 'Status checklist server belum tersedia.';
+    const readOnlyNote = selection === PREPARATION
+      ? `${preparationStatus} Borang workflow Dirah dipaparkan tanpa menyimpan perubahan.`
+      : 'Belum terhubung ke server. Data/status tahap belum dimuat; nilai neutral yang dipaparkan bukan rekod server. Paparan baca sahaja; simpan, submit, approve dan upload dinyahaktifkan.';
+    return (
+      <div className="package-detail-page ui09-workspace" data-testid="dirah-server-package-detail" data-presentation="dirah">
+        <PackageContextHeader
+          state={dirahState}
+          selection={selection}
+          onBack={onBack}
+          onNavigate={onNavigate}
+          onCorrections={onCorrections}
+          serverReadOnly
+        />
+        {selection === OVERVIEW ? (
+          <>
+            <PackageOverview
+              state={dirahState}
+              onNavigate={onNavigate}
+              onCorrections={onCorrections}
+              serverReadOnly
+            />
+            {contractPanel}
+            {contractEditor}
+          </>
+        ) : stageOne ? content : (
+          <OperationalWorkflowWorkspace
+            key={`${packageId}:${selection}`}
+            selection={selection}
+            state={dirahState}
+            onUpdate={() => { /* Fasa 1: tiada local workflow mutation untuk data server. */ }}
+            setNotice={() => { /* Read-only action tidak boleh mengaku berjaya. */ }}
+            onNavigate={onNavigate}
+            serverReadOnly
+            serverStatusNote={readOnlyNote}
+            serverPreparation={selection === PREPARATION ? {
+              checklist,
+              answers,
+              mappedItems: preparationMapping.mapped,
+              mappingGaps: preparationMapping.gaps,
+              submission,
+              loading: checkLoading || submissionLoading,
+              error: [checkError, submissionError].filter(Boolean).join(' · '),
+              saving: checkBusy || reviewBusy,
+              editable,
+              message: [checkMessage, submissionMessage].filter(Boolean).join(' · '),
+              reviewNote,
+              onReviewNote: setReviewNote,
+              onAnswer: (itemId, jawaban, keterangan) => setAnswers(current => ({ ...current, [itemId]: { jawaban, keterangan } })),
+              onSave: () => void saveChecklist(),
+              onReload: () => { setCheckError(''); setCheckMessage(''); setCheckRevision(value => value + 1); setSubmissionRevision(value => value + 1); },
+              onReview: decision => void reviewPreparationFromDirah(decision),
+              documents,
+              documentLoading,
+              documentError,
+              documentBusy,
+              onDocumentUpload: async (category, file) => {
+                if (!checklist || !editable || documentBusy) throw new Error('Upload hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
+                setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
+                try {
+                  await uploadPreparationDocument(packageId, checklist, category, file);
+                  setDocumentMessage('Dokumen berjaya diunggah, ditautkan dan disahkan melalui server.');
+                  await refetchPreparationState();
+                } catch (cause) {
+                  setDocumentRevision(value => value + 1);
+                  try { await refetchPreparationState(); } catch { /* retain upload/link error */ }
+                  throw cause;
+                } finally { setDocumentBusy(false); }
+              },
+              onDocumentReuse: async (category, documentId) => {
+                if (!checklist || !editable || documentBusy) throw new Error('Pautan dokumen hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
+                setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
+                try {
+                  await linkPreparationDocument(packageId, checklist, documentId, category);
+                  await refetchPreparationState();
+                  setDocumentMessage('Dokumen tersimpan berjaya ditautkan dan disahkan melalui server.');
+                } finally { setDocumentBusy(false); }
+              },
+              onDocumentsChanged: () => setDocumentRevision(value => value + 1),
+            } : undefined}
+          />
+        )}
+      </div>
+    );
+  }
+
+  return <div className="package-detail-page" data-testid="server-package-workspace">{shell}{content}</div>;
 }

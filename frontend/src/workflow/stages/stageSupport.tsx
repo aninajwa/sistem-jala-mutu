@@ -11,6 +11,7 @@ import {
   SurveyType,
 } from "../model";
 import { WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE } from "../workflowConfig";
+import type { ChecklistDraft, MappedPreparationItem, ServerChecklist, ServerPreparationDocument, ServerPreparationSubmission } from "../../pages/serverPreparation";
 
 export type WorkflowStageProps = {
   selection: string;
@@ -22,7 +23,43 @@ export type WorkflowStageProps = {
   ) => void;
   setNotice: (message: string) => void;
   onNavigate: (selection: string) => void;
+  /** Authenticated server-backed presentation; unsupported mutations stay disabled. */
+  serverReadOnly?: boolean;
+  serverStatusNote?: string;
+  serverPreparation?: {
+    checklist: ServerChecklist | null;
+    answers: ChecklistDraft;
+    mappedItems: MappedPreparationItem[];
+    mappingGaps: string[];
+    submission: ServerPreparationSubmission | null;
+    loading: boolean;
+    error: string;
+    saving: boolean;
+    editable: boolean;
+    message: string;
+    reviewNote: string;
+    onReviewNote: (value: string) => void;
+    onAnswer: (itemId: number, answer: 'Ya' | 'Tidak' | null, note: string) => void;
+    onSave: () => void;
+    onReload: () => void;
+    onReview: (decision: 'PERLU_REVISI' | 'DISETUJUI') => void;
+    documents: ServerPreparationDocument[];
+    documentLoading: boolean;
+    documentError: string;
+    documentBusy: boolean;
+    onDocumentUpload: (category: string, file: File) => Promise<void>;
+    onDocumentReuse: (category: string, documentId: number) => Promise<void>;
+    onDocumentsChanged: () => void;
+  };
+  serverAssignments?: Array<{ assignmentId: string; teamId: number; equipmentId: number; personId: number | null; qualificationIds: number[]; surveyType: SurveyType; teamName: string; equipment: string; serialNumber: string; personName: string }>;
 };
+export const SERVER_STAGE1_MUTATION_POLICY = {
+  calibrationWrite: false,
+  checklistWrite: false,
+  readinessNavigation: false,
+  approval: false,
+  localPersistence: false,
+} as const;
 export type NumericProductionKey = {
   [K in keyof ProductionTest]-?: NonNullable<ProductionTest[K]> extends number
     ? K

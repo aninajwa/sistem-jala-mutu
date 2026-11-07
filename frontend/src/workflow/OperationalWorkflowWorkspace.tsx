@@ -19,6 +19,7 @@ import { WorkflowCoverageWorkspace } from "./stages/WorkflowCoverageWorkspace";
 import { WorkflowDocuments } from "./WorkflowDocuments";
 import { periodRange } from "./stages/periodSchedule";
 import { useStage3BPeriod } from "./stages/useStage3BPeriod";
+import { DraftPersistenceBoundary } from "../hooks/usePersistedDraft";
 export type OperationalWorkflowWorkspaceProps = WorkflowStageProps;
 const screens: Record<string, ComponentType<WorkflowStageProps>> = {
   "/entry:Persiapan & SPMK": Stage0PreparationWorkspace,
@@ -59,16 +60,27 @@ function DocumentsWorkspace(props: WorkflowStageProps) {
 export function OperationalWorkflowWorkspace(
   props: OperationalWorkflowWorkspaceProps,
 ) {
-  const Screen =
-    props.selection === "/documents:BA & dokumen workflow"
-      ? DocumentsWorkspace
-      : screens[props.selection];
+  const Screen = dirahScreenForSelection(props.selection);
   if (!Screen) return null;
-  return (
-    <div className="wf" data-testid="operational-workflow-workspace">
+  const serverStage0 = props.serverReadOnly && props.serverPreparation && props.selection === "/entry:Persiapan & SPMK";
+  const screen=<div className="wf" data-testid="operational-workflow-workspace">
+    {!props.serverReadOnly&&<>
       <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate}/>
       <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection}/>
+    </>}
+    {props.serverReadOnly&&<p className="wf-note" role="status">{props.serverStatusNote||'Belum terhubung ke server. Perubahan, pengajuan, persetujuan dan upload dinyahaktifkan.'}</p>}
+    <div inert={props.serverReadOnly&&!serverStage0} aria-disabled={props.serverReadOnly&&!serverStage0||undefined} data-testid={props.serverReadOnly?'server-readonly-dirah-stage':undefined}>
       <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />
     </div>
-  );
+  </div>;
+  return props.serverReadOnly
+    ? <DraftPersistenceBoundary enabled={false}>{screen}</DraftPersistenceBoundary>
+    : screen;
+}
+
+/** Returns the original Dirah screen used for a package workflow selection. */
+export function dirahScreenForSelection(selection:string):ComponentType<WorkflowStageProps>|undefined{
+  return selection === "/documents:BA & dokumen workflow"
+    ? DocumentsWorkspace
+    : screens[selection];
 }
