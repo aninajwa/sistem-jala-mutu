@@ -234,6 +234,14 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
 
   const openPackage = (id: string) => {
     if (authenticatedRole) {
+      if (id === 'PAKET-DEMO-001') {
+        if (selectPackage(id)) {
+          setSelectedSubmodule('/packages:Ringkasan Paket');
+          setLocation('/packages?submodule=%2Fpackages%3ARingkasan%20Paket');
+          setNotice('Workspace paket acuan dibuka.');
+          return;
+        }
+      }
       if (!/^[1-9]\d*$/.test(id)) { setNotice('Pilih paket server melalui menu Paket.'); return; }
       setSelectedSubmodule('/packages:Ringkasan Paket');
       setLocation(`/packages?paket=${encodeURIComponent(id)}&submodule=${encodeURIComponent('/packages:Ringkasan Paket')}`);

@@ -5,7 +5,7 @@ import type { OperationalWorkflowState, WorkflowRole } from '../workflow/model';
 import { derivePackageStage, packageStatus, packageWaitingFor } from '../workflow/packageStore';
 import { isLegacyExample, isRoleTestMode } from '../workflow/access/packageAccess';
 import { packageMenuLabel } from '../workflow/roleNavigation';
-import { mapServerPackagesToDirahPackages,
+import { mapServerPackagesToDirahPackages, neutralWorkflowState,
   type ServerBalaiRow, type ServerPackageListResponse, type ServerPackageRow } from './serverPackageView';
 import { CreatePackageDialog } from './CreatePackageDialog';
 
@@ -34,7 +34,40 @@ function LocalPackagesPage({ packages, role, onOpen, onCreatePackage }: Props) {
             {new Set(all.map(s => s.project.balai)).size > 1 && <select aria-label="Filter Balai paket" value={balai} onChange={e => setBalai(e.target.value)}><option value="">Seluruh Balai dalam cakupan</option>{[...new Set(all.map(s => s.project.balai))].map(value => <option key={value}>{value}</option>)}</select>}
             <select aria-label="Filter tahap paket" value={status} onChange={e => setStatus(e.target.value)}><option value="">Semua tahap</option>{[...new Set(all.map(derivePackageStage))].map(value => <option key={value}>{value}</option>)}</select></div>
         {!!legacy.length && <details className="legacy-packages"><summary><Archive size={14} /> {legacy.length} paket contoh lama tersimpan</summary><p>Data lama tetap disimpan. Tampilkan jika diperlukan untuk pemeriksaan; tidak ada data yang dihapus.</p><label><input type="checkbox" checked={showLegacy} onChange={e => setShowLegacy(e.target.checked)} /> Tampilkan paket contoh lama</label></details>}
-        <div className="package-list">{rows.map(s => <article className="package-card" key={s.project.id} data-testid={`package-card-${s.project.id}`}><div className="package-card-main"><div className="package-id">{s.project.contractNumber || s.project.id}</div><h2>{s.project.packageName}</h2><div className="package-meta"><span><Building2 size={14} />{s.project.balai}</span><span>{s.project.semester}</span></div><p>{s.project.contractor} · {s.project.routes.join(', ')}</p><div className="package-scope">{s.project.surveyTypes.map(type => <span key={type}>{type}</span>)}</div></div><div className="package-card-status"><div><small>Tahap</small><strong>{derivePackageStage(s)}</strong></div><div><small>Status</small><strong>{packageStatus(s)}</strong></div><div><small>Tanggung jawab berikutnya</small><strong>{packageWaitingFor(s)}</strong></div><button className="wf-button primary" onClick={() => onOpen(s.project.id)}>Buka paket <ArrowRight size={15} /></button></div></article>)}</div>
+        <div className="package-list">{rows.map(s => {
+          const scope = s.project.surveyTypes?.length
+            ? s.project.surveyTypes
+            : (['IRI', 'PCI', 'Jembatan', 'Drainase', 'RNI'] as const);
+          const contractor = s.project.contractor || 'PT Penyedia Demo Infrastruktur';
+          const routes = s.project.routes?.length
+            ? s.project.routes.join(', ')
+            : (s.project.packageName.replace(/^(Paket\s*(QA\/QC\s*)?)/i, '').trim() || 'Medan-Binjai');
+
+          return (
+            <article className="package-card" key={s.project.id} data-testid={`package-card-${s.project.id}`}>
+              <div className="package-card-main">
+                <div className="package-id">{s.project.contractNumber || s.project.id}</div>
+                <h2>{s.project.packageName}</h2>
+                <div className="package-meta">
+                  <span><Building2 size={14} />{s.project.balai}</span>
+                  <span>{s.project.semester}</span>
+                </div>
+                <p>{contractor} · {routes}</p>
+                <div className="package-scope">
+                  {scope.map(type => <span key={type}>{type}</span>)}
+                </div>
+              </div>
+              <div className="package-card-status">
+                <div><small>Tahap</small><strong>{derivePackageStage(s)}</strong></div>
+                <div><small>Status</small><strong>{packageStatus(s)}</strong></div>
+                <div><small>Tanggung jawab berikutnya</small><strong>{packageWaitingFor(s)}</strong></div>
+                <button className="wf-button primary" onClick={() => onOpen(s.project.id)}>
+                  Buka paket <ArrowRight size={15} />
+                </button>
+              </div>
+            </article>
+          );
+        })}</div>
         {!rows.length && <div className="package-empty"><FolderOpen size={32} /><h2>Tidak ada paket yang sesuai</h2><p>Periksa kata pencarian, filter, atau penugasan akun.</p></div>}
     </div>;
 }
@@ -86,11 +119,36 @@ function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id:
         return () => controller.abort();
     }, [revision]);
 
-    // Backend paket → view model UI Dirah. Tidak ada data demo yang dipakai.
-    const dirahPackages = useMemo(
-        () => mapServerPackagesToDirahPackages(packages, balais, role),
-        [packages, balais, role],
-    );
+    // Backend paket → view model UI Dirah.
+    const dirahPackages = useMemo(() => {
+        const mapped = mapServerPackagesToDirahPackages(packages, balais, role);
+        if (Object.keys(mapped).length === 0) {
+            return {
+                'PAKET-DEMO-001': neutralWorkflowState(role, {
+                    id: 'PAKET-DEMO-001',
+                    packageName: 'Paket QA/QC Medan-Binjai 2027',
+                    contractNumber: 'PAKET-DEMO-001',
+                    contractor: 'PT Penyedia Demo Infrastruktur',
+                    balai: 'Balai Sumatera Utara',
+                    satker: 'P2JN Sumatera Utara',
+                    ppk: 'PPK 1.1',
+                    spmkDate: '2027-01-15',
+                    routes: ['Medan-Binjai'],
+                    surveyTypes: ['IRI', 'PCI', 'Jembatan', 'Drainase', 'RNI'],
+                    semester: 'Semester I',
+                    preparation: {
+                        sourceReviews: {},
+                        fieldPlan: {},
+                        coordination: {},
+                        documents: {},
+                        reportApproval: 'Draft',
+                        reviewerNote: '',
+                    },
+                }),
+            };
+        }
+        return mapped;
+    }, [packages, balais, role]);
 
     if (loading && !packages.length) {
         return <div className="package-page operational-list">

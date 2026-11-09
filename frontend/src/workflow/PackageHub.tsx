@@ -215,12 +215,15 @@ export function PackagesPage({
 
                   <span>
                     <MapPinned size={13} />
-                    {state.project.routes.join(', ')}
+                    {state.project.routes.length ? state.project.routes.join(', ') : 'Lintas Koridor Balai'}
                   </span>
                 </div>
 
                 <div className="package-scope">
-                  {state.project.surveyTypes.map(type => (
+                  {(state.project.surveyTypes?.length
+                    ? state.project.surveyTypes
+                    : (['IRI', 'PCI', 'Jembatan', 'Drainase', 'RNI'] as const)
+                  ).map(type => (
                     <span key={type}>{type}</span>
                   ))}
                 </div>
