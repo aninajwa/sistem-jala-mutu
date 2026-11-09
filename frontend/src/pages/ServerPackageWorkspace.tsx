@@ -537,9 +537,29 @@ export function ServerPackageWorkspace({
       <ArrowLeft size={14} /> Daftar paket
     </button>
   );
-  if (loading) return <div className="package-detail-page">{back}<p role="status">Memuat workspace paket…</p></div>;
+  if (loading) {
+    return (
+      <div className="package-detail-page" data-testid="server-package-loading">
+        <div style={{ marginBottom: 16 }}>{back}</div>
+        <div className="wf-panel" style={{ padding: '32px 24px', textAlign: 'center' }}>
+          <RefreshCw className="animate-spin" size={24} style={{ margin: '0 auto 12px', color: '#0284c7' }} />
+          <p role="status" style={{ margin: 0, fontWeight: 500 }}>Memuat workspace paket…</p>
+        </div>
+      </div>
+    );
+  }
   if (error || !contract) {
-    return <div className="package-detail-page">{back}<div role="alert" className="wf-callout"><p>{error || 'Paket tidak tersedia.'}</p><button className="wf-button" onClick={() => setRevision(value => value + 1)}>Coba lagi</button></div></div>;
+    return (
+      <div className="package-detail-page" data-testid="server-package-error">
+        <div style={{ marginBottom: 16 }}>{back}</div>
+        <div role="alert" className="wf-callout danger" style={{ padding: '16px 20px' }}>
+          <p style={{ margin: '0 0 12px' }}>{error || 'Paket tidak tersedia atau Anda tidak memiliki akses.'}</p>
+          <button type="button" className="wf-button primary" onClick={() => setRevision(value => value + 1)}>
+            <RefreshCw size={13} /> Coba lagi
+          </button>
+        </div>
+      </div>
+    );
   }
 
   const balai = contract.balai_id === null
@@ -623,6 +643,46 @@ export function ServerPackageWorkspace({
       <details className="package-identity-detail"><summary>Identitas kontrak dan lingkup</summary><div className="package-context-grid">{info.map(([label, value]) => <div key={label}><small>{label}</small><strong>{value}</strong></div>)}</div><p className="wf-note">Nama penyedia, satker, ruas, dan jenis survei belum tersedia dari sambungan ini.</p></details>
       <label className="package-stage-picker">Tahap yang dibuka<select aria-label="Tahap paket yang dibuka" value={stageItem ? selection : ''} onChange={event => { if (event.target.value) onNavigate(event.target.value); }}><option value="">{selection === OVERVIEW ? 'Ringkasan paket' : 'Dokumen dan kegiatan pendukung'}</option>{PACKAGE_WORKFLOW_ITEMS.map(item => <option key={item.code} value={item.selection}>{item.code} · {item.shortLabel}</option>)}</select></label>
     </section>
+  );
+
+  const preparationDialogs = (
+    <>
+      <AlertDialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Ajukan persiapan kepada PIC Balai?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Checklist versi {checklist?.pengisian.versi ?? '-'} dan Laporan Pendahuluan akan disimpan sebagai snapshot. Selepas dihantar, isian dikunci sehingga PIC memberikan keputusan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={submissionBusy}>Batal</AlertDialogCancel>
+            <AlertDialogAction disabled={submissionBusy} onClick={event => { event.preventDefault(); void submitPreparation(); }}>
+              {submissionBusy ? 'Mengajukan…' : 'Ya, ajukan sekarang'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+      <AlertDialog open={reviewDecision !== null} onOpenChange={open => { if (!open && !reviewBusy) setReviewDecision(null); }}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>{reviewDecision === 'DISETUJUI' ? 'Setujui persiapan ini?' : 'Kembalikan untuk revisi?'}</AlertDialogTitle>
+            <AlertDialogDescription>
+              Keputusan akan disimpan untuk pengajuan #{submission?.pengajuan?.pengajuan_id ?? '-'} menggunakan versi {submission?.versi ?? '-'}. {reviewDecision === 'DISETUJUI'
+                ? 'Persiapan akan dikunci sebagai DISETUJUI.'
+                : 'Penyedia Jasa akan dapat mengubah checklist dan menghantar semula selepas revisi.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          {reviewNote.trim() && <div className="wf-callout"><strong>Catatan PIC</strong><div>{reviewNote.trim()}</div></div>}
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={reviewBusy}>Batal</AlertDialogCancel>
+            <AlertDialogAction disabled={reviewBusy} onClick={event => { event.preventDefault(); void reviewPreparation(); }}>
+              {reviewBusy ? 'Menyimpan…' : reviewDecision === 'DISETUJUI' ? 'Ya, setujui' : 'Ya, minta revisi'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+    </>
   );
 
   const content = (
@@ -774,46 +834,13 @@ export function ServerPackageWorkspace({
           </div>
         </div>
       </section>}
-      <AlertDialog open={submissionDialogOpen} onOpenChange={setSubmissionDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Ajukan persiapan kepada PIC Balai?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Checklist versi {checklist?.pengisian.versi ?? '-'} dan Laporan Pendahuluan akan disimpan sebagai snapshot. Selepas dihantar, isian dikunci sehingga PIC memberikan keputusan.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={submissionBusy}>Batal</AlertDialogCancel>
-            <AlertDialogAction disabled={submissionBusy} onClick={event => { event.preventDefault(); void submitPreparation(); }}>
-              {submissionBusy ? 'Mengajukan…' : 'Ya, ajukan sekarang'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-      <AlertDialog open={reviewDecision !== null} onOpenChange={open => { if (!open && !reviewBusy) setReviewDecision(null); }}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{reviewDecision === 'DISETUJUI' ? 'Setujui persiapan ini?' : 'Kembalikan untuk revisi?'}</AlertDialogTitle>
-            <AlertDialogDescription>
-              Keputusan akan disimpan untuk pengajuan #{submission?.pengajuan?.pengajuan_id ?? '-'} menggunakan versi {submission?.versi ?? '-'}. {reviewDecision === 'DISETUJUI'
-                ? 'Persiapan akan dikunci sebagai DISETUJUI.'
-                : 'Penyedia Jasa akan dapat mengubah checklist dan menghantar semula selepas revisi.'}
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {reviewNote.trim() && <div className="wf-callout"><strong>Catatan PIC</strong><div>{reviewNote.trim()}</div></div>}
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={reviewBusy}>Batal</AlertDialogCancel>
-            <AlertDialogAction disabled={reviewBusy} onClick={event => { event.preventDefault(); void reviewPreparation(); }}>
-              {reviewBusy ? 'Menyimpan…' : reviewDecision === 'DISETUJUI' ? 'Ya, setujui' : 'Ya, minta revisi'}
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      {preparationDialogs}
     </div> : selection === CALIBRATION ? <ServerStage1DirahWorkspace
       packageId={packageId}
       role={role}
       state={serverDetailToDirahState(contract, balaiRows, role)}
       onNavigate={onNavigate}
+      preparationStatus={submission?.status ?? null}
     /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
     </>
@@ -853,62 +880,85 @@ export function ServerPackageWorkspace({
             {contractEditor}
           </>
         ) : stageOne ? content : (
-          <OperationalWorkflowWorkspace
-            key={`${packageId}:${selection}`}
-            selection={selection}
-            state={dirahState}
-            onUpdate={() => { /* Fasa 1: tiada local workflow mutation untuk data server. */ }}
-            setNotice={() => { /* Read-only action tidak boleh mengaku berjaya. */ }}
-            onNavigate={onNavigate}
-            serverReadOnly
-            serverStatusNote={readOnlyNote}
-            serverPreparation={selection === PREPARATION ? {
-              checklist,
-              answers,
-              mappedItems: preparationMapping.mapped,
-              mappingGaps: preparationMapping.gaps,
-              submission,
-              loading: checkLoading || submissionLoading,
-              error: [checkError, submissionError].filter(Boolean).join(' · '),
-              saving: checkBusy || reviewBusy,
-              editable,
-              message: [checkMessage, submissionMessage].filter(Boolean).join(' · '),
-              reviewNote,
-              onReviewNote: setReviewNote,
-              onAnswer: (itemId, jawaban, keterangan) => setAnswers(current => ({ ...current, [itemId]: { jawaban, keterangan } })),
-              onSave: () => void saveChecklist(),
-              onReload: () => { setCheckError(''); setCheckMessage(''); setCheckRevision(value => value + 1); setSubmissionRevision(value => value + 1); },
-              onReview: decision => void reviewPreparationFromDirah(decision),
-              documents,
-              documentLoading,
-              documentError,
-              documentBusy,
-              onDocumentUpload: async (category, file) => {
-                if (!checklist || !editable || documentBusy) throw new Error('Upload hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
-                setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
-                try {
-                  await uploadPreparationDocument(packageId, checklist, category, file);
-                  setDocumentMessage('Dokumen berjaya diunggah, ditautkan dan disahkan melalui server.');
-                  await refetchPreparationState();
-                } catch (cause) {
-                  setDocumentRevision(value => value + 1);
-                  try { await refetchPreparationState(); } catch { /* retain upload/link error */ }
-                  throw cause;
-                } finally { setDocumentBusy(false); }
-              },
-              onDocumentReuse: async (category, documentId) => {
-                if (!checklist || !editable || documentBusy) throw new Error('Pautan dokumen hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
-                setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
-                try {
-                  await linkPreparationDocument(packageId, checklist, documentId, category);
-                  await refetchPreparationState();
-                  setDocumentMessage('Dokumen tersimpan berjaya ditautkan dan disahkan melalui server.');
-                } finally { setDocumentBusy(false); }
-              },
-              onDocumentsChanged: () => setDocumentRevision(value => value + 1),
-            } : undefined}
-          />
+          <>
+            {selection === PREPARATION && canSubmit && (
+              <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #bfdbfe', background: '#eff6ff' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: 12 }}>
+                  <div>
+                    <strong style={{ display: 'block', color: '#1e40af' }}>Checklist & Dokumen Lengkap</strong>
+                    <span className="wf-note">Laporan Pendahuluan telah ditautkan ke checklist server. Ajukan sekarang untuk review PIC Balai.</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="wf-button primary"
+                    disabled={submissionBusy || submissionLoading}
+                    onClick={() => setSubmissionDialogOpen(true)}
+                  >
+                    <Send size={13} /> {submissionBusy ? 'Mengajukan…' : 'Ajukan kepada PIC Balai'}
+                  </button>
+                </div>
+              </div>
+            )}
+            <OperationalWorkflowWorkspace
+              key={`${packageId}:${selection}`}
+              selection={selection}
+              state={dirahState}
+              onUpdate={() => { /* Fasa 1: tiada local workflow mutation untuk data server. */ }}
+              setNotice={() => { /* Read-only action tidak boleh mengaku berjaya. */ }}
+              onNavigate={onNavigate}
+              serverReadOnly
+              serverStatusNote={readOnlyNote}
+              serverPreparation={selection === PREPARATION ? {
+                checklist,
+                answers,
+                mappedItems: preparationMapping.mapped,
+                mappingGaps: preparationMapping.gaps,
+                submission,
+                loading: checkLoading || submissionLoading,
+                error: [checkError, submissionError].filter(Boolean).join(' · '),
+                saving: checkBusy || reviewBusy || submissionBusy,
+                editable,
+                message: [checkMessage, submissionMessage].filter(Boolean).join(' · '),
+                reviewNote,
+                onReviewNote: setReviewNote,
+                onAnswer: (itemId, jawaban, keterangan) => setAnswers(current => ({ ...current, [itemId]: { jawaban, keterangan } })),
+                onSave: () => void saveChecklist(),
+                onReload: () => { setCheckError(''); setCheckMessage(''); setCheckRevision(value => value + 1); setSubmissionRevision(value => value + 1); },
+                onReview: decision => void reviewPreparationFromDirah(decision),
+                canSubmit,
+                onSubmit: () => setSubmissionDialogOpen(true),
+                documents,
+                documentLoading,
+                documentError,
+                documentBusy,
+                onDocumentUpload: async (category, file) => {
+                  if (!checklist || !editable || documentBusy) throw new Error('Upload hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
+                  setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
+                  try {
+                    await uploadPreparationDocument(packageId, checklist, category, file);
+                    setDocumentMessage('Dokumen berjaya diunggah, ditautkan dan disahkan melalui server.');
+                    await refetchPreparationState();
+                  } catch (cause) {
+                    setDocumentRevision(value => value + 1);
+                    try { await refetchPreparationState(); } catch { /* retain upload/link error */ }
+                    throw cause;
+                  } finally { setDocumentBusy(false); }
+                },
+                onDocumentReuse: async (category, documentId) => {
+                  if (!checklist || !editable || documentBusy) throw new Error('Pautan dokumen hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
+                  setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
+                  try {
+                    await linkPreparationDocument(packageId, checklist, documentId, category);
+                    await refetchPreparationState();
+                    setDocumentMessage('Dokumen tersimpan berjaya ditautkan dan disahkan melalui server.');
+                  } finally { setDocumentBusy(false); }
+                },
+                onDocumentsChanged: () => setDocumentRevision(value => value + 1),
+              } : undefined}
+            />
+          </>
         )}
+        {preparationDialogs}
       </div>
     );
   }

@@ -3,7 +3,8 @@ import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
 const proposal = await readFile(new URL('../proposals/uji-konsistensi-verval-write-prototype.md', import.meta.url), 'utf8');
-const sql = await readFile(new URL('../proposals/uji-konsistensi-verval-write.sql', import.meta.url), 'utf8');
+const rawSql = await readFile(new URL('../proposals/uji-konsistensi-verval-write.sql', import.meta.url), 'utf8');
+const sql = rawSql.replace(/\r\n/g, '\n');
 const route = await readFile(new URL('../src/routes/siklus-verval.ts', import.meta.url), 'utf8');
 const schema = await readFile(new URL('../src/schemas/siklus-verval.ts', import.meta.url), 'utf8');
 

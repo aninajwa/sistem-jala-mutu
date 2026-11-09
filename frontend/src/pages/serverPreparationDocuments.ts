@@ -1,7 +1,7 @@
+import { apiRequest, supabase } from '../auth/client';
 import type { ServerChecklist, ServerPreparationDocument } from './serverPreparation';
 type DocumentRequester = <T = unknown>(path: string, init?: RequestInit) => Promise<T>;
 const defaultRequest: DocumentRequester = async <T>(path: string, init?: RequestInit) => {
-  const { apiRequest } = await import('../auth/client');
   return apiRequest<T>(path, init);
 };
 
@@ -94,7 +94,6 @@ export function getPreparationDocumentDetail(packageId: string, documentId: numb
 }
 
 export async function downloadPreparationDocument(packageId: string, documentId: number, version?: number) {
-  const { supabase } = await import('../auth/client');
   if (!supabase) throw new Error('Konfigurasi login tidak tersedia.');
   const { data, error } = await supabase.auth.getSession();
   if (error || !data.session) throw new Error('Sesi telah berakhir. Silakan masuk kembali.');

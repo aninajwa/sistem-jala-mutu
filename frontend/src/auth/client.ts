@@ -1,7 +1,8 @@
 import { createClient } from '@supabase/supabase-js';
 
-const url = import.meta.env.VITE_SUPABASE_URL?.trim();
-const key = import.meta.env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
+const env = (typeof import.meta !== 'undefined' && import.meta.env) || {} as Record<string, string | undefined>;
+const url = env.VITE_SUPABASE_URL?.trim();
+const key = env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
 export const authConfigurationError = !url || !key
   ? 'Konfigurasi login belum lengkap. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY pada frontend/.env, lalu jalankan ulang frontend.'
   : !/^https?:\/\//.test(url) || key.startsWith('sb_secret_')
@@ -23,7 +24,7 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, token?
   const headers = new Headers(init.headers);
   headers.set('Authorization', `Bearer ${token}`);
   if (init.body && !(init.body instanceof FormData)) headers.set('Content-Type', 'application/json');
-  const base = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+  const base = (env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
   let response: Response;
   try { response = await fetch(base + path, { ...init, headers, signal: init.signal ? AbortSignal.any([init.signal, AbortSignal.timeout(15000)]) : AbortSignal.timeout(15000) }); }
   catch (error) {

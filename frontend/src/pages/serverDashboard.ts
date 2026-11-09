@@ -1,4 +1,5 @@
 import type { WorkflowRole } from '../workflow/model';
+import { apiRequest } from '../auth/client';
 
 export type ServerPackageRow = {
   paket_id: number;
@@ -66,7 +67,6 @@ export function normalizeCorrectionResponse(value: unknown): ServerCorrection[] 
 }
 
 export async function loadServerPackages(signal: AbortSignal, role: WorkflowRole): Promise<ServerDashboardPackage[]> {
-  const { apiRequest } = await import('../auth/client');
   const { data: identity } = await apiRequest<{ data: ServerIdentity }>('/me', { signal });
   if (!Number.isSafeInteger(identity.pengguna_id) || identity.pengguna_id < 1) throw new Error('Identitas pengguna server tidak valid.');
   const rows = await collectServerPackages(async page => {
@@ -126,7 +126,6 @@ async function mapLimit<T, R>(items: T[], concurrency: number, mapper: (item: T)
 export async function loadServerCorrections(
   packages: ServerDashboardPackage[], signal: AbortSignal,
   fetchCorrection: (packageId: string, requestSignal: AbortSignal) => Promise<unknown> = async (packageId, requestSignal) => {
-    const { apiRequest } = await import('../auth/client');
     return (await apiRequest<CorrectionResponse>(`/paket/${encodeURIComponent(packageId)}/koreksi`, { signal: requestSignal })).data;
   },
 ): Promise<{ data: Record<string, ServerCorrection[]>; errors: Record<string, string> }> {

@@ -43,6 +43,8 @@ export type WorkflowStageProps = {
     onSave: () => void;
     onReload: () => void;
     onReview: (decision: 'PERLU_REVISI' | 'DISETUJUI') => void;
+    canSubmit?: boolean;
+    onSubmit?: () => void;
     documents: ServerPreparationDocument[];
     documentLoading: boolean;
     documentError: string;
