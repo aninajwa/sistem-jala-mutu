@@ -687,7 +687,7 @@ export function ServerPackageWorkspace({
 
   const content = (
     <>
-    {selection !== STAGE2 && <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>}
+    {!dirahShell && selection !== STAGE2 && selection !== CALIBRATION && <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>}
     {contractMessage && <p role="status" className="wf-callout">{contractMessage}</p>}
 
     {selection === OVERVIEW ? <div className="package-overview">
@@ -851,7 +851,7 @@ export function ServerPackageWorkspace({
   if (dirahShell) {
     const dirahState = serverDetailToDirahState(contract, balaiRows, role);
     const onCorrections = () => onNavigate('/actions:Koreksi berbukti');
-    const stageOne = selection === CALIBRATION;
+    const stageOne = selection === CALIBRATION || selection === STAGE2 || selection === SERVER_STAGE3A || selection === SERVER_STAGE3B;
     const preparationStatus = checklist
       ? `Tahap 0 menggunakan jawaban checklist server (${checklist.pengisian.status}, versi ${checklist.pengisian.versi}).`
       : checkLoading ? 'Memuat status checklist persiapan dari server…' : 'Status checklist server belum tersedia.';
