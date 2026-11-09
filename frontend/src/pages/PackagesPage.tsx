@@ -1,19 +1,35 @@
 import { apiRequest } from '../auth/client';
 import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Building2, Search, FolderOpen, Archive } from 'lucide-react';
+import { ArrowRight, Building2, Search, FolderOpen, Archive, Plus } from 'lucide-react';
 import type { OperationalWorkflowState, WorkflowRole } from '../workflow/model';
 import { derivePackageStage, packageStatus, packageWaitingFor } from '../workflow/packageStore';
 import { isLegacyExample, isRoleTestMode } from '../workflow/access/packageAccess';
 import { packageMenuLabel } from '../workflow/roleNavigation';
 import { mapServerPackagesToDirahPackages,
   type ServerBalaiRow, type ServerPackageListResponse, type ServerPackageRow } from './serverPackageView';
-type Props = { packages: Record<string, OperationalWorkflowState>; role: WorkflowRole; onOpen: (id: string) => void };
-function LocalPackagesPage({ packages, role, onOpen }: Props) {
+import { CreatePackageDialog } from './CreatePackageDialog';
+
+type Props = { packages: Record<string, OperationalWorkflowState>; role: WorkflowRole; onOpen: (id: string) => void; onCreatePackage?: () => void };
+function LocalPackagesPage({ packages, role, onOpen, onCreatePackage }: Props) {
     const [search, setSearch] = useState(''), [balai, setBalai] = useState(''), [status, setStatus] = useState(''), [showLegacy, setShowLegacy] = useState(() => import.meta.env.DEV);
     const all = Object.values(packages), legacy = all.filter(isLegacyExample);
     const rows = useMemo(() => all.filter(s => (showLegacy || !isLegacyExample(s)) && (!balai || s.project.balai === balai) && (!status || derivePackageStage(s) === status) && `${s.project.packageName} ${s.project.id} ${s.project.contractor} ${s.project.routes.join(' ')}`.toLowerCase().includes(search.toLowerCase())), [all, balai, status, showLegacy, search]);
     return <div className="package-page operational-list">
-        <div className="package-page-head"><div><div className="eyebrow">PENGELOLAAN PAKET QA/QC</div><h1>{packageMenuLabel(role)}</h1><p>{role === 'Admin' ? 'Pantau identitas dan pengaturan paket. Keputusan teknis tetap menjadi kewenangan pelaksana pemeriksaan.' : 'Pilih paket penugasan untuk melanjutkan pekerjaan atau meninjau hasil pemeriksaan.'}</p></div><span className="package-count">{rows.length} paket terlihat</span></div>
+        <div className="package-page-head">
+          <div>
+            <div className="eyebrow">PENGELOLAAN PAKET QA/QC</div>
+            <h1>{packageMenuLabel(role)}</h1>
+            <p>{role === 'Admin' ? 'Pantau identitas dan pengaturan paket. Keputusan teknis tetap menjadi kewenangan pelaksana pemeriksaan.' : 'Pilih paket penugasan untuk melanjutkan pekerjaan atau meninjau hasil pemeriksaan.'}</p>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <span className="package-count">{rows.length} paket terlihat</span>
+            {onCreatePackage && (role === 'Penyedia Jasa / Ketua Tim' || role === 'Admin') && (
+              <button type="button" className="wf-button primary" onClick={onCreatePackage} data-testid="button-create-package-authenticated">
+                <Plus size={14} /> Buat Paket
+              </button>
+            )}
+          </div>
+        </div>
         <div className="package-list-filters"><label className="package-search"><Search size={16} /><input aria-label="Cari paket" placeholder="Cari nama paket, nomor, ruas atau penyedia…" value={search} onChange={e => setSearch(e.target.value)} /></label>
             {new Set(all.map(s => s.project.balai)).size > 1 && <select aria-label="Filter Balai paket" value={balai} onChange={e => setBalai(e.target.value)}><option value="">Seluruh Balai dalam cakupan</option>{[...new Set(all.map(s => s.project.balai))].map(value => <option key={value}>{value}</option>)}</select>}
             <select aria-label="Filter tahap paket" value={status} onChange={e => setStatus(e.target.value)}><option value="">Semua tahap</option>{[...new Set(all.map(derivePackageStage))].map(value => <option key={value}>{value}</option>)}</select></div>
@@ -40,6 +56,8 @@ function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id:
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState('');
     const [hasMore, setHasMore] = useState(false);
+    const [createPackageOpen, setCreatePackageOpen] = useState(false);
+    const [notice, setNotice] = useState('');
 
     useEffect(() => {
         const controller = new AbortController();
@@ -82,10 +100,26 @@ function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id:
     }
 
     return <div className="package-page operational-list">
+        {notice && <div role="status" className="wf-callout" style={{ marginBottom: 12 }}>{notice}</div>}
         {error && <div role="alert" className="wf-callout"><p>{error}</p><button type="button" className="wf-button" disabled={loading} onClick={reload}>Coba lagi</button></div>}
         {/* UI Dirah asli dipertahankan utuh; data di dalamnya dari backend. */}
-        <LocalPackagesPage packages={dirahPackages} role={role} onOpen={onOpen} />
+        <LocalPackagesPage
+          packages={dirahPackages}
+          role={role}
+          onOpen={onOpen}
+          onCreatePackage={() => setCreatePackageOpen(true)}
+        />
         {hasMore && <div><p>Carian dan filter berlaku pada paket yang sudah dimuat. Muat berikutnya untuk melihat lebih banyak paket.</p><button type="button" className="wf-button primary" disabled={loading || !!error} onClick={() => setPage(value => value + 1)}>Muat paket berikutnya <ArrowRight size={15} /></button></div>}
+        {createPackageOpen && (
+          <CreatePackageDialog
+            onClose={() => setCreatePackageOpen(false)}
+            onCreated={item => {
+              setCreatePackageOpen(false);
+              setNotice(`Paket #${item.paket_id} (${item.nama_paket}) berhasil didaftarkan di server.`);
+              reload();
+            }}
+          />
+        )}
     </div>;
 
     function reload() { setPackages([]); setPage(1); setHasMore(false); setError(''); setLoading(true); setRevision(value => value + 1); }
