@@ -25,7 +25,9 @@
     "test:ui09": "node --import tsx scripts/verifyUi09Final.ts",
     "test:ui09:states": "node --import tsx scripts/verifyUi09States.ts",
     "test:notifications": "node --import tsx --test src/workflow/notifications/notificationRules.test.ts",
-    "test:notifications:browser": "node --import tsx scripts/verifyNotifications.ts"
+    "test:notifications:browser": "node --import tsx scripts/verifyNotifications.ts",
+    "test:patch02": "node --import tsx --test src/workflow/balaiReviewQueue.test.ts",
+    "test:patch02:e2e": "node --import tsx scripts/verifyPatch02.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",

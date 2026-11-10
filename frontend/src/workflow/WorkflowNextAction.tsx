@@ -111,8 +111,7 @@ export function getNextWorkflowAction(
     }
 
     if (
-      state.productionApproval === 'Diajukan' ||
-      state.productionApproval === 'Perlu Revisi'
+      state.productionApproval === 'Diajukan'
     ) {
       return {
         stage: 'Tahap 2',

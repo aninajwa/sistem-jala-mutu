@@ -1,4 +1,4 @@
-import {affectedReviewTypes} from '../periodicReview';
+import {affectedReviewTypes,periodicNoteOnly} from '../periodicReview';
 import {periodicSurveyTypes} from '../reviewReadiness';
 import {RoleWorkSection} from '../RoleWorkSection';
 import {submissionInputChanged} from '../submissionRevisions';
@@ -114,12 +114,12 @@ export function useWorkflowStage({
               .join(" · ")
               .slice(0, 600) || "Tidak ada perubahan nilai",
         };
+        if (notice) setNotice(notice);
         return { ...next, events: [event, ...next.events] };
       },
       activity,
       object,
     );
-    if (notice) setNotice(notice);
   };
   const setPreparation = (
     updater: (p: PreparationState) => PreparationState,
@@ -151,6 +151,7 @@ export function useWorkflowStage({
         ([key, value]) => !Object.is(s.cycle[key as keyof VervalCycle], value),
       );
       if (!changed) return s;
+      if(periodicNoteOnly(s.cycle,patch))return {...s,cycle:{...s.cycle,...patch}};
       const next = invalidateVervalStages(
         s,
         "Data atau protokol verval berubah; validasi dan audit perlu diulang.",
@@ -187,6 +188,9 @@ export function useWorkflowStage({
     activity: string,
   ) =>
     commit(activity, state.project.packageName, (s) => {
+      if (Object.keys(patch).length===1 && 'stagedReviews' in patch) {
+        return {...s,submission:{...s.submission,...patch}};
+      }
       const submission = { ...s.submission, ...patch };
       if (!("validationStatus" in patch)) submission.validationStatus = "Draft";
       const changedInput = submissionInputChanged(s.submission,patch);

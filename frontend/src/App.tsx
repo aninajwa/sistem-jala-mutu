@@ -186,6 +186,10 @@ function App() {
   };
 
   const navigateSubmodule = (selection: string) => {
+    if (selection === '/verification:Antrian Balai') {
+      setSelectedSubmodule(''); setActiveTab('Semua');
+      setLocation('/verification'+(isRoleTestMode()?'?testRoles=1':'')); setMobileOpen(false); return;
+    }
     if (selection.startsWith('/documents:') && !workflowSubmodules.has(selection)) {
       setSelectedSubmodule('');
       setActiveTab(selection.split(':')[1] || 'Semua');
@@ -237,6 +241,13 @@ function App() {
     );
 
     setNotice('Workspace paket dibuka.');
+  };
+
+  const openPackageReview: PageProps['openPackageReview'] = (id, selection, context) => {
+    if (!scopedPackages[id] || !selectPackage(id)) { setNotice('Paket tidak tersedia dalam akses Anda.'); return; }
+    if (context?.period) sessionStorage.setItem(`jala-notification-period:${id}`,String(context.period));
+    if (context?.auditLevel) sessionStorage.setItem(`jala-notification-audit:${id}`,String(context.auditLevel));
+    navigateSubmodule(selection);
   };
 
   const openCorrection = (packageId: string, correctionId: string) => {
@@ -359,6 +370,7 @@ function App() {
     workflow,
     packages: scopedPackages,
     openPackage,
+    openPackageReview,
     openPackageBA,
     balai,
     periode,
@@ -380,6 +392,7 @@ function App() {
       packages={scopedPackages}
       role={packageStore.activeRole}
       onOpen={openPackage}
+      onOpenReview={openPackageReview}
     />
   );
 
@@ -457,7 +470,7 @@ function App() {
               showJenis={location === '/'}
             />}
 
-            {location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
+            {location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : location==='/verification' && !workflowSubmodules.has(selectedSubmodule) ? <VerificationPage {...pageProps}/> : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
               workflowSubmodules.has(
                 selectedSubmodule,
               ) ? (

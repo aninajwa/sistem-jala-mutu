@@ -314,6 +314,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     if(patch.userReview==='Sesuai'&&(!state.cycle.periodCompleted||!sourceReady(selectedReviewType,'periodic14'))){
       setNotice('Selesaikan pemeriksaan bersama dan tunggu hasil periode Penyedia sebelum mencatat Sesuai.');return;
     }
+    if(patch.userReview==='Temuan'&&!(surveyReview?.note??'').trim()){setNotice('Uraian temuan wajib diisi sebelum meminta perbaikan. Catatan biasa tidak otomatis membuat temuan.');return;}
     const scopedPatch =
       "userReview" in patch || "userReviewNote" in patch
         ? reviewSurvey(

@@ -1,3 +1,4 @@
+import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {SourceDocumentChecklist} from '../SourceDocumentChecklist';
 import {useWorkflowReconciliation} from '../../hooks/useWorkflowReconciliation';
@@ -355,7 +356,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
     }
     const decision = (draft.acceptanceDecision ??
       state.acceptance.acceptanceDecision ??
-      "Belum Diperiksa") as "Belum Diperiksa" | "Diterima" | "Ditolak";
+      "Belum Diperiksa") as "Belum Diperiksa" | "Diterima" | "Diterima dengan Catatan" | "Ditolak";
     const rejectionReason =
       draft.acceptanceRejectionReason ??
       state.acceptance.acceptanceRejectionReason ??
@@ -381,11 +382,16 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
-    if (decision !== "Diterima") {
+    const reviewNote = (draft.acceptanceReviewNote ?? state.acceptance.acceptanceReviewNote ?? '').trim();
+    if (decision === 'Diterima dengan Catatan' && !reviewNote) {setNotice('Catatan penerimaan wajib diisi untuk Diterima dengan Catatan.');return;}
+    if (decision !== "Diterima" && decision !== 'Diterima dengan Catatan') {
       setNotice("Pilih keputusan Diterima atau Ditolak.");
       return;
     }
     const pendingForms=workflowFormIssues(state);if(pendingForms.length){setNotice(`Penerimaan tertahan: ${pendingForms.slice(0,3).map(issue=>issue.message).join(" ")}`);return;}
+    if (!(draft.finalAcceptanceBa ?? state.acceptance.finalAcceptanceBa ?? '').trim()) {
+      setNotice('Referensi BA penerimaan nyata wajib diisi; sistem tidak membuat nomor BA otomatis.'); return;
+    }
     if (!finalReady) {
       setNotice(
         "Penerimaan akhir tertahan oleh kriteria penerimaan, termin, BA, audit, revalidasi, laporan akhir, atau kasus koreksi terbuka.",
@@ -399,13 +405,14 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
         ...s,
         acceptance: {
           ...s.acceptance,
-          acceptanceDecision: "Diterima",
+          acceptanceDecision: decision,
+          acceptanceReviewNote: reviewNote,
           acceptanceRejectionReason: "",
           finalAcceptance: true,
           finalAcceptanceBa:
             draft.finalAcceptanceBa ||
             s.acceptance.finalAcceptanceBa ||
-            `BA-AKHIR-${s.simulationDate}`,
+            "",
         },
       }),
       "Penerimaan akhir dan referensi BA dicatat.",
@@ -748,11 +755,12 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
                   state.acceptance.acceptanceDecision ??
                   "Belum Diperiksa"
                 }
-                options={["Belum Diperiksa", "Diterima", "Ditolak"]}
+                options={["Belum Diperiksa", "Diterima", "Diterima dengan Catatan", "Ditolak"]}
                 disabled={state.role !== "PIC Balai / Pengguna Jasa"}
                 onChange={(v) => saveText("acceptanceDecision", v)}
               />
             </Field>
+            <Field label="Catatan penerimaan (bukan otomatis temuan)" full><textarea data-testid="input-acceptance-review-note" disabled={state.role!=="PIC Balai / Pengguna Jasa"} value={draft.acceptanceReviewNote??state.acceptance.acceptanceReviewNote??''} onChange={e=>saveText('acceptanceReviewNote',e.target.value)} placeholder="Wajib untuk Diterima dengan Catatan."/></Field>
             <Field label="Alasan penolakan (wajib bila Ditolak)" full>
               <textarea
                 data-testid="input-acceptance-rejection"
@@ -821,6 +829,9 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
         {baAccess("penerimaan", "Susun BA Penerimaan")}
       </Panel>
       </details>
+      {state.acceptance.acceptanceReviewNote&&<div className="review-note"><strong>Catatan penerimaan tersimpan</strong><p>{state.acceptance.acceptanceReviewNote}</p></div>}
+      {state.acceptance.acceptanceRejectionReason&&<div className="review-note important"><strong>Alasan / hasil review penerimaan tersimpan</strong><p>{state.acceptance.acceptanceRejectionReason}</p><button type="button" className="wf-button" onClick={()=>onNavigate('/actions:Koreksi berbukti')}>Lihat tindak lanjut</button></div>}
+      <BalaiDecisionHistory state={state} stage="Tahap 6"/>
     </>
   );
 }

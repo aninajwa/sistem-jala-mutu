@@ -14,16 +14,20 @@ const server=await createServer({configFile:fileURLToPath(new URL('../vite.confi
 const executablePath=process.env.CHROMIUM_EXECUTABLE;
 const browser=await chromium.launch({...(executablePath?{executablePath}:{}),headless:true,args:executablePath?["--no-sandbox","--disable-dev-shm-usage","--use-gl=angle","--use-angle=swiftshader","--enable-unsafe-swiftshader","--no-zygote"]:[]});
 const roles:WorkflowRole[]=['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat','Admin'];
-const selections=['/entry:Persiapan & SPMK','/documents:Kalibrasi & personel','/entry:Validasi produksi','/entry:Survei harian','/verification:Verval 14 hari','/entry:Gerbang RNI/LRS','/verification:Audit tingkat 1–3','/reports:Penerimaan & termin'];
+const selections=['/entry:Persiapan & SPMK','/documents:Kalibrasi & personel','/entry:Validasi produksi','/entry:Survei harian','/verification:Verval 14 hari','/entry:Gerbang RNI/LRS','/verification:Audit tingkat 1â€“3','/reports:Penerimaan & termin'];
 const fixture=withProductionReferences(createDemoWorkflow('complete'));fixture.project.id='PAKET-DEMO-001';fixture.project.packageName='Paket Uji Terisolasi QA/QC';fixture.project.surveyStartDate='2027-01-01';fixture.project.surveyEndDate='2027-12-31';fixture.activeCyclePeriod=1;fixture.productionTests.PCI.pciManual=true;fixture.cycle.surveyReviews=Object.fromEntries(fixture.project.surveyTypes.map(type=>[type,{decision:'Sesuai',note:'Referensi uji terisolasi',reviewedAt:fixture.simulationDate}]));
 for(const type of fixture.project.surveyTypes){if(!fixture.calibrations.some(c=>c.surveyType===type)){fixture.calibrations.push({...fixture.calibrations[0],id:'TEST-CAL-'+type,surveyType:type,condition:'Baik',dueDate:'2027-12-31'});}}
 const results:any[]=[];let errors:string[]=[];let completed=false;
 async function setup(role:WorkflowRole,allSourceTypes=false){const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});const state={...structuredClone(fixture),role};if(allSourceTypes)state.project.surveyTypes=[...SURVEY_TYPES];await context.addInitScript(({key,state,role})=>{if(location.origin!=='http://127.0.0.1:5173'||sessionStorage.getItem('fixture-initialized'))return;sessionStorage.setItem('fixture-initialized','yes');localStorage.setItem(key,JSON.stringify({activePackageId:state.project.id,activeRole:role,packages:{[state.project.id]:state}}));localStorage.setItem('jala-mutu-demo-session-v1','active');},{key:PACKAGE_STORE_KEY,state,role});const page=await context.newPage();page.on('pageerror',e=>errors.push(e.message));return {context,page};}
+async function openBaContext(page:any){const panel=page.locator('details.wf-panel').filter({has:page.locator('summary').getByText('Ganti konteks dokumen',{exact:true})});if(await panel.getAttribute('open')===null)await panel.locator(':scope > summary').click();}
+async function openFirstBaTextareaSection(page:any){const textarea=page.locator('.ba-field-row textarea').first();const section=textarea.locator('xpath=ancestor::details[contains(concat(" ",normalize-space(@class)," ")," ba-form-section ")]');if(await section.getAttribute('open')===null)await section.locator(':scope > summary').click();await textarea.waitFor({state:'visible'});}
 try{
  for(let r=0;r<roles.length;r++){
   const {context,page}=await setup(roles[r]);
   await page.goto('http://127.0.0.1:5173/packages?testRoles=1');await page.getByRole('button',{name:'Buka paket',exact:true}).first().waitFor();
-  assert.equal(await page.locator('.package-card').count(),1);
+  // The package hub also renders summary cards: identify the seeded package explicitly.
+  assert.equal(await page.getByTestId('package-card-'+fixture.project.id).count(),1);
+  await page.getByTestId('package-card-'+fixture.project.id).getByText(fixture.project.packageName,{exact:true}).waitFor();
   await page.waitForTimeout(450);await page.screenshot({animations:'disabled',path:`${output}/screenshots/role-${r}-packages.png`});
   for(let i=0;i<selections.length;i++){
    await page.goto(`http://127.0.0.1:5173${selections[i].split(':')[0]}?testRoles=1&submodule=${encodeURIComponent(selections[i])}`);
@@ -33,7 +37,15 @@ try{
    const content=await page.locator('body').innerText();assert.equal(content.includes('DATA SIMULASI'),false);
    if(r===3)assert.equal(await page.locator('[data-testid="button-prep-approve"]').count(),0);
 
-   if(i===7)assert.match(await page.getByLabel('Tahap paket yang dibuka',{exact:true}).locator('option:checked').innerText(),/Perlu pemeriksaan formulir/);
+   if(i===7){
+    // Acceptance is a dedicated screen; package status belongs to the package hub.
+    // Check the actual role boundaries without requiring a removed stage selector.
+    const decision=page.getByTestId('select-acceptance-decision');
+    await decision.waitFor({state:'attached'});
+    assert.equal(await decision.isEnabled(),roles[r]==='PIC Balai / Pengguna Jasa',`Role ${roles[r]}: acceptance decision permission`);
+    assert.equal(await page.getByTestId('button-final-acceptance').isEnabled(),roles[r]==='PIC Balai / Pengguna Jasa',`Role ${roles[r]}: final acceptance permission`);
+    assert.equal(await page.getByTestId('input-term-progress-T1').isEnabled(),roles[r]==='Penyedia Jasa / Ketua Tim',`Role ${roles[r]}: term progress permission`);
+   }
    await page.waitForTimeout(450);await page.screenshot({animations:'disabled',path:`${output}/screenshots/role-${r}-stage-${i}.png`});results.push({role:roles[r],stage:selections[i],result:'pass',kind:'browser render + role context'});
   }
   await page.setViewportSize({width:390,height:844});
@@ -51,11 +63,11 @@ try{
  for(const template of BA_TEMPLATES){
   const role=template.id==='audit'||['kalibrasi','konsistensi','internal'].includes(template.id)?roles[0]:roles[1];const {context,page}=await setup(role);
   await page.goto('http://127.0.0.1:5173/documents?testRoles=1&submodule='+encodeURIComponent('/documents:BA & dokumen workflow'));
-  await page.getByLabel('Format BA',{exact:true}).selectOption(template.id);
+  await openBaContext(page);await page.getByLabel('Format BA',{exact:true}).selectOption(template.id);
   await page.getByRole('button',{name:'Lengkapi isian template',exact:true}).click();
-  const draftValue=template.id==='penerimaan'?'Kamis':'Lokasi uji terisolasi';const first=page.locator('.ba-field-row textarea').first();await first.fill(draftValue);
+  const draftValue=template.id==='penerimaan'?'Kamis':'Lokasi uji terisolasi';await openFirstBaTextareaSection(page);const first=page.locator('.ba-form-section[open] .ba-field-row textarea:visible').first();await first.fill(draftValue);
   // Refresh must retain the draft: init script only seeds workflow/session, never document keys.
-  await page.reload();await page.getByLabel('Format BA',{exact:true}).selectOption(template.id);await page.getByRole('button',{name:'Lengkapi isian template',exact:true}).click();assert.equal(await page.locator('.ba-field-row textarea').first().inputValue(),draftValue);
+  await page.reload();await openBaContext(page);await page.getByLabel('Format BA',{exact:true}).selectOption(template.id);const expandBa=page.getByRole('button',{name:'Lengkapi isian template',exact:true});if(await expandBa.isVisible())await expandBa.click();await openFirstBaTextareaSection(page);assert.equal(await page.locator('.ba-form-section[open] .ba-field-row textarea:visible').first().inputValue(),draftValue);
   const downloadEvent=page.waitForEvent('download');await page.getByRole('button',{name:'Unduh DOCX draft',exact:true}).click();const download=await downloadEvent;await download.saveAs(`${output}/ba-samples/${template.id}.docx`);
   assert.ok(fs.statSync(`${output}/ba-samples/${template.id}.docx`).size>1000);
   const actual=unzipSync(fs.readFileSync(`${output}/ba-samples/${template.id}.docx`));
@@ -95,7 +107,7 @@ try{
  // Real BA review/rejection/revision cycle; all input is explicitly isolated test data.
  {const {context,page}=await setup(roles[0]);
  const url='http://127.0.0.1:5173/documents?testRoles=1&submodule='+encodeURIComponent('/documents:BA & dokumen workflow');
- async function openDocument(){await page.goto(url);await page.getByLabel('Format BA',{exact:true}).selectOption('duaMingguan');}
+ async function openDocument(){await page.goto(url);await openBaContext(page);await page.getByLabel('Format BA',{exact:true}).selectOption('duaMingguan');}
  async function actor(role:WorkflowRole){await page.evaluate(({key,role})=>{const store=JSON.parse(localStorage.getItem(key)!);store.activeRole=role;store.packages['PAKET-DEMO-001'].role=role;localStorage.setItem(key,JSON.stringify(store));},{key:PACKAGE_STORE_KEY,role});await openDocument();}
  await openDocument();await page.getByRole('button',{name:'Lengkapi isian template',exact:true}).click();
  for(const section of await page.locator('.ba-form-section').all())if(await section.getAttribute('open')===null)await section.locator(':scope > summary').click();
@@ -134,7 +146,7 @@ try{
  // General attachments must store real bytes, distinguish metadata and survive refresh.
  {const {context,page}=await setup(roles[0]);await page.goto('http://127.0.0.1:5173/entry?testRoles=1&submodule='+encodeURIComponent(selections[0]));
  const attachment=page.locator('.documents-area').first();await attachment.locator('.document-references > summary').click();
- await page.getByLabel('Referensi Laporan Pendahuluan',{exact:true}).fill('REF-UJI-METADATA');await attachment.getByText(/Referensi saja · file belum tersimpan/).waitFor();
+ await page.getByLabel('Referensi Laporan Pendahuluan',{exact:true}).fill('REF-UJI-METADATA');await attachment.getByText(/Referensi saja Â· file belum tersimpan/).waitFor();
  const bytes=fs.readFileSync(fileURLToPath(new URL('../public/ba-templates/kalibrasi.docx',import.meta.url)));
  await attachment.getByLabel('Tambah dokumen dan lampiran',{exact:true}).setInputFiles({name:'lampiran-uji.docx',mimeType:'application/vnd.openxmlformats-officedocument.wordprocessingml.document',buffer:bytes});
  await attachment.getByText('1 berkas lokal',{exact:true}).waitFor();await page.reload();await attachment.getByText('1 berkas lokal',{exact:true}).waitFor();
@@ -158,7 +170,7 @@ try{
  await form.getByLabel('M. HASIL UJI SAMPLING VALIDASI LAPANGAN, 1, Nilai Kondisi Tim Surveyor',{exact:true}).fill('2');
  await form.getByLabel('M. HASIL UJI SAMPLING VALIDASI LAPANGAN, 1, Nilai Kondisi Verifikasi',{exact:true}).fill('4');
  await form.getByText('Major',{exact:true}).waitFor();
- const conclusion=form.getByRole('group',{name:'Peralatan Pemeriksaan · Status',exact:true});await conclusion.getByLabel('Perlu Perbaikan',{exact:true}).check();
+ const conclusion=form.getByRole('group',{name:'Peralatan Pemeriksaan Â· Status',exact:true});await conclusion.getByLabel('Perlu Perbaikan',{exact:true}).check();
  const upload=form.getByLabel('Tambah dokumen dan lampiran',{exact:true});await upload.setInputFiles([{name:'uji-1.txt',mimeType:'text/plain',buffer:Buffer.from('Bukti uji 1')},{name:'uji-2.txt',mimeType:'text/plain',buffer:Buffer.from('Bukti uji 2')}]);await form.getByText('2 berkas lokal',{exact:true}).waitFor();
  await page.reload();await page.getByRole('button',{name:/^Jembatan(?:\s|$)/}).first().click();await form.getByText('2 berkas lokal',{exact:true}).waitFor();
  for(const section of await form.locator('.structured-checklist-section').all())if(await section.getAttribute('open')===null)await section.locator(':scope > summary').click();assert.equal(await conclusion.getByLabel('Perlu Perbaikan',{exact:true}).isChecked(),true);await form.getByText('Major',{exact:true}).waitFor();

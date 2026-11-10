@@ -223,12 +223,12 @@ export function buildRoleNavigation(
       packageNav,
       {
         path: '/verification',
-        label: 'Verifikasi & Review',
+        label: 'Verifikasi & Review Balai',
         icon: ClipboardCheck,
         children: [
-          { label: 'Perlu Direview', href: '/verification', tab: 'Perlu Direview' },
-          { label: 'Menunggu Klarifikasi', href: '/verification', tab: 'Menunggu Klarifikasi' },
-          { label: 'Hasil / Riwayat Review', href: '/verification', tab: 'Riwayat Review' },
+          { label: 'Perlu Ditinjau', href: '/verification', tab: 'Perlu Ditinjau' },
+          { label: 'Monitoring', href: '/verification', tab: 'Monitoring' },
+          { label: 'Hasil & Riwayat', href: '/verification', tab: 'Hasil & Riwayat' },
         ],
       },
       {

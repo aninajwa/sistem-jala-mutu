@@ -218,6 +218,10 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
+    if (patch.status === 'Klarifikasi' && !(draft[`audit-note-${auditLevel}`] ?? audit.decisionNote).trim()) {
+      setNotice('Catatan klarifikasi wajib diisi. Klarifikasi belum menjadi temuan penolakan.'); return;
+    }
+    if (patch.status === 'Klarifikasi') patch={...patch,decisionNote:draft[`audit-note-${auditLevel}`]??audit.decisionNote};
     if (patch.status === "Lulus") {
       const inspections=scopedTypes.map(type=>sourceInspectionStatus(`${state.project.id}::audit-${auditLevel}`,type,'audit',state.productionTests.PCI.pciManual!==false,state.project));
       const incomplete=inspections.filter(item=>!item.complete);
@@ -827,7 +831,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                       patchAudit(
                         {
                           decisionNote: [
-                            draft[`audit-note-${auditLevel}`] || "",
+                            draft[`audit-note-${auditLevel}`] ?? audit.decisionNote,
                             audit.status === "Ditolak"
                               ? `Alasan: ${draft[`audit-rejection-${auditLevel}`]}`
                               : "",

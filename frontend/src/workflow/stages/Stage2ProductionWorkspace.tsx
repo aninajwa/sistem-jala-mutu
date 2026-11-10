@@ -1,3 +1,4 @@
+import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import {evaluateStageGate} from '../workflowGate';
 import {productionReviewBlockers} from '../reviewReadiness';
 import {dataOrigin} from '../dataOrigin';
@@ -192,8 +193,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
       return;
     }
     if (
-      state.productionApproval !== "Diajukan" &&
-      state.productionApproval !== "Perlu Revisi"
+      state.productionApproval !== "Diajukan"
     ) {
       setNotice(
         "Ajukan metode terlebih dahulu sebelum keputusan Pengguna Jasa.",
@@ -206,10 +206,14 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
+    if (decision === 'Perlu Revisi' && !(draft.reviewerProductionNote ?? state.productionApprovalNote).trim()) {
+      setNotice('Alasan perbaikan produksi wajib diisi.'); return;
+    }
     const ba =
       decision === "Disetujui"
         ? draft.methodBa || state.productionApprovalBa || ""
         : state.productionApprovalBa;
+    if (decision==='Disetujui'&&!ba.trim()) {setNotice('Referensi BA persetujuan alat dan metode wajib diisi.');return;}
     commit(
       `Keputusan metode: ${decision}`,
       state.project.packageName,
@@ -622,9 +626,10 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                 </div>
               </div>
 
+              <button type="button" className="wf-button" data-testid="button-production-save-note" onClick={()=>commit('Simpan catatan produksi',state.project.id,s=>({...s,productionApprovalNote:draft.reviewerProductionNote??s.productionApprovalNote}),'Catatan tersimpan tanpa mengubah keputusan.')}>Simpan catatan biasa</button>
               <Field label="Jenis survei yang diperiksa"><Select id="select-production-review-survey" value={prodType} options={scopedTypes} onChange={value=>setProdType(value as SurveyType)}/></Field>
               <p className="wf-note">Keputusan metode berlaku untuk lingkup paket. Pemilih jenis survei membuka hasil yang diperiksa.</p>
-              {state.productionApproval!=='Diajukan'&&state.productionApproval!=='Perlu Revisi'&&<p role="status">{state.productionApproval==='Disetujui'?'Keputusan sebelumnya sudah tercatat. Perubahan hasil harus diajukan kembali.':'Menunggu pengajuan hasil oleh Penyedia.'}</p>}
+              {state.productionApproval!=='Diajukan'&&<p role="status">{state.productionApproval==='Disetujui'?'Keputusan sebelumnya sudah tercatat. Perubahan hasil harus diajukan kembali.':state.productionApproval==='Perlu Revisi'?'Menunggu perbaikan dan pengajuan ulang Penyedia.':'Menunggu pengajuan hasil oleh Penyedia.'}</p>}
               <div className="wf-fields">
                 <Field label="Referensi BA">
                   <input
@@ -656,8 +661,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                   id="button-production-request-revision"
                   kind="danger"
                   disabled={
-                    state.productionApproval !== "Diajukan" &&
-                    state.productionApproval !== "Perlu Revisi"
+                    state.productionApproval !== "Diajukan"
                   }
                   onClick={() => decideReview("Perlu Revisi")}
                 >
@@ -667,7 +671,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                 <Button
                   id="button-production-approve-method"
                   disabled={
-                    !reviewReady || !['Diajukan','Perlu Revisi'].includes(state.productionApproval)
+                    !reviewReady || state.productionApproval !== 'Diajukan'
                   }
                   onClick={() => decideReview("Disetujui")}
                 >
@@ -731,6 +735,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
           )}
         </div>
       </div>
+      <BalaiDecisionHistory state={state} stage="Tahap 2"/>
     </>
   );
 }

@@ -1,3 +1,4 @@
+import {balaiDecisionError} from './balaiDecisionPolicy';
 import {correctionMutationError} from './checkpoint09Corrections';
 import type { OperationalWorkflowState } from "./model";
 import { canPerformAction, type WorkflowAction } from "./workflowPermissions";
@@ -10,6 +11,8 @@ export function workflowMutationError(
   after: OperationalWorkflowState,
   selection: string,
 ): string | undefined {
+  const decisionError = balaiDecisionError(before,after);
+  if(decisionError)return decisionError;
   const role = before.role;
   const allow = (action: WorkflowAction) => canPerformAction(role, action);
   const denied = "Peran aktif tidak berwenang melakukan perubahan ini.";
@@ -20,9 +23,10 @@ export function workflowMutationError(
   // Check decisions separately from supporting-data edits and automatic invalidation.
   if (changed(before.project, after.project)) {
     const approval = after.project.preparation.reportApproval;
-    const reviewing =
-      changed(before.project.preparation.reportApproval, approval) &&
-      ["Disetujui", "Perlu Revisi", "Ditolak"].includes(approval);
+    const noteOnly = before.project.preparation.reviewerNote !== after.project.preparation.reviewerNote &&
+      JSON.stringify({...before.project,preparation:{...before.project.preparation,reviewerNote:after.project.preparation.reviewerNote}}) === JSON.stringify(after.project);
+    const reviewing = noteOnly || (changed(before.project.preparation.reportApproval, approval) &&
+      ["Disetujui", "Perlu Revisi", "Ditolak"].includes(approval));
     if (
       !allow(
         reviewing
@@ -41,6 +45,10 @@ export function workflowMutationError(
     if (!allow("calibration.edit")) return denied;
   if (changed(before.productionTests, after.productionTests))
     if (!allow("production.edit")) return denied;
+  if (changed(before.productionApprovalNote,after.productionApprovalNote) &&
+      after.productionApproval !== 'Diajukan' && !allow('production.review')) return denied;
+  if (changed(before.productionApproval,after.productionApproval) &&
+      ['Perlu Revisi','Ditolak'].includes(after.productionApproval) && !allow('production.review')) return denied;
   if (
     after.productionApproval === "Disetujui" &&
     before.productionApproval !== "Disetujui"
@@ -110,8 +118,18 @@ export function workflowMutationError(
     if (!evaluateStageGate(before, "Tahap 2").readyToComplete)
       return "Persetujuan produksi belum tercatat.";
   }
-  if (selection === "/entry:Gerbang RNI/LRS" && !allow("submission.prepare"))
-    return denied;
+  if (selection === '/entry:Gerbang RNI/LRS') {
+    const {stagedReviews:oldReviews,...oldInput}=before.submission;
+    const {stagedReviews:newReviews,...newInput}=after.submission;
+    const reviewsChanged=changed(oldReviews,newReviews);
+    if(reviewsChanged&&!allow('submission.review'))return denied;
+    if(changed(oldInput,newInput)&&!allow('submission.prepare'))return denied;
+    if(!reviewsChanged&&!changed(oldInput,newInput)&&!allow('submission.prepare'))return denied;
+    if(reviewsChanged)for(const [type,review] of Object.entries(newReviews??{})){
+      if(!before.project.surveyTypes.includes(type as import('./model').SurveyType))return 'Jenis survei review berada di luar lingkup paket.';
+      if(review?.decision==='Temuan'&&oldReviews?.[type as import('./model').SurveyType]?.decision!=='Temuan'&&!review.note.trim())return 'Uraian temuan V&V bertahap wajib diisi.';
+    }
+  }
   if (selection === "/verification:Audit tingkat 1–3") {
     for (let i = 0; i < 3; i++) {
       if (!changed(before.audits[i], after.audits[i])) continue;
@@ -144,6 +162,8 @@ export function workflowMutationError(
       "acceptanceCriteria",
       "acceptanceDecision",
       "finalAcceptanceBa",
+      "acceptanceRejectionReason",
+      "acceptanceReviewNote",
     ];
     const review = reviewKeys.some((key) =>
       changed(

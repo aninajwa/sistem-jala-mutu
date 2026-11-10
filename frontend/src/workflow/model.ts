@@ -318,7 +318,24 @@ export type WorkflowEvent = {
   newValue?: string;
 };
 
+/** Append-only review actions; older snapshots remain readable without fabricated metadata. */
+export type ReviewActivity = {
+  id: string;
+  recordedAt: string;
+  actor: WorkflowRole;
+  stage: 'Tahap 0' | 'Tahap 2' | 'Tahap 3B' | 'Tahap 5' | 'Tahap 6';
+  period?: number;
+  auditLevel?: 1 | 2 | 3;
+  action: 'catatan' | 'keputusan' | 'pengajuan-ulang' | 'pengajuan' | 'perubahan-pemeriksaan';
+  previousStatus: string;
+  status: string;
+  previousNote: string;
+  note: string;
+};
+
 export type OperationalWorkflowState = {
+  reviewActivityHistory?: ReviewActivity[];
+  balaiDecisionHistory?: Array<{stage:'Tahap 0'|'Tahap 2'|'Tahap 6'; recordedAt:string; actor:WorkflowRole; previousDecision:string; decision:string; previousNote:string; note:string}>;
   pciMethodDrafts?: Partial<Record<"manual" | "ai", ProductionTest>>;
   flowContractVersion?: number;
   simulationDate: string;
@@ -365,7 +382,8 @@ productionApprovalNote: string;
     finalAcceptance: boolean;
     finalAcceptanceBa?: string;
     acceptanceCriteria?: Record<string, boolean>;
-    acceptanceDecision?: 'Belum Diperiksa' | 'Diterima' | 'Ditolak';
+    acceptanceDecision?: 'Belum Diperiksa' | 'Diterima' | 'Diterima dengan Catatan' | 'Ditolak';
+    acceptanceReviewNote?: string;
     acceptanceRejectionReason?: string;
     semesterTwoEvidence?: SemesterTwoEvidence;
   };

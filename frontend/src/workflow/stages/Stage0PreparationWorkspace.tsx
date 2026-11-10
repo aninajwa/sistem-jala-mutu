@@ -1,3 +1,4 @@
+import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import {
@@ -68,6 +69,9 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
     if (status === "Diajukan" && complete !== allItems.length) {
       setNotice("Checklist persiapan belum lengkap.");
       return;
+    }
+    if (status === 'Perlu Revisi' && !(draft.reviewerNote ?? prep.reviewerNote).trim()) {
+      setNotice('Alasan perbaikan persiapan wajib diisi.'); return;
     }
     setPreparation(
       (p) => ({
@@ -332,10 +336,10 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               </span>
             </div>
 
-            {prep.reportApproval === "Perlu Revisi" && prep.reviewerNote && (
+            {prep.reviewerNote && (
               <div className="review-note important">
                 <small>CATATAN PIC BALAI</small>
-                <strong>Perlu perbaikan</strong>
+                <strong>Hasil review: {prep.reportApproval}</strong>
                 <p>{prep.reviewerNote}</p>
               </div>
             )}
@@ -421,6 +425,7 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
             )}
 
             {canReviewPreparation&&<div className="wf-toolbar" style={{ marginTop: 12 }}>
+              <Button id="button-prep-save-note" onClick={()=>setPreparation(p=>({...p,reviewerNote:draft.reviewerNote??p.reviewerNote}),'Simpan catatan persiapan',state.project.id,'Catatan tersimpan tanpa mengubah keputusan.')}>Simpan catatan biasa</Button>
               <Button
                 id="button-prep-revise"
                 kind="danger"
@@ -485,6 +490,7 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
           </div>
         </div>
       )}
+      <BalaiDecisionHistory state={state} stage="Tahap 0"/>
     </>
   );
 }
