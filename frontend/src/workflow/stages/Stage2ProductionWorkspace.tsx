@@ -228,6 +228,9 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
         ? "Referensi BA persetujuan metode dicatat pada simulasi"
         : "Metode dikembalikan untuk revisi",
     );
+    if (decision === "Disetujui") {
+      onNavigate?.("/entry:Survei harian");
+    }
   };
   return (
     <>
@@ -235,6 +238,38 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
         "Tahap 2 · validasi produksi",
         "Validasi Produksi Data / Uji Coba",
         "Data hasil uji diperiksa otomatis terhadap ketentuan QA/QC. Penyedia melengkapi bukti yang belum tersedia, kemudian PIC Balai melakukan review.",
+      )}
+      {state.productionApproval === "Disetujui" && (
+        <div
+          className="wf-callout ok"
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "14px 18px",
+            background: "#f0fdf4",
+            border: "1px solid #86efac",
+            borderRadius: 8,
+          }}
+        >
+          <div>
+            <strong style={{ color: "#15803d", fontSize: 15, display: "block", marginBottom: 2 }}>
+              Tahap 2 Selesai · Validasi Produksi Telah Disetujui
+            </strong>
+            <span style={{ color: "#166534", fontSize: 13 }}>
+              Metode dan kesiapan alat telah disetujui PIC Balai. Lanjutkan pekerjaan ke Tahap 3A (Pelaksanaan Survei).
+            </span>
+          </div>
+          <button
+            type="button"
+            className="wf-button primary"
+            onClick={() => onNavigate?.("/entry:Survei harian")}
+            style={{ whiteSpace: "nowrap", padding: "8px 16px", fontWeight: 600 }}
+          >
+            Lanjut ke Tahap 3A (Survei Harian) →
+          </button>
+        </div>
       )}
       <Panel title="Dokumen Hasil Uji & Persetujuan" icon={FileText}>
         <p className="wf-note">
@@ -281,8 +316,21 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
         </div>
       </Panel>
 
-      {reviewBlockers.length>0&&<details className="wf-callout warn"><summary>Pengajuan / persetujuan tertahan · {reviewBlockers.length} persyaratan</summary><ul>{reviewBlockers.map(reason=><li key={reason}>{reason}</li>)}</ul><div className="wf-toolbar"><button className="wf-button" onClick={()=>onNavigate('/entry:Persiapan & SPMK')}>Buka persiapan</button><button className="wf-button" onClick={()=>onNavigate('/documents:Kalibrasi & personel')}>Buka kalibrasi</button></div></details>}
-      {prodType === "PCI" && test.pciManual === false && <div className="wf-callout warn">PCI AI tersedia untuk pencatatan dan evaluasi KAK. Keputusan operasional AI belum terverifikasi terhadap arahan mentor terbaru; pengajuan/persetujuan metode tetap tertahan.</div>}
+      {reviewBlockers.length>0&&<details className="wf-callout warn" open><summary>Pengajuan / persetujuan tertahan · {reviewBlockers.length} persyaratan</summary><ul>{reviewBlockers.map(reason=><li key={reason}>{reason}</li>)}</ul><div className="wf-toolbar"><button className="wf-button" onClick={()=>onNavigate('/entry:Persiapan & SPMK')}>Buka persiapan</button><button className="wf-button" onClick={()=>onNavigate('/documents:Kalibrasi & personel')}>Buka kalibrasi</button>{reviewBlockers.some(b => b.includes('PCI AI')) && (<button type="button" className="wf-button primary" onClick={() => commit('Beralih ke metode PCI Manual', 'PCI', (s) => ({ ...s, productionTests: { ...s.productionTests, PCI: { ...s.productionTests.PCI, pciManual: true } } }), 'PCI Manual diaktifkan untuk memenuhi prasyarat operasional')}>Beralih ke PCI Manual (Standar)</button>)}</div></details>}
+      {prodType === "PCI" && test.pciManual === false && (
+        <div className="wf-callout warn" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+          <div>
+            <strong>PCI AI Terpilih:</strong> Keputusan operasional AI belum terverifikasi terhadap arahan mentor; pengajuan/persetujuan metode tertahan.
+          </div>
+          <button
+            type="button"
+            className="wf-button primary"
+            onClick={() => commit('Beralih ke metode PCI Manual', 'PCI', (s) => ({ ...s, productionTests: { ...s.productionTests, PCI: { ...s.productionTests.PCI, pciManual: true } } }), 'PCI Manual diaktifkan')}
+          >
+            Gunakan Metode PCI Manual (Standar)
+          </button>
+        </div>
+      )}
       <RoleWorkSection primary={canEnterProduction} title="Formulir dan pemeriksaan Penyedia">
       <ProductionValidationChecklist
         type={prodType}
@@ -591,6 +639,57 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                     : "Ajukan untuk Review"}
                 </Button>
               </div>
+
+              {state.productionApproval === "Diajukan" && (
+                <div className="wf-callout" style={{ marginTop: 12, background: "#fef9c3", border: "1px solid #fde047", padding: "12px 14px", borderRadius: 6 }}>
+                  <strong style={{ color: "#854d0e", display: "block", marginBottom: 4 }}>
+                    Menunggu Persetujuan PIC Balai
+                  </strong>
+                  <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#713f12" }}>
+                    Pengajuan validasi produksi telah dikirim. Untuk melanjutkan alur ke Tahap 3A, Anda dapat menyetujui langsung sebagai simulasi Balai atau beralih peran ke <em>PIC Balai / Pengguna Jasa</em> di pojok kanan atas.
+                  </p>
+                  <Button
+                    id="button-production-simulate-approve"
+                    kind="primary"
+                    onClick={() => {
+                      commit(
+                        "Persetujuan metode validasi produksi",
+                        state.project.packageName,
+                        (s) => ({
+                          ...s,
+                          productionApproval: "Disetujui",
+                          productionApprovalBa: s.productionApprovalBa || `BA-METODE-${state.project.id}`,
+                          productionApprovalNote: "Disetujui untuk survei harian.",
+                          bridgeInspectionPermit: scopedTypes.includes("Jembatan") ? true : s.bridgeInspectionPermit,
+                        }),
+                        "Metode disetujui PIC Balai",
+                      );
+                      onNavigate?.("/entry:Survei harian");
+                    }}
+                  >
+                    <Check size={13} />
+                    Setujui sebagai PIC Balai & Lanjut ke Tahap 3A →
+                  </Button>
+                </div>
+              )}
+
+              {state.productionApproval === "Disetujui" && (
+                <div className="wf-callout ok" style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f0fdf4", border: "1px solid #86efac", padding: "12px 16px", borderRadius: 6 }}>
+                  <div>
+                    <strong style={{ color: "#166534", display: "block" }}>✓ Validasi Produksi Telah Disetujui</strong>
+                    <span style={{ fontSize: 13, color: "#15803d" }}>
+                      Metode operasional telah disetujui. Silakan lanjut ke Tahap 3A.
+                    </span>
+                  </div>
+                  <Button
+                    id="button-production-proceed-approved"
+                    kind="primary"
+                    onClick={() => onNavigate?.("/entry:Survei harian")}
+                  >
+                    Lanjut ke Tahap 3A →
+                  </Button>
+                </div>
+              )}
             </Panel>
           ) : state.role === "PIC Balai / Pengguna Jasa" ? (
             <Panel
@@ -674,6 +773,17 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                   <Check size={13} />
                   Setujui
                 </Button>
+
+                {state.productionApproval === "Disetujui" && (
+                  <Button
+                    id="button-production-pic-proceed"
+                    kind="primary"
+                    onClick={() => onNavigate?.("/entry:Survei harian")}
+                  >
+                    <ArrowRight size={13} />
+                    Lanjut ke Tahap 3A (Survei Harian) →
+                  </Button>
+                )}
               </div>
 
               {state.productionApprovalBa && (
@@ -714,6 +824,19 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                 <div className="wf-row">
                   <span>Referensi BA</span>
                   <strong>{state.productionApprovalBa}</strong>
+                </div>
+              )}
+
+              {state.productionApproval === "Disetujui" && (
+                <div className="wf-toolbar" style={{ marginTop: 12 }}>
+                  <Button
+                    id="button-production-monitor-proceed"
+                    kind="primary"
+                    onClick={() => onNavigate?.("/entry:Survei harian")}
+                  >
+                    <ArrowRight size={13} />
+                    Lihat Tahap 3A (Survei Harian) →
+                  </Button>
                 </div>
               )}
             </Panel>

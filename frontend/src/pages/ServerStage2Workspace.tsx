@@ -79,7 +79,7 @@ function numberOrNull(value: string): number | null {
 
 const today = () => new Date().toISOString().slice(0, 10);
 
-export function ServerStage2Workspace({ packageId, role }: { packageId: string; role: WorkflowRole }) {
+export function ServerStage2Workspace({ packageId, role, onNavigate }: { packageId: string; role: WorkflowRole; onNavigate?: (selection: string) => void }) {
   const provider = role === 'Penyedia Jasa / Ketua Tim';
   const pic = role === 'PIC Balai / Pengguna Jasa';
   const [teams, setTeams] = useState<SurveyTeam[]>([]);
@@ -285,6 +285,9 @@ export function ServerStage2Workspace({ packageId, role }: { packageId: string; 
       });
       setReviewNote(''); setNotice(decision === 'DISETUJUI' ? 'Uji Coba disetujui PIC.' : 'Uji Coba dikembalikan untuk revisi.');
       setRevision(value => value + 1);
+      if (decision === 'DISETUJUI' && onNavigate) {
+        onNavigate('/entry:Survei harian');
+      }
     } catch (cause) { setError(message(cause)); }
     finally { setBusy(false); }
   }
@@ -296,6 +299,40 @@ export function ServerStage2Workspace({ packageId, role }: { packageId: string; 
     {notice && <div role="status" className="wf-callout">{notice}</div>}
 
     {!loading && !error && <>
+      {trials.some(t => t.status === 'DISETUJUI' || submission?.review?.keputusan === 'DISETUJUI') && (
+        <div
+          className="wf-callout ok"
+          style={{
+            marginBottom: 16,
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            padding: '14px 18px',
+            background: '#f0fdf4',
+            border: '1px solid #86efac',
+            borderRadius: 8,
+          }}
+        >
+          <div>
+            <strong style={{ color: '#15803d', fontSize: 15, display: 'block', marginBottom: 2 }}>
+              Tahap 2 Selesai · Uji Coba Telah Disetujui Server
+            </strong>
+            <span style={{ color: '#166534', fontSize: 13 }}>
+              Validasi produksi telah disetujui PIC Balai. Anda dapat melanjutkan ke Tahap 3A (Pelaksanaan Survei).
+            </span>
+          </div>
+          {onNavigate && (
+            <button
+              type="button"
+              className="wf-button primary"
+              onClick={() => onNavigate('/entry:Survei harian')}
+              style={{ whiteSpace: 'nowrap', padding: '8px 16px', fontWeight: 600 }}
+            >
+              Lanjut ke Tahap 3A (Survei Harian) →
+            </button>
+          )}
+        </div>
+      )}
       <section className="wf-panel">
         <div className="wf-panel-head"><h3><ClipboardList size={14} /> Uji Coba paket #{packageId}</h3><button type="button" className="wf-button" onClick={() => setRevision(value => value + 1)} disabled={busy}><RefreshCw size={13} /> Muat ulang</button></div>
         <div className="wf-body">
@@ -360,9 +397,31 @@ export function ServerStage2Workspace({ packageId, role }: { packageId: string; 
           {submission?.review && <div className="wf-callout">Keputusan PIC: <strong>{submission.review.keputusan}</strong><div>{submission.review.catatan || 'Tidak ada catatan.'}</div></div>}
           {provider && selectedTrial.status === 'DRAFT' && <button type="button" className="wf-button primary" onClick={() => void submitTrial()} disabled={busy}><Send size={13} /> Ajukan Uji Coba</button>}
           {pic && submission?.status === 'DIAJUKAN' && <><label className="wf-field">Catatan PIC<textarea maxLength={2000} value={reviewNote} onChange={event => setReviewNote(event.target.value)} disabled={busy} /></label><div className="wf-toolbar"><button type="button" className="wf-button primary" onClick={() => void reviewTrial('DISETUJUI')} disabled={busy}>Setujui</button><button type="button" className="wf-button" onClick={() => void reviewTrial('PERLU_REVISI')} disabled={busy || !reviewNote.trim()}>Minta revisi</button></div></>}
+          {(selectedTrial.status === 'DISETUJUI' || submission?.status === 'DISETUJUI' || submission?.review?.keputusan === 'DISETUJUI') && onNavigate && (
+            <div className="wf-toolbar" style={{ marginTop: 12 }}>
+              <button
+                type="button"
+                className="wf-button primary"
+                onClick={() => onNavigate('/entry:Survei harian')}
+              >
+                Lanjut ke Tahap 3A (Pelaksanaan Survei) →
+              </button>
+            </div>
+          )}
           <p className="wf-note">Mode review dan status mengikuti API. Persetujuan manual PIC; revisi memerlukan percobaan baru.</p>
         </div></section>
       </>}
+      {onNavigate && (
+        <div className="wf-toolbar" style={{ marginTop: 20, justifyContent: 'flex-end' }}>
+          <button
+            type="button"
+            className="wf-button"
+            onClick={() => onNavigate('/entry:Survei harian')}
+          >
+            Buka Tahap 3A (Survei Harian) →
+          </button>
+        </div>
+      )}
     </>}
   </div>;
 }
