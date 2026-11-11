@@ -26,7 +26,7 @@ function isOnlyPropagatedAuditFlag(old:OperationalWorkflowState['audits'][number
     (nextHistory.length===oldHistory.length+1 && !differs(oldHistory,nextHistory.slice(0,-1)) && !differs(snapshot,nextHistory.at(-1)));
 }
 
-export function phase1MutationError(before:OperationalWorkflowState,after:OperationalWorkflowState,role:WorkflowRole):string|undefined {
+export function workflowMutationError(before:OperationalWorkflowState,after:OperationalWorkflowState,role:WorkflowRole):string|undefined {
  const forbidden='Perubahan ditolak: tindakan tidak sesuai kewenangan peran aktif.';
  if(before.project.id!==after.project.id||before.role!==after.role||after.role!==role)return 'Identitas paket atau peran berubah dalam tindakan QA/QC.';
  // Administrative monitoring must never write operational QA/QC, including history.

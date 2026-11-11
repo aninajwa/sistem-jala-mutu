@@ -1,5 +1,5 @@
 import {INITIAL_WORKFLOW} from '../workflow/model';
-import {phase1MutationError} from '../workflow/access/phase1Guard';
+import {workflowMutationError} from '../workflow/access/workflowMutationGuard';
 import {packageRepository} from '../workflow/repository/packageRepository';
 import {localPrincipal,canViewPackage,visiblePackages,isRoleTestMode} from '../workflow/access/packageAccess';
 import { localPersistence } from '../workflow/repository/localPersistence';
@@ -106,7 +106,7 @@ export function usePackageStore() {
       if(!canViewPackage(localPrincipal(current.activeRole,current.packages),previous))return current;
 
       const proposed=update({...previous,role:current.activeRole});
-      const violation=phase1MutationError({...previous,role:current.activeRole},proposed,current.activeRole);
+      const violation=workflowMutationError({...previous,role:current.activeRole},proposed,current.activeRole);
       if(violation){console.warn('[JALA MUTU] Mutasi ditolak:',violation);return current;}
       return {...current,packages:{...current.packages,[id]:proposed}};
     });
