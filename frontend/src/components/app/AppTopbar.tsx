@@ -58,7 +58,7 @@ export function AppTopbar({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
             <div className="page-title">
-              {isPackageWorkspace ? 'Detail paket QA/QC' : (titleFor[location] || 'Monitoring QA/QC')}
+              {isPackageWorkspace ? 'Detail paket QA/QC' : location === '/verification' ? (activeRole === 'Admin' ? 'Monitoring Workflow' : activeRole === 'Direktorat / Pusat' ? 'Audit & Assurance' : 'Verifikasi & Review Balai') : (titleFor[location] || 'Monitoring QA/QC')}
             </div>
           </div>
           <div className="crumb">

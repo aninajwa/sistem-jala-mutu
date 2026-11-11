@@ -47,6 +47,13 @@ try{
  results.push('Stage4 Balai staged decision and note persist through actual UI and refresh.');
  phase='scope-and-layout';for(const role of ['Penyedia Jasa / Ketua Tim','Direktorat / Pusat','Admin'] as WorkflowRole[]){await actor(role);assert.equal(await page.getByTestId('stage4-staged-review-lendutan').isDisabled(),true);}
  await actor('PIC Balai / Pengguna Jasa');await page.goto(url(),{waitUntil:'domcontentloaded'});await page.setViewportSize({width:390,height:844});assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2),false);
- assert.deepEqual(errors,[]);results.push('Other roles cannot alter Balai staged decision; queue has no horizontal overflow at 390px and no page errors.');completed=true;
+ assert.deepEqual(errors,[]);results.push('Other roles cannot alter Balai staged decision; queue has no horizontal overflow at 390px and no page errors.');assert.equal(results.length,4,'All four E2E scenario groups must finish');completed=true;
 }catch(error){fs.writeFileSync(output+'/failure.txt',String(error));throw error;}
 finally{fs.writeFileSync(output+'/results.json',JSON.stringify({completed,phase,results,errors,classification:phase==='browser-launch'?'BLOCKED_ENVIRONMENT':completed?'PASS':'FAIL'},null,2));await browser?.close();await server.close();}
+
+// Explicit terminal verdict; nonzero assertion/Playwright failures still propagate above.
+if(completed&&errors.length===0){
+ console.log(`\nPATCH 02 E2E: PASS (${results.length}/${results.length} scenario groups)`);
+ results.forEach((result,i)=>console.log(`  PASS ${i+1}. ${result}`));
+ console.log(`Report: ${output}/results.json`);
+}

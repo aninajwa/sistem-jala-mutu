@@ -127,12 +127,16 @@ function packageChildren(
     ];
   }
 
+  const summary:RoleNavChild = {
+    label: 'Ringkasan Paket',
+    selection: '/packages:Ringkasan Paket',
+    hint: 'Identitas, status, lingkup survei, dan progres paket.',
+  };
+  // Audit pusat dan monitoring Admin memiliki workspace tersendiri; jangan
+  // tampilkan pintasan formulir operasional Penyedia/Balai sebagai tugas mereka.
+  if(role==='Admin'||role==='Direktorat / Pusat')return [summary];
   return [
-    {
-      label: 'Ringkasan Paket',
-      selection: '/packages:Ringkasan Paket',
-      hint: 'Identitas, status, lingkup survei, dan progres paket.',
-    },
+    summary,
     ...PACKAGE_WORKFLOW_ITEMS.map(item => ({
   label: item.shortLabel,
   selection: item.selection,
@@ -302,8 +306,9 @@ export function buildRoleNavigation(
         icon: ShieldCheck,
         children: [
           { label: 'Perlu Diaudit', href: '/verification', tab: 'Perlu Diaudit' },
-          { label: 'Sedang Ditinjau', href: '/verification', tab: 'Sedang Ditinjau' },
-          { label: 'Riwayat Audit', href: '/verification', tab: 'Riwayat Audit' },
+          { label: 'Sedang Diaudit', href: '/verification', tab: 'Sedang Diaudit' },
+          { label: 'Tertahan & Tindak Lanjut', href: '/verification', tab: 'Tertahan & Tindak Lanjut' },
+          { label: 'Hasil & Riwayat', href: '/verification', tab: 'Hasil & Riwayat' },
         ],
       },
       {

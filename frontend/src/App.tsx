@@ -41,6 +41,8 @@ import PackageDetailPage from './pages/PackageDetailPage';
 import PackagesPage from './pages/PackagesPage';
 import ReportsPage from './pages/ReportsPage';
 import VerificationPage from './pages/VerificationPage';
+import DirectorateAuditPage from './pages/DirectorateAuditPage';
+import AdminWorkflowMonitoringPage from './pages/AdminWorkflowMonitoringPage';
 
 import { SubmoduleWorkspace } from './SubmoduleWorkspace';
 import type { PageProps } from './types';
@@ -387,6 +389,14 @@ function App() {
     setNotice,
   };
 
+  const roleVerificationPage = packageStore.activeRole === 'Admin'
+    ? <AdminWorkflowMonitoringPage {...pageProps} />
+    : packageStore.activeRole === 'Direktorat / Pusat'
+      ? <DirectorateAuditPage {...pageProps} />
+      : packageStore.activeRole === 'PIC Balai / Pengguna Jasa'
+        ? <VerificationPage {...pageProps} />
+        : <div role="status">Penyedia dapat melihat status pemeriksaan melalui workspace paket dan dokumen.</div>;
+
   const packageList = (
     <PackagesPage
       packages={scopedPackages}
@@ -470,7 +480,7 @@ function App() {
               showJenis={location === '/'}
             />}
 
-            {location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : location==='/verification' && !workflowSubmodules.has(selectedSubmodule) ? <VerificationPage {...pageProps}/> : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
+            {location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : location==='/verification' && !workflowSubmodules.has(selectedSubmodule) ? roleVerificationPage : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
               workflowSubmodules.has(
                 selectedSubmodule,
               ) ? (
@@ -517,7 +527,7 @@ function App() {
                 </Route>
 
                 <Route path="/verification">
-                  <VerificationPage {...pageProps} />
+                  {roleVerificationPage}
                 </Route>
 
                 <Route path="/actions">
