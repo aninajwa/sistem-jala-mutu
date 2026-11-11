@@ -251,9 +251,9 @@ export function buildRoleNavigation(
         label: 'Analisis & Kepatuhan',
         icon: BarChart3,
         children: [
-          { label: 'Kepatuhan per survei', href: '/compliance', tab: 'Semua' },
-          { label: 'Tren kepatuhan', href: '/compliance', tab: 'Tren' },
-          { label: 'Peringkat Balai', href: '/compliance', tab: 'Peringkat' },
+          { label: 'Evaluasi paket', href: '/compliance', tab: 'Semua' },
+          { label: 'Tren rekaman', href: '/compliance', tab: 'Tren' },
+          { label: 'Perbandingan Paket', href: '/compliance', tab: 'Peringkat' },
         ],
       },
       {
@@ -327,9 +327,9 @@ export function buildRoleNavigation(
         label: 'Analisis & Kepatuhan',
         icon: BarChart3,
         children: [
-          { label: 'Monitoring lintas Balai', href: '/compliance', tab: 'Semua' },
-          { label: 'Tren kepatuhan', href: '/compliance', tab: 'Tren' },
-          { label: 'Peringkat Balai', href: '/compliance', tab: 'Peringkat' },
+          { label: 'Pengawasan lintas Balai', href: '/compliance', tab: 'Semua' },
+          { label: 'Tren rekaman', href: '/compliance', tab: 'Tren' },
+          { label: 'Perbandingan Balai', href: '/compliance', tab: 'Peringkat' },
         ],
       },
       {
@@ -408,8 +408,8 @@ export function buildRoleNavigation(
       label: 'Analisis & Kepatuhan',
       icon: BarChart3,
       children: [
-        { label: 'Monitoring Kepatuhan', href: '/compliance', tab: 'Semua' },
-        { label: 'Peringkat Balai', href: '/compliance', tab: 'Peringkat' },
+        { label: 'Ketersediaan bukti', href: '/compliance', tab: 'Semua' },
+        { label: 'Perbandingan Balai', href: '/compliance', tab: 'Peringkat' },
       ],
     },
     {

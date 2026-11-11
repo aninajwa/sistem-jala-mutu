@@ -1,4 +1,4 @@
-﻿import {normalizeWorkflowSelection} from './workflow/legacySelection';
+import {normalizeWorkflowSelection} from './workflow/legacySelection';
 import {isRoleTestMode} from './workflow/access/packageAccess';
 import { localPersistence } from './workflow/repository/localPersistence';
 
@@ -470,7 +470,7 @@ function App() {
               </div>
             )}
 
-            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&<MobileFilters
+            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&location!=="/compliance"&&<MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
