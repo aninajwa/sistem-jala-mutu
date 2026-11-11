@@ -18,11 +18,11 @@ export function fieldsFor(template:BaTemplate,survey:SurveyType){return template
  if(/Survei Lainnya/i.test(section))return !['IRI','PCI','Jembatan'].includes(survey);
  return true;
 });}
-export function automaticFields(template:BaTemplate,state:OperationalWorkflowState,survey:SurveyType,range:{start:string;end:string}){
+export function automaticFields(template:BaTemplate,state:OperationalWorkflowState,survey:SurveyType,range:{start:string;end:string},auditLevel:1|2|3=1){
  const values:Record<string,string>={};
  for(const field of fieldsFor(template,survey)){
   const label=field.label.toLowerCase().trim();let value='';
-  if(/^(diisi nomor dokumen|nomor ba)/.test(label))value=template.id==='penerimaan'?state.acceptance.finalAcceptanceBa??'':template.id==='audit'?state.audits[0].baNumber:template.id==='kalibrasi'?state.productionApprovalBa:state.cycle.certificateId;
+  if(/^(diisi nomor dokumen|nomor ba)/.test(label))value=template.id==='penerimaan'?state.acceptance.finalAcceptanceBa??'':template.id==='audit'?state.audits[auditLevel-1].baNumber:template.id==='kalibrasi'?state.productionApprovalBa:state.cycle.certificateId;
   // Enter the activity date explicitly; the simulation clock is not activity evidence.
   else if(/^jenis surve[yi]$/.test(label)&&(!field.tableRow||field.tableRow===1&&/^3\.1\b/.test(field.section??'')))value=survey;
   else if(/^(ruas|ruas\/lokasi)$/.test(label)&&!field.tableRow)value=state.project.routes.join(', ');

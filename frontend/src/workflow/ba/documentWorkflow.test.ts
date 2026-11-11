@@ -5,6 +5,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDemoWorkflow} from '../demoScenario';
 import {documentActionErrors,documentFingerprint} from './documentWorkflow';
+import {baDecisionErrors} from './baRules';
 import {saveDocumentDraft,transitionDocument as rawTransitionDocument} from './documentService';
 import {documentRepository,type BaIdentity} from './documentRepository';
 const P='Penyedia Jasa / Ketua Tim' as const,B='PIC Balai / Pengguna Jasa' as const;
@@ -82,3 +83,21 @@ for(const kind of ['duaMingguan','bertahap'] as const){
   assert.deepEqual(documentActionErrors(state,joint,'revise',submitted,0,'Lengkapi bukti'),[]);
  });
 }
+
+
+test('final acceptance BA draft readiness follows stage-5 audits, never final acceptance flag',()=>{
+ const state=setup(),acceptance={...identity,kind:'penerimaan' as const};
+ state.acceptance.finalAcceptance=false;
+ state.submission.validationStatus='VALID';
+ state.audits.forEach(a=>{a.status='Lulus';a.requiresReview=false;});
+ assert.deepEqual(baDecisionErrors(state,'penerimaan',1),[]);
+ state.audits[2].requiresReview=true;
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
+ assert.ok(documentActionErrors(state,acceptance,'submit',undefined,0,'').length>0);
+ state.audits[2].requiresReview=false;
+ state.audits[1].status='Dalam Review';
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
+ state.audits[1].status='Lulus';
+ state.submission.validationStatus='Draft';
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
+});

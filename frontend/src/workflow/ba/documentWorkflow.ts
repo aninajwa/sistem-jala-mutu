@@ -41,6 +41,10 @@ export function documentActionErrors(state:OperationalWorkflowState,identity:BaI
  if(state.role==='Admin'||!(action==='submit'||action==='reopen'?author:reviewer))return ['Tindakan dokumen ini di luar kewenangan peran Anda.'];
  if(action==='reopen')return latest?.status==='submitted-local'?['Dokumen sedang diperiksa; tunggu keputusan pemeriksa.']:[];
  if(action==='submit'){
+  if(identity.kind==='penerimaan'){
+   const readiness=baDecisionErrors(documentReviewContext(state,identity),'penerimaan',identity.auditLevel as 1|2|3);
+   if(readiness.length)return readiness;
+  }
   if(latest?.status==='submitted-local')return ['Revisi ini sudah diajukan.'];
   if(latest?.status==='reviewed-local')return ['Buka revisi baru sebelum mengajukan kembali.'];
   return missing?['Masih ada isian template yang belum dilengkapi. Periksa bagian dokumen.']:[];
