@@ -38,6 +38,7 @@ import { Stage3DailyWorkspacePrototypePanel } from '../workflow/stages/Stage3Dai
 import { SERVER_STAGE3A, SERVER_STAGE3B } from './serverPackageStageRouting';
 import { ServerStage3DailyWorkspace } from './ServerStage3DailyWorkspace';
 import { ServerVervalWorkspace } from './ServerVervalWorkspace';
+import { ServerStage4Workspace } from './ServerStage4Workspace';
 import {
   buildChecklistPayload,
   buildContractPatch,
@@ -841,7 +842,7 @@ export function ServerPackageWorkspace({
       state={serverDetailToDirahState(contract, balaiRows, role)}
       onNavigate={onNavigate}
       preparationStatus={submission?.status ?? null}
-    /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
+    /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
     </>
   );
@@ -879,7 +880,7 @@ export function ServerPackageWorkspace({
             {contractPanel}
             {contractEditor}
           </>
-        ) : stageOne ? content : (
+        ) : stageOne || selection === '/entry:Gerbang RNI/LRS' ? content : (
           <>
             {selection === PREPARATION && canSubmit && (
               <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #bfdbfe', background: '#eff6ff' }}>
