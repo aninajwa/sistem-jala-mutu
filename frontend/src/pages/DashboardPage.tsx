@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Link } from 'wouter';
 import { AlertTriangle, BarChart3, Building2, CheckCircle2, ClipboardCheck, Database, FileText, MapPinned, Settings, ShieldCheck, TrendingUp } from 'lucide-react';
 import { BalaiOsmMap } from '../BalaiOsmMap';
@@ -11,6 +11,8 @@ import { isReviewPackageInScope } from './reviewEvidenceAccess';
 import { CreatePackageDialog } from './CreatePackageDialog';
 import { filterServerPackages, type ResourceState, type ServerCorrection, type ServerDashboardPackage } from './serverDashboard';
 import { useServerDashboard } from './useServerDashboard';
+import { createInitialPackageStore } from '../workflow/packageStore';
+import { addCorrectionDemoPackages } from '../workflow/testing/correctionDemoPackages';
 import './dashboardSummary.css';
 
 const empty = <div className="panel-body subtle">Belum ada data tercatat pada cakupan dan filter ini.</div>;
@@ -184,7 +186,14 @@ function DashboardPageContent(p:DashboardProps){
  const [balaiLimit,setBalaiLimit]=useState('10');
  const tab=p.activeTab;
  const overview=tab==='Semua';
- const entries=Object.entries(p.packages);
+ const referenceStore = useMemo(() => addCorrectionDemoPackages(createInitialPackageStore()), []);
+ const effectivePackages = useMemo(() => {
+   if (p.packages && Object.keys(p.packages).length > 0) {
+     return p.packages;
+   }
+   return referenceStore.packages;
+ }, [p.packages, referenceStore]);
+ const entries=Object.entries(effectivePackages);
  const balaiOptions=[...new Set(entries.map(([,x])=>x.project.balai).filter(Boolean))].sort();
  const packageOptions=entries.filter(([,x])=>balaiFilter==='Semua Balai'||x.project.balai===balaiFilter).map(([id,x])=>({id,name:x.project.packageName||id})).sort((a,b)=>a.name.localeCompare(b.name));
  const surveyOptions=[...new Set(entries.flatMap(([,x])=>x.project.surveyTypes))].sort();
@@ -192,7 +201,7 @@ function DashboardPageContent(p:DashboardProps){
  const years=[...new Set(datedRecords.map(r=>r.date.slice(0,4)))].sort().reverse();
  const months=[...new Set(datedRecords.map(r=>r.date.slice(0,7)))].sort().reverse();
  const periodChoices=[{value:'Semua periode',label:'Semua tanggal rekaman'},...years.map(y=>({value:`Tahun ${y}`,label:`Tahun ${y}`})),...months.map(m=>({value:`Bulan ${m}`,label:new Intl.DateTimeFormat('id-ID',{month:'long',year:'numeric'}).format(new Date(`${m}-01T12:00:00`))}))];
- const scopedPackages=packageFilter==='Semua paket'?p.packages:Object.fromEntries(entries.filter(([id])=>id===packageFilter));
+ const scopedPackages=packageFilter==='Semua paket'?effectivePackages:Object.fromEntries(entries.filter(([id])=>id===packageFilter));
  const usePeriod=overview||tab==='Tren'||tab==='Kepatuhan';
  const metrics=aggregateDashboard(scopedPackages,role,admin?'Semua Balai':balaiFilter,admin?'Semua':surveyFilter,usePeriod?periodFilter:'Semua periode');
  const showBalai=!admin&&!provider&&(overview||tab==='Kepatuhan'||tab==='Tren'||tab==='Perlu perhatian');
@@ -279,5 +288,27 @@ function DashboardPageContent(p:DashboardProps){
 }
 
 export default function DashboardPage(p:DashboardProps){
- return p.dashboardAuthenticated?<AuthenticatedDashboard p={p}/>:<DashboardPageContent {...p}/>;
+ const [viewMode, setViewMode] = useState<'dirah' | 'server'>('dirah');
+
+ if (viewMode === 'server' && p.dashboardAuthenticated) {
+  return <>
+   <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '8px 16px', background: '#f8fafc', borderBottom: '1px solid #e2e8f0' }}>
+    <button type="button" className="btn sm" onClick={() => setViewMode('dirah')}>
+      ← Kembali ke Dashboard Ringkasan Dirah
+    </button>
+   </div>
+   <AuthenticatedDashboard p={p}/>
+  </>;
+ }
+
+ return <>
+  {p.dashboardAuthenticated && (
+   <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '6px 16px', background: '#f0f9ff', borderBottom: '1px solid #e0f2fe' }}>
+    <button type="button" className="btn sm" style={{ fontSize: '11px' }} onClick={() => setViewMode('server')}>
+      Lihat Status Sinkronisasi Server API
+    </button>
+   </div>
+  )}
+  <DashboardPageContent {...p}/>
+ </>;
 }
