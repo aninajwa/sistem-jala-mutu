@@ -470,7 +470,7 @@ function App() {
               </div>
             )}
 
-            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&location!=="/compliance"&&<MobileFilters
+            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&location!=="/compliance"&&location!=="/data-master"&&<MobileFilters
               balai={balai}
               setBalai={setBalai}
               periode={periode}
