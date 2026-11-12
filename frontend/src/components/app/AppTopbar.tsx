@@ -58,7 +58,7 @@ export function AppTopbar({
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 9, flexWrap: 'wrap' }}>
             <div className="page-title">
-              {isPackageWorkspace ? 'Detail paket QA/QC' : location === '/verification' ? (activeRole === 'Admin' ? 'Monitoring Workflow' : activeRole === 'Direktorat / Pusat' ? 'Audit & Assurance' : 'Verifikasi & Review Balai') : (titleFor[location] || 'Monitoring QA/QC')}
+              {isPackageWorkspace ? 'Detail paket QA/QC' : location === '/verification' ? (activeRole === 'Admin' ? 'Monitoring Workflow' : activeRole === 'Direktorat / Pusat' ? 'Audit & Assurance' : 'Verifikasi & Review Balai') : ((location === '/audit' ? 'Administrasi & Akses' : titleFor[location] || 'Monitoring QA/QC'))}
             </div>
           </div>
           <div className="crumb">
@@ -70,7 +70,7 @@ export function AppTopbar({
         </div>
       </div>
       <div className="global-filters">
-        {!isPackageWorkspace&&location!=="/"&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&location!=="/verification"&&location!=="/compliance"&&location!=="/data-master"&&<><div className="filter-wrap">
+        {!isPackageWorkspace&&location!=="/"&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&location!=="/verification"&&location!=="/compliance"&&location!=="/data-master"&&location!=="/audit"&&<><div className="filter-wrap">
           <label>Balai:</label>
           <select value={balai} onChange={e => setBalai(e.target.value)} data-testid="select-global-balai">
             <option>Semua Balai</option>
