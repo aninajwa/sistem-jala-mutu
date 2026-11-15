@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from 'react';
-import { RefreshCw, Save } from 'lucide-react';
+import { RefreshCw, Save, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { apiRequest } from '../auth/client';
 import type { WorkflowRole } from '../workflow/model';
 import { getSurveySegments, getSurveySessions, type SurveySegment, type SurveySession } from './serverStage3Data';
@@ -216,10 +216,42 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
                 <button type="button" className="wf-button primary" onClick={() => void runWorkflow('review','DISETUJUI')} disabled={!workflowCapabilities?.review || workflowBusy || workflowStatus.gate !== 'PASS'}>Setujui pengajuan</button>
               </>}
             </div>
+            {workflowStatus.state === 'DISETUJUI' && (
+              <div className="wf-callout ok" style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', border: '1px solid #86efac', padding: '12px 16px', borderRadius: 6 }}>
+                <div>
+                  <strong style={{ color: '#166534', display: 'block' }}>✓ Tahap 4 Disetujui PIC Balai</strong>
+                  <span style={{ fontSize: 13, color: '#15803d' }}>Validasi data LRS telah disetujui. Lanjutkan ke Tahap 5 (Audit Data).</span>
+                </div>
+                <button
+                  type="button"
+                  className="wf-button primary"
+                  onClick={() => window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: '/verification:Audit tingkat 1–3' }))}
+                >
+                  Lanjut ke Tahap 5 (Audit Data) →
+                </button>
+              </div>
+            )}
             <p className="wf-note">Versi workflow: {workflowStatus.workflow_version}. Submit hanya untuk Penyedia; keputusan hanya untuk PIC Balai. Persetujuan dan Tahap 5 tetap diblokir selama blocker di atas ada. Status persisted `status`/`tgl_valid` tidak ditafsirkan sebagai kelulusan; review PIC bukan Berita Acara Penerimaan.</p>
           </>}
         </div>
       </section>
+
+      <div className="wf-toolbar" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button
+          type="button"
+          className="wf-button"
+          onClick={() => window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: '/verification:Verval 14 hari' }))}
+        >
+          <ArrowLeft size={13} /> Kembali ke Tahap 3B (Verval 14 Hari)
+        </button>
+        <button
+          type="button"
+          className="wf-button primary"
+          onClick={() => window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: '/verification:Audit tingkat 1–3' }))}
+        >
+          Lanjut ke Tahap 5 (Audit Data) <ArrowRight size={13} />
+        </button>
+      </div>
     </div>
   </section>;
 }

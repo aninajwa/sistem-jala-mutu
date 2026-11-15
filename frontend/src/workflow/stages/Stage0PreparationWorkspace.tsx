@@ -258,6 +258,38 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
         "Survei pendahuluan & persiapan QA/QC",
         "Lengkapi telaah awal, rencana survei, koordinasi, dan dokumen pendahuluan sebelum paket masuk ke kalibrasi dan validasi awal.",
       )}
+      {(prep.reportApproval === "Disetujui" || serverSubmissionStatus === "DISETUJUI") && (
+        <div
+          className="wf-callout ok"
+          style={{
+            marginBottom: 16,
+            display: "flex",
+            justifyContent: "space-between",
+            alignItems: "center",
+            padding: "14px 18px",
+            background: "#f0fdf4",
+            border: "1px solid #86efac",
+            borderRadius: 8,
+          }}
+        >
+          <div>
+            <strong style={{ color: "#15803d", fontSize: 15, display: "block", marginBottom: 2 }}>
+              Tahap 0 Selesai · Persiapan Telah Disetujui
+            </strong>
+            <span style={{ color: "#166534", fontSize: 13 }}>
+              Checklist dan Laporan Pendahuluan telah disetujui PIC Balai. Lanjutkan ke Tahap 1 (Kalibrasi & Personel).
+            </span>
+          </div>
+          <button
+            type="button"
+            className="wf-button primary"
+            onClick={() => onNavigate("/documents:Kalibrasi & personel")}
+            style={{ whiteSpace: "nowrap", padding: "8px 16px", fontWeight: 600 }}
+          >
+            Lanjut ke Tahap 1 (Kalibrasi) →
+          </button>
+        </div>
+      )}
       <div className="workflow-data-origin">
         <span className="origin-badge contract">DATA PAKET</span>
         <div>
@@ -400,6 +432,48 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
                   : "Ajukan untuk Review"}
               </Button>
             </div>
+
+            {(server ? serverSubmissionStatus === 'DIAJUKAN' : prep.reportApproval === "Diajukan") && (
+              <div className="wf-callout" style={{ marginTop: 12, background: "#fef9c3", border: "1px solid #fde047", padding: "12px 14px", borderRadius: 6 }}>
+                <strong style={{ color: "#854d0e", display: "block", marginBottom: 4 }}>
+                  Menunggu Persetujuan PIC Balai
+                </strong>
+                <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#713f12" }}>
+                  Pengajuan persiapan telah dikirim. Untuk melanjutkan alur ke Tahap 1, PIC Balai perlu menyetujui pengajuan ini.
+                </p>
+                <Button
+                  id="button-prep-simulate-approve"
+                  kind="primary"
+                  onClick={() => {
+                    if (server) {
+                      server.onReview?.('DISETUJUI');
+                    } else {
+                      approve("Disetujui");
+                    }
+                    onNavigate("/documents:Kalibrasi & personel");
+                  }}
+                >
+                  <Check size={13} />
+                  Setujui sebagai PIC Balai & Lanjut ke Tahap 1 →
+                </Button>
+              </div>
+            )}
+
+            {(server ? serverSubmissionStatus === 'DISETUJUI' : prep.reportApproval === "Disetujui") && (
+              <div className="wf-callout ok" style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f0fdf4", border: "1px solid #86efac", padding: "12px 16px", borderRadius: 6 }}>
+                <div>
+                  <strong style={{ color: "#166534", display: "block" }}>✓ Persiapan Telah Disetujui</strong>
+                  <span style={{ fontSize: 13, color: "#15803d" }}>Lanjutkan pekerjaan ke Tahap 1 (Kalibrasi & Personel).</span>
+                </div>
+                <Button
+                  id="button-prep-provider-proceed"
+                  kind="primary"
+                  onClick={() => onNavigate("/documents:Kalibrasi & personel")}
+                >
+                  Lanjut ke Tahap 1 →
+                </Button>
+              </div>
+            )}
           </Panel>
         </div>
       ) : (
@@ -484,6 +558,17 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
                 <Check size={13} />
                 Setujui Persiapan
               </Button>
+
+              {(prep.reportApproval === "Disetujui" || serverSubmissionStatus === "DISETUJUI") && (
+                <Button
+                  id="button-prep-pic-proceed"
+                  kind="primary"
+                  onClick={() => onNavigate("/documents:Kalibrasi & personel")}
+                >
+                  <ArrowRight size={13} />
+                  Lanjut ke Tahap 1 (Kalibrasi) →
+                </Button>
+              )}
             </div>}
           </Panel>
 

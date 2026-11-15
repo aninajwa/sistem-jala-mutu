@@ -282,12 +282,15 @@ export function ServerStage1DirahWorkspace({
                     Penyedia Jasa dapat mendaftarkan tim, mengalokasikan alat baru, mencatat kalibrasi, serta mengunggah sertifikat kalibrasi PDF.
                   </span>
                 </div>
-                <div style={{ display: 'flex', gap: 8 }}>
+                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                   <button type="button" className="wf-button" onClick={() => setActiveTab('teams_equipment')}>
                     <Users size={13} /> Kelola Tim & Alat
                   </button>
-                  <button type="button" className="wf-button primary" onClick={() => setActiveTab('calibrations')}>
+                  <button type="button" className="wf-button" onClick={() => setActiveTab('calibrations')}>
                     <Wrench size={13} /> Catat Kalibrasi / Upload Sijil
+                  </button>
+                  <button type="button" className="wf-button primary" onClick={() => onNavigate('/entry:Validasi produksi')}>
+                    Lanjut ke Tahap 2 →
                   </button>
                 </div>
               </div>
@@ -309,7 +312,7 @@ export function ServerStage1DirahWorkspace({
             state={serverState}
             onUpdate={() => { /* READ-only adapter: no local workflow state writes. */ }}
             setNotice={() => { /* Unsupported WRITE actions must never report success. */ }}
-            onNavigate={() => { /* Stage gate is unavailable; navigation is deliberately blocked. */ }}
+            onNavigate={onNavigate}
             serverReadOnly
             serverAssignments={serverAssignments}
             serverStatusNote="Checklist kalibrasi, readiness gate dan navigasi tahap: Belum terhubung ke server."
@@ -485,6 +488,23 @@ export function ServerStage1DirahWorkspace({
           </section>
         </div>
       )}
+
+      <div className="wf-toolbar" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button
+          type="button"
+          className="wf-button"
+          onClick={() => onNavigate('/entry:Persiapan & SPMK')}
+        >
+          ← Kembali ke Tahap 0 (Persiapan)
+        </button>
+        <button
+          type="button"
+          className="wf-button primary"
+          onClick={() => onNavigate('/entry:Validasi produksi')}
+        >
+          Lanjut ke Tahap 2 (Validasi Produksi) →
+        </button>
+      </div>
     </div>
   );
 }

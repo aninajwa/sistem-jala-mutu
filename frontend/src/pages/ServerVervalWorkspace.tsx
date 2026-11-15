@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
 import { apiRequest } from '../auth/client';
 import { displayVervalValue, getVervalConsistency, getVervalCycle, getVervalCycles, type ConsistencyCheck, type VervalCycle } from './serverVervalData';
 
@@ -9,7 +9,13 @@ function attributes(record: Record<string, unknown>) {
   </div>);
 }
 
-export function ServerVervalWorkspace({ packageId }: { packageId: string }) {
+export function ServerVervalWorkspace({
+  packageId,
+  onNavigate,
+}: {
+  packageId: string;
+  onNavigate?: (selection: string) => void;
+}) {
   const [cycles, setCycles] = useState<VervalCycle[]>([]);
   const [listLoading, setListLoading] = useState(true);
   const [listError, setListError] = useState('');
@@ -22,6 +28,11 @@ export function ServerVervalWorkspace({ packageId }: { packageId: string }) {
   const [consistencyLoading, setConsistencyLoading] = useState(false);
   const [consistencyError, setConsistencyError] = useState('');
   const [detailRevision, setDetailRevision] = useState(0);
+
+  const navigate = (to: string) => {
+    if (onNavigate) onNavigate(to);
+    else window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: to }));
+  };
 
   useEffect(() => {
     const controller = new AbortController();
@@ -120,5 +131,22 @@ export function ServerVervalWorkspace({ packageId }: { packageId: string }) {
         </div>
       </section>
     </>}
+
+    <div className="wf-toolbar" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+      <button
+        type="button"
+        className="wf-button"
+        onClick={() => navigate('/entry:Survei harian')}
+      >
+        <ArrowLeft size={13} /> Kembali ke Tahap 3A (Survei Harian)
+      </button>
+      <button
+        type="button"
+        className="wf-button primary"
+        onClick={() => navigate('/entry:Gerbang RNI/LRS')}
+      >
+        Lanjut ke Tahap 4 (Validasi LRS / Gerbang RNI) <ArrowRight size={13} />
+      </button>
+    </div>
   </div>;
 }

@@ -301,6 +301,15 @@ export function ServerPackageWorkspace({
     return () => controller.abort();
   }, [contract, packageId, submissionRevision]);
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const custom = e as CustomEvent<string>;
+      if (custom.detail) onNavigate(custom.detail);
+    };
+    window.addEventListener('jalamutu:navigate', handler);
+    return () => window.removeEventListener('jalamutu:navigate', handler);
+  }, [onNavigate]);
+
   const editable = contract
     ? canEditPreparation(role, contract.status, checklist?.pengisian.status)
     : false;
@@ -842,7 +851,7 @@ export function ServerPackageWorkspace({
       state={serverDetailToDirahState(contract, balaiRows, role)}
       onNavigate={onNavigate}
       preparationStatus={submission?.status ?? null}
-    /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
+    /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} onNavigate={onNavigate} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
     </>
   );
@@ -882,6 +891,23 @@ export function ServerPackageWorkspace({
           </>
         ) : stageOne || selection === '/entry:Gerbang RNI/LRS' ? content : (
           <>
+            {selection === PREPARATION && submission?.status === 'DISETUJUI' && (
+              <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #86efac', background: '#f0fdf4' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: 12 }}>
+                  <div>
+                    <strong style={{ display: 'block', color: '#166534' }}>✓ Tahap 0 Selesai · Persiapan Telah Disetujui</strong>
+                    <span className="wf-note" style={{ color: '#15803d' }}>Checklist dan Laporan Pendahuluan telah disetujui PIC Balai. Anda dapat melanjutkan ke Tahap 1 (Kalibrasi & Personel).</span>
+                  </div>
+                  <button
+                    type="button"
+                    className="wf-button primary"
+                    onClick={() => onNavigate(CALIBRATION)}
+                  >
+                    Lanjut ke Tahap 1 (Kalibrasi) →
+                  </button>
+                </div>
+              </div>
+            )}
             {selection === PREPARATION && canSubmit && (
               <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #bfdbfe', background: '#eff6ff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: 12 }}>
@@ -957,6 +983,42 @@ export function ServerPackageWorkspace({
                 onDocumentsChanged: () => setDocumentRevision(value => value + 1),
               } : undefined}
             />
+            {selection === '/verification:Audit tingkat 1–3' && (
+              <div className="wf-toolbar" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="wf-button"
+                  onClick={() => onNavigate('/entry:Gerbang RNI/LRS')}
+                >
+                  <ArrowLeft size={13} /> Kembali ke Tahap 4 (Validasi LRS)
+                </button>
+                <button
+                  type="button"
+                  className="wf-button primary"
+                  onClick={() => onNavigate('/reports:Penerimaan & termin')}
+                >
+                  Lanjut ke Tahap 6 (Penerimaan Data) <ArrowRight size={13} />
+                </button>
+              </div>
+            )}
+            {selection === '/reports:Penerimaan & termin' && (
+              <div className="wf-toolbar" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <button
+                  type="button"
+                  className="wf-button"
+                  onClick={() => onNavigate('/verification:Audit tingkat 1–3')}
+                >
+                  <ArrowLeft size={13} /> Kembali ke Tahap 5 (Audit Data)
+                </button>
+                <button
+                  type="button"
+                  className="wf-button primary"
+                  onClick={() => onNavigate(OVERVIEW)}
+                >
+                  ✓ Selesai & Kembali ke Ringkasan Paket
+                </button>
+              </div>
+            )}
           </>
         )}
         {preparationDialogs}
