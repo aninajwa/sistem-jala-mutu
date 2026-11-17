@@ -1,3 +1,5 @@
+import { PRODUCTION_REFERENCE_CHECKS } from './surveyStandards';
+import { withProductionReferences } from './testing/productionFixture';
 import {filledSourceFixture} from './testing/sourceFixture';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {sourceDocument} from './sourceDocumentModel';import {bridgeSamplingResult} from './sourceTechnicalEvaluation';import {switchPciMethod} from './pciMethods';import {createDemoWorkflow} from './demoScenario';import {evaluateStageGate} from './workflowGate';
@@ -10,6 +12,17 @@ test('PCI method drafts are independent, recover previous values and AI cannot u
  const state=createDemoWorkflow('complete');state.role='Penyedia Jasa / Ketua Tim';state.productionTests.PCI.pciManual=true;state.productionTests.PCI.evidenceReference='MANUAL-REF';
  const ai=switchPciMethod(state,false);assert.equal(ai.productionTests.PCI.evidenceReference,'');ai.productionTests.PCI.evidenceReference='AI-REF';const manual=switchPciMethod(ai,true);assert.equal(manual.productionTests.PCI.evidenceReference,'MANUAL-REF');
  assert.equal(switchPciMethod(manual,false).productionTests.PCI.evidenceReference,'AI-REF');ai.productionApproval='Disetujui';assert.equal(evaluateStageGate(ai,'Tahap 3A').readyToComplete,false);
+ const verified = withProductionReferences(createDemoWorkflow('complete'));
+ verified.project.surveyTypes = ['PCI'];
+ verified.project.preparation.reportApproval = 'Disetujui';
+ verified.calibrationChecklist.PCI = true;
+ verified.calibrations = [{ ...verified.calibrations[0], surveyType: 'PCI', condition: 'Baik',
+   qualificationValid: true, trainingVerified: true, dueDate: '2099-01-01' }];
+ Object.assign(verified.productionTests.PCI, {
+   pciManual: false, pciBenchmarkBalanced: true, evidenceReference: 'HASIL-PCI-AI',
+   referenceChecks: Object.fromEntries(PRODUCTION_REFERENCE_CHECKS.PCI.map(check => [check, true])),
+ });
+ assert.equal(evaluateStageGate(verified, 'Tahap 2').readyToComplete, true);
  state.role='Admin';assert.equal(switchPciMethod(state,false),state);
 });
 

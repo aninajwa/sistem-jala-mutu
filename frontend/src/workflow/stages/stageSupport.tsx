@@ -1,9 +1,7 @@
 import { Activity } from "lucide-react";
 import { type ReactNode } from "react";
-import { markAuditsForReview } from "../workflowRevisions";
 
 import {
-  CorrectionCase,
   DailySurveyRecord,
   INITIAL_WORKFLOW,
   OperationalWorkflowState,
@@ -20,7 +18,7 @@ export type WorkflowStageProps = {
     activity: string,
     object: string,
   ) => void;
-  setNotice: (message: string) => void;
+  setNotice: (message: string, tone?: "error") => void;
   onNavigate: (selection: string) => void;
 };
 export type NumericProductionKey = {
@@ -79,22 +77,7 @@ export const dailyEquipment: Record<SurveyType, string[]> = {
   "Lalu Lintas": ["Traffic Counter", "Kamera Survei", "Formulir Survei"],
   Drainase: ["Formulir Survei", "Kamera Survei"],
 };
-export const systemsByType: Record<SurveyType, string> = {
-  IRI: "SMD Jalan",
-  PCI: "SMD Jalan",
-  Lendutan: "SMD Jalan",
-  Jembatan: "INVI-J",
-  Lereng: "InSlope",
-  Drainase: "InDrain",
-  "Lalu Lintas": "SMD Jalan",
-  RNI: "SMD Jalan",
-};
-export const SYSTEM_TARGET_ORDER = [
-  "SMD Jalan",
-  "INVI-J",
-  "InSlope",
-  "InDrain",
-] as const;
+export { systemsByType, SYSTEM_TARGET_ORDER } from "../submissionReadiness";
 export const testId = (s: string) =>
   s
     .toLowerCase()
@@ -232,42 +215,7 @@ export const defaultDaily = (
   state: "Tercatat",
   technicalData: {},
 });
-export const defaultCase = (
-  state: OperationalWorkflowState,
-): CorrectionCase => ({
-  id: idNow("KOR"),
-  source: "Validasi produksi",
-  blockedStage: "Validasi produksi",
-  road: state.project.routes[0] || "",
-  stationing: "STA 0+000 – 0+100",
-  rejectionReason: "",
-  severity: "Mayor",
-  owner: "PIC survei",
-  dueDate: state.simulationDate,
-  rootCause: "",
-  fieldDataValid: "",
-  surveyType: "IRI",
-  actionType: "",
-  evidence: "",
-  proposedValue: "",
-  approval: "Draft",
-  retest: "Belum Diuji",
-  status: "Terbuka",
-  returnStage: "Validasi produksi",
-  originalValue:
-    state.dailyRecords.find(
-      (record) =>
-        record.surveyType === "IRI" &&
-        record.road === (state.project.routes[0] || ""),
-    )?.rawValue || "Belum ada nilai raw tertaut",
-  linkedRecordId: state.dailyRecords.find(
-    (record) =>
-      record.surveyType === "IRI" &&
-      record.road === (state.project.routes[0] || ""),
-  )?.id,
-  verification: { surveyor: false, teamLeader: false, balai: false },
-  reviewNote: "",
-});
+export {defaultCase} from '../correctionDefaults';
 export const invalidateTerm1 = (
   acceptance: OperationalWorkflowState["acceptance"],
 ) => ({
@@ -283,55 +231,8 @@ export const resetAuditLevels = (): OperationalWorkflowState["audits"] => [
   { ...INITIAL_WORKFLOW.audits[1], sampleIds: [] },
   { ...INITIAL_WORKFLOW.audits[2], sampleIds: [] },
 ];
-export const invalidateDependentStages = (
-  state: OperationalWorkflowState,
-  reason: string,
-): OperationalWorkflowState => ({
-  ...state,
-  productionApproval: "Draft",
-  productionApprovalBa: "",
-  bridgeInspectionPermit: false,
-  submission: {
-    ...state.submission,
-    validationStatus: "Draft",
-    validationMessage: reason,
-  },
-  audits: markAuditsForReview(state, reason),
-  acceptance: {
-    ...state.acceptance,
-    terms: state.acceptance.terms.map((term) =>
-      term.id === "T1" || term.id === "T3" || term.id === "T4"
-        ? { ...term, complete: false }
-        : term,
-    ),
-    semesterTwoRevalidation: false,
-    finalReport: false,
-    finalAcceptance: false,
-  },
-});
-export const invalidateVervalStages = (
-  state: OperationalWorkflowState,
-  reason: string,
-): OperationalWorkflowState => ({
-  ...state,
-  submission: {
-    ...state.submission,
-    validationStatus: "Draft",
-    validationMessage: reason,
-  },
-  audits: markAuditsForReview(state, reason),
-  acceptance: {
-    ...state.acceptance,
-    terms: state.acceptance.terms.map((term) =>
-      term.id === "T2" || term.id === "T3" || term.id === "T4"
-        ? { ...term, complete: false }
-        : term,
-    ),
-    semesterTwoRevalidation: false,
-    finalReport: false,
-    finalAcceptance: false,
-  },
-});
+export { invalidateDependentStages } from "../dependentStageInvalidation";
+export { invalidateVervalStages } from "../dependentStageInvalidation";
 export function Badge({
   children,
   tone = "info",

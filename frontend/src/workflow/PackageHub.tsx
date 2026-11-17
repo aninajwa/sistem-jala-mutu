@@ -1,5 +1,3 @@
-import {PackageStageNavigator} from './Checkpoint09Package';
-import {packageStageStatus} from './Checkpoint09Package';
 import './checkpoint09.css';
 import {useWorkflowReconciliation} from '../hooks/useWorkflowReconciliation';
 import {workflowFormIssues} from './repository/workflowReconciliation';
@@ -8,12 +6,8 @@ import {
   ArrowLeft,
   ArrowRight,
   Building2,
-  CheckCircle2,
-  ClipboardList,
-  FileText,
   MapPinned,
   MessageSquareText,
-  ShieldCheck,
 } from 'lucide-react';
 
 import type {
@@ -32,10 +26,6 @@ import {
   packageMenuLabel,
 } from './roleNavigation';
 
-import {
-  getStageDisplayStatus,
-  getStageDisplayLabel,
-} from './stagePresentation';
 
 export { packageMenuLabel } from './roleNavigation';
 
@@ -268,13 +258,34 @@ export function PackagesPage({
    HEADER DETAIL PAKET
    ===================================================== */
 
-export function PackageContextHeader({state,selection,onBack,onNavigate,onCorrections}:{state:OperationalWorkflowState;selection?:string;onBack:()=>void;onNavigate:(selection:string)=>void;onCorrections:()=>void}){
- const issues=useWorkflowReconciliation(state);
- return <header className="package-context ui09-package-header">
-  <div className="ui09-package-title"><button type="button" className="wf-button" onClick={onBack}><ArrowLeft size={15}/> Daftar paket</button><div><span className="ui09-meta">{state.project.contractNumber||state.project.id}</span><h1>{state.project.packageName}</h1></div><span className="wf-status info">{issues.length?'Perlu pemeriksaan':packageStatus(state)}</span></div>
-  <div className="ui09-package-tools"><details className="ui09-package-info"><summary>Identitas & status paket</summary><div className="package-context-grid">{[['Balai',state.project.balai],['Penyedia',state.project.contractor],['Satker',state.project.satker],['PPK',state.project.ppk],['Ruas',state.project.routes.join(', ')],['Jenis survei',state.project.surveyTypes.join(', ')],['Jadwal',`${state.project.surveyStartDate||'Belum diisi'} — ${state.project.surveyEndDate||'Belum diisi'}`]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value||'Belum diisi'}</strong></div>)}</div>{issues.length>0&&<details className="ui09-source-issues"><summary>{issues.length} kelengkapan perlu ditinjau</summary><ul>{issues.map((issue,index)=><li key={index}>{issue.stage} · {issue.message}</li>)}</ul></details>}</details><div className="package-context-actions">{state.role==='PIC Balai / Pengguna Jasa'&&<button type="button" className="wf-button primary" onClick={()=>onNavigate('/verification:Antrian Balai')}><ClipboardList size={14}/> Antrian Review Balai</button>}<button type="button" className="wf-button" aria-current={selection==='/packages:Ringkasan Paket'?'page':undefined} onClick={()=>onNavigate('/packages:Ringkasan Paket')}>Ringkasan</button><button type="button" className="wf-button" onClick={()=>onNavigate('/documents:Semua')}><FileText size={14}/> Dokumen & BA</button><button type="button" className="wf-button" onClick={onCorrections}><ShieldCheck size={14}/> Tindak lanjut</button></div></div>
-  <PackageStageNavigator state={state} selection={selection} onNavigate={onNavigate}/>
- </header>;
+export function PackageContextHeader({state,selection,onBack}:{state:OperationalWorkflowState;selection?:string;onBack:()=>void;onNavigate?:(selection:string)=>void;onCorrections?:()=>void}){
+  const issues=useWorkflowReconciliation(state);
+  const current=PACKAGE_WORKFLOW_ITEMS.find(item=>item.selection===selection);
+  const process=derivePackageStage(state);
+  const identity: Array<[string,string]> = [
+    ['Balai',state.project.balai],
+    ['Penyedia',state.project.contractor],
+    ['Satker',state.project.satker],
+    ['PPK',state.project.ppk],
+    ['Ruas',state.project.routes.join(', ')],
+    ['Jenis survei',state.project.surveyTypes.join(', ')],
+    ['Jadwal',`${state.project.surveyStartDate||'Belum diisi'} — ${state.project.surveyEndDate||'Belum diisi'}`],
+  ];
+  return <header className="package-context ui09-package-header" aria-label="Konteks paket aktif">
+    <div className="ui09-package-title">
+      <button type="button" className="wf-button" onClick={onBack}><ArrowLeft size={15}/> Daftar paket</button>
+      <div><span className="ui09-meta">{state.project.contractNumber||state.project.id}</span><h1>{state.project.packageName}</h1></div>
+      <span className="wf-status info">{issues.length?'Perlu pemeriksaan':packageStatus(state)}</span>
+    </div>
+    <div className="ui09-package-compact">
+      <span className="ui09-package-position">{current ? `${current.code} · ${current.shortLabel}` : selection==='/packages:Ringkasan Paket' ? `Ringkasan · Posisi ${process}` : `Posisi ${process}`}</span>
+      <details className="ui09-package-info">
+        <summary>Informasi paket</summary>
+        <div className="package-context-grid">{identity.map(([label,value])=><div key={label}><small>{label}</small><strong>{value||'Belum diisi'}</strong></div>)}</div>
+        {issues.length>0&&<details className="ui09-source-issues"><summary>{issues.length} kelengkapan perlu ditinjau</summary><ul>{issues.map((issue,index)=><li key={index}>{issue.stage} · {issue.message}</li>)}</ul></details>}
+      </details>
+    </div>
+  </header>;
 }
 
 /* =====================================================

@@ -1,3 +1,5 @@
+import {recordPeriodicBa} from '../periodicDecision';
+import {applyPeriodicFinding} from '../periodicFinding';
 import {periodicSurveyTypes} from '../reviewReadiness';
 import {evaluateStageGate} from '../workflowGate';
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
@@ -69,6 +71,9 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     : (selectedCycleTypes[0] ?? reviewType);
   const surveyReview = state.cycle.surveyReviews?.[selectedReviewType];
   const dueCycle = cycleDueDate(state.cycle.lastCompletedDate);
+  const pciAi = state.productionTests.PCI.pciManual === false;
+  const pciMetric = pciAi ? 'pciAiStandardDeviation' : 'pciManualMaxDifferencePercent';
+  const pciLimit = pciAi ? 8 : 10;
   const evaluateCycleConsistency = (
     types: SurveyType[],
     iriCv: number | null,
@@ -81,10 +86,10 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       (iriCv !== null && Number.isFinite(iriCv) && iriCv >= 0 && iriCv <= 5);
     const pciPass =
       !types.includes("PCI") ||
-      (pciSd !== null && Number.isFinite(pciSd) && pciSd >= 0 && pciSd <= 10);
+      (pciSd !== null && Number.isFinite(pciSd) && pciSd >= 0 && pciSd <= pciLimit);
     if (
       (types.includes("IRI") && iriCv !== null && iriCv > 5) ||
-      (types.includes("PCI") && pciSd !== null && pciSd > 10) ||
+      (types.includes("PCI") && pciSd !== null && pciSd > pciLimit) ||
       reRating === "Tidak Sesuai"
     )
       return "Tidak Konsisten";
@@ -105,7 +110,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const consistencyResult = evaluateCycleConsistency(
     selectedCycleTypes,
     state.cycle.iriCoefficientVariation,
-    state.cycle.pciManualMaxDifferencePercent ?? null,
+    state.cycle[pciMetric] ?? null,
     state.cycle.reRatingStatus,
   );
   const canPrepareCycle = state.role === "Penyedia Jasa / Ketua Tim";
@@ -136,7 +141,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     ...(openPeriodFindings.length?['Selesaikan tindak lanjut temuan periode sebelum mencatat BA.']:[]),
     ...(!(draft.cycleBa??state.cycle.certificateId).trim()?['Referensi BA belum diisi.']:[])];
   const updateConsistencyMetric = (
-    key: "iriCoefficientVariation" | "pciManualMaxDifferencePercent",
+    key: "iriCoefficientVariation" | "pciManualMaxDifferencePercent" | "pciAiStandardDeviation",
     value: number | null,
   ) => {
     if (state.role !== "Penyedia Jasa / Ketua Tim") {
@@ -150,9 +155,9 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
         ? value
         : state.cycle.iriCoefficientVariation;
     const pciSd =
-      key === "pciManualMaxDifferencePercent"
+      key === pciMetric
         ? value
-        : (state.cycle.pciManualMaxDifferencePercent ?? null);
+        : (state.cycle[pciMetric] ?? null);
     updateCycle(
       {
         [key]: value,
@@ -163,7 +168,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           state.cycle.reRatingStatus,
         ),
       },
-      `Catat ${key === "iriCoefficientVariation" ? "IRI CV" : "Selisih PCI Manual (%)"} verval`,
+      `Catat ${key === "iriCoefficientVariation" ? "IRI CV" : pciAi ? "SD PCI AI" : "Selisih PCI Manual (%)"} verval`,
     );
   };
   const updateReRating = (value: VervalCycle["reRatingStatus"]) => {
@@ -179,7 +184,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
         consistency: evaluateCycleConsistency(
           selectedCycleTypes,
           state.cycle.iriCoefficientVariation,
-          state.cycle.pciManualMaxDifferencePercent ?? null,
+          state.cycle[pciMetric] ?? null,
           value,
         ),
       },
@@ -205,7 +210,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       (type) =>
         (type === "IRI" && (state.cycle.iriCoefficientVariation ?? 0) > 5) ||
         (type === "PCI" &&
-          (state.cycle.pciManualMaxDifferencePercent ?? 0) > 10) ||
+          (state.cycle[pciMetric] ?? 0) > pciLimit) ||
         state.cycle.reRatingStatus === "Tidak Sesuai",
     );
     const heldIds = state.dailyRecords
@@ -259,30 +264,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     }
     if(baReviewBlockers.length){setNotice(baReviewBlockers.join(' '));return;}
     const certificateId = (draft.cycleBa ?? state.cycle.certificateId).trim();
-    const heldIds = new Set(state.cycle.heldRecordIds);
-    commit("Catat BA verval Balai 14 hari", certificateId, (s) => {
-      const invalidated = invalidateVervalStages(
-        s,
-        "BA verval baru tercatat; validasi LRS dan audit perlu diulang.",
-      );
-      return {
-        ...invalidated,
-        cycle: {
-          ...s.cycle,
-          requiresReview: false,
-          reviewReason: "",
-          lastCompletedDate: stage3bPeriodRange.end||s.simulationDate,
-          certificateId,
-          consistency: "Konsisten",
-          heldRecordIds: [],
-        },
-        dailyRecords: s.dailyRecords.map((record) =>
-          heldIds.has(record.id) && record.state === "Ditahan"
-            ? { ...record, state: "Tercatat" }
-            : record,
-        ),
-      };
-    });
+    commit("Catat BA verval Balai 14 hari", certificateId,
+      (s) => recordPeriodicBa(s, certificateId));
     setNotice("BA verval Balai dicatat pada paket saat ini.");
   };
   const updateFieldValidation = (
@@ -342,11 +325,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           surveyReview?.note ||
           "Pengguna Jasa menemukan ketidaksesuaian proses/hasil verval",
       };
-      commit("Buka kasus dari pemeriksaan proses verval", c.id, (s) => ({
-        ...invalidateVervalStages(s,'Temuan pemeriksaan periode memerlukan tindak lanjut.'),
-        cycle:{...s.cycle,...scopedPatch},
-        corrections: [c, ...s.corrections],
-      }));
+      commit("Buka kasus dari pemeriksaan proses verval", c.id,
+        (s) => applyPeriodicFinding(s, selectedReviewType, c.id));
     } else {
       updateCycle(scopedPatch,"Catat pemeriksaan Pengguna Jasa dan bukti akhir periode");
     }
@@ -694,17 +674,17 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
               </Field>
             )}
             {selectedCycleTypes.includes("PCI") && (
-              <Field label="Selisih PCI Manual (maks. 10%)">
+              <Field label={pciAi ? "Standar deviasi PCI AI (maks. 8)" : "Selisih PCI Manual (maks. 10%)"}>
                 <input
                   type="number"
                   min="0"
                   step="0.1"
                   data-testid="input-cycle-pci-ai-sd"
-                  value={state.cycle.pciManualMaxDifferencePercent ?? ""}
+                  value={state.cycle[pciMetric] ?? ""}
                   readOnly={!canPrepareCycle}
                   onChange={(e) =>
                     updateConsistencyMetric(
-                      "pciManualMaxDifferencePercent",
+                      pciMetric,
                       e.target.value === "" ? null : Number(e.target.value),
                     )
                   }

@@ -1,0 +1,15 @@
+/* Tahap 0: pekerjaan utama di depan; informasi teknis hanya jika dibuka. */
+.stage0-compact-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin:8px 0 15px;padding:10px 14px;background:#fff;border:1px solid #d6e2e8;border-radius:9px;font-size:.84rem;color:#36586a}
+.stage0-compact-status strong{color:#163d52}
+.stage0-section-anchor{scroll-margin-top:90px;min-width:0}
+.stage0-section-anchor>h3{font-size:1rem;margin:20px 0 10px;color:#244c62}
+.stage0-quiet-detail{margin:0 0 10px;color:#496577;font-size:.82rem}
+.stage0-quiet-detail summary{cursor:pointer;width:max-content;max-width:100%;padding:7px 0;color:#18617c}
+.stage0-quiet-detail p{margin:4px 0 10px;line-height:1.5}
+.workflow-role-block .documents-area{margin-top:0}
+.workflow-role-block .document-upload-flow{padding:14px;border:1px solid #d9e4e9;border-radius:9px;background:#f8fafb}
+.workflow-role-block .document-upload-flow .document-category-label{font-weight:600;font-size:.86rem}
+.workflow-role-block .document-upload-flow select{min-height:42px;background:#fff}
+.workflow-role-block .document-upload-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stage0-local-note{color:#687f8d;font-size:.77rem;margin:4px 0 0}
+@media(max-width:600px){.stage0-compact-status{padding:9px 11px;gap:7px 12px}.workflow-role-block .document-upload-flow{padding:10px}}

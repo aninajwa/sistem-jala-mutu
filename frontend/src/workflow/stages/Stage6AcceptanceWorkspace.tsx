@@ -1,3 +1,4 @@
+import { finalAcceptanceBlockers } from '../acceptanceReadiness';
 import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {SourceDocumentChecklist} from '../SourceDocumentChecklist';
@@ -237,18 +238,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
   const acceptanceCriteriaReady = ACCEPTANCE_CRITERIA.every(
     (item) => !!acceptanceCriteria[item],
   );
-  const finalReady = !formIssues.length &&
-    state.acceptance.terms.every(
-      (t) =>
-        t.complete &&
-        state.acceptance.partialReceipts.includes(`BA penerimaan ${t.id}`),
-    ) &&
-    !semesterErrors.length &&
-    (!semesterTwoApplies(state)||state.acceptance.semesterTwoRevalidation) &&
-    state.acceptance.finalReport &&
-    allAuditsPassed &&
-    !state.corrections.some((item) => item.status !== "Ditutup") &&
-    acceptanceCriteriaReady;
+  const finalReady = finalAcceptanceBlockers(state).length === 0;
   const updateAcceptanceCriterion = (
     criterion: AcceptanceCriterion,
     checked: boolean,
@@ -394,7 +384,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
     }
     if (!finalReady) {
       setNotice(
-        "Penerimaan akhir tertahan oleh kriteria penerimaan, termin, BA, audit, revalidasi, laporan akhir, atau kasus koreksi terbuka.",
+        finalAcceptanceBlockers(state).slice(0, 3).join(" · "), "error",
       );
       return;
     }

@@ -1,3 +1,5 @@
+import {PACKAGE_WORKFLOW_ITEMS} from '../src/workflow/roleNavigation';
+import {prepareIriPeriod} from './sourceFormInteractions';
 import {createServer} from 'vite';
 import {fileURLToPath} from 'node:url';
 import fs from 'node:fs';
@@ -7,7 +9,6 @@ import {withProductionReferences} from '../src/workflow/testing/productionFixtur
 import {PACKAGE_STORE_KEY} from '../src/workflow/packageStore';
 import {SURVEY_TYPES,type WorkflowRole} from '../src/workflow/model';
 import {BA_TEMPLATES} from '../src/workflow/ba/docxEngine';
-import {filledSourceFixture} from '../src/workflow/testing/sourceFixture';
 import {sourceDocumentKey} from '../src/workflow/sourceDocumentModel';
 import catalog from '../src/workflow/sourceChecklistCatalog.json';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
@@ -17,24 +18,31 @@ const browser=await chromium.launch({headless:true,...(process.env.CHROMIUM_EXEC
 const roles:WorkflowRole[]=['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat','Admin'];
 const selections=['/entry:Persiapan & SPMK','/documents:Kalibrasi & personel','/entry:Validasi produksi','/entry:Survei harian','/verification:Verval 14 hari','/entry:Gerbang RNI/LRS','/verification:Audit tingkat 1–3','/reports:Penerimaan & termin'];
 const results:any[]=[],errors:string[]=[];
-const fixture=withProductionReferences(createDemoWorkflow('complete'));fixture.project.surveyTypes=[...SURVEY_TYPES];fixture.project.id='CP09-TEST';fixture.project.packageName='Paket pengujian Checkpoint 09';fixture.productionTests.PCI.pciManual=true;fixture.corrections=[];
+const fixture=withProductionReferences(createDemoWorkflow('complete'));fixture.project.surveyTypes=[...SURVEY_TYPES];fixture.project.id='CP09-TEST';fixture.project.packageName='Paket pengujian Checkpoint 09';fixture.project.surveyStartDate='2027-05-01';fixture.project.surveyEndDate='2027-05-28';fixture.productionTests.PCI.pciManual=true;fixture.corrections=[];
 const navigate=async(page:any,selection:string)=>{await page.goto(`http://127.0.0.1:5173${selection.split(':')[0]}?testRoles=1&submodule=${encodeURIComponent(selection)}`);await page.locator(selection.startsWith('/actions:')?'main':'.wf-title').first().waitFor({timeout:30000});};
 async function noOverflow(page:any,label:string){const bad=await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2);if(bad){await page.screenshot({path:output+'/overflow-'+label.replace(/[^a-z0-9]/gi,'-')+'.png'});fs.writeFileSync(output+'/overflow-details.json',JSON.stringify(await page.locator('body *').evaluateAll((els:any[])=>els.filter(el=>el.getBoundingClientRect().right>innerWidth+2).map(el=>({tag:el.tagName,class:el.className,text:el.textContent?.slice(0,80),right:el.getBoundingClientRect().right}))),null,2));}assert.equal(bad,false,label);}
 async function setup(role:WorkflowRole,custom=fixture){const state={...structuredClone(custom),role};if(custom===fixture){const sample=structuredClone(createDemoWorkflow('verval-finding').corrections[0]);sample.id='UI09-CASE';sample.owner='Ketua Tim';sample.rootCause='Metode';sample.fieldDataValid='Tidak';sample.evidence='Referensi laporan dan bukti pengujian';sample.actionType='Survei ulang sebagian ruas';sample.status=role===roles[1]?'Menunggu Persetujuan':role===roles[2]?'Dilaksanakan':'Terbuka';sample.approval=role===roles[1]?'Diajukan':role===roles[2]?'Disetujui':'Draft';sample.verification={surveyor:role!==roles[0],teamLeader:role!==roles[0],balai:role===roles[2]};if(role===roles[2]){sample.blockedStage='Audit tingkat 3';sample.returnStage='Audit tingkat 3';sample.source='Penolakan audit tingkat 3';sample.executionReference='EXEC-UI09';}state.corrections=[sample];}const context=await browser.newContext({viewport:{width:1440,height:1000},acceptDownloads:true});await context.addInitScript(({key,state,role})=>{if(location.origin!=='http://127.0.0.1:5173'||sessionStorage.getItem('cp09seed'))return;sessionStorage.setItem('cp09seed','yes');localStorage.setItem(key,JSON.stringify({activePackageId:state.project.id,activeRole:role,packages:{[state.project.id]:state}}));localStorage.setItem('jala-mutu-demo-session-v1','active');},{key:PACKAGE_STORE_KEY,state,role});const page=await context.newPage();page.setDefaultTimeout(15000);page.on('pageerror',(e:any)=>errors.push(e.message));return {page,context};}
 try{
  if(!process.env.CP09_INTERACTIONS_ONLY)for(let r=0;r<roles.length;r++){console.log('ROLE',r);
   const {page,context}=await setup(roles[r]);
+  const navLabel=(label:string)=>label+(r>=2?' · Lihat':'');
   for(const width of [1440,360,390]){
    await page.setViewportSize({width,height:width===390?844:1000});
    for(let i=0;i<selections.length;i++){
-    await navigate(page,selections[i]);assert.equal(await page.locator('.ui09-stage-nav button').count(),8);assert.equal(await page.locator('.package-stage-picker').count(),0);if(width<780)assert.equal(await page.locator('.sidebar.open').count(),0);assert.equal(await page.locator('.ui09-stage-nav [aria-current="step"]').count(),1);
+    await navigate(page,selections[i]);for(const item of PACKAGE_WORKFLOW_ITEMS)assert.equal(await page.locator('.side-nav').getByRole('button',{name:navLabel(item.shortLabel),exact:true}).count(),1);if(width<780)assert.equal(await page.locator('.sidebar.open').count(),0);assert.equal(await page.locator('.nav-child.selected').filter({hasText:PACKAGE_WORKFLOW_ITEMS[i].shortLabel}).count(),1);
     if([1,4,5,6,7].includes(i)){await page.locator('.cp09-checklists > summary').click();assert.ok(await page.locator('.cp09-checklist-list article').count()>0);}
     if(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2)){await page.screenshot({path:output+'/overflow.png'});fs.writeFileSync(output+'/overflow.json',JSON.stringify(await page.locator('body *').evaluateAll((els:any[])=>els.filter(el=>el.getBoundingClientRect().right>innerWidth+2).map(el=>({tag:el.tagName,class:el.className,text:el.textContent?.slice(0,70),right:el.getBoundingClientRect().right}))),null,2));}
     assert.equal(await page.evaluate(()=>document.documentElement.scrollWidth>innerWidth+2),false,`overflow ${r} ${i} ${width}`);
     if(i===0)await page.screenshot({path:`${output}/screenshots/first-fold-r${r}-${width}.png`,animations:'disabled'});if(i===4||i===6)await page.screenshot({path:`${output}/screenshots/r${r}-s${i}-${width}.png`,animations:'disabled'});
     results.push({role:roles[r],stage:selections[i],width,result:'pass',check:'stage navigation, source index, responsive page'});
    }
-   await page.locator('.ui09-stage-nav button').last().click();await page.locator('.ui09-stage-nav li:last-child [aria-current=step]').waitFor();await page.locator('.ui09-stage-nav button').first().focus();await page.keyboard.press('Enter');await page.locator('.ui09-stage-nav li:first-child [aria-current=step]').waitFor();if(width!==1440)await page.screenshot({path:`${output}/screenshots/package-keyboard-r${r}.png`,animations:'disabled'});results.push({role:roles[r],width,result:'pass',check:'keyboard stepper Enter navigates to stage0'});
+   for(const index of [7,0]){
+    if(width<780)await page.locator('.mobile-toggle').click();
+    const button=page.locator('.side-nav').getByRole('button',{name:navLabel(PACKAGE_WORKFLOW_ITEMS[index].shortLabel),exact:true});
+    await button.focus();await page.keyboard.press('Enter');
+    await page.locator('.nav-child.selected').filter({hasText:PACKAGE_WORKFLOW_ITEMS[index].shortLabel}).waitFor({state:'attached'});await page.locator('.wf-title').first().waitFor();
+   }
+   if(width!==1440)await page.screenshot({path:`${output}/screenshots/package-keyboard-r${r}.png`,animations:'disabled'});results.push({role:roles[r],width,result:'pass',check:'keyboard sidebar Enter navigates acceptance and preparation'});
    await page.goto('http://127.0.0.1:5173/documents?testRoles=1');await page.getByText('Grafik status & cakupan dokumen',{exact:true}).click();await page.locator('.cp09-insights').waitFor();assert.match(await page.locator('.cp09-insights').innerText(),/0 identitas dokumen/);await noOverflow(page,'documents-'+r+'-'+width);await page.screenshot({path:`${output}/screenshots/documents-r${r}-${width}.png`,animations:'disabled'});results.push({role:roles[r],width,result:'pass',check:'Dokumen Mutu empty denominator and responsive'});
    await page.goto('http://127.0.0.1:5173/actions?testRoles=1');await page.locator('.corr-dashboard').waitFor();assert.equal(await page.getByTestId('mobile-global-filters').isVisible(),false);await page.screenshot({path:`${output}/screenshots/corrections-r${r}-${width}.png`,animations:'disabled'});await noOverflow(page,'corrections-'+r+'-'+width);results.push({role:roles[r],width,result:'pass',check:'correction role entry, responsive'});
    await page.locator('tbody tr').filter({hasText:'UI09-CASE'}).first().getByRole('button').first().click();await page.getByRole('button',{name:/^(Lengkapi Tindak Lanjut|Periksa Kasus & Bukti|Lihat Kasus & Riwayat|Lihat Detail Kasus)$/}).click();await page.locator('.case-detail-header').waitFor();
@@ -46,7 +54,14 @@ try{
   await context.close();
  }
  // The package links must reach real module lists rather than an unselected correction detail.
- for(const role of roles){const {page,context}=await setup(role);await page.setViewportSize({width:360,height:844});await navigate(page,selections[0]);await page.getByRole('button',{name:'Tindak lanjut',exact:true}).click();await page.locator('.corr-dashboard').waitFor();assert.equal(await page.locator('.case-detail-header').count(),0);await navigate(page,selections[0]);await page.getByRole('button',{name:'Dokumen & BA',exact:true}).click();await page.locator('.documents-page').waitFor();results.push({role,result:'pass',check:'package links reach usable corrections and document lists on 360px'});await context.close();}
+ for(const role of roles){
+  const {page,context}=await setup(role);await page.setViewportSize({width:360,height:844});await navigate(page,selections[0]);
+  await page.locator('.mobile-toggle').click();await page.locator('.nav-module-button').filter({hasText:'Tindakan Perbaikan'}).click();await page.locator('.mobile-toggle').click();
+  await page.locator('.corr-dashboard').waitFor();assert.equal(await page.locator('.case-detail-header').count(),0);
+  await navigate(page,selections[0]);await page.locator('.mobile-toggle').click();await page.locator('.nav-module-button').filter({hasText:'Dokumen Mutu'}).click();await page.locator('.mobile-toggle').click();
+  await page.locator('.documents-page').waitFor();results.push({role,result:'pass',check:'actual sidebar module links reach usable corrections and document lists on 360px'});await context.close();
+ }
+
  // Real proposal/review controls remain operable after the compact layout changes.
  for(const width of [1440,360,390])for(const role of roles.slice(0,2)){
   const {page,context}=await setup(role);await page.setViewportSize({width,height:844});await page.goto('http://127.0.0.1:5173/actions?testRoles=1');await page.locator('tbody tr').filter({hasText:'UI09-CASE'}).first().getByRole('button').first().click();await page.getByRole('button',{name:/^(Lengkapi Tindak Lanjut|Periksa Kasus & Bukti)$/}).click();await page.locator('.case-detail-header').waitFor();assert.equal(await page.evaluate(()=>window.scrollY),0);
@@ -73,7 +88,7 @@ try{
  for(const input of await page.locator('.ba-field-row textarea:not([disabled])').all())await input.fill('Isian pengujian pemeriksaan BA');for(const input of await page.locator('.ba-field-row input[type=date]:not([disabled])').all())await input.fill('2027-01-14');for(const input of await page.locator('.ba-field-row select:not([disabled])').all())await input.selectOption({index:1});
  await page.getByRole('button',{name:'Ajukan pemeriksaan BA',exact:true}).click();await actor(roles[1]);const approve=page.getByRole('button',{name:'Selesaikan pemeriksaan BA',exact:true});assert.equal(await approve.isDisabled(),true);assert.match(await approve.getAttribute('title')||'',/Checklist/);await page.getByLabel('Catatan pemeriksaan BA').fill('Bukti sumber belum lengkap');await page.getByRole('button',{name:'Tolak BA',exact:true}).click();
  await actor(roles[0]);await page.getByRole('button',{name:'Ajukan pemeriksaan BA',exact:true}).click();await actor(roles[1]);await page.getByLabel('Catatan pemeriksaan BA').fill('Perjelas lokasi');await page.getByRole('button',{name:'Minta revisi BA',exact:true}).click();
- await actor(roles[0]);const source=catalog.find(d=>d.survey==='IRI'&&d.phase==='periodic14')!;await page.evaluate(({key,answers})=>localStorage.setItem(key,JSON.stringify(answers)),{key:sourceDocumentKey('CP09-TEST',source.id),answers:filledSourceFixture(source)});await page.reload();await page.getByText('Ganti konteks dokumen',{exact:true}).click();await page.getByLabel('Format BA',{exact:true}).selectOption('duaMingguan');await page.getByRole('button',{name:'Ajukan pemeriksaan BA',exact:true}).click();await actor(roles[1]);await page.getByRole('button',{name:'Selesaikan pemeriksaan BA',exact:true}).click();await page.getByText('Pemeriksaan selesai',{exact:true}).first().waitFor();await page.reload();await page.getByText('Ganti konteks dokumen',{exact:true}).click();await page.getByLabel('Format BA',{exact:true}).selectOption('duaMingguan');await page.getByText('Pemeriksaan selesai',{exact:true}).first().waitFor();
+ await prepareIriPeriod(page,actor);await actor(roles[0]);await page.getByRole('button',{name:'Ajukan pemeriksaan BA',exact:true}).click();await actor(roles[1]);await page.getByRole('button',{name:'Selesaikan pemeriksaan BA',exact:true}).click();await page.getByText('Pemeriksaan selesai',{exact:true}).first().waitFor();await page.reload();await page.getByText('Ganti konteks dokumen',{exact:true}).click();await page.getByLabel('Format BA',{exact:true}).selectOption('duaMingguan');await page.getByText('Pemeriksaan selesai',{exact:true}).first().waitFor();
  const versions=await page.evaluate(()=>JSON.parse(localStorage.getItem('jala-ba-source-v1:CP09-TEST:duaMingguan:1:IRI:1')!).versions);assert.deepEqual(versions.map((v:any)=>v.status),['submitted-local','rejected-local','submitted-local','revision-requested-local','submitted-local','reviewed-local']);assert.ok(versions.every((v:any)=>v.officiallySigned===false));await page.screenshot({path:output+'/screenshots/ba-revision-reviewed.png'});results.push({result:'pass',check:'BA normal/reject/revise/resubmit/review with source completeness blocking and immutable unsigned history'});await context.close();}
 
  // Real filtered document graph, including live notifications after draft edits.

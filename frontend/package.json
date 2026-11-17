@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "engines": {
-    "node": ">=20"
+    "node": "^22.12.0 || ^24.0.0 || >=26.0.0"
   },
   "scripts": {
     "dev": "vite --host 0.0.0.0",
@@ -27,7 +27,14 @@
     "test:notifications": "node --import tsx --test src/workflow/notifications/notificationRules.test.ts",
     "test:notifications:browser": "node --import tsx scripts/verifyNotifications.ts",
     "test:patch02": "node --import tsx --test src/workflow/balaiReviewQueue.test.ts",
-    "test:patch02:e2e": "node --import tsx scripts/verifyPatch02.ts"
+    "test:patch02:e2e": "node --import tsx scripts/verifyPatch02.ts",
+    "test:stage0": "vitest run src/workflow/Stage0Persistence.test.tsx",
+    "test:stage0:browser": "node --import tsx scripts/verifyStage0FourStepBrowser.ts",
+    "test:guard": "node --import tsx --test src/workflow/access/*.test.ts",
+    "test:all": "node --import tsx scripts/verifyAll.ts",
+    "test:unit": "node --import tsx scripts/verifyAll.ts --unit",
+    "test:operational:all": "node --import tsx scripts/verifyAll.ts --browser",
+    "test:ba-source": "node --import tsx --test src/workflow/ba/sourceReviewRegression.test.ts"
   },
   "devDependencies": {
     "@hookform/resolvers": "^3.10.0",
@@ -62,6 +69,8 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "^4.1.14",
     "@tanstack/react-query": "^5.90.21",
+    "@testing-library/dom": "^10.4.2",
+    "@testing-library/react": "^16.3.3",
     "@types/leaflet": "^1.9.22",
     "@types/node": "^25.3.3",
     "@types/react": "^19.2.0",
@@ -74,6 +83,7 @@
     "embla-carousel-react": "^8.6.0",
     "framer-motion": "^12.23.24",
     "input-otp": "^1.4.2",
+    "jsdom": "^26.1.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^0.545.0",
     "next-themes": "^0.4.6",

@@ -80,6 +80,7 @@ export function recordDailyChange(
 export function retainDecisionHistory(
   before: OperationalWorkflowState,
   after: OperationalWorkflowState,
+  recordedAt = new Date().toISOString(),
 ): OperationalWorkflowState {
   const audits = after.audits.map((audit, index) => {
     const old = before.audits[index];
@@ -121,16 +122,15 @@ export function retainDecisionHistory(
   const balaiDecisionHistory = [...(before.balaiDecisionHistory??[])];
   const decisions = [
     {stage:'Tahap 0' as const, previousDecision:before.project.preparation.reportApproval,decision:after.project.preparation.reportApproval,previousNote:before.project.preparation.reviewerNote,note:after.project.preparation.reviewerNote},
-    {stage:'Tahap 2' as const,previousDecision:before.productionApproval,decision:after.productionApproval,previousNote:before.productionApprovalNote,note:after.productionApprovalNote},
-    {stage:'Tahap 6' as const,previousDecision:before.acceptance.acceptanceDecision??'Belum Diperiksa',decision:after.acceptance.acceptanceDecision??'Belum Diperiksa',previousNote:before.acceptance.acceptanceRejectionReason||before.acceptance.acceptanceReviewNote||'',note:after.acceptance.acceptanceRejectionReason||after.acceptance.acceptanceReviewNote||''},
+    {stage:'Tahap 2' as const,previousDecision:before.productionApproval,decision:after.productionApproval,previousNote:before.productionApprovalNote,note:after.productionApprovalNote,previousReference:before.productionApprovalBa,reference:after.productionApprovalBa},
+    {stage:'Tahap 6' as const,previousDecision:before.acceptance.acceptanceDecision??'Belum Diperiksa',decision:after.acceptance.acceptanceDecision??'Belum Diperiksa',previousNote:before.acceptance.acceptanceRejectionReason||before.acceptance.acceptanceReviewNote||'',note:after.acceptance.acceptanceRejectionReason||after.acceptance.acceptanceReviewNote||'',previousReference:before.acceptance.finalAcceptanceBa,reference:after.acceptance.finalAcceptanceBa},
   ];
   for(const entry of decisions)if(entry.previousDecision!==entry.decision || (before.role==='PIC Balai / Pengguna Jasa'&&entry.previousNote!==entry.note)) {
-    balaiDecisionHistory.push({...entry,actor:before.role,recordedAt:new Date().toISOString()});
+    balaiDecisionHistory.push({...entry,actor:before.role,recordedAt});
   }
   // Journal only actual changes at the workflow mutation boundary. Never
   // synthesize historical events from legacy snapshots or view-only changes.
   const activity: ReviewActivity[] = [];
-  const recordedAt = new Date().toISOString();
   const add = (stage: ReviewActivity['stage'], oldStatus: string, status: string,
     oldNote: string, note: string, period?: number, auditLevel?: 1|2|3) => {
     if (oldStatus === status && oldNote === note) return;

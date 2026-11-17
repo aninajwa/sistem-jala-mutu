@@ -1,3 +1,4 @@
+import { evaluateProductionTest } from './model';
 
 import type {
   OperationalWorkflowState,
@@ -75,7 +76,9 @@ export function evaluateStageGate(
   const calibrationApproved = calibrationReady(state);
 
   const productionApproved =
-    state.productionApproval === 'Disetujui' && !(state.project.surveyTypes.includes('PCI') && state.productionTests.PCI.pciManual === false);
+    state.productionApproval === 'Disetujui' &&
+    (!state.project.surveyTypes.includes('PCI') || state.productionTests.PCI.pciManual !== false ||
+      (!!state.productionApprovalBa.trim() && evaluateProductionTest('PCI', state.productionTests.PCI).passed));
 
   const dailyRecorded =
     state.project.surveyTypes.length > 0 &&

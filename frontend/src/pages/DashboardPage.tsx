@@ -9,6 +9,7 @@ import { aggregateDashboard } from './dashboardMetrics';
 import { ReviewEvidenceLocalStatus } from './ReviewEvidenceLocalStatus';
 import { isReviewPackageInScope } from './reviewEvidenceAccess';
 import './dashboardSummary.css';
+import { DashboardWorkQueue } from './DashboardWorkQueuePanel';
 
 const empty = <div className="panel-body subtle">Belum ada data tercatat pada cakupan dan filter ini.</div>;
 type ChartRow = {name:string;value:number};
@@ -166,6 +167,7 @@ export default function DashboardPage(p:PageProps){
     <button className="btn sm" type="button" onClick={()=>{setBalaiFilter('Semua Balai');setPackageFilter('Semua paket');setSurveyFilter('Semua');setPeriodFilter('Semua periode');setAttentionFilter('Semua kondisi')}}>Atur ulang</button>
    </div>
   </div>}
+  {overview&&<DashboardWorkQueue packages={scopedPackages} role={role} onOpenPackage={p.openPackage}/> }
   {overview&&<div className="kpi-grid ds-kpi-grid">{kpis.map(([Icon,label,value,note,tone])=><KPI key={String(label)} icon={Icon} label={String(label)} value={String(value)} note={String(note)} tone={String(tone)} testId={`kpi-dashboard-${String(label).toLowerCase().replace(/[^a-z0-9]+/g,'-')}`}/>)}</div>}
   {admin? <>
    {overview&&<div className="grid-two">

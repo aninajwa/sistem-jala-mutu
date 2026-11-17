@@ -1,4 +1,5 @@
 import {RoleWorkSection} from '../RoleWorkSection';
+import { stage1RolePresentation } from '../stage1RolePresentation';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import {
   ArrowRight,
@@ -25,6 +26,7 @@ import {
 } from "./stageSupport";
 import { useWorkflowStage } from "./useWorkflowStage";
 
+import {StageRoleJourney} from '../StageRoleJourney';
 export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   const { selection, state, onUpdate, setNotice, onNavigate } = props;
   const { baAccess, commit, heading } = useWorkflowStage(props);
@@ -48,6 +50,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
    */
 
   const canEditCalibration = state.role === "Penyedia Jasa / Ketua Tim";
+  const rolePresentation = stage1RolePresentation(state.role);
 
   const scopedSurveyTypes = state.project.surveyTypes;
 
@@ -245,15 +248,15 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
         "Kalibrasi & Validasi Awal",
         "Pastikan alat, personel, kalibrasi/validasi, kualifikasi dan bukti pendukung siap sebelum uji coba produksi.",
       )}
+      <StageRoleJourney stage={1} role={state.role} ready={readySurveyCount} surveyTotal={scopedSurveyTypes.length} />
       <div className="workflow-data-origin">
-        <span className="origin-badge provider">PENYEDIA</span>
+        <span className={`origin-badge ${rolePresentation.tone}`}>{rolePresentation.badge}</span>
 
         <div>
-          <strong>Penugasan alat, personel dan bukti kesiapan</strong>
+          <strong>{rolePresentation.heading}</strong>
 
           <span>
-            Penyedia melengkapi data yang digunakan pada paket. PIC Balai dan
-            Direktorat membacanya secara read-only.
+            {rolePresentation.description}
           </span>
         </div>
       </div>
@@ -262,6 +265,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             JENIS SURVEI
             ================================================ */}
 
+      <div id="stage1-survey-work" />
       <Panel title="Jenis Survei" icon={ClipboardCheck}>
         <div className="calibration-survey-tabs">
           {scopedSurveyTypes.map((type) => (
@@ -697,7 +701,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             CHECKLIST DRAFT PP
             ================================================ */}
 
-      <RoleWorkSection primary={canEditCalibration} title="Formulir kalibrasi Penyedia"><SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
+      <RoleWorkSection primary={canEditCalibration} title={rolePresentation.checklistHeading}><SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
         projectInfo={state.project}
         packageId={state.project.id}
         phase="calibration"

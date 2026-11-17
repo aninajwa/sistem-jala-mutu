@@ -1,4 +1,6 @@
+import { canOpenProductionCorrection, productionFailureKey, recordProductionFailure } from '../productionFailures';
 import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
+import { Stage2RoleOverview } from '../Stage2RoleOverview';
 import {evaluateStageGate} from '../workflowGate';
 import {productionReviewBlockers} from '../reviewReadiness';
 import {dataOrigin} from '../dataOrigin';
@@ -58,6 +60,10 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
   const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
   const test = state.productionTests[prodType];
   const evaluation = evaluateProductionTest(prodType, test);
+  const failureKey = productionFailureKey(state, prodType);
+  const failures = state.productionFailures?.[failureKey] ?? [];
+  const failureEvidence = draft[`failure-evidence:${failureKey}`] ?? '';
+  const methodReview = draft[`failure-method:${failureKey}`] ?? '';
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
 
@@ -143,7 +149,6 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
     scopedTypes.length > 0 &&
     scopedTypes.every(
       (type) =>
-        (type !== "PCI" || state.productionTests.PCI.pciManual !== false) &&
         evaluateProductionTest(type, state.productionTests[type]).passed,
     );
   const calibrationReady=evaluateStageGate(state,'Tahap 1').readyToComplete;
@@ -240,6 +245,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
         "Validasi Produksi Data / Uji Coba",
         "Data hasil uji diperiksa otomatis terhadap ketentuan QA/QC. Penyedia melengkapi bukti yang belum tersedia, kemudian PIC Balai melakukan review.",
       )}
+      <Stage2RoleOverview role={state.role} approval={state.productionApproval} blockerCount={reviewBlockers.length} selectedCount={scopedTypes.length}/>
       <Panel title="Dokumen Hasil Uji & Persetujuan" icon={FileText}>
         <p className="wf-note">
           BA Kalibrasi dan Validasi disusun dari hasil Tahap 1–2. Persetujuan
@@ -286,7 +292,6 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
       </Panel>
 
       {reviewBlockers.length>0&&<details className="wf-callout warn"><summary>Pengajuan / persetujuan tertahan · {reviewBlockers.length} persyaratan</summary><ul>{reviewBlockers.map(reason=><li key={reason}>{reason}</li>)}</ul><div className="wf-toolbar"><button className="wf-button" onClick={()=>onNavigate('/entry:Persiapan & SPMK')}>Buka persiapan</button><button className="wf-button" onClick={()=>onNavigate('/documents:Kalibrasi & personel')}>Buka kalibrasi</button></div></details>}
-      {prodType === "PCI" && test.pciManual === false && <div className="wf-callout warn">PCI AI tersedia untuk pencatatan dan evaluasi KAK. Keputusan operasional AI belum terverifikasi terhadap arahan mentor terbaru; pengajuan/persetujuan metode tetap tertahan.</div>}
       <RoleWorkSection primary={canEnterProduction} title="Formulir dan pemeriksaan Penyedia">
       <ProductionValidationChecklist
         type={prodType}
@@ -492,7 +497,22 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                 {evaluation.passed ? "Sesuai" : "Ditemukan ketidaksesuaian"}
               </Badge>
 
-              {!evaluation.passed && (
+              {!evaluation.passed && canEnterProduction && (
+                <div className="wf-callout warn">
+                  <p>{failures.length === 0 ? 'Catat hasil gagal, periksa metode atau personel, lalu ulangi uji.' : `${failures.length} percobaan gagal tercatat untuk ${failureKey}.`}</p>
+                  <label>Referensi hasil uji gagal <input value={failureEvidence} onChange={event => saveText(`failure-evidence:${failureKey}`, event.target.value)} /></label>
+                  <label>Hasil pemeriksaan metode atau personel <input value={methodReview} onChange={event => saveText(`failure-method:${failureKey}`, event.target.value)} /></label>
+                  <Button id="button-production-record-failure" onClick={() => {
+                    if (recordProductionFailure(state, prodType, failureEvidence, methodReview) === state) {
+                      setNotice('Isi catatan pemeriksaan dan referensi hasil untuk percobaan yang berbeda.', 'error');
+                      return;
+                    }
+                    commit('Catat kegagalan uji produksi', failureKey,
+                      current => recordProductionFailure(current, prodType, failureEvidence, methodReview));
+                  }}>Catat uji gagal</Button>
+                </div>
+              )}
+              {canEnterProduction && canOpenProductionCorrection(state, prodType) && (
                 <Button
                   id="button-production-create-correction"
                   kind="danger"
@@ -534,7 +554,8 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
               </div>
             )}
 
-          {state.role === "Penyedia Jasa / Ketua Tim" ? (
+          <div id="stage2-role-action" />
+           {state.role === "Penyedia Jasa / Ketua Tim" ? (
             <Panel
               title="Pengajuan ke PIC Balai"
               icon={FileCheck2}

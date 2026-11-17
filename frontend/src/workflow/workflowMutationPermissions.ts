@@ -1,3 +1,4 @@
+import {isBalaiVervalCascade,isBalaiPeriodDecision} from './access/balaiVervalCascade';
 import {balaiDecisionError} from './balaiDecisionPolicy';
 import {correctionMutationError} from './checkpoint09Corrections';
 import type { OperationalWorkflowState } from "./model";
@@ -19,6 +20,7 @@ export function workflowMutationError(
   if (selection === "/audit:Peran & backup")
     return allow("administration.manage") ? undefined : denied;
   if (role === "Admin") return denied;
+  if(selection==="/verification:Verval 14 hari"&&(isBalaiVervalCascade(before,after)||isBalaiPeriodDecision(before,after)))return undefined;
   if(selection==="/actions:Koreksi berbukti"){const error=correctionMutationError(before,after);if(error)return error;}
   // Check decisions separately from supporting-data edits and automatic invalidation.
   if (changed(before.project, after.project)) {

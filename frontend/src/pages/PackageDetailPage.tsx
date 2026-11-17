@@ -31,7 +31,7 @@ type Props = {
     activity: string,
     object: string,
   ) => void;
-  setNotice: (message: string) => void;
+  setNotice: (message: string, tone?: "error") => void;
 };
 
 export default function PackageDetailPage({

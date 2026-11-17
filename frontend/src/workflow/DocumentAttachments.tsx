@@ -9,6 +9,7 @@ export const documentAttachmentId=(scope:string)=>'documents-'+scope.replace(/[^
 type Target={id:string;label:string};
 type Props={title?:string;scope:string;categories:string[];editable:boolean;onChanged?:()=>void;linkTargets?:Target[];legacyFileKeys?:string[];legacyEvidenceIds?:string[]};
 export function DocumentAttachments({title='Dokumen & Lampiran',scope,categories,editable,onChanged,linkTargets=[],legacyFileKeys=[],legacyEvidenceIds=[]}:Props){
+ const stage0Mode=scope.endsWith(':stage0');
  const prefix=`${scope}:documents:`,packageId=scope.split('::')[0].split(':')[0];
  const [revision,refresh]=useState(0),[category,setCategory]=useState(categories[0]??'Dokumen pendukung');
  const [reuseOpen,setReuseOpen]=useState(false),[notice,setNotice]=useState(''),[busy,setBusy]=useState(false),[available,setAvailable]=useState<Record<string,LocalFile|undefined>>({});
@@ -79,7 +80,7 @@ export function DocumentAttachments({title='Dokumen & Lampiran',scope,categories
   if(!editable||busy)return;
 
   if(!window.confirm(
-   `Hapus ${name} dari lampiran BA ini? File asli tetap tersimpan di perangkat.`
+   `Lepaskan ${name} dari daftar lampiran? File asli tetap tersimpan di perangkat.`
   ))return;
 
   update(key,{detached:true},'Hapus lampiran salah unggah dari draft');
@@ -90,9 +91,9 @@ export function DocumentAttachments({title='Dokumen & Lampiran',scope,categories
  return <section className="wf-panel documents-area" id={documentAttachmentId(scope)}>
   <div className="wf-panel-head"><h3>{title}</h3><span>{new Set(files.filter(item=>available[item.key]).map(item=>item.fileKey)).size} berkas</span></div>
   <div className="wf-body">
-   {!editable&&categories.length>1&&<label className="document-category-label">Kategori lampiran<select aria-label="Kategori lampiran baca saja" value={effectiveCategory} onChange={event=>setCategory(event.target.value)}>{categories.map(item=><option key={item}>{item}</option>)}</select></label>}
-   {!!categories.length&&<details className="document-needs"><summary>Kebutuhan dokumen ({categories.length})</summary><ul className="document-requirements">{categories.map(item=>{const matched=files.filter(file=>assignments(file.key).includes(item)&&available[file.key]);return <li key={item}>{item}<small> · {!matched.length?'Belum tersedia':matched.every(file=>links[file.key]?.status==='Perlu perbaikan')?'Perlu perbaikan':'Tersedia di perangkat'}</small></li>;})}</ul></details>}
-   {editable&&<div className="document-upload-flow"><label className="document-category-label">Jenis lampiran<select value={effectiveCategory} onChange={event=>{setCategory(event.target.value);setReuseOpen(false);}}>{[...new Set([...categories,'Dokumen pendukung'])].map(item=><option key={item}>{item}</option>)}</select></label><div className="document-upload-actions"><FileUploadButton disabled={busy} label="Unggah berkas" onFiles={selected=>void upload(selected)}/><button type="button" className="wf-button" disabled={busy} aria-expanded={reuseOpen} onClick={()=>setReuseOpen(value=>!value)}>Gunakan berkas tersimpan</button></div>{reuseOpen&&<label className="document-category-label">Berkas yang sudah ada<select aria-label="Pilih berkas tersimpan untuk kategori ini" value="" disabled={busy} onChange={event=>{void reuse(event.target.value);setReuseOpen(false);}}><option value="">Pilih berkas paket ini</option>{Object.entries(metadata).filter(([key])=>key.startsWith(packageId+':')).map(([key,file])=><option value={key} key={key}>{file.name}</option>)}</select></label>}<p className="wf-note">Tersimpan di perangkat ini, belum tersinkron ke server.</p></div>}
+   {!editable&&categories.length>1&&<label className="document-category-label">Jenis dokumen<select aria-label="Kategori lampiran baca saja" value={effectiveCategory} onChange={event=>setCategory(event.target.value)}>{categories.map(item=><option key={item}>{item}</option>)}</select></label>}
+   {!stage0Mode&&!!categories.length&&<details className="document-needs"><summary>Kebutuhan dokumen ({categories.length})</summary><ul className="document-requirements">{categories.map(item=>{const matched=files.filter(file=>assignments(file.key).includes(item)&&available[file.key]);return <li key={item}>{item}<small> · {!matched.length?'Belum tersedia':matched.every(file=>links[file.key]?.status==='Perlu perbaikan')?'Perlu perbaikan':'Tersedia di perangkat'}</small></li>;})}</ul></details>}
+   {editable&&<div className="document-upload-flow"><label className="document-category-label">Jenis dokumen<select value={effectiveCategory} onChange={event=>{setCategory(event.target.value);setReuseOpen(false);}}>{[...new Set([...categories,'Dokumen pendukung'])].map(item=><option key={item}>{item}</option>)}</select></label><div className="document-upload-actions"><FileUploadButton disabled={busy} label={stage0Mode?"Pilih dan simpan file":"Unggah berkas"} onFiles={selected=>void upload(selected)}/><button type="button" className="wf-button" disabled={busy} aria-expanded={reuseOpen} onClick={()=>setReuseOpen(value=>!value)}>Gunakan berkas tersimpan</button></div>{reuseOpen&&<label className="document-category-label">Berkas yang sudah ada<select aria-label="Pilih berkas tersimpan untuk kategori ini" value="" disabled={busy} onChange={event=>{void reuse(event.target.value);setReuseOpen(false);}}><option value="">Pilih berkas paket ini</option>{Object.entries(metadata).filter(([key])=>key.startsWith(packageId+':')).map(([key,file])=><option value={key} key={key}>{file.name}</option>)}</select></label>}{stage0Mode?<p className="stage0-local-note">File hanya tersimpan di browser ini, belum dikirim ke server.</p>:<p className="wf-note">Tersimpan di perangkat ini, belum tersinkron ke server.</p>}</div>}
    {legacyEvidenceIds.length>0&&<details className="document-references"><summary>Nomor dan referensi dokumen</summary><p className="wf-note">Referensi saja · file belum tersimpan sampai berkas dapat dibaca di perangkat.</p>{legacyEvidenceIds.map((id,index)=>{const key=`${packageId}:${id}`,records=readLocal<Record<string,{reference?:string;fileName?:string;updatedAt?:string}>>('jala-mutu-evidence-v1',{});return <label className="wf-field" key={id}>Referensi {categories[index]??'Dokumen pendukung'}<input disabled={!editable} value={records[key]?.reference??''} onChange={event=>{if(!editable)return;try{writeLocal('jala-mutu-evidence-v1',{...readLocal('jala-mutu-evidence-v1',{}),[key]:{...records[key],reference:event.target.value,updatedAt:new Date().toISOString()}});changed();}catch{setNotice('Referensi belum tersimpan.');}}}/></label>;})}</details>}
    {legacyReferences.length>0&&<details><summary>Referensi yang telah dicatat ({legacyReferences.length})</summary>{legacyReferences.map(([key,value])=><p key={key}>{value.reference||value.fileName}<small>Referensi tercatat; keberadaan berkas diperiksa terpisah.</small></p>)}</details>}
    {files.filter(item=>assignments(item.key).includes(effectiveCategory)).length===0&&<p className="wf-note">Belum ada dokumen untuk kategori ini.</p>}
@@ -107,8 +108,8 @@ export function DocumentAttachments({title='Dokumen & Lampiran',scope,categories
 <button
  type="button"
  className="wf-button document-unlink"
- title="Hapus lampiran dari BA, file asli tetap tersimpan"
- aria-label={`Hapus ${meta.name} dari lampiran BA`}
+ title="Lepaskan lampiran; file asli tetap tersimpan"
+ aria-label={`Lepaskan ${meta.name} dari lampiran`}
  disabled={busy}
  onClick={()=>removeDraftLink(key,meta.name)}
 >

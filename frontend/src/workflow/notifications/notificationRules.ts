@@ -26,6 +26,14 @@ export function workflowEvents(old:Projection,next:OperationalWorkflowState,revi
   if(previous.review!==p.review&&p.review==='Sesuai')emit('period.reviewed','Hasil verval diperiksa sesuai',subject,PROVIDER,'lead','Sesuai',target,false);
  }
  if(old.submission!==now.submission&&now.submission==='Error')emit('submission.returned','Penyerahan data memerlukan perbaikan',{kind:'submission',id:'submission'},PROVIDER,'lead','Error',{module:'workflow',packageId:pkg,selection:SELECTION.submission});
+ if (old.acceptance !== now.acceptance) {
+  const target: Target = {module:'workflow',packageId:pkg,selection:SELECTION.acceptance};
+  const subject: Subject = {kind:'acceptance',id:'acceptance'};
+  if (now.acceptance === 'Ditolak') emit('acceptance.returned','Penerimaan data ditolak; periksa alasan',subject,PROVIDER,'lead',now.acceptance,target);
+  if (now.acceptance === 'Diterima' || now.acceptance === 'Diterima dengan Catatan') {
+   emit('acceptance.recorded','Keputusan penerimaan akhir dicatat',subject,PROVIDER,'lead',now.acceptance,target,false);
+  }
+ }
  function auditReady(level:number,p:Projection){return p.submission==='VALID'&&p.audits[level-2]?.status==='Lulus'&&!p.audits[level-2]?.requiresReview&&(p.audits[level-1]?.requiresReview||!['Lulus','Ditolak'].includes(p.audits[level-1]?.status));}
  for(const level of [2,3])if(!auditReady(level,old)&&auditReady(level,now))emit('audit.ready',`Audit tingkat ${level} siap diperiksa`,{kind:'audit',id:String(level),auditLevel:level},level===2?BALAI:CENTRE,'audit','ready',{module:'workflow',packageId:pkg,selection:SELECTION.audit,auditLevel:level});
  for(const [index,a] of now.audits.entries())if(a.status==='Ditolak'&&old.audits[index]?.status!=='Ditolak')emit('audit.returned',`Audit tingkat ${index+1} ditolak; tinjau alasan`,{kind:'audit',id:String(index+1),auditLevel:index+1},index===2?BALAI:PROVIDER,index===2?'supervise':'lead','Ditolak',{module:'workflow',packageId:pkg,selection:SELECTION.audit,auditLevel:index+1},index!==2);

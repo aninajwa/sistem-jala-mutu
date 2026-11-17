@@ -335,7 +335,7 @@ export type ReviewActivity = {
 
 export type OperationalWorkflowState = {
   reviewActivityHistory?: ReviewActivity[];
-  balaiDecisionHistory?: Array<{stage:'Tahap 0'|'Tahap 2'|'Tahap 6'; recordedAt:string; actor:WorkflowRole; previousDecision:string; decision:string; previousNote:string; note:string}>;
+  balaiDecisionHistory?: Array<{stage:'Tahap 0'|'Tahap 2'|'Tahap 6'; recordedAt:string; actor:WorkflowRole; previousDecision:string; decision:string; previousNote:string; note:string; previousReference?:string; reference?:string}>;
   pciMethodDrafts?: Partial<Record<"manual" | "ai", ProductionTest>>;
   flowContractVersion?: number;
   simulationDate: string;
@@ -366,6 +366,7 @@ productionApprovalNote: string;
   calibrations: CalibrationRecord[];
   calibrationChecklist: Record<SurveyType, boolean>;
   productionTests: Record<SurveyType, ProductionTest>;
+  productionFailures?: Partial<Record<string, { reference: string; methodReview: string; date: string }[]>>;
   productionTestDates?: Partial<Record<SurveyType,string>>;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
@@ -1048,8 +1049,14 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     const detail =
       test.productionDetails ?? {};
 
+    // Nama field di formulir dan key lama sama-sama diterima; jangan ubah data historis.
+    const sourceField: Record<string, string> = {
+      slopeGeometry: 'geometry',
+      slopeMaterial: 'materialCondition',
+      protectionStructure: 'engineeringStructure',
+    };
     const text = (key: string) =>
-      String(detail[key] ?? '').trim();
+      String(detail[key] || detail[sourceField[key]] || '').trim();
 
     const yes = (key: string) =>
       detail[key] === true;

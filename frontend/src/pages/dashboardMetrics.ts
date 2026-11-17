@@ -1,3 +1,5 @@
+import { packageStatus } from '../workflow/packageStore';
+
 import type { OperationalWorkflowState, WorkflowRole } from '../workflow/model';
 import { isInPeriod } from '../lib/periods';
 import { isValidReviewDate } from './reviewDateValidation';
@@ -43,14 +45,14 @@ export function aggregateDashboard(packages: Record<string, DashboardPackage>, r
         surveyReviews.push({packageId:id,packageName:p.project.packageName||id,surveyType,stage,decision:review.decision,reviewedAt:review.reviewedAt,note:review.note||'',evidenceReferences:traceReviewEvidence(review).references});
       }
     };
-    appendReviews('Review berkala',p.cycle?.surveyReviews,p.cycle?.reviewPendingTypes);
+    if (!p.cycle?.requiresReview) appendReviews('Review berkala',p.cycle?.surveyReviews,p.cycle?.reviewPendingTypes);
     appendReviews('V&V bertahap',p.submission?.stagedReviews);
     const open = p.corrections.filter(c=>c.status!=='Ditutup').length;
     const closed = p.corrections.length-open;
     const pending = p.corrections.filter(c=>c.status==='Menunggu Persetujuan'||c.status==='Verifikasi Ulang').length;
     const audits = p.audits.filter(a=>a && (a.status==='Dalam Review'||a.status==='Klarifikasi')).length;
     correctionsOpen+=open; correctionsClosed+=closed; awaitingReview+=pending; auditPending+=audits;
-    if (p.acceptance.finalAcceptance) accepted++;
+    if (p.acceptance.finalAcceptance && packageStatus(p) === 'Diterima') accepted++;
     const balai = p.project.balai || 'Balai belum ditentukan';
     const b=byBalai.get(balai)||{name:balai,packages:0,open:0}; b.packages++;b.open+=open;byBalai.set(balai,b);
     for (const r of p.dailyRecords) {

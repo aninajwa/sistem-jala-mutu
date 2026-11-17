@@ -1,0 +1,16 @@
+.stage-role-journey { --journey-accent: #087e89; display:grid;grid-template-columns:minmax(0,1.1fr) minmax(0,.9fr);gap:24px;align-items:center;min-width:0;padding:clamp(18px,3vw,28px);margin:14px 0 22px;background:var(--surface,#fff);border:1px solid #dce8ed;border-left:5px solid var(--journey-accent);border-radius:16px;box-shadow:0 4px 18px rgba(16,52,72,.05); }
+.stage-role-journey--waiting { --journey-accent: #a26913; }
+.stage-role-journey--done { --journey-accent: #148064; }
+.stage-role-journey--neutral { --journey-accent: #426e98; }
+.stage-role-journey__main,.stage-role-journey__steps { min-width:0; }
+.stage-role-journey__eyebrow { display:inline-block;color:var(--journey-accent);font-weight:750;font-size:.79rem;letter-spacing:.02em; }
+.stage-role-journey h3 { color:#153951;font-size:clamp(1.12rem,2vw,1.4rem);line-height:1.3;margin:7px 0 9px;overflow-wrap:anywhere; }
+.stage-role-journey p { color:#445c6b;line-height:1.55;margin:0 0 16px;max-width:60ch; }
+.stage-role-journey__action { display:inline-flex;gap:12px;align-items:center;justify-content:center;min-height:44px;padding:10px 15px;border-radius:10px;background:#116e80;color:white !important;text-decoration:none;font-weight:700;max-width:100%;text-align:center; }
+.stage-role-journey__action:hover,.stage-role-journey__action:focus-visible { background:#075466;text-decoration:underline; }
+.stage-role-journey__action:focus-visible { outline:3px solid #f2a84e;outline-offset:3px; }
+.stage-role-journey__steps { padding:0;margin:0;list-style:none;display:grid;gap:12px; }
+.stage-role-journey__steps li { display:flex;align-items:flex-start;gap:10px;line-height:1.45;color:#29485a;overflow-wrap:anywhere; }
+.stage-role-journey__number { display:grid;place-items:center;flex:0 0 27px;height:27px;border-radius:9px;background:#e9f3f6;color:#1c6677;font-size:.8rem;font-weight:750; }
+#stage0-role-work,#stage1-survey-work { scroll-margin-top:100px; }
+@media(max-width:720px) { .stage-role-journey { grid-template-columns:minmax(0,1fr);gap:20px;padding:18px;margin:12px 0 18px;border-radius:12px; } .stage-role-journey__action { width:100%; } .stage-role-journey__steps { padding-top:16px;border-top:1px solid #e2eaf0; } }

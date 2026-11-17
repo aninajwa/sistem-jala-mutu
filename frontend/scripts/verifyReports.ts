@@ -5,7 +5,8 @@ import assert from 'node:assert/strict';
 import {INITIAL_WORKFLOW,type WorkflowRole} from '../src/workflow/model';
 import {PACKAGE_STORE_KEY} from '../src/workflow/packageStore';
 const {chromium}=await import(process.env.PLAYWRIGHT_MODULE||'playwright');
-const server=await createServer({configFile:fileURLToPath(new URL('../vite.config.ts',import.meta.url)),server:{host:'127.0.0.1',port:5173,strictPort:true}});await server.listen();
+const port=Number(process.env.TEST_PORT||5173),baseUrl=`http://127.0.0.1:${port}`;
+const server=await createServer({configFile:fileURLToPath(new URL('../vite.config.ts',import.meta.url)),server:{host:'127.0.0.1',port,strictPort:true}});await server.listen();
 const browser=await chromium.launch({headless:true,executablePath:process.env.CHROMIUM_EXECUTABLE,args:['--no-sandbox','--disable-dev-shm-usage']});
 const out=process.env.TEST_ARTIFACTS||'test-artifacts/reports';await fs.mkdir(out,{recursive:true});
 const roles:WorkflowRole[]=['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat','Admin'];
@@ -19,10 +20,10 @@ try {
  const hidden=structuredClone(state);hidden.project.id='REPORT-SECRET';hidden.project.packageName='RAHASIA TIDAK BOLEH TAMPIL';
  const context=await browser.newContext({viewport:{width,height:960},acceptDownloads:true});
  await context.addInitScript(({state,hidden,key,role}:any)=>{if(localStorage.getItem('report-test-init'))return;localStorage.setItem(key,JSON.stringify({activeRole:role,activePackageId:null,packages:{[state.project.id]:state,[hidden.project.id]:hidden}}));localStorage.setItem('jala-local-assignments-v1',JSON.stringify({['local:'+role]:[state.project.id]}));localStorage.setItem('jala-mutu-demo-session-v1','active');localStorage.setItem('report-test-init','1');},{state,hidden,key:PACKAGE_STORE_KEY,role});
- const page=await context.newPage();page.on('pageerror',(e:any)=>errors.push(e.message));await page.goto('http://127.0.0.1:5173/reports?testRoles=1');
+ const page=await context.newPage();page.on('pageerror',(e:any)=>errors.push(e.message));await page.goto(baseUrl+'/reports?testRoles=1');
  if(role==='Admin'){await page.getByText('Laporan teknis dan ekspornya tidak tersedia untuk Admin.',{exact:false}).waitFor();assert.equal(await page.getByTestId('button-export-report').count(),0);}
  else {
- await page.getByTestId('table-report-rows').waitFor();await page.getByLabel('Paket',{exact:true}).selectOption('REPORT-TEST-A');assert.equal(await page.locator('[data-testid="table-report-rows"] tbody tr').count(),1);assert.equal(await page.getByText('RAHASIA TIDAK BOLEH TAMPIL',{exact:false}).count(),0);
+ await page.getByRole('button',{name:'Rekap & Ekspor',exact:true}).last().click();await page.getByTestId('table-report-rows').waitFor();await page.getByLabel('Paket',{exact:true}).selectOption('REPORT-TEST-A');assert.equal(await page.locator('[data-testid="table-report-rows"] tbody tr').count(),1);assert.equal(await page.getByText('RAHASIA TIDAK BOLEH TAMPIL',{exact:false}).count(),0);
  assert.equal(await page.getByTestId('select-global-balai').count(),0);assert.equal(await page.getByTestId('mobile-global-filters').count(),0);
  await page.getByLabel('Tanggal awal',{exact:true}).fill('2026-11-02');assert.equal(await page.locator('[data-testid="table-report-rows"] tbody tr').count(),0);assert.equal(await page.getByTestId('button-export-report').isDisabled(),true);
  await page.getByRole('button',{name:'Reset filter',exact:true}).click();await page.getByLabel('Paket',{exact:true}).selectOption('REPORT-TEST-A');

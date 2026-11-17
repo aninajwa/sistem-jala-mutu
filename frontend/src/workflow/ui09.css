@@ -27,3 +27,21 @@
 .documents-page .dr-filter-grid{display:grid;grid-template-columns:minmax(190px,1fr) minmax(230px,1fr);gap:12px;align-items:start}.documents-page .ui09-doc-filters>summary{cursor:pointer;color:#146b78;min-height:40px;display:list-item;padding:9px 0;font-size:13px}.documents-page .ui09-doc-filter-fields{display:grid;grid-template-columns:1fr;gap:10px;margin-top:8px}.documents-page .dr-filters>button{margin-top:8px}@media(max-width:780px){.documents-page .dr-filter-grid{grid-template-columns:1fr}.documents-page .ui09-doc-filters>summary{min-height:44px;padding:10px 0}}
 /* These shell filters drive survey summaries, not document/case repositories. Use the actual module filters here. */
 body:has(.documents-page,.corr-dashboard) .topbar .global-filters>.filter-wrap:not(:last-child),body:has(.documents-page,.corr-dashboard) [data-testid=mobile-global-filters]{display:none!important}
+
+/* Paket QA/QC: sidebar menjadi satu-satunya navigasi tahapan.
+   Header memuat konteks paket, bukan rail atau duplikasi semua modul. */
+.ui09-workspace .ui09-package-header{padding:12px 16px!important;margin-bottom:10px}
+.ui09-workspace .ui09-package-compact{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:9px;padding-top:9px;border-top:1px solid var(--ui09-line)}
+.ui09-workspace .ui09-package-position{font-size:12px;color:var(--ui09-muted);font-weight:600;min-width:0;overflow-wrap:anywhere}
+.ui09-workspace .ui09-package-compact .ui09-package-info{flex:0 1 auto}
+.ui09-workspace .ui09-package-compact .ui09-package-info>summary{font-size:12px;min-height:32px;display:list-item;white-space:nowrap;cursor:pointer}
+.ui09-workspace .ui09-package-compact .ui09-package-info[open]{flex:1 1 100%}
+.ui09-workspace .ui09-package-compact:has(.ui09-package-info[open]){flex-wrap:wrap}
+.ui09-workspace .ui09-package-compact .ui09-package-info[open]>.package-context-grid{width:100%}
+@media(max-width:780px){
+ .ui09-workspace .ui09-package-compact{gap:8px;align-items:flex-start}
+ .ui09-workspace .ui09-package-position{max-width:65%;font-size:12px}
+ .ui09-workspace .ui09-package-compact .ui09-package-info>summary{white-space:normal}
+ .ui09-workspace .ui09-package-title h1{font-size:17px}
+ .ui09-workspace .package-next-action{padding:12px}
+}

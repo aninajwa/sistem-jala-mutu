@@ -843,11 +843,10 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                         },
                         `Simpan keputusan audit tingkat ${auditLevel}`,
                       );
-                      setNotice(
-                        auditLevel === 1
-                          ? "Bukti audit internal/kesiapan dicatat."
-                          : "Keputusan audit dan referensi BA dicatat.",
-                      );
+                      // Do not announce success here. patchAudit can reject a
+                      // change, and storage authorization runs afterwards.
+                      // The persisted status and visible error are the source
+                      // of truth; a success toast here was misleading.
                     }}
                   >
                     <Save size={13} />

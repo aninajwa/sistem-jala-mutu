@@ -9,7 +9,7 @@ import {
   Switch,
   useLocation,
 } from 'wouter';
-import { CheckCircle2 } from 'lucide-react';
+import { CheckCircle2, CircleAlert } from 'lucide-react';
 
 import { workflowSubmodules } from './app/navigation';
 
@@ -64,6 +64,7 @@ function App() {
     closePackage,
     setRole,
     updateWorkflow,
+    mutationError,
   } = usePackageStore();
 
   const {
@@ -71,7 +72,7 @@ function App() {
     modal,
     editing,
     notice,
-    setNotice,
+    setNotice: setDemoNotice,
     record,
     addOrEdit,
     updateStatus,
@@ -79,6 +80,12 @@ function App() {
     openNew,
     closeDialog,
   } = useDemoStore(packageStore.activeRole);
+
+  const [noticeTone, setNoticeTone] = useState<"error" | undefined>();
+  const setNotice = (message: string, tone?: "error") => {
+    setNoticeTone(tone);
+    setDemoNotice(message);
+  };
 
   useEffect(startNotificationScheduler, []);
   const [location, setLocation] = useLocation();
@@ -106,7 +113,11 @@ function App() {
         'active',
     );
 
+  const routeAllowed =
+    canAccessRoute(packageStore.activeRole, location) &&
+    (!selectedSubmodule || canAccessRoute(packageStore.activeRole, selectedSubmodule.split(':')[0]));
   const isPackageWorkspace =
+    routeAllowed &&
     Boolean(activePackageId && activePackage) &&
     (
       selectedSubmodule ===
@@ -188,6 +199,14 @@ function App() {
   };
 
   const navigateSubmodule = (selection: string) => {
+    // Admin next action opens the administration page, not a package workflow.
+    if (selection === '/audit:Pengguna') {
+      setSelectedSubmodule('');
+      setActiveTab('Pengguna');
+      setLocation('/audit');
+      setMobileOpen(false);
+      return;
+    }
     if (selection === '/verification:Antrian Balai') {
       setSelectedSubmodule(''); setActiveTab('Semua');
       setLocation('/verification'+(isRoleTestMode()?'?testRoles=1':'')); setMobileOpen(false); return;
@@ -350,22 +369,11 @@ function App() {
   };
 
   useEffect(() => {
-    if (
-      sessionActive &&
-      !canAccessRoute(
-        packageStore.activeRole,
-        location,
-      )
-    ) {
+    if (sessionActive && !routeAllowed) {
       setSelectedSubmodule('');
-      setLocation(isRoleTestMode()?'/?testRoles=1':'/');
+      setLocation(isRoleTestMode() ? '/?testRoles=1' : '/');
     }
-  }, [
-    sessionActive,
-    packageStore.activeRole,
-    location,
-    setLocation,
-  ]);
+  }, [sessionActive, routeAllowed, setLocation]);
 
   const pageProps: PageProps = {
     store,
@@ -459,13 +467,18 @@ function App() {
           />
 
           <div className="content">
-            {notice && (
+            {mutationError ? (
+              <div className="notice notice-error" role="alert" data-testid="mutation-error">
+                <CircleAlert size={14} aria-hidden="true" />
+                {mutationError}
+              </div>
+            ) : notice && (
               <div
-                className="notice"
-                role="status"
-                data-testid="status-toast"
+                className={noticeTone === "error" ? "notice notice-error" : "notice"}
+                role={noticeTone === "error" ? "alert" : "status"}
+                data-testid={noticeTone === "error" ? "mutation-error" : "status-toast"}
               >
-                <CheckCircle2 size={14} />
+                {noticeTone === "error" ? <CircleAlert size={14} /> : <CheckCircle2 size={14} />}
                 {notice}
               </div>
             )}
@@ -480,7 +493,7 @@ function App() {
               showJenis={location === '/'}
             />}
 
-            {location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : location==='/verification' && !workflowSubmodules.has(selectedSubmodule) ? roleVerificationPage : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
+            {!routeAllowed ? null : location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : location==='/verification' && !workflowSubmodules.has(selectedSubmodule) ? roleVerificationPage : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
               workflowSubmodules.has(
                 selectedSubmodule,
               ) ? (

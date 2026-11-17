@@ -1,0 +1,15 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import { describeStageJourney } from './stageRoleJourneyModel';
+import type { WorkflowRole } from './model';
+const provider:WorkflowRole='Penyedia Jasa / Ketua Tim';
+const balai:WorkflowRole='PIC Balai / Pengguna Jasa';
+const pusat:WorkflowRole='Direktorat / Pusat';
+const admin:WorkflowRole='Admin';
+test('Tahap 0: pengajuan menunggu Balai, bukan dianggap disetujui',()=>{const p=describeStageJourney({stage:0,role:provider,approval:'Diajukan',complete:4,total:4});assert.equal(p.tone,'waiting');assert.match(p.title,/ditinjau Balai/);});
+test('Tahap 0: Penyedia mendapat arahan revisi ketika dikembalikan',()=>{const p=describeStageJourney({stage:0,role:provider,approval:'Perlu Revisi',complete:4,total:4});assert.match(p.action,/revisi/);});
+test('Tahap 0: Balai mendapat tugas review hanya untuk laporan diajukan',()=>{assert.equal(describeStageJourney({stage:0,role:balai,approval:'Diajukan'}).tone,'working');assert.equal(describeStageJourney({stage:0,role:balai,approval:'Draft'}).tone,'waiting');});
+test('Tahap 0: Direktorat dan Admin hanya monitoring, bukan keputusan Balai',()=>{for(const role of [pusat,admin]){const x=describeStageJourney({stage:0,role,approval:'Diajukan'});assert.equal(x.tone,'neutral');assert.doesNotMatch(x.action,/Setujui|Keputusan/);}});
+test('Tahap 1: Penyedia diarahkan mengisi, jumlah belum siap tepat',()=>{const x=describeStageJourney({stage:1,role:provider,ready:1,surveyTotal:3});assert.match(x.title,/2 dari 3/);assert.match(x.action,/formulir/);});
+test('Tahap 1: Balai tidak memperoleh tindakan persetujuan khusus',()=>{const x=describeStageJourney({stage:1,role:balai,ready:1,surveyTotal:2});assert.match(x.description,/tidak memiliki persetujuan Balai tersendiri/);assert.doesNotMatch(x.action,/Setujui/);});
+test('Tahap 1: Direktorat dan Admin hanya pemantauan',()=>{for(const role of [pusat,admin]){const x=describeStageJourney({stage:1,role,ready:0,surveyTotal:2});assert.equal(x.tone,'neutral');assert.doesNotMatch(x.action,/Tambah|Simpan|Setujui/);}});

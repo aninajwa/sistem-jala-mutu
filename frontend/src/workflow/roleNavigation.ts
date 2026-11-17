@@ -132,17 +132,20 @@ function packageChildren(
     selection: '/packages:Ringkasan Paket',
     hint: 'Identitas, status, lingkup survei, dan progres paket.',
   };
-  // Audit pusat dan monitoring Admin memiliki workspace tersendiri; jangan
-  // tampilkan pintasan formulir operasional Penyedia/Balai sebagai tugas mereka.
-  if(role==='Admin'||role==='Direktorat / Pusat')return [summary];
+  // Semua role dapat MENINJAU tahapan melalui sidebar paket.
+  // Hanya Penyedia/Balai memiliki kewenangan mutasi sesuai policy workflow.
+  // Direktorat dan Admin tidak mendapat persetujuan teknis dari navigasi ini.
+  const monitoring = role==='Admin'||role==='Direktorat / Pusat';
   return [
     summary,
     ...PACKAGE_WORKFLOW_ITEMS.map(item => ({
-  label: item.shortLabel,
-  selection: item.selection,
-  locked: false,
-  hint: `${item.actorHint} Akses halaman tidak berarti persyaratan tahap sudah terpenuhi.`,
-})),
+      label: monitoring ? `${item.shortLabel} · Lihat` : item.shortLabel,
+      selection: item.selection,
+      locked: false,
+      hint: monitoring
+        ? `Pemantauan baca-saja ${item.code}. Keputusan teknis tetap pada role berwenang.`
+        : `${item.actorHint} Akses halaman tidak berarti persyaratan tahap sudah terpenuhi.`,
+    })),
   ];
 }
 

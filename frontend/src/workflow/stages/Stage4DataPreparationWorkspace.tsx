@@ -1,3 +1,4 @@
+import { evaluateSubmissionReadiness } from '../submissionReadiness';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
 import {RoleWorkSection} from '../RoleWorkSection';
@@ -34,7 +35,6 @@ import {
   Field,
   Panel,
   Select,
-  SYSTEM_TARGET_ORDER,
   systemsByType,
   testId,
 } from "./stageSupport";
@@ -52,9 +52,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
   const docsPassed = documentItems.every(
     (x) => state.submission.requiredDocuments[x],
   );
-  const requiredTargets = SYSTEM_TARGET_ORDER.filter((system) =>
-    state.project.surveyTypes.some((type) => systemsByType[type] === system),
-  );
+  const { ready: readyToSubmit, requiredTargets } = evaluateSubmissionReadiness(state);
   const targetAssignments = requiredTargets.map((system) => ({
     system,
     types: state.project.surveyTypes.filter(
@@ -76,11 +74,6 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     ?sourceInspectionStatus(state.project.id,type,'staged',pciManual,state.project).complete
     :stagedFallbackReviewReady(state,type);
   const stagedFormsReady=state.project.surveyTypes.length>0&&state.project.surveyTypes.every(stagedTypeReady);
-  const readyToSubmit =
-    stagedFormsReady && preAuditReady &&
-    state.audits[0].status === "Lulus" &&
-    !state.audits[0].requiresReview &&
-    targetsPassed;
   const updateReq = (key: string, value: boolean) =>
     updateSubmission(
       {
