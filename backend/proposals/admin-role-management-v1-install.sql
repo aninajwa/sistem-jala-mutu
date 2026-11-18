@@ -141,6 +141,12 @@ begin
   if p_scope_paket_id is not null and not exists (
     select 1 from public.paket_kontrak as package
     where package.paket_id = p_scope_paket_id
+  ) then
+    raise exception 'SCOPE_NOT_FOUND' using errcode = 'P0002';
+  end if;
+  if p_scope_paket_id is not null and not exists (
+    select 1 from public.paket_kontrak as package
+    where package.paket_id = p_scope_paket_id
       and package.balai_id = p_scope_balai_id
   ) then
     raise exception 'SCOPE_RELATION_CONFLICT' using errcode = '23514', constraint = 'pengguna_peran_pic_balai_package_scope_ck';

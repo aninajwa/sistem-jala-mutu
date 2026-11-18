@@ -147,12 +147,13 @@ test('non-Admin cannot change or revoke assignments, and V1 cannot mutate a non-
 });
 
 test('Admin can add Balai-wide and package-scoped pic_balai assignments and writes audit rows', async () => {
+  const auditBefore = await auditCount('ASSIGN_ROLE');
   const wide = (await add(10))[0];
   const packageScoped = (await add(11, 101, 1001))[0];
   assert.equal(wide.mutation_version, '1');
   assert.equal(packageScoped.scope_paket_id, 1001);
   assert.equal(packageScoped.scope_balai_id, 101);
-  assert.equal(await auditCount('ASSIGN_ROLE'), 2);
+  assert.equal(await auditCount('ASSIGN_ROLE'), auditBefore + 2);
 });
 
 test('V1 rejects non-pic roles, self-changes, and locked targets', async () => {
