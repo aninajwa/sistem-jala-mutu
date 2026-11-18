@@ -166,6 +166,21 @@ test('V1 rejects non-pic roles, self-changes, and locked targets', async () => {
   await assert.rejects(withRpc('admin_ubah_penugasan_peran', [3, locked.pp_id, locked.mutation_version, 101, null]), error => error.code === '42501');
 });
 
+test('Admin cannot revoke a pic_balai assignment from a locked target', async () => {
+  const lockedBefore = await assignmentFor(3);
+  const revokeAuditBefore = await auditCount('REVOKE_ROLE');
+
+  await assert.rejects(
+    withRpc('admin_cabut_penugasan_peran', [3, lockedBefore.pp_id, lockedBefore.mutation_version]),
+    error => error.code === '42501',
+  );
+
+  const lockedAfter = await assignmentFor(3);
+  assert.deepEqual(lockedAfter, lockedBefore);
+  assert.equal(lockedAfter.mutation_version, lockedBefore.mutation_version);
+  assert.equal(await auditCount('REVOKE_ROLE'), revokeAuditBefore);
+});
+
 test('Balai and package scope checks reject missing, inactive, and cross-Balai references', async () => {
   await assert.rejects(add(22, 999), error => error.code === 'P0002');
   await assert.rejects(add(22, 102), error => error.code === '23514');

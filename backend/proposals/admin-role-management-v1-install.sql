@@ -287,7 +287,7 @@ security definer
 set search_path = ''
 as $function$
 declare
-  v_actor integer; v_user integer; v_role integer; v_role_name text;
+  v_actor integer; v_user integer; v_role integer; v_role_name text; v_locked boolean;
   v_balai integer; v_package integer; v_version bigint;
 begin
   v_actor := public.admin_role_mutation_authorize();
@@ -302,6 +302,10 @@ begin
   end if;
   if v_user = v_actor then raise exception 'SELF_CHANGE_FORBIDDEN' using errcode = '42501'; end if;
   if v_role_name <> 'pic_balai' then raise exception 'ROLE_MUTATION_FORBIDDEN' using errcode = '42501'; end if;
+  select coalesce(target.terkunci, false) into v_locked from public.pengguna target
+    where target.pengguna_id = v_user for update;
+  if not found then raise exception 'USER_NOT_FOUND' using errcode = 'P0002'; end if;
+  if v_locked then raise exception 'TARGET_LOCKED' using errcode = '42501'; end if;
   if p_expected_version is null or p_expected_version <> v_version then
     raise exception 'STALE_ASSIGNMENT' using errcode = '40001';
   end if;
