@@ -1,5 +1,13 @@
-import app from "./app";
 import { logger } from "./lib/logger";
+import { validateSupabaseConfiguration } from "./config/supabase";
+
+// Validate QA isolation before loading application modules or opening the
+// HTTP listener. This check never logs credentials and does not constrain
+// separate production environments.
+validateSupabaseConfiguration();
+
+// Load routes only after the QA configuration is known to be safe.
+const { default: app } = await import("./app");
 
 const rawPort = process.env["PORT"] ?? "5000";
 
