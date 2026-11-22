@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { ClipboardList } from "lucide-react";
 
 import type { OperationalWorkflowState } from "../model";
@@ -8,12 +9,15 @@ type Props = {
 };
 
 export function Stage3DailyRecordsTable({ state }: Props) {
-  const records = state.dailyRecords.filter(
+  const [survey, setSurvey] = useState("");
+  const [date, setDate] = useState("");
+  const scoped = state.dailyRecords.filter(
     (record) =>
       state.project.surveyTypes.includes(record.surveyType) &&
       state.project.routes.includes(record.road),
   );
 
+  const records = scoped.filter((record) => (!survey || record.surveyType === survey) && (!date || record.date === date));
   return (
     <section className="wf-panel">
       <div className="wf-panel-head">
@@ -26,9 +30,19 @@ export function Stage3DailyRecordsTable({ state }: Props) {
       </div>
 
       <div className="wf-body">
+        {scoped.length > 0 && <div className="wf-toolbar">
+          <label className="wf-field">Tanggal kegiatan<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
+          <label className="wf-field">Jenis survei
+            <select value={survey} onChange={(event) => setSurvey(event.target.value)}>
+              <option value="">Semua jenis</option>
+              {[...new Set(scoped.map((record) => record.surveyType))].map((type) => <option key={type}>{type}</option>)}
+            </select>
+          </label>
+          {(date || survey) && <button type="button" className="wf-button" onClick={() => { setDate(""); setSurvey(""); }}>Hapus filter</button>}
+        </div>}
         {records.length === 0 ? (
           <div className="wf-empty">
-            Belum ada rekaman survei harian untuk lingkup paket ini.
+            {scoped.length ? "Tidak ada rekaman pada tanggal dan jenis survei yang dipilih." : "Belum ada rekaman survei harian untuk lingkup paket ini."}
           </div>
         ) : (
           <div className="wf-table">

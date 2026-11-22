@@ -1,58 +1,63 @@
-import {normalizeWorkflowSelection} from './workflow/legacySelection';
-import {isRoleTestMode} from './workflow/access/packageAccess';
-import { localPersistence } from './workflow/repository/localPersistence';
+import ProviderWorkHome from "./pages/ProviderWorkHome";
+import { localPrincipal } from "./workflow/access/packageAccess";
+import "./design/v2.css";
+import { useResponsiveTables } from "./design/b/useResponsiveTables";
+import { LoadingState, Feedback } from "./design/Feedback";
+import "./design/paket-a.css";
+import "./design/b/paket-b.css";
+import "./design/c/paket-c.css";
+import { normalizeWorkflowSelection } from "./workflow/legacySelection";
+import { isRoleTestMode } from "./workflow/access/packageAccess";
+import { localPersistence } from "./workflow/repository/localPersistence";
 
-import { useEffect, useMemo, useState } from 'react';
+import { lazy, Suspense, useEffect, useMemo, useState } from "react";
+import { Route, Router as WouterRouter, Switch, useLocation } from "wouter";
+import { CheckCircle2, CircleAlert } from "lucide-react";
+
+import { workflowSubmodules } from "./app/navigation";
+
+import { AppSidebar } from "./components/app/AppSidebar";
+import { AppTopbar, MobileFilters } from "./components/app/AppTopbar";
+import { DataDialog } from "./components/app/DataDialog";
+import { RoleEntryScreen } from "./components/app/RoleEntryScreen";
+
+import { useDemoStore } from "./hooks/useDemoStore";
+import { usePackageStore } from "./hooks/usePackageStore";
+
+import { DEMO_SESSION_KEY } from "./lib/demoData";
+import { isInPeriod } from "./lib/periods";
+
+import ActionsPage from "./pages/ActionsPage";
+import AuditPage from "./pages/AuditPage";
+import CompliancePage from "./pages/CompliancePage";
+const DashboardPage = lazy(() => import("./pages/DashboardPage"));
+import DocumentsPage from "./pages/DocumentsPage";
+import EntryPage from "./pages/EntryPage";
+import MasterPage from "./pages/MasterPage";
+import NotificationsPage from "./pages/NotificationsPage";
 import {
-  Route,
-  Router as WouterRouter,
-  Switch,
-  useLocation,
-} from 'wouter';
-import { CheckCircle2, CircleAlert } from 'lucide-react';
+  startNotificationScheduler,
+  resolveNotification,
+  targetAvailable,
+} from "./workflow/notifications/notificationService";
+import type { Target } from "./workflow/notifications/notificationEvents";
+import PackageDetailPage from "./pages/PackageDetailPage";
+import PackagesPage from "./pages/PackagesPage";
+import ReportsPage from "./pages/ReportsPage";
+import VerificationPage from "./pages/VerificationPage";
+import DirectorateAuditPage from "./pages/DirectorateAuditPage";
+import AdminWorkflowMonitoringPage from "./pages/AdminWorkflowMonitoringPage";
 
-import { workflowSubmodules } from './app/navigation';
+import { SubmoduleWorkspace } from "./SubmoduleWorkspace";
+import type { PageProps } from "./types";
 
-import { AppSidebar } from './components/app/AppSidebar';
-import {
-  AppTopbar,
-  MobileFilters,
-} from './components/app/AppTopbar';
-import { DataDialog } from './components/app/DataDialog';
-import { RoleEntryScreen } from './components/app/RoleEntryScreen';
-
-import { useDemoStore } from './hooks/useDemoStore';
-import { usePackageStore } from './hooks/usePackageStore';
-
-import { DEMO_SESSION_KEY } from './lib/demoData';
-import { isInPeriod } from './lib/periods';
-
-import ActionsPage from './pages/ActionsPage';
-import AuditPage from './pages/AuditPage';
-import CompliancePage from './pages/CompliancePage';
-import DashboardPage from './pages/DashboardPage';
-import DocumentsPage from './pages/DocumentsPage';
-import EntryPage from './pages/EntryPage';
-import MasterPage from './pages/MasterPage';
-import NotificationsPage from './pages/NotificationsPage';
-import {startNotificationScheduler,resolveNotification,targetAvailable} from './workflow/notifications/notificationService';
-import type {Target} from './workflow/notifications/notificationEvents';
-import PackageDetailPage from './pages/PackageDetailPage';
-import PackagesPage from './pages/PackagesPage';
-import ReportsPage from './pages/ReportsPage';
-import VerificationPage from './pages/VerificationPage';
-import DirectorateAuditPage from './pages/DirectorateAuditPage';
-import AdminWorkflowMonitoringPage from './pages/AdminWorkflowMonitoringPage';
-
-import { SubmoduleWorkspace } from './SubmoduleWorkspace';
-import type { PageProps } from './types';
-
-import type { WorkflowRole } from './workflow/model';
-import { derivePackageStage } from './workflow/packageStore';
-import { buildRoleNavigation } from './workflow/roleNavigation';
-import { canAccessRoute } from './workflow/workflowConfig';
+import type { WorkflowRole } from "./workflow/model";
+import { derivePackageStage } from "./workflow/packageStore";
+import { buildRoleNavigation } from "./workflow/roleNavigation";
+import { ROLE_ROUTE_ACCESS, canAccessRoute } from "./workflow/workflowConfig";
 
 function App() {
+  useResponsiveTables();
   const {
     packageStore,
     principal,
@@ -90,241 +95,287 @@ function App() {
   useEffect(startNotificationScheduler, []);
   const [location, setLocation] = useLocation();
 
-  const [balai, setBalai] = useState('Semua Balai');
-  const [periode, setPeriode] = useState('Semester I 2027');
-  const [jenis, setJenis] = useState('Semua');
+  const [balai, setBalai] = useState("Semua Balai");
+  const [periode, setPeriode] = useState("Semester I 2027");
+  const [jenis, setJenis] = useState("Semua");
 
   const [mobileOpen, setMobileOpen] = useState(false);
-  const [search, setSearch] = useState('');
-  const [activeTab, setActiveTab] = useState('Semua');
+  const [search, setSearch] = useState("");
+  const [activeTab, setActiveTab] = useState("Semua");
 
-  const [selectedSubmodule, setSelectedSubmodule] =
-    useState(
-      () =>
-        normalizeWorkflowSelection(new URLSearchParams(
-          window.location.search,
-        ).get('submodule') || ''),
-    );
+  const [selectedSubmodule, setSelectedSubmodule] = useState(() =>
+    normalizeWorkflowSelection(
+      new URLSearchParams(window.location.search).get("submodule") || "",
+    ),
+  );
 
-  const [sessionActive, setSessionActive] =
-    useState(
-      () =>
-        localPersistence.getItem(DEMO_SESSION_KEY) ===
-        'active',
-    );
+  const [sessionActive, setSessionActive] = useState(
+    () =>
+      isRoleTestMode() &&
+      localPersistence.getItem(DEMO_SESSION_KEY) === "active",
+  );
 
   const routeAllowed =
     canAccessRoute(packageStore.activeRole, location) &&
-    (!selectedSubmodule || canAccessRoute(packageStore.activeRole, selectedSubmodule.split(':')[0]));
+    (!selectedSubmodule ||
+      canAccessRoute(packageStore.activeRole, selectedSubmodule.split(":")[0]));
   const isPackageWorkspace =
     routeAllowed &&
     Boolean(activePackageId && activePackage) &&
-    (
-      selectedSubmodule ===
-        '/packages:Ringkasan Paket' ||
-      workflowSubmodules.has(selectedSubmodule)
-    );
+    (selectedSubmodule === "/packages:Ringkasan Paket" ||
+      workflowSubmodules.has(selectedSubmodule));
 
   const visibleNav = useMemo(
     () =>
       buildRoleNavigation(
         packageStore.activeRole,
         isPackageWorkspace,
-        workflow
-          ? derivePackageStage(workflow)
-          : 'Tahap 0',
+        workflow ? derivePackageStage(workflow) : "Tahap 0",
       ),
-    [
-      packageStore.activeRole,
-      isPackageWorkspace,
-      workflow,
-    ],
+    [packageStore.activeRole, isPackageWorkspace, workflow],
   );
 
   useEffect(() => {
     setMobileOpen(false);
-    let documentSearch='';
-    if(location==='/documents'){try{documentSearch=JSON.parse(sessionStorage.getItem('jala-document-filters')??'{}').search??'';}catch{/* Optional list navigation context. */}}
+    let documentSearch = "";
+    if (location === "/documents") {
+      try {
+        documentSearch =
+          JSON.parse(sessionStorage.getItem("jala-document-filters") ?? "{}")
+            .search ?? "";
+      } catch {
+        /* Optional list navigation context. */
+      }
+    }
     setSearch(documentSearch);
-    setActiveTab(location==='/documents'?(new URLSearchParams(window.location.search).get('tab')||'Semua'):'Semua');
+    setActiveTab(
+      location === "/documents"
+        ? new URLSearchParams(window.location.search).get("tab") || "Semua"
+        : "Semua",
+    );
 
-    const selected =
-      normalizeWorkflowSelection(new URLSearchParams(
-        window.location.search,
-      ).get('submodule') || '');
+    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    if (
+      requestedTab &&
+      visibleNav
+        .find((item) => item.path === location)
+        ?.children.some((child) => child.tab === requestedTab)
+    )
+      setActiveTab(requestedTab);
+    const selected = normalizeWorkflowSelection(
+      new URLSearchParams(window.location.search).get("submodule") || "",
+    );
 
     setSelectedSubmodule(
-      selected.startsWith(`${location}:`) && !(location==='/documents'&&!workflowSubmodules.has(selected))
+      selected.startsWith(`${location}:`) &&
+        !(location === "/documents" && !workflowSubmodules.has(selected))
         ? selected
-        : '',
+        : "",
     );
   }, [location]);
 
   const scoped = useMemo(
     () =>
       store.surveys.filter(
-        survey =>
-          (
-            balai === 'Semua Balai' ||
-            survey.balai === balai
-          ) &&
-          (
-            jenis === 'Semua' ||
-            survey.jenis === jenis
-          ) &&
+        (survey) =>
+          (balai === "Semua Balai" || survey.balai === balai) &&
+          (jenis === "Semua" || survey.jenis === jenis) &&
           isInPeriod(survey.tanggal, periode),
       ),
     [store.surveys, balai, jenis, periode],
   );
 
   const enterAsRole = (role: WorkflowRole) => {
+    if (!isRoleTestMode()) return;
     setRole(role);
 
-    localPersistence.setItem(
-      DEMO_SESSION_KEY,
-      'active',
-    );
+    localPersistence.setItem(DEMO_SESSION_KEY, "active");
 
     setSessionActive(true);
-    setSelectedSubmodule('');
-    setLocation(isRoleTestMode()?'/?testRoles=1':'/');
-    setNotice(`Peran aktif: ${role}`);
+    setSelectedSubmodule("");
+    setLocation(isRoleTestMode() ? "/?testRoles=1" : "/");
   };
 
   const switchRole = () => {
     localPersistence.removeItem(DEMO_SESSION_KEY);
     setSessionActive(false);
-    setSelectedSubmodule('');
+    setSelectedSubmodule("");
     setMobileOpen(false);
+    setLocation("/");
   };
 
   const navigateSubmodule = (selection: string) => {
     // Admin next action opens the administration page, not a package workflow.
-    if (selection === '/audit:Pengguna') {
-      setSelectedSubmodule('');
-      setActiveTab('Pengguna');
-      setLocation('/audit');
+    if (selection === "/audit:Pengguna") {
+      setSelectedSubmodule("");
+      setActiveTab("Pengguna");
+      setLocation("/audit");
       setMobileOpen(false);
       return;
     }
-    if (selection === '/verification:Antrian Balai') {
-      setSelectedSubmodule(''); setActiveTab('Semua');
-      setLocation('/verification'+(isRoleTestMode()?'?testRoles=1':'')); setMobileOpen(false); return;
+    if (selection === "/verification:Antrian Balai") {
+      setSelectedSubmodule("");
+      setActiveTab("Semua");
+      setLocation("/verification" + (isRoleTestMode() ? "?testRoles=1" : ""));
+      setMobileOpen(false);
+      return;
     }
-    if (selection.startsWith('/documents:') && !workflowSubmodules.has(selection)) {
-      setSelectedSubmodule('');
-      setActiveTab(selection.split(':')[1] || 'Semua');
-      setLocation('/documents?tab='+encodeURIComponent(selection.split(':')[1] || 'Semua')+(isRoleTestMode()?'&testRoles=1':''));
+    if (
+      selection.startsWith("/documents:") &&
+      !workflowSubmodules.has(selection)
+    ) {
+      setSelectedSubmodule("");
+      setActiveTab(selection.split(":")[1] || "Semua");
+      setLocation(
+        "/documents?tab=" +
+          encodeURIComponent(selection.split(":")[1] || "Semua") +
+          (isRoleTestMode() ? "&testRoles=1" : ""),
+      );
       return;
     }
     const url = new URL(window.location.href);
 
-    url.searchParams.set(
-      'submodule',
-      selection,
-    );
+    url.searchParams.set("submodule", selection);
 
     setSelectedSubmodule(selection);
 
-    setLocation(
-      `${selection.split(':')[0]}${url.search}${url.hash}`,
-    );
+    setLocation(`${selection.split(":")[0]}${url.search}${url.hash}`);
 
     setMobileOpen(false);
   };
 
   const clearSubmodule = () => {
-    setSelectedSubmodule('');
+    setSelectedSubmodule("");
 
     const url = new URL(window.location.href);
 
-    url.searchParams.delete('submodule');
+    url.searchParams.delete("submodule");
 
-    window.history.replaceState(
-      window.history.state,
-      '',
-      url,
-    );
+    window.history.replaceState(window.history.state, "", url);
   };
 
   const openPackage = (id: string) => {
     if (!selectPackage(id)) {
-      setNotice('Paket tidak ditemukan.');
+      setNotice("Paket tidak ditemukan.");
       return;
     }
 
-    setSelectedSubmodule(
-      '/packages:Ringkasan Paket',
-    );
+    setSelectedSubmodule("/packages:Ringkasan Paket");
 
     setLocation(
-      '/packages?submodule=%2Fpackages%3ARingkasan%20Paket'+(isRoleTestMode()?'&testRoles=1':''),
+      "/packages?submodule=%2Fpackages%3ARingkasan%20Paket" +
+        (isRoleTestMode() ? "&testRoles=1" : ""),
     );
 
-    setNotice('Workspace paket dibuka.');
+    setNotice("Workspace paket dibuka.");
   };
 
-  const openPackageReview: PageProps['openPackageReview'] = (id, selection, context) => {
-    if (!scopedPackages[id] || !selectPackage(id)) { setNotice('Paket tidak tersedia dalam akses Anda.'); return; }
-    if (context?.period) sessionStorage.setItem(`jala-notification-period:${id}`,String(context.period));
-    if (context?.auditLevel) sessionStorage.setItem(`jala-notification-audit:${id}`,String(context.auditLevel));
+  const openPackageReview: PageProps["openPackageReview"] = (
+    id,
+    selection,
+    context,
+  ) => {
+    if (!scopedPackages[id] || !selectPackage(id)) {
+      setNotice("Paket tidak tersedia dalam akses Anda.");
+      return;
+    }
+    if (context?.period)
+      sessionStorage.setItem(
+        `jala-notification-period:${id}`,
+        String(context.period),
+      );
+    if (context?.auditLevel)
+      sessionStorage.setItem(
+        `jala-notification-audit:${id}`,
+        String(context.auditLevel),
+      );
     navigateSubmodule(selection);
   };
 
   const openCorrection = (packageId: string, correctionId: string) => {
-  const target = scopedPackages[packageId];
-  const correction = target?.corrections?.find(
-    item => item.id === correctionId
-  );
-
-  if (!target || !correction) {
-    setNotice("Kasus tidak ditemukan atau paket tidak dapat diakses.");
-    return;
-  }
-
-  if (!selectPackage(packageId)) {
-    setNotice("Anda tidak memiliki akses ke paket ini.");
-    return;
-  }
-
-  try {
-    localPersistence.setItem(
-      `jala-correction-selection:${packageId}`,
-      correctionId
+    const target = scopedPackages[packageId];
+    const correction = target?.corrections?.find(
+      (item) => item.id === correctionId,
     );
-  } catch {
-    setNotice("Pilihan kasus tidak dapat disimpan di sesi lokal.");
-    return;
-  }
 
-  navigateSubmodule("/actions:Koreksi berbukti");
-};
+    if (!target || !correction) {
+      setNotice("Kasus tidak ditemukan atau paket tidak dapat diakses.");
+      return;
+    }
 
-  const openNotificationTarget = (target:Target, notificationId?:string) => {
-    const checked=notificationId?resolveNotification(notificationId,scopedPackages,principal).target:target;
-    const state=scopedPackages[checked.packageId];
-    if(!state||!principal.packageIds.includes(checked.packageId)||!targetAvailable(checked,state))throw new Error('Pekerjaan tidak tersedia atau tidak dapat diakses.');
-    if(checked.module==='correction'){openCorrection(checked.packageId,checked.caseId);return;}
-    if(checked.module==='document'){openPackageBA(checked.packageId,checked.identity.kind,{...checked.identity,returnTo:'/notifications'});return;}
-    if(!selectPackage(checked.packageId))throw new Error('Penugasan paket tidak tersedia.');
-    if(checked.period)sessionStorage.setItem(`jala-notification-period:${checked.packageId}`,String(checked.period));
-    if(checked.auditLevel)sessionStorage.setItem(`jala-notification-audit:${checked.packageId}`,String(checked.auditLevel));
+    if (!selectPackage(packageId)) {
+      setNotice("Anda tidak memiliki akses ke paket ini.");
+      return;
+    }
+
+    try {
+      localPersistence.setItem(
+        `jala-correction-selection:${packageId}`,
+        correctionId,
+      );
+    } catch {
+      setNotice("Pilihan kasus tidak dapat disimpan di sesi lokal.");
+      return;
+    }
+
+    navigateSubmodule("/actions:Koreksi berbukti");
+  };
+
+  const openNotificationTarget = (target: Target, notificationId?: string) => {
+    const checked = notificationId
+      ? resolveNotification(notificationId, scopedPackages, principal).target
+      : target;
+    const state = scopedPackages[checked.packageId];
+    if (
+      !state ||
+      !principal.packageIds.includes(checked.packageId) ||
+      !targetAvailable(checked, state)
+    )
+      throw new Error("Pekerjaan tidak tersedia atau tidak dapat diakses.");
+    if (checked.module === "correction") {
+      openCorrection(checked.packageId, checked.caseId);
+      return;
+    }
+    if (checked.module === "document") {
+      openPackageBA(checked.packageId, checked.identity.kind, {
+        ...checked.identity,
+        returnTo: "/notifications",
+      });
+      return;
+    }
+    if (!selectPackage(checked.packageId))
+      throw new Error("Penugasan paket tidak tersedia.");
+    if (checked.period)
+      sessionStorage.setItem(
+        `jala-notification-period:${checked.packageId}`,
+        String(checked.period),
+      );
+    if (checked.auditLevel)
+      sessionStorage.setItem(
+        `jala-notification-audit:${checked.packageId}`,
+        String(checked.auditLevel),
+      );
     navigateSubmodule(checked.selection);
   };
 
   const openPackageBA = (
     id: string,
     kind: string,
-    context?: {survey?:string;period?:number;auditLevel?:number;returnTo?:string},
+    context?: {
+      survey?: string;
+      period?: number;
+      auditLevel?: number;
+      returnTo?: string;
+    },
   ) => {
     if (!selectPackage(id)) {
-      setNotice('Paket tidak ditemukan.');
+      setNotice("Paket tidak ditemukan.");
       return;
     }
 
     try {
       localPersistence.setItem(
-        'jala-ba-navigation-v2',
+        "jala-ba-navigation-v2",
         JSON.stringify({
           packageId: id,
           kind,
@@ -335,45 +386,34 @@ function App() {
       );
 
       localPersistence.setItem(
-        'jala-ba-return-to',
+        "jala-ba-return-to",
         context?.returnTo ??
-  (packageStore.activeRole === 'Penyedia Jasa / Ketua Tim'
-    ? '/documents:Tugas Dokumen'
-    : packageStore.activeRole === 'PIC Balai / Pengguna Jasa'
-      ? '/documents:Dokumen Paket'
-      : packageStore.activeRole === 'Direktorat / Pusat'
-        ? '/documents:Audit & Dokumen Pusat'
-        : '/documents:Monitoring Dokumen'),
+          (packageStore.activeRole === "Penyedia Jasa / Ketua Tim"
+            ? "/documents:Tugas Dokumen"
+            : packageStore.activeRole === "PIC Balai / Pengguna Jasa"
+              ? "/documents:Dokumen Paket"
+              : packageStore.activeRole === "Direktorat / Pusat"
+                ? "/documents:Audit & Dokumen Pusat"
+                : "/documents:Monitoring Dokumen"),
       );
     } catch {
       // Preferensi navigasi lokal bersifat opsional.
     }
 
-    navigateSubmodule(
-      '/documents:BA & dokumen workflow',
-    );
+    navigateSubmodule("/documents:BA & dokumen workflow");
   };
 
   const returnToCorrections = () => {
-  setSelectedSubmodule("");
-  setActiveTab("Semua");
-  setLocation(
-    isRoleTestMode() ? "/actions?testRoles=1" : "/actions"
-  );
-};
+    setSelectedSubmodule("");
+    setActiveTab("Semua");
+    setLocation(isRoleTestMode() ? "/actions?testRoles=1" : "/actions");
+  };
 
   const backToPackages = () => {
     closePackage();
-    setSelectedSubmodule('');
-    setLocation('/packages');
+    setSelectedSubmodule("");
+    setLocation("/packages");
   };
-
-  useEffect(() => {
-    if (sessionActive && !routeAllowed) {
-      setSelectedSubmodule('');
-      setLocation(isRoleTestMode() ? '/?testRoles=1' : '/');
-    }
-  }, [sessionActive, routeAllowed, setLocation]);
 
   const pageProps: PageProps = {
     store,
@@ -397,13 +437,22 @@ function App() {
     setNotice,
   };
 
-  const roleVerificationPage = packageStore.activeRole === 'Admin'
-    ? <AdminWorkflowMonitoringPage {...pageProps} />
-    : packageStore.activeRole === 'Direktorat / Pusat'
-      ? <DirectorateAuditPage {...pageProps} />
-      : packageStore.activeRole === 'PIC Balai / Pengguna Jasa'
-        ? <VerificationPage {...pageProps} />
-        : <div role="status">Penyedia dapat melihat status pemeriksaan melalui workspace paket dan dokumen.</div>;
+  const roleVerificationPage =
+    packageStore.activeRole === "Admin" ? (
+      <AdminWorkflowMonitoringPage {...pageProps} />
+    ) : packageStore.activeRole === "Direktorat / Pusat" ? (
+      <DirectorateAuditPage {...pageProps} />
+    ) : packageStore.activeRole === "PIC Balai / Pengguna Jasa" ? (
+      <VerificationPage {...pageProps} />
+    ) : (
+      <Feedback
+        kind="empty"
+        title="Pemeriksaan berada di dalam paket"
+        description="Buka paket untuk melihat hasil sumber dan audit internal. Review Balai serta Audit Tingkat 3 berada pada peran berwenang."
+        actionLabel="Buka Paket Saya"
+        onBack={() => setLocation("/packages")}
+      />
+    );
 
   const packageList = (
     <PackagesPage
@@ -425,10 +474,10 @@ function App() {
 
   return (
     <WouterRouter>
-      <div
-        className="app-shell"
-
-      >
+      <div className={`app-shell jm-shell b-shell v2-shell ${principal.role === "Penyedia Jasa / Ketua Tim" ? "v2-provider" : ""}`}>
+        <a className="jm-skip" href="#main-content">
+          Lewati ke konten
+        </a>
         <AppSidebar
           mobileOpen={mobileOpen}
           navigation={visibleNav}
@@ -446,13 +495,11 @@ function App() {
 
         <main className="main-area">
           <AppTopbar
-  isPackageWorkspace={
-    isPackageWorkspace &&
-    selectedSubmodule !== "/documents:BA & dokumen workflow"
-  }
-            packageName={
-              activePackage?.project.packageName
+            isPackageWorkspace={
+              isPackageWorkspace &&
+              selectedSubmodule !== "/documents:BA & dokumen workflow"
             }
+            packageName={activePackage?.project.packageName}
             location={location}
             navigation={visibleNav}
             balai={balai}
@@ -466,115 +513,182 @@ function App() {
             onOpenMobile={() => setMobileOpen(true)}
           />
 
-          <div className="content">
-            {mutationError ? (
-              <div className="notice notice-error" role="alert" data-testid="mutation-error">
-                <CircleAlert size={14} aria-hidden="true" />
-                {mutationError}
-              </div>
-            ) : notice && (
-              <div
-                className={noticeTone === "error" ? "notice notice-error" : "notice"}
-                role={noticeTone === "error" ? "alert" : "status"}
-                data-testid={noticeTone === "error" ? "mutation-error" : "status-toast"}
-              >
-                {noticeTone === "error" ? <CircleAlert size={14} /> : <CheckCircle2 size={14} />}
-                {notice}
-              </div>
-            )}
-
-            {!isPackageWorkspace&&location!=="/packages"&&location!=="/notifications"&&location!=="/reports"&&location!=="/compliance"&&location!=="/data-master"&&location!=="/audit"&&<MobileFilters
-              balai={balai}
-              setBalai={setBalai}
-              periode={periode}
-              setPeriode={setPeriode}
-              jenis={jenis}
-              setJenis={setJenis}
-              showJenis={location === '/'}
-            />}
-
-            {!routeAllowed ? null : location==='/notifications' || selectedSubmodule.startsWith('/notifications:') ? <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/> : location==='/verification' && !workflowSubmodules.has(selectedSubmodule) ? roleVerificationPage : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]}/> : selectedSubmodule ? (
-              workflowSubmodules.has(
-                selectedSubmodule,
-              ) ? (
-                activePackageId && activePackage ? (
-                  <PackageDetailPage
-                    packageId={activePackageId}
-                    workflow={activePackage}
-                    selection={selectedSubmodule}
-                    onBack={backToPackages}
-                    onReturnToCorrections={returnToCorrections}
-                    onNavigate={navigateSubmodule}
-                    onUpdate={updateWorkflow}
-                    setNotice={setNotice}
-                  />
-                ) : (
-                  packageList
-                )
+          <div className="content" id="main-content" tabIndex={-1}>
+            <Suspense fallback={<LoadingState />}>
+              {mutationError ? (
+                <div
+                  className="notice notice-error"
+                  role="alert"
+                  data-testid="mutation-error"
+                >
+                  <CircleAlert size={14} aria-hidden="true" />
+                  {mutationError}
+                </div>
               ) : (
-                <SubmoduleWorkspace
-                  selection={selectedSubmodule}
-                  {...pageProps}
+                notice && (
+                  <div
+                    className={
+                      noticeTone === "error" ? "notice notice-error" : "notice"
+                    }
+                    role={noticeTone === "error" ? "alert" : "status"}
+                    data-testid={
+                      noticeTone === "error" ? "mutation-error" : "status-toast"
+                    }
+                  >
+                    {noticeTone === "error" ? (
+                      <CircleAlert size={14} />
+                    ) : (
+                      <CheckCircle2 size={14} />
+                    )}
+                    {notice}
+                  </div>
+                )
+              )}
+
+              {!isPackageWorkspace && location === "/entry" && (
+                <MobileFilters
+                  balai={balai}
+                  setBalai={setBalai}
+                  periode={periode}
+                  setPeriode={setPeriode}
+                  jenis={jenis}
+                  setJenis={setJenis}
+                  showJenis={true}
+                />
+              )}
+
+              {!routeAllowed ? (
+                <Feedback
+                  kind={
+                    Object.values(ROLE_ROUTE_ACCESS).flat().includes(location)
+                      ? "forbidden"
+                      : "not-found"
+                  }
+                  title={
+                    Object.values(ROLE_ROUTE_ACCESS).flat().includes(location)
+                      ? "Halaman ini di luar kewenangan Anda"
+                      : "Halaman tidak ditemukan"
+                  }
+                  description={
+                    Object.values(ROLE_ROUTE_ACCESS).flat().includes(location)
+                      ? `Peran ${packageStore.activeRole} tidak memiliki akses ke halaman ini. Gunakan menu sesuai penugasan Anda.`
+                      : "Alamat mungkin berubah atau tidak tersedia. Kembali ke beranda untuk melanjutkan pekerjaan."
+                  }
                   onBack={() => {
                     clearSubmodule();
-                    setActiveTab('Semua');
+                    setLocation("/");
                   }}
                 />
-              )
-            ) : (
-              <Switch>
-                <Route path="/">
-                  <DashboardPage {...pageProps} />
-                </Route>
+              ) : location === "/notifications" ||
+                selectedSubmodule.startsWith("/notifications:") ? (
+                <NotificationsPage
+                  {...pageProps}
+                  principal={principal}
+                  onOpen={openNotificationTarget}
+                />
+              ) : location === "/verification" &&
+                !workflowSubmodules.has(selectedSubmodule) ? (
+                roleVerificationPage
+              ) : selectedSubmodule.startsWith("/documents:") &&
+                !workflowSubmodules.has(selectedSubmodule) ? (
+                <DocumentsPage
+                  {...pageProps}
+                  activeTab={selectedSubmodule.split(":")[1]}
+                />
+              ) : selectedSubmodule ? (
+                workflowSubmodules.has(selectedSubmodule) ? (
+                  activePackageId && activePackage ? (
+                    <PackageDetailPage
+                      packageId={activePackageId}
+                      workflow={activePackage}
+                      principal={principal}
+                      notesRecipient={localPrincipal("Penyedia Jasa / Ketua Tim", packageStore.packages)}
+                      selection={selectedSubmodule}
+                      onBack={backToPackages}
+                      onReturnToCorrections={returnToCorrections}
+                      onNavigate={navigateSubmodule}
+                      onUpdate={updateWorkflow}
+                      setNotice={setNotice}
+                    />
+                  ) : (
+                    packageList
+                  )
+                ) : (
+                  <SubmoduleWorkspace
+                    selection={selectedSubmodule}
+                    {...pageProps}
+                    onBack={() => {
+                      clearSubmodule();
+                      setActiveTab("Semua");
+                    }}
+                  />
+                )
+              ) : (
+                <Switch>
+                  <Route path="/">
+                    {principal.role === "Penyedia Jasa / Ketua Tim" && activeTab === "Semua"
+                      ? <ProviderWorkHome {...pageProps} onOpenCorrection={openCorrection} />
+                      : <DashboardPage {...pageProps} />}
+                  </Route>
 
-                <Route path="/data-master">
-                  <MasterPage {...pageProps} />
-                </Route>
+                  <Route path="/data-master">
+                    <MasterPage {...pageProps} />
+                  </Route>
 
-                <Route path="/packages">
-                  {packageList}
-                </Route>
+                  <Route path="/packages">{packageList}</Route>
 
-                <Route path="/entry">
-                  <EntryPage {...pageProps} />
-                </Route>
+                  <Route path="/entry">
+                    <EntryPage {...pageProps} />
+                  </Route>
 
-                <Route path="/verification">
-                  {roleVerificationPage}
-                </Route>
+                  <Route path="/verification">{roleVerificationPage}</Route>
 
-                <Route path="/actions">
-  <ActionsPage
-    {...pageProps}
-    onOpenCorrection={openCorrection}
-  />
-</Route>
+                  <Route path="/actions">
+                    <ActionsPage
+                      {...pageProps}
+                      onOpenCorrection={openCorrection}
+                    />
+                  </Route>
 
-                <Route path="/compliance">
-                  <CompliancePage {...pageProps} />
-                </Route>
+                  <Route path="/compliance">
+                    <CompliancePage {...pageProps} />
+                  </Route>
 
-                <Route path="/reports">
-                  <ReportsPage key={principal.id+principal.role} {...pageProps} principal={principal} />
-                </Route>
+                  <Route path="/reports">
+                    <ReportsPage
+                      key={principal.id + principal.role}
+                      {...pageProps}
+                      principal={principal}
+                    />
+                  </Route>
 
-                <Route path="/documents">
-                  <DocumentsPage {...pageProps} />
-                </Route>
+                  <Route path="/documents">
+                    <DocumentsPage {...pageProps} />
+                  </Route>
 
-                <Route path="/notifications">
-                  <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget}/>
-                </Route>
+                  <Route path="/notifications">
+                    <NotificationsPage
+                      {...pageProps}
+                      principal={principal}
+                      onOpen={openNotificationTarget}
+                    />
+                  </Route>
 
-                <Route path="/audit">
-                  <AuditPage {...pageProps} />
-                </Route>
+                  <Route path="/audit">
+                    <AuditPage {...pageProps} />
+                  </Route>
 
-                <Route>
-                  <DashboardPage {...pageProps} />
-                </Route>
-              </Switch>
-            )}
+                  <Route>
+                    <Feedback
+                      kind="not-found"
+                      title="Halaman tidak ditemukan"
+                      description="Gunakan navigasi untuk membuka halaman yang tersedia."
+                      onBack={() => setLocation("/")}
+                    />
+                  </Route>
+                </Switch>
+              )}
+            </Suspense>
           </div>
         </main>
 
@@ -592,4 +706,14 @@ function App() {
   );
 }
 
-export default App;
+export default function ApplicationEntry() {
+  // Production cannot initialize local stores or reuse forged simulation markers.
+  return isRoleTestMode() ? (
+    <App />
+  ) : (
+    <RoleEntryScreen
+      currentRole="Penyedia Jasa / Ketua Tim"
+      onEnter={() => {}}
+    />
+  );
+}

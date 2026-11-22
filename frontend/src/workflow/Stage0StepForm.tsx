@@ -14,7 +14,7 @@ export function Stage0StepForm({steps,locked,status}:Props){
  if(!chosen)return null;
  return <section className="stage0-step-form" aria-label="Formulir persiapan bertahap">
    <header className="stage0-step-header">
-     <div><h3>Formulir persiapan</h3><p>Kerjakan satu kelompok kegiatan pada satu waktu. Semua isian tetap tersimpan pada checklist paket.</p></div>
+     <div><h3>Checklist persiapan</h3></div>
      <strong className="stage0-step-total">{done}/{total} selesai</strong>
    </header>
    <nav className="stage0-step-nav" aria-label="Kelompok formulir persiapan">
@@ -25,7 +25,7 @@ export function Stage0StepForm({steps,locked,status}:Props){
      </button>)}
    </nav>
    <div className="stage0-step-active" id={'stage0-step-'+chosen.id} aria-live="polite">
-     <div className="stage0-step-active-head"><strong>Langkah {index+1} dari {steps.length}: {chosen.title}</strong><span>{chosen.complete} dari {chosen.total} selesai</span></div>
+     <div className="stage0-step-active-head"><strong>{chosen.title}</strong><span>{chosen.complete}/{chosen.total} selesai</span></div>
      {locked&&<p className="stage0-step-locked" role="status">Isian terkunci karena status Laporan Pendahuluan: {status}. Untuk revisi, tunggu keputusan PIC Balai.</p>}
      {chosen.content}
      <div className="stage0-step-controls">
@@ -34,6 +34,6 @@ export function Stage0StepForm({steps,locked,status}:Props){
        <button type="button" className="wf-button primary" disabled={index===steps.length-1} onClick={()=>setActive(i=>Math.min(steps.length-1,i+1))}>Berikutnya</button>
      </div>
    </div>
-   <p className="stage0-step-footnote">Jumlah selesai menunjukkan centang kegiatan, bukan bukti bahwa seluruh lampiran telah diperiksa. Periksa juga ringkasan bukti dan status review Balai.</p>
+
  </section>;
 }

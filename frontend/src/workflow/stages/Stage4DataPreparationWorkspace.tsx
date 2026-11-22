@@ -24,7 +24,6 @@ import {
 } from "../model";
 import { SourceAlignmentChecklist } from "../SourceAlignmentChecklist";
 import { GateSummary } from "../WorkflowComponents";
-import { STAGE4_ROLE_GUIDANCE } from "../workflowConfig";
 
 import type { WorkflowStageProps } from "./stageSupport";
 import {
@@ -270,26 +269,15 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     <>
       {heading("Tahap 4 · penyiapan data", stage4Title, stage4Detail)}
 
-      <div className="wf-callout" style={{ marginBottom: 12 }}>
-        <strong>{state.role}:</strong> {STAGE4_ROLE_GUIDANCE[state.role]}
-      </div>
       <GateSummary
         title={canPrepare ? "Kesiapan Tahap 4" : "Ringkasan kesiapan paket"}
         items={readinessItems}
       />
 
       <DocumentAttachments scope={`${state.project.id}:stage4`} categories={['Paket / referensi data sumber','Paket / referensi data tervalidasi','Dokumen mutu pendukung']} legacyEvidenceIds={['stage4-raw-package','stage4-validated-package','stage4-quality-document']} editable={canPrepare}/>
-      <div
-        className="wf-callout"
-        data-testid="stage4-process-guide"
-        style={{ marginBottom: 12 }}
-      >
-        <strong>Urutan kerja:</strong> Penyedia menyiapkan data sumber dan data
-        tervalidasi terpisah, melengkapi dokumen mutu, lalu memeriksa gerbang
-        RNI/LRS. Setelah audit internal Tingkat 1 dan kesiapan paket terpenuhi,
-        status penyerahan dapat dikonfirmasi. Status VALID di sini adalah
-        catatan workflow, bukan bukti berhasil unggah ke sistem eksternal.
-      </div>
+      <p className="wf-note" data-testid="stage4-process-guide">
+        Status validasi mengikuti catatan paket. Konfirmasi unggahan SMD memerlukan bukti dari sistem sumber.
+      </p>
       <RoleWorkSection primary={state.role==="PIC Balai / Pengguna Jasa"} title="Pemeriksaan V&V bertahap Balai">
         {stagedSourceTypes.length>0&&<SourceAlignmentChecklist pciManual={pciManual}
           projectInfo={state.project}
@@ -303,11 +291,11 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
         {stagedFallbackTypes.map(type=>{const review=state.submission.stagedReviews?.[type]??{decision:'Belum Diperiksa' as const,note:'',reviewedAt:''};const editable=state.role==='PIC Balai / Pengguna Jasa';return <div className="wf-callout" key={type} style={{marginTop:10}}>
           <strong>{type} · review bertahap</strong>
           <p className="wf-note">Tidak ada checklist staged khusus {type} pada katalog sumber. Review ini mencatat keputusan V&V bertahap dari kesiapan data dan bukti Tahap 4; tidak membuat checklist metode baru.</p>
-          <div className="wf-fields">
+          {editable ? <div className="wf-fields">
             <Field label="Hasil review">
               <Select id={`stage4-staged-review-${testId(type)}`} disabled={!editable} value={review.decision} options={['Belum Diperiksa','Sesuai','Temuan']} onChange={(decision)=>updateSubmission({stagedReviews:{...(state.submission.stagedReviews??{}),[type]:{...review,decision:decision as 'Belum Diperiksa'|'Sesuai'|'Temuan',reviewedAt:decision==='Belum Diperiksa'?'':state.simulationDate}}},`Review V&V bertahap ${type}`)}/></Field>
             <Field label="Catatan review" full><textarea disabled={!editable} rows={2} value={review.note} onChange={(e)=>updateSubmission({stagedReviews:{...(state.submission.stagedReviews??{}),[type]:{...review,note:e.target.value}}},`Catatan V&V bertahap ${type}`)} placeholder="Isi catatan bila ada temuan atau klarifikasi"/></Field>
-          </div>
+          </div> : review.note && <p>{review.note}</p>}
           <Badge tone={review.decision==='Sesuai'?'good':review.decision==='Temuan'?'bad':'warn'}>{review.decision}</Badge>
         </div>;})}
       </RoleWorkSection>

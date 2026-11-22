@@ -414,17 +414,9 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
         "Audit tingkat 1–3",
         "Pemeriksaan dilakukan berurutan. Tingkat 1 mencatat bukti kesiapan internal Penyedia; assurance formal berikutnya dilakukan PIC Balai dan Direktorat sesuai kewenangan.",
       )}
-      <div
-        className="wf-callout"
-        data-testid="stage5-process-guide"
-        style={{ marginBottom: 12 }}
-      >
-        <strong>Urutan audit:</strong> Tingkat 1 oleh Penyedia, Tingkat 2 oleh
-        PIC Balai, dan Tingkat 3 oleh Direktorat. Catat cakupan serta bukti
-        sebelum keputusan. Sampel dihitung secara konsisten dari rekaman yang
-        tersedia; perubahan rekaman atau aturan sampling membutuhkan pemeriksaan
-        ulang. Nomor BA yang dicatat bukan tanda tangan/pengesahan otomatis.
-      </div>
+      <p className="wf-note" data-testid="stage5-process-guide">
+        Audit 1 · Penyedia. Audit 2 · Balai. Audit 3 · Direktorat.
+      </p>
       <RoleWorkSection primary={canEditAudit} title={`Hasil Audit Tingkat ${auditLevel}`}><SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
         projectInfo={state.project}
         key={`${state.project.id}:audit-${auditLevel}`}
@@ -443,9 +435,6 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           commit('Ubah jawaban sumber audit',`Audit ${auditLevel}`,current=>({...current,audits:current.audits.map(item=>item.level===auditLevel?{...item,requiresReview:true,reviewReason:'Jawaban checklist sumber audit berubah; periksa kembali.'}:item) as OperationalWorkflowState['audits']}));
         }}
       /></RoleWorkSection>
-      <div className="wf-callout" style={{ marginBottom: 12 }}>
-        <strong>{state.role}:</strong> {STAGE5_ROLE_GUIDANCE[state.role]}
-      </div>
       {state.corrections.some(
         (item) =>
           item.blockedStage === `Audit tingkat ${auditLevel}` &&
@@ -507,7 +496,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           <div>
             <small>Akses</small>
             <strong>
-              {canEditAudit ? "Pemeriksaan & keputusan" : "Read-only"}
+              {canEditAudit ? "Pemeriksaan dan keputusan" : "Hasil pemeriksaan"}
             </strong>
           </div>
         </div>
@@ -582,7 +571,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                   <tr>
                     <th>Jenis survei</th>
                     <th>Protokol cakupan</th>
-                    <th>Rate</th>
+                    <th>Cakupan konfigurasi</th>
                     <th>Satuan</th>
                   </tr>
                 </thead>
@@ -596,7 +585,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                         </td>
                         <td>{rule.label}</td>
                         <td>{rule.rate}%</td>
-                        <td>{rule.unit}</td>
+                        <td>{auditLevel === 3 && !/jembatan/i.test(t) ? "Data · kebijakan jenis perlu penetapan" : rule.unit}</td>
                       </tr>
                     );
                   })}
@@ -637,8 +626,8 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                   <tbody>{audit.sampleUnits.map(unit=><tr key={unit.id} data-testid={`sample-unit-${unit.id}`}>
                     <td><strong>{unit.unitKey}</strong><small>{unit.surveyType} · {unit.road} · {unit.unitType}{unit.lengthKm!==undefined?` · ${unit.lengthKm} km`:''}</small></td>
                     <td>{unit.sourceRecordId}<small>{unit.sourceReference||'Referensi sumber belum dicatat'}</small></td>
-                    <td><select aria-label={`Hasil sampel ${unit.unitKey}`} disabled={!canEditAudit||auditLevel===1} value={unit.reviewStatus??'Belum Diperiksa'} onChange={e=>patchSampleUnit(unit.id,{reviewStatus:e.target.value as AuditSampleUnit['reviewStatus']})}><option>Belum Diperiksa</option><option>Valid</option><option>Tidak Valid</option></select>{auditLevel===1&&<small>Audit internal mencakup seluruh unit.</small>}</td>
-                    <td>{auditLevel===1?<span>{unit.evidenceReference||unit.sourceReference||'Mengikuti bukti sumber'}</span>:<input aria-label={`Bukti sampel ${unit.unitKey}`} disabled={!canEditAudit} value={unit.evidenceReference??''} placeholder="Nomor dokumen / foto / referensi" onChange={e=>patchSampleUnit(unit.id,{evidenceReference:e.target.value})}/>}</td>
+                    <td>{canEditAudit && auditLevel !== 1 ? <select aria-label={`Hasil sampel ${unit.unitKey}`} value={unit.reviewStatus??'Belum Diperiksa'} onChange={e=>patchSampleUnit(unit.id,{reviewStatus:e.target.value as AuditSampleUnit['reviewStatus']})}><option>Belum Diperiksa</option><option>Valid</option><option>Tidak Valid</option></select> : <span>{auditLevel === 1 ? "Cakupan audit internal" : unit.reviewStatus ?? "Belum diperiksa"}</span>}</td>
+                    <td>{auditLevel===1 || !canEditAudit?<span>{unit.evidenceReference||unit.sourceReference||'Belum tercatat'}</span>:<input aria-label={`Bukti sampel ${unit.unitKey}`} value={unit.evidenceReference??''} placeholder="Nomor dokumen / foto / referensi" onChange={e=>patchSampleUnit(unit.id,{evidenceReference:e.target.value})}/>}</td>
                   </tr>)}</tbody>
                 </table>
               </div>

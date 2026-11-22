@@ -80,12 +80,15 @@ for (const status of ['Diajukan', 'Disetujui', 'Perlu Revisi', 'Ditolak'] as con
 }
 
 for (const role of ['PIC Balai / Pengguna Jasa', 'Direktorat / Pusat', 'Admin'] as const) {
-  test(`${role} dapat melihat checklist yang terkunci`, () => {
+  test(`${role} dapat melihat hasil checklist tanpa kontrol perubahan`, () => {
     seed(() => {}, role);
+    const before = saved().project.preparation;
     render(<Harness />);
-    const boxes = screen.getAllByRole<HTMLInputElement>('checkbox', { hidden: true });
-    expect(boxes.length).toBeGreaterThan(0);
-    expect(boxes.every(box => box.disabled)).toBe(true);
+    const summary = screen.getByText(/^Rincian persiapan \(/);
+    fireEvent.click(summary);
+    expect(summary.parentElement?.querySelectorAll(".v2-checklist-results li").length).toBeGreaterThan(0);
+    expect(screen.queryAllByRole('checkbox', { hidden: true })).toHaveLength(0);
+    expect(saved().project.preparation).toEqual(before);
   });
 }
 

@@ -16,6 +16,7 @@ export const defaultCase = (
   fieldDataValid: "",
   surveyType: "IRI",
   actionType: "",
+  proposedPlan: "",
   evidence: "",
   proposedValue: "",
   approval: "Draft",

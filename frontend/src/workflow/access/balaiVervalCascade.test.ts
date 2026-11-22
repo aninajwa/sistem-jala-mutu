@@ -1,13 +1,28 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDemoWorkflow} from '../demoScenario';
+import {CALIBRATION_REVIEW_SUBJECTS,calibrationReviewIsSuitable,calibrationSourceSignature} from '../calibrationReview';
+import {evaluateStageGate} from '../workflowGate';
 import {withProductionReferences} from '../testing/productionFixture';
 import {applyPeriodicFinding} from '../periodicFinding';
 import {retainDecisionHistory} from '../workflowRevisions';
 import {workflowMutationError} from './workflowMutationGuard';
 import type {OperationalWorkflowState} from '../model';
-function setup(){const s=withProductionReferences(createDemoWorkflow('complete'));s.role='PIC Balai / Pengguna Jasa';s.project.surveyTypes=['IRI'];s.project.surveyStartDate='2027-05-01';s.project.surveyEndDate='2027-05-28';s.cycle.selectedTypes=['IRI'];s.corrections=[];s.activeCyclePeriod=1;s.cycle.surveyReviews={...s.cycle.surveyReviews,IRI:{decision:'Sesuai',note:'Bukti periode perlu diperbaiki',reviewedAt:s.simulationDate}};return s;}
+function setup(){const s=withProductionReferences(createDemoWorkflow('complete'));s.role='PIC Balai / Pengguna Jasa';s.project.surveyTypes=['IRI'];s.project.surveyStartDate='2027-05-01';s.project.surveyEndDate='2027-05-28';s.cycle.selectedTypes=['IRI'];s.corrections=[];s.activeCyclePeriod=1;s.cycle.surveyReviews={...s.cycle.surveyReviews,IRI:{decision:'Sesuai',note:'Bukti periode perlu diperbaiki',reviewedAt:s.simulationDate}};
+ // Fixture for this *later-stage* Balai Verval test: all four calibration checks
+ // must already have been recorded. Never alter demoScenario or production data.
+ const signature=calibrationSourceSignature(s,'IRI');
+ const approvedSection={result:'Sesuai' as const,note:'Kalibrasi IRI telah diperiksa Balai.',evidenceReference:'BA-KAL-IRI-UJI-001',reviewedAt:s.simulationDate,reviewer:'PIC Balai / Pengguna Jasa' as const,sourceSignature:signature};
+ s.calibrationReviews={...s.calibrationReviews,IRI:{...approvedSection,subject:'Alat dan personel',sections:Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject=>[subject,{...approvedSection}]))}};
+ return s;}
 function journal(before:OperationalWorkflowState,next:OperationalWorkflowState){const after=retainDecisionHistory(before,next);after.events=[{id:'finding-event',date:before.simulationDate,actor:before.role,action:'Buka kasus dari pemeriksaan proses verval',object:'FINDING-1',oldValue:'',newValue:''},...before.events];return after;}
+test('Fixture pemeriksaan berkala memakai persetujuan kalibrasi yang masih berlaku',()=>{
+ const ready=setup();
+ assert.equal(calibrationReviewIsSuitable(ready,'IRI'),true);
+ assert.equal(evaluateStageGate(ready,'Tahap 2').readyToComplete,true);
+ const missing=structuredClone(ready);delete missing.calibrationReviews?.IRI;
+ assert.equal(evaluateStageGate(missing,'Tahap 2').readyToComplete,false);
+});
 test('Balai finding persists as open remediation; audit decisions, samples and BA survive in history',()=>{
  const before=setup(),after=journal(before,applyPeriodicFinding(before,'IRI','FINDING-1'));
  assert.equal(workflowMutationError(before,after,before.role),undefined);

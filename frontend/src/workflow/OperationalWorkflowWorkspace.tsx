@@ -1,6 +1,8 @@
-import {StageChecklistIndex} from './Checkpoint09Package';
-import './checkpoint09.css';
-import {StageActionContext} from './StageActionContext';
+import { PACKAGE_WORKFLOW_ITEMS } from "./roleNavigation";
+import { StageScene } from "../design/b/StageScene";
+import { StageChecklistIndex } from "./Checkpoint09Package";
+import "./checkpoint09.css";
+import { StageActionContext } from "./StageActionContext";
 import type { ComponentType } from "react";
 import "./workflow.css";
 import type { WorkflowStageProps } from "./stages/stageSupport";
@@ -66,9 +68,32 @@ export function OperationalWorkflowWorkspace(
   if (!Screen) return null;
   return (
     <div className="wf" data-testid="operational-workflow-workspace">
-      <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate}/>
-      <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection}/>
-      <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />
+      <StageActionContext
+        state={props.state}
+        selection={props.selection}
+        onNavigate={props.onNavigate}
+      />
+      {!(["/entry:Persiapan & SPMK", "/documents:Kalibrasi & personel"].includes(props.selection)) && (
+        <StageChecklistIndex
+          key={`${props.selection}:${props.state.role}`}
+          state={props.state}
+          selection={props.selection}
+        />
+      )}
+      <StageScene
+        key={`${props.state.project.id}:${props.selection}`}
+        role={props.state.role}
+        stage={
+          PACKAGE_WORKFLOW_ITEMS.find(
+            (item) => item.selection === props.selection,
+          )?.code
+        }
+      >
+        <Screen
+          key={`${props.state.project.id}:${props.selection}`}
+          {...props}
+        />
+      </StageScene>
     </div>
   );
 }

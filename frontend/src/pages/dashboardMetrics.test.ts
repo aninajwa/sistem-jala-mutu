@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { aggregateDashboard } from './dashboardMetrics';
-import type { OperationalWorkflowState } from '../workflow/model';
+import { INITIAL_WORKFLOW, type OperationalWorkflowState } from '../workflow/model';
 
 function packageState(balai:string, surveyType:'IRI'|'PCI', status:'Terbuka'|'Ditutup'): OperationalWorkflowState {
  return {project:{balai,packageName:`Paket ${balai}`,surveyTypes:[surveyType]},corrections:[{status}],dailyRecords:[{id:'1',date:'2026-11-01',surveyType,state:'Tercatat'}],audits:[{status:'Dalam Review'}],acceptance:{finalAcceptance:false}} as unknown as OperationalWorkflowState;
@@ -73,4 +73,21 @@ test('review yang menunggu ulang, belum diperiksa, atau tanpa tanggal tidak dian
  p.cycle={surveyReviews:{IRI:{decision:'Sesuai',note:'Lama',reviewedAt:'2026-11-02'},PCI:{decision:'Belum Diperiksa',note:'',reviewedAt:'2026-11-02'}},reviewPendingTypes:['IRI']} as OperationalWorkflowState['cycle'];
  p.submission={stagedReviews:{PCI:{decision:'Temuan',note:'',reviewedAt:''}}} as OperationalWorkflowState['submission'];
  assert.deepEqual(aggregateDashboard({a:p},'PIC Balai / Pengguna Jasa').surveyReviews,[]);
+});
+
+test("filter jenis dan tanggal keputusan membatasi rincian review", () => {
+  const p = structuredClone(INITIAL_WORKFLOW);
+  p.project.surveyTypes = ["IRI", "PCI"];
+  p.cycle.requiresReview = false;
+  p.cycle.reviewPendingTypes = [];
+  p.activeCyclePeriod = 2;
+  p.cycle.surveyReviews = {
+    IRI: { decision: "Sesuai", reviewedAt: "2026-10-01", note: "" },
+    PCI: { decision: "Temuan", reviewedAt: "2026-11-01", note: "" },
+  };
+  const result = aggregateDashboard({ A: p }, "Penyedia Jasa / Ketua Tim", "Semua Balai", "PCI", "Bulan 2026-11");
+  assert.equal(result.surveyReviews.length, 1);
+  assert.equal(result.surveyReviews[0].surveyType, "PCI");
+  assert.equal(result.surveyReviews[0].period, 2);
+  assert.equal(aggregateDashboard({ A: p }, "Penyedia Jasa / Ketua Tim", "Semua Balai", "PCI", "Bulan 2026-10").surveyReviews.length, 0);
 });

@@ -9,6 +9,7 @@ import { finalAcceptanceBlockers } from '../acceptanceReadiness';
 import { isProviderChecklistCascade, preparationChecklistChanged } from './providerChecklistCascade';
 import type {OperationalWorkflowState,WorkflowRole} from '../model';
 import {canPerformAction} from '../workflowPermissions';
+import {isOnlyCalibrationResponseUpdate,validCalibrationReviewShape,changedSuitableCalibrationSectionIsInvalid} from '../calibrationReview';
 import {correctionMutationError} from '../checkpoint09Corrections';
 import {isExactCyclePeriodSwitch} from '../cyclePeriodTransition';
 
@@ -130,6 +131,22 @@ export function workflowMutationError(before:OperationalWorkflowState,after:Oper
    }
    const blockers = [...finalAcceptanceBlockers(before), ...finalAcceptanceBlockers(after)];
    if (blockers.length) return `Penerimaan akhir tertahan. ${blockers[0]}`;
+ }
+ // Calibration evidence review is a Balai action, not a new approval gate.
+ if(differs(before.calibrationReviews,after.calibrationReviews)){
+   if(!validCalibrationReviewShape(after))return 'Hasil pemeriksaan atau bukti tidak lengkap.';
+   if(role===B){
+     if(changedSuitableCalibrationSectionIsInvalid(before,after))return 'Bukti pada bagian ini belum lengkap untuk hasil Sesuai.';
+     for(const [type,review] of Object.entries(after.calibrationReviews??{})){
+       if(!before.project.surveyTypes.includes(type as import('../model').SurveyType))return forbidden;
+       if(review&&(!review.note.trim()||(review.result==='Ada ketidaksesuaian'&&!review.evidenceReference.trim())))return 'Catatan dan referensi temuan wajib dilengkapi.';
+     }
+   }else if(role==='Penyedia Jasa / Ketua Tim'){
+     const dataChanged=differs(before.calibrations,after.calibrations)||differs(before.calibrationChecklist,after.calibrationChecklist);
+     const old=before.calibrationReviews??{},now=after.calibrationReviews??{};
+     const onlyClear=Object.keys(now).every(type=>!differs(now[type as import('../model').SurveyType],old[type as import('../model').SurveyType])||now[type as import('../model').SurveyType]===undefined);
+     if((!dataChanged||!onlyClear)&&!isOnlyCalibrationResponseUpdate(before,after))return forbidden;
+   }else return forbidden;
  }
  // Limit Directorate to audit-level-3 and its own correction processing; no Balai/source writes.
  if(role===D){

@@ -1,9 +1,10 @@
-import { useEffect, useState } from 'react';
-import { Link } from 'wouter';
-import type { RoleNavItem } from './roleNavigation';
+import { useEffect, useState } from "react";
+import { Link } from "wouter";
+import type { RoleNavItem } from "./roleNavigation";
 
 type Props = {
   navigation: RoleNavItem[];
+  mobileOpen?: boolean;
   location: string;
   activeTab: string;
   selectedSubmodule: string;
@@ -18,6 +19,7 @@ type Props = {
 
 export function RoleSidebar({
   navigation,
+  mobileOpen,
   location,
   activeTab,
   selectedSubmodule,
@@ -32,9 +34,11 @@ export function RoleSidebar({
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
-    const activeItem = navigation.find(item => {
-      if (item.path === '/packages') {
-        return location === '/packages' || (!!activePackageId && isPackageWorkspace);
+    const activeItem = navigation.find((item) => {
+      if (item.path === "/packages") {
+        return (
+          location === "/packages" || (!!activePackageId && isPackageWorkspace)
+        );
       }
 
       return item.path === location;
@@ -42,7 +46,7 @@ export function RoleSidebar({
 
     if (!activeItem) return;
 
-    setExpanded(current => ({
+    setExpanded((current) => ({
       ...current,
       [activeItem.path]: true,
     }));
@@ -51,33 +55,29 @@ export function RoleSidebar({
   const toggleModule = (item: RoleNavItem) => {
     const isOpen = !!expanded[item.path];
 
-    setExpanded(current => ({
+    setExpanded((current) => ({
       ...current,
       [item.path]: !isOpen,
     }));
 
-    if (isOpen) return;
+    if (isOpen || (mobileOpen && item.children.length > 0)) return;
 
     if (item.path !== location) {
       onClearSubmodule();
-      onSetActiveTab('Semua');
+      onSetActiveTab("Semua");
       onSetLocation(item.path);
     }
   };
 
   return (
     <nav className="side-nav" aria-label="Navigasi modul">
-      {navigation.map(item => {
+      {navigation.map((item) => {
         const Icon = item.icon;
 
         const packageActive =
-          item.path === '/packages' &&
-          !!activePackageId &&
-          isPackageWorkspace;
+          item.path === "/packages" && !!activePackageId && isPackageWorkspace;
 
-        const active =
-          location === item.path ||
-          packageActive;
+        const active = location === item.path || packageActive;
 
         const open = !!expanded[item.path];
 
@@ -85,7 +85,9 @@ export function RoleSidebar({
           <div key={item.path} className="nav-group">
             <button
               type="button"
-              className={`nav-link nav-module-button ${active ? 'active' : ''}`}
+              className={`nav-link nav-module-button ${active ? "active" : ""}`}
+              aria-expanded={item.children.length > 0 ? open : undefined}
+              aria-current={active ? "page" : undefined}
               onClick={() => toggleModule(item)}
             >
               <Icon size={16} />
@@ -94,7 +96,7 @@ export function RoleSidebar({
 
             {open && item.children.length > 0 && (
               <div className="nav-children">
-                {item.children.map(child => {
+                {item.children.map((child) => {
                   const selected = child.selection
                     ? selectedSubmodule === child.selection
                     : !!child.href &&
@@ -107,12 +109,12 @@ export function RoleSidebar({
                       type="button"
                       disabled={child.locked}
                       className={[
-                        'nav-child',
-                        selected ? 'selected' : '',
-                        child.locked ? 'locked' : '',
+                        "nav-child",
+                        selected ? "selected" : "",
+                        child.locked ? "locked" : "",
                       ]
                         .filter(Boolean)
-                        .join(' ')}
+                        .join(" ")}
                       title={child.hint || child.label}
                       onClick={() => {
                         if (child.locked) return;
@@ -124,8 +126,11 @@ export function RoleSidebar({
                         }
 
                         onClearSubmodule();
-                        onSetActiveTab(child.tab || 'Semua');
-                        onSetLocation(child.href || item.path);
+                        onSetActiveTab(child.tab || "Semua");
+                        const destination = child.href || item.path;
+                        onSetLocation(child.tab
+                          ? `${destination}?tab=${encodeURIComponent(child.tab)}`
+                          : destination);
                         onCloseMobile();
                       }}
                     >

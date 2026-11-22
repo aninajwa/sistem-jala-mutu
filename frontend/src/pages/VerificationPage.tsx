@@ -1,64 +1,712 @@
-import {useEffect,useMemo,useState} from 'react';
-import {ArrowRight,ClipboardCheck,Clock3,History,Search,X} from 'lucide-react';
-import {KPI,PageHeading,Section,Status} from '../components/app/AppComponents';
-import type {PageProps} from '../types';
-import {balaiReviewQueue,filterBalaiReviews,type BalaiReviewItem} from '../workflow/balaiReviewQueue';
-import {SOURCE_FORM_CHANGED} from '../workflow/repository/workflowReconciliation';
-import './verificationQueue.css';
-type View='review'|'monitor'|'history';
-const viewFor=(tab:string):View=>tab==='Monitoring'||tab==='Menunggu Klarifikasi'?'monitor':tab==='Hasil & Riwayat'||tab==='Riwayat Review'?'history':'review';
-const reviewReady=(row:BalaiReviewItem)=>row.status==='Perlu Review';
-const monitorReady=(row:BalaiReviewItem)=>row.status==='Menunggu'||row.status==='Perlu Perbaikan';
-export default function VerificationPage(p:PageProps){
- const [query,setQuery]=useState(''),[stage,setStage]=useState(''),[selected,setSelected]=useState<BalaiReviewItem|null>(null);
- const view=viewFor(p.activeTab);
- const [formRevision,setFormRevision]=useState(0);
- useEffect(()=>{const update=()=>setFormRevision(v=>v+1);window.addEventListener(SOURCE_FORM_CHANGED,update);window.addEventListener('storage',update);return()=>{window.removeEventListener(SOURCE_FORM_CHANGED,update);window.removeEventListener('storage',update);};},[]);
- useEffect(()=>{setSelected(null);},[view]);
- const rows=useMemo(()=>balaiReviewQueue(p.packages),[p.packages,formRevision]);
- const historyRows=useMemo(()=>Object.values(p.packages).flatMap(state=>(state.balaiDecisionHistory??[]).map((entry,i)=>({id:`${state.project.id}:decision:${i}`,packageId:state.project.id,packageName:state.project.packageName,balai:state.project.balai,stage:entry.stage,kind:`Keputusan ${entry.stage}`,status:(entry.decision==='Disetujui'||entry.decision==='Diterima'||entry.decision==='Diterima dengan Catatan'?'Selesai/Lulus':entry.decision==='Perlu Revisi'||entry.decision==='Ditolak'?'Perlu Perbaikan':'Menunggu') as BalaiReviewItem['status'],reason:`${entry.previousDecision} → ${entry.decision}`,note:entry.note,selection:'',recordedAt:entry.recordedAt,actor:entry.actor,previousNote:entry.previousNote}))),[p.packages]);
- const activityRows=useMemo(()=>Object.values(p.packages).flatMap(state=>{const groups=new Map<string,NonNullable<typeof state.reviewActivityHistory>[number]>();for(const event of state.reviewActivityHistory??[]){const key=`${event.stage}:${event.period??''}:${event.auditLevel??''}`;groups.set(key,event);}return [...groups.entries()].filter(([,event])=>!historyRows.some(row=>row.packageId===state.project.id&&row.stage===event.stage)&&!rows.some(row=>row.packageId===state.project.id&&row.stage===event.stage&&row.status==='Selesai/Lulus'&&(event.period===undefined||row.period===event.period))).map(([key,event])=>({id:`${state.project.id}:activity:${key}`,packageId:state.project.id,packageName:state.project.packageName,balai:state.project.balai,stage:event.stage,kind:'Jurnal pemeriksaan',status:(event.status==='Disetujui'||event.status==='Diterima'||event.status==='Selesai'?'Selesai/Lulus':event.status==='Ditolak'||event.status==='Perlu Revisi'?'Perlu Perbaikan':'Menunggu') as BalaiReviewItem['status'],reason:'Tindakan pemeriksaan tercatat',note:event.note,selection:'',period:event.period,auditLevel:event.auditLevel,recordedAt:event.recordedAt,actor:event.actor}));}),[p.packages,historyRows,rows]);
- const visible=useMemo(()=>view==='review'?rows.filter(reviewReady):view==='monitor'?rows.filter(monitorReady):[...rows.filter(r=>r.status==='Selesai/Lulus'),...historyRows,...activityRows],[view,rows,historyRows,activityRows]);
- const filtered=filterBalaiReviews(visible,query,stage,'');
- const detailState=selected?p.packages[selected.packageId]:undefined;
- const detailActivities=selected&&detailState?(detailState.reviewActivityHistory??[]).filter(event=>event.stage===selected.stage&&(selected.stage!=='Tahap 3B'||event.period===selected.period)&&(selected.stage!=='Tahap 5'||event.auditLevel===undefined||event.auditLevel===(selected.auditLevel??2))).slice().sort((a,b)=>a.recordedAt.localeCompare(b.recordedAt)):[];
- const formatRecordedAt=(value:string)=>{const date=new Date(value);return Number.isNaN(date.getTime())?value:date.toLocaleString('id-ID',{dateStyle:'medium',timeStyle:'short'});};
- const detailEvents=selected&&detailState?(detailState.balaiDecisionHistory??[]).filter(e=>e.stage===selected.stage):[];
- const detailCorrections=selected&&detailState?detailState.corrections.filter(c=>selected.stage==='Tahap 3B'?c.cyclePeriod===selected.period:selected.stage==='Tahap 5'?c.source==='Penolakan audit tingkat 2':c.blockedStage?.includes(selected.stage)??false):[];
- // Archived snapshots are displayed as snapshots, not invented dated actions.
- const periodKey=selected?.period?String(selected.period):'';
- const cycleSnapshots=selected?.stage==='Tahap 3B'&&detailState&&periodKey?(detailState.cycleRevisions?.[periodKey]??[]):[];
- const cycleCurrent=selected?.stage==='Tahap 3B'&&detailState&&periodKey?(selected.period===(detailState.activeCyclePeriod??1)?detailState.cycle:detailState.cycleHistory?.[periodKey]):undefined;
- const auditSnapshots=selected?.stage==='Tahap 5'&&detailState?(detailState.audits[1]?.history??[]):[];
- const auditCurrent=selected?.stage==='Tahap 5'&&detailState?detailState.audits[1]:undefined;
- const reviewSnapshots=selected?.stage==='Tahap 4'&&detailState?Object.entries(detailState.submission.stagedReviews??{}):[];
+import { FilterPanel } from "../design/b/FilterPanel";
+import { useDialogFocus } from "../design/b/useDialogFocus";
+import { WorkspaceHeading, StatePill } from "../design/b/Patterns";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  ClipboardCheck,
+  Clock3,
+  History,
+  Search,
+  X,
+} from "lucide-react";
+import {
+  KPI,
+  PageHeading,
+  Section,
+  Status,
+} from "../components/app/AppComponents";
+import type { PageProps } from "../types";
+import {
+  balaiReviewQueue,
+  filterBalaiReviews,
+  type BalaiReviewItem,
+} from "../workflow/balaiReviewQueue";
+import { SOURCE_FORM_CHANGED } from "../workflow/repository/workflowReconciliation";
+import "./verificationQueue.css";
+type View = "review" | "monitor" | "history";
+const viewFor = (tab: string): View =>
+  tab === "Monitoring" || tab === "Menunggu Klarifikasi"
+    ? "monitor"
+    : tab === "Hasil & Riwayat" || tab === "Riwayat Review"
+      ? "history"
+      : "review";
+const reviewReady = (row: BalaiReviewItem) => row.status === "Perlu Review";
+const monitorReady = (row: BalaiReviewItem) =>
+  row.status === "Menunggu" || row.status === "Perlu Perbaikan";
+export default function VerificationPage(p: PageProps) {
+  const [query, setQuery] = useState(""),
+    [stage, setStage] = useState(""),
+    [selected, setSelected] = useState<BalaiReviewItem | null>(null);
+  const view = viewFor(p.activeTab);
+  useDialogFocus(Boolean(selected), ".balai-detail-panel", () =>
+    setSelected(null),
+  );
+  const [formRevision, setFormRevision] = useState(0);
+  useEffect(() => {
+    const update = () => setFormRevision((v) => v + 1);
+    window.addEventListener(SOURCE_FORM_CHANGED, update);
+    window.addEventListener("storage", update);
+    return () => {
+      window.removeEventListener(SOURCE_FORM_CHANGED, update);
+      window.removeEventListener("storage", update);
+    };
+  }, []);
+  useEffect(() => {
+    setSelected(null);
+  }, [view]);
+  const rows = useMemo(
+    () => balaiReviewQueue(p.packages),
+    [p.packages, formRevision],
+  );
+  const historyRows = useMemo(
+    () =>
+      Object.values(p.packages).flatMap((state) =>
+        (state.balaiDecisionHistory ?? []).map((entry, i) => ({
+          id: `${state.project.id}:decision:${i}`,
+          packageId: state.project.id,
+          packageName: state.project.packageName,
+          balai: state.project.balai,
+          stage: entry.stage,
+          kind: `Keputusan ${entry.stage}`,
+          status: (entry.decision === "Disetujui" ||
+          entry.decision === "Diterima" ||
+          entry.decision === "Diterima dengan Catatan"
+            ? "Selesai/Lulus"
+            : entry.decision === "Perlu Revisi" || entry.decision === "Ditolak"
+              ? "Perlu Perbaikan"
+              : "Menunggu") as BalaiReviewItem["status"],
+          reason: `${entry.previousDecision} → ${entry.decision}`,
+          note: entry.note,
+          selection: "",
+          recordedAt: entry.recordedAt,
+          actor: entry.actor,
+          previousNote: entry.previousNote,
+        })),
+      ),
+    [p.packages],
+  );
+  const activityRows = useMemo(
+    () =>
+      Object.values(p.packages).flatMap((state) => {
+        const groups = new Map<
+          string,
+          NonNullable<typeof state.reviewActivityHistory>[number]
+        >();
+        for (const event of state.reviewActivityHistory ?? []) {
+          const key = `${event.stage}:${event.period ?? ""}:${event.auditLevel ?? ""}`;
+          groups.set(key, event);
+        }
+        return [...groups.entries()]
+          .filter(
+            ([, event]) =>
+              !historyRows.some(
+                (row) =>
+                  row.packageId === state.project.id &&
+                  row.stage === event.stage,
+              ) &&
+              !rows.some(
+                (row) =>
+                  row.packageId === state.project.id &&
+                  row.stage === event.stage &&
+                  row.status === "Selesai/Lulus" &&
+                  (event.period === undefined || row.period === event.period),
+              ),
+          )
+          .map(([key, event]) => ({
+            id: `${state.project.id}:activity:${key}`,
+            packageId: state.project.id,
+            packageName: state.project.packageName,
+            balai: state.project.balai,
+            stage: event.stage,
+            kind: "Jurnal pemeriksaan",
+            status: (event.status === "Disetujui" ||
+            event.status === "Diterima" ||
+            event.status === "Selesai"
+              ? "Selesai/Lulus"
+              : event.status === "Ditolak" || event.status === "Perlu Revisi"
+                ? "Perlu Perbaikan"
+                : "Menunggu") as BalaiReviewItem["status"],
+            reason: "Tindakan pemeriksaan tercatat",
+            note: event.note,
+            selection: "",
+            period: event.period,
+            auditLevel: event.auditLevel,
+            recordedAt: event.recordedAt,
+            actor: event.actor,
+          }));
+      }),
+    [p.packages, historyRows, rows],
+  );
+  const visible = useMemo(
+    () =>
+      view === "review"
+        ? rows.filter(reviewReady)
+        : view === "monitor"
+          ? rows.filter(monitorReady)
+          : [
+              ...rows.filter((r) => r.status === "Selesai/Lulus"),
+              ...historyRows,
+              ...activityRows,
+            ],
+    [view, rows, historyRows, activityRows],
+  );
+  const filtered = filterBalaiReviews(visible, query, stage, "");
+  const detailState = selected ? p.packages[selected.packageId] : undefined;
+  const detailActivities =
+    selected && detailState
+      ? (detailState.reviewActivityHistory ?? [])
+          .filter(
+            (event) =>
+              event.stage === selected.stage &&
+              (selected.stage !== "Tahap 3B" ||
+                event.period === selected.period) &&
+              (selected.stage !== "Tahap 5" ||
+                event.auditLevel === undefined ||
+                event.auditLevel === (selected.auditLevel ?? 2)),
+          )
+          .slice()
+          .sort((a, b) => a.recordedAt.localeCompare(b.recordedAt))
+      : [];
+  const formatRecordedAt = (value: string) => {
+    const date = new Date(value);
+    return Number.isNaN(date.getTime())
+      ? value
+      : date.toLocaleString("id-ID", {
+          dateStyle: "medium",
+          timeStyle: "short",
+        });
+  };
+  const detailEvents =
+    selected && detailState
+      ? (detailState.balaiDecisionHistory ?? []).filter(
+          (e) => e.stage === selected.stage,
+        )
+      : [];
+  const detailCorrections =
+    selected && detailState
+      ? detailState.corrections.filter((c) =>
+          selected.stage === "Tahap 3B"
+            ? c.cyclePeriod === selected.period
+            : selected.stage === "Tahap 5"
+              ? c.source === "Penolakan audit tingkat 2"
+              : (c.blockedStage?.includes(selected.stage) ?? false),
+        )
+      : [];
+  // Archived snapshots are displayed as snapshots, not invented dated actions.
+  const periodKey = selected?.period ? String(selected.period) : "";
+  const cycleSnapshots =
+    selected?.stage === "Tahap 3B" && detailState && periodKey
+      ? (detailState.cycleRevisions?.[periodKey] ?? [])
+      : [];
+  const cycleCurrent =
+    selected?.stage === "Tahap 3B" && detailState && periodKey
+      ? selected.period === (detailState.activeCyclePeriod ?? 1)
+        ? detailState.cycle
+        : detailState.cycleHistory?.[periodKey]
+      : undefined;
+  const auditSnapshots =
+    selected?.stage === "Tahap 5" && detailState
+      ? (detailState.audits[1]?.history ?? [])
+      : [];
+  const auditCurrent =
+    selected?.stage === "Tahap 5" && detailState
+      ? detailState.audits[1]
+      : undefined;
+  const reviewSnapshots =
+    selected?.stage === "Tahap 4" && detailState
+      ? Object.entries(detailState.submission.stagedReviews ?? {})
+      : [];
 
- return <><PageHeading label="Verifikasi & Review Balai" detail={view==='review'?'Pengajuan yang membutuhkan tindakan Balai.':view==='monitor'?'Pantau pekerjaan dan tindak lanjut tanpa mengubah keputusan Penyedia.':'Rekaman pemeriksaan dan keputusan yang tersimpan.'}/>
+  return (
+    <div className="b-review-workspace">
+      <WorkspaceHeading
+        eyebrow="PEMERIKSAAN MUTU · BALAI"
+        title="Verifikasi & Review Balai"
+        description={
+          view === "review"
+            ? "Pengajuan yang membutuhkan tindakan Balai."
+            : view === "monitor"
+              ? "Pantau pekerjaan dan tindak lanjut tanpa mengubah keputusan Penyedia."
+              : "Rekaman pemeriksaan dan keputusan yang tersimpan."
+        }
+      />
 
- <div className="kpi-grid balai-review-kpis">
- <KPI icon={ClipboardCheck} label="Perlu Ditinjau" value={String(rows.filter(reviewReady).length)} note="siap diperiksa Balai" testId="kpi-balai-review-0"/>
- <KPI icon={Clock3} label="Menunggu / Prasyarat" value={String(rows.filter(r=>r.status==='Menunggu').length)} note="bukan antrean keputusan" testId="kpi-balai-review-1"/>
- <KPI icon={Clock3} label="Perlu Tindak Lanjut" value={String(rows.filter(r=>r.status==='Perlu Perbaikan').length)} note="perbaikan atau klarifikasi" testId="kpi-balai-review-2"/>
- <KPI icon={History} label="Hasil Tercatat" value={String(rows.filter(r=>r.status==='Selesai/Lulus').length)} note="hasil tahap terkini" testId="kpi-balai-review-3"/>
- </div>
- <Section title={view==='review'?'Perlu Ditinjau':view==='monitor'?'Monitoring Pekerjaan':'Hasil & Riwayat Pemeriksaan'} icon={ClipboardCheck}>
- <div className="panel-body">
- <div className="balai-review-filters">
- <label><span><Search size={13}/> Cari paket, pemeriksaan, atau catatan</span><input aria-label="Cari pemeriksaan Balai" value={query} onChange={e=>setQuery(e.target.value)} placeholder="Cari paket atau catatan…"/></label>
- <label><span>Tahap / jenis pemeriksaan</span><select aria-label="Filter tahap pemeriksaan" value={stage} onChange={e=>setStage(e.target.value)}><option value="">Semua tahap</option>{[...new Set(visible.map(r=>r.stage))].map(s=><option key={s}>{s}</option>)}</select></label>
-
- </div>
- <p className="subtle" role="status">{filtered.length} pekerjaan ditampilkan</p>
- {view==='history'?<div className="balai-history-scroll"><table className="balai-history-table"><thead><tr><th>Paket</th><th>Tahap / Pemeriksaan</th><th>Jenis Rekaman</th><th>Hasil</th><th>Aksi</th></tr></thead><tbody>{filtered.map(row=><tr key={row.id}><td><strong>{row.packageName}</strong><small>{row.packageId}</small></td><td>{row.stage}</td><td>{row.kind}</td><td><Status value={row.status}/></td><td><button type="button" className="btn sm" onClick={()=>setSelected(row)}>Lihat Riwayat</button></td></tr>)}</tbody></table></div>:<div className="balai-review-list">{filtered.map(row=><article className="balai-review-item" key={row.id} data-testid="balai-review-item"><div className="balai-review-item-head"><div><strong>{row.packageName}</strong><div className="subtle">{row.packageId} · {row.balai}</div></div><Status value={row.status}/></div><h3>{row.stage} · {row.kind}</h3><p>{view==='review'?'Pemeriksaan telah mencapai antrean Balai.':row.status==='Menunggu'?'Belum siap untuk keputusan Balai.':'Menunggu tindak lanjut atas hasil pemeriksaan.'}</p>{row.period&&<p className="subtle">Periode {row.period}</p>}<button type="button" className={`btn ${view==='review'?'primary':''}`} onClick={()=>view==='review'?p.openPackageReview(row.packageId,row.selection,{period:row.period,auditLevel:row.auditLevel}):setSelected(row)}><ArrowRight size={13}/>{view==='review'?'Buka pemeriksaan':'Lihat Progres'}</button></article>)}</div>}
- {!filtered.length&&<p className="balai-review-empty">{visible.length?'Tidak ada hasil sesuai pencarian dan filter.':view==='review'?'Belum ada pengajuan yang perlu ditinjau Balai.':view==='monitor'?'Tidak ada pekerjaan yang sedang menunggu.':'Belum ada hasil pemeriksaan tersimpan.'}</p>}
- </div></Section>
- {selected&&<div className="balai-detail-backdrop" role="presentation" onMouseDown={e=>{if(e.target===e.currentTarget)setSelected(null);}}><section className="balai-detail-panel" role="dialog" aria-modal="true" aria-label={view==='history'?'Detail Riwayat Pemeriksaan':'Detail Monitoring'}><div className="balai-detail-header"><div><h2>{view==='history'?'Detail Riwayat Pemeriksaan':'Detail Monitoring'}</h2><p className="subtle">{selected.packageName} · {selected.stage} · {selected.kind}</p></div><button className="btn sm" aria-label="Tutup detail" onClick={()=>setSelected(null)}><X size={16}/></button></div><div className="balai-detail-summary"><Status value={selected.status}/><div><span>Jenis pemeriksaan</span><strong>{selected.kind}</strong></div><div><span>Paket</span><strong>{selected.packageId}</strong></div>{'recordedAt' in selected&&typeof selected.recordedAt==='string'&&<div><span>Waktu tercatat</span><strong>{formatRecordedAt(selected.recordedAt)}</strong></div>}{'actor' in selected&&typeof selected.actor==='string'&&<div><span>Pemeriksa</span><strong>{selected.actor}</strong></div>}</div><h3>Hasil pemeriksaan</h3><p>{selected.reason}</p>{selected.note?<div className="review-note"><strong>Catatan / hasil tersimpan</strong><p>{selected.note}</p></div>:<p className="subtle">Belum ada catatan untuk rekaman ini.</p>}
- {detailActivities.length>0&&<><h3>Jurnal kejadian pemeriksaan</h3><ol className="balai-detail-events">{detailActivities.map(event=><li key={event.id}><strong>{event.action==='catatan'?'Catatan pemeriksaan':event.action==='keputusan'?'Keputusan pemeriksaan':event.action==='pengajuan-ulang'?'Pengajuan ulang':event.action==='pengajuan'?'Pengajuan':'Perubahan pemeriksaan'}</strong><div className="subtle">{event.actor} · {formatRecordedAt(event.recordedAt)}{event.period?` · Periode ${event.period}`:''}{event.auditLevel?` · Audit tingkat ${event.auditLevel}`:''}</div>{event.previousStatus!==event.status&&<p>Status: {event.previousStatus||'Belum tercatat'} → {event.status||'Belum tercatat'}</p>}{event.note&&<p>{event.note}</p>}{event.previousNote&&event.previousNote!==event.note&&<p className="subtle">Catatan sebelumnya: {event.previousNote}</p>}</li>)}</ol></>}
- {detailEvents.length>0&&<><h3>Jejak keputusan Balai</h3><ol className="balai-detail-events">{detailEvents.map((event,i)=><li key={i}><strong>{event.previousDecision} → {event.decision}</strong><div className="subtle">{event.actor} · {formatRecordedAt(event.recordedAt)}</div>{event.note&&<p>{event.note}</p>}{event.previousNote&&<p className="subtle">Catatan sebelumnya: {event.previousNote}</p>}</li>)}</ol></>}
- {selected.stage==='Tahap 3B'&&(cycleSnapshots.length>0||cycleCurrent)&&<><h3>Rekaman V&V periode {selected.period}</h3><ol className="balai-detail-events">{[...cycleSnapshots,...(cycleCurrent?[cycleCurrent]:[])].map((cycle,i)=><li key={i}><strong>{i<cycleSnapshots.length?`Arsip revisi ${i+1}`:'Kondisi periode terkini'} · {cycle.userReview??'Belum Diperiksa'}</strong>{cycle.userReviewNote&&<p>{cycle.userReviewNote}</p>}{cycle.reviewReason&&<p>Alasan pemeriksaan ulang: {cycle.reviewReason}</p>}{Object.entries(cycle.surveyReviews??{}).map(([type,review])=><div key={type}><strong>{type}: {review?.decision??'Belum Diperiksa'}</strong>{review?.reviewedAt&&<div className="subtle">Waktu pemeriksaan: {review.reviewedAt}</div>}{review?.note&&<p>{review.note}</p>}</div>)}{cycle.certificateId&&<p>Referensi BA: {cycle.certificateId}</p>}</li>)}</ol></>}
- {selected.stage==='Tahap 5'&&(auditSnapshots.length>0||auditCurrent)&&<><h3>Rekaman audit tingkat 2</h3><ol className="balai-detail-events">{[...auditSnapshots,...(auditCurrent?[auditCurrent]:[])].map((audit,i)=><li key={i}><strong>{i<auditSnapshots.length?`Arsip audit ${i+1}`:'Kondisi audit terkini'} · {audit.status}</strong>{audit.decisionNote&&<p>{audit.decisionNote}</p>}{audit.reviewReason&&<p>Alasan review ulang: {audit.reviewReason}</p>}{audit.baNumber&&<p>Referensi BA: {audit.baNumber}</p>}</li>)}</ol></>}
- {selected.stage==='Tahap 4'&&reviewSnapshots.length>0&&<><h3>Hasil V&V bertahap per jenis survei</h3><ol className="balai-detail-events">{reviewSnapshots.map(([type,review])=><li key={type}><strong>{type} · {review?.decision??'Belum Diperiksa'}</strong>{review?.reviewedAt&&<div className="subtle">Waktu pemeriksaan: {review.reviewedAt}</div>}{review?.note&&<p>{review.note}</p>}</li>)}</ol></>}
- {detailCorrections.length>0&&<><h3>Temuan dan tindak lanjut</h3><ol className="balai-detail-events">{detailCorrections.map((c,i)=><li key={i}><strong>{c.id} · {c.status}</strong><p>{c.rejectionReason||'Tidak ada alasan tersimpan'}</p></li>)}</ol></>}
- <p className="balai-history-disclaimer">Arsip revisi dan audit ditampilkan sesuai rekaman tersimpan; snapshot yang tidak memiliki waktu atau pelaku tidak diberi waktu atau pelaku rekaan. Jurnal baru hanya menampilkan tindakan yang benar-benar tercatat melalui mekanisme penyimpanan workflow; jalur lain belum dijamin lengkap.</p><button type="button" className="btn" onClick={()=>setSelected(null)}>Tutup</button></section></div>}
- </>;
+      <nav className="b-view-tabs" aria-label="Kategori pemeriksaan">
+        {[
+          ["Perlu Ditinjau", "review"],
+          ["Monitoring", "monitor"],
+          ["Hasil & Riwayat", "history"],
+        ].map(([label, key]) => (
+          <button
+            key={key}
+            aria-current={view === key ? "page" : undefined}
+            onClick={() => p.setActiveTab(label)}
+          >
+            {label}
+          </button>
+        ))}
+      </nav>
+      <div className="kpi-grid balai-review-kpis">
+        <KPI
+          icon={ClipboardCheck}
+          label="Perlu Ditinjau"
+          value={String(rows.filter(reviewReady).length)}
+          note="siap diperiksa Balai"
+          testId="kpi-balai-review-0"
+        />
+        <KPI
+          icon={Clock3}
+          label="Menunggu / Prasyarat"
+          value={String(rows.filter((r) => r.status === "Menunggu").length)}
+          note="bukan antrean keputusan"
+          testId="kpi-balai-review-1"
+        />
+        <KPI
+          icon={Clock3}
+          label="Perlu Tindak Lanjut"
+          value={String(
+            rows.filter((r) => r.status === "Perlu Perbaikan").length,
+          )}
+          note="perbaikan atau klarifikasi"
+          testId="kpi-balai-review-2"
+        />
+        <KPI
+          icon={History}
+          label="Hasil Tercatat"
+          value={String(
+            rows.filter((r) => r.status === "Selesai/Lulus").length,
+          )}
+          note="hasil tahap terkini"
+          testId="kpi-balai-review-3"
+        />
+      </div>
+      <Section
+        title={
+          view === "review"
+            ? "Perlu Ditinjau"
+            : view === "monitor"
+              ? "Monitoring Pekerjaan"
+              : "Hasil & Riwayat Pemeriksaan"
+        }
+        icon={ClipboardCheck}
+      >
+        <div className="panel-body">
+          <FilterPanel
+            title="Filter pemeriksaan"
+            activeCount={Number(!!query) + Number(!!stage)}
+            onReset={() => {
+              setQuery("");
+              setStage("");
+            }}
+          >
+            <div className="balai-review-filters">
+              <label>
+                <span>
+                  <Search size={13} /> Cari paket, pemeriksaan, atau catatan
+                </span>
+                <input
+                  aria-label="Cari pemeriksaan Balai"
+                  value={query}
+                  onChange={(e) => setQuery(e.target.value)}
+                  placeholder="Cari paket atau catatan…"
+                />
+              </label>
+              <label>
+                <span>Tahap / jenis pemeriksaan</span>
+                <select
+                  aria-label="Filter tahap pemeriksaan"
+                  value={stage}
+                  onChange={(e) => setStage(e.target.value)}
+                >
+                  <option value="">Semua tahap</option>
+                  {[...new Set(visible.map((r) => r.stage))].map((s) => (
+                    <option key={s}>{s}</option>
+                  ))}
+                </select>
+              </label>
+            </div>
+          </FilterPanel>
+          <p className="subtle" role="status">
+            {filtered.length} pekerjaan ditampilkan
+          </p>
+          {view === "history" ? (
+            <div className="balai-history-scroll">
+              <table className="balai-history-table">
+                <thead>
+                  <tr>
+                    <th>Paket</th>
+                    <th>Tahap / Pemeriksaan</th>
+                    <th>Jenis Rekaman</th>
+                    <th>Hasil</th>
+                    <th>Aksi</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filtered.map((row) => (
+                    <tr key={row.id}>
+                      <td>
+                        <strong>{row.packageName}</strong>
+                        <small>{row.packageId}</small>
+                      </td>
+                      <td>{row.stage}</td>
+                      <td>{row.kind}</td>
+                      <td>
+                        <Status value={row.status} />
+                      </td>
+                      <td>
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => setSelected(row)}
+                        >
+                          Lihat Riwayat
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          ) : (
+            <div className="balai-review-list b-review-board">
+              {filtered.map((row) => (
+                <article
+                  className="balai-review-item b-review-card"
+                  key={row.id}
+                  data-testid="balai-review-item"
+                >
+                  <div className="b-review-card-top">
+                    <StatePill
+                      tone={
+                        row.status === "Perlu Review"
+                          ? "teal"
+                          : row.status === "Perlu Perbaikan"
+                            ? "amber"
+                            : "neutral"
+                      }
+                    >
+                      {row.status}
+                    </StatePill>
+                    <span>
+                      {row.stage}
+                      {row.period ? ` · Periode ${row.period}` : ""}
+                    </span>
+                  </div>
+                  <h3>{row.kind}</h3>
+                  <strong className="b-review-package">
+                    {row.packageName}
+                  </strong>
+                  <small>
+                    {row.packageId} · {row.balai}
+                  </small>
+                  <div className="b-review-card-note">
+                    <ClipboardCheck size={17} />
+                    <span>
+                      {view === "review"
+                        ? "Siap masuk ruang pemeriksaan Balai."
+                        : row.status === "Menunggu"
+                          ? "Prasyarat masih menunggu pemilik langkah."
+                          : "Perlu tindak lanjut atas hasil pemeriksaan."}
+                    </span>
+                  </div>
+                  <details className="b-review-reason">
+                    <summary>Alasan & catatan</summary>
+                    <p>{row.reason}</p>
+                    {row.note && <p>{row.note}</p>}
+                  </details>
+                  <button
+                    type="button"
+                    className={`btn ${view === "review" ? "primary" : ""}`}
+                    onClick={() =>
+                      view === "review"
+                        ? p.openPackageReview(row.packageId, row.selection, {
+                            period: row.period,
+                            auditLevel: row.auditLevel,
+                          })
+                        : setSelected(row)
+                    }
+                  >
+                    {view === "review" ? "Buka pemeriksaan" : "Lihat Progres"}
+                    <ArrowRight size={15} />
+                  </button>
+                </article>
+              ))}
+            </div>
+          )}
+          {!filtered.length && (
+            <p className="balai-review-empty">
+              {visible.length
+                ? "Tidak ada hasil sesuai pencarian dan filter."
+                : view === "review"
+                  ? "Belum ada pengajuan yang perlu ditinjau Balai."
+                  : view === "monitor"
+                    ? "Tidak ada pekerjaan yang sedang menunggu."
+                    : "Belum ada hasil pemeriksaan tersimpan."}
+            </p>
+          )}
+        </div>
+      </Section>
+      {selected && (
+        <div
+          className="balai-detail-backdrop"
+          role="presentation"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setSelected(null);
+          }}
+        >
+          <section
+            className="balai-detail-panel"
+            role="dialog"
+            aria-modal="true"
+            aria-label={
+              view === "history"
+                ? "Detail Riwayat Pemeriksaan"
+                : "Detail Monitoring"
+            }
+          >
+            <div className="balai-detail-header">
+              <div>
+                <h2>
+                  {view === "history"
+                    ? "Detail Riwayat Pemeriksaan"
+                    : "Detail Monitoring"}
+                </h2>
+                <p className="subtle">
+                  {selected.packageName} · {selected.stage} · {selected.kind}
+                </p>
+              </div>
+              <button
+                className="btn sm"
+                aria-label="Tutup detail"
+                onClick={() => setSelected(null)}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="balai-detail-summary">
+              <Status value={selected.status} />
+              <div>
+                <span>Jenis pemeriksaan</span>
+                <strong>{selected.kind}</strong>
+              </div>
+              <div>
+                <span>Paket</span>
+                <strong>{selected.packageId}</strong>
+              </div>
+              {"recordedAt" in selected &&
+                typeof selected.recordedAt === "string" && (
+                  <div>
+                    <span>Waktu tercatat</span>
+                    <strong>{formatRecordedAt(selected.recordedAt)}</strong>
+                  </div>
+                )}
+              {"actor" in selected && typeof selected.actor === "string" && (
+                <div>
+                  <span>Pemeriksa</span>
+                  <strong>{selected.actor}</strong>
+                </div>
+              )}
+            </div>
+            <h3>Hasil pemeriksaan</h3>
+            <p>{selected.reason}</p>
+            {selected.note ? (
+              <div className="review-note">
+                <strong>Catatan / hasil tersimpan</strong>
+                <p>{selected.note}</p>
+              </div>
+            ) : (
+              <p className="subtle">Belum ada catatan untuk rekaman ini.</p>
+            )}
+            {detailActivities.length > 0 && (
+              <>
+                <h3>Jurnal kejadian pemeriksaan</h3>
+                <ol className="balai-detail-events">
+                  {detailActivities.map((event) => (
+                    <li key={event.id}>
+                      <strong>
+                        {event.action === "catatan"
+                          ? "Catatan pemeriksaan"
+                          : event.action === "keputusan"
+                            ? "Keputusan pemeriksaan"
+                            : event.action === "pengajuan-ulang"
+                              ? "Pengajuan ulang"
+                              : event.action === "pengajuan"
+                                ? "Pengajuan"
+                                : "Perubahan pemeriksaan"}
+                      </strong>
+                      <div className="subtle">
+                        {event.actor} · {formatRecordedAt(event.recordedAt)}
+                        {event.period ? ` · Periode ${event.period}` : ""}
+                        {event.auditLevel
+                          ? ` · Audit tingkat ${event.auditLevel}`
+                          : ""}
+                      </div>
+                      {event.previousStatus !== event.status && (
+                        <p>
+                          Status: {event.previousStatus || "Belum tercatat"} →{" "}
+                          {event.status || "Belum tercatat"}
+                        </p>
+                      )}
+                      {event.note && <p>{event.note}</p>}
+                      {event.previousNote &&
+                        event.previousNote !== event.note && (
+                          <p className="subtle">
+                            Catatan sebelumnya: {event.previousNote}
+                          </p>
+                        )}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            {detailEvents.length > 0 && (
+              <>
+                <h3>Jejak keputusan Balai</h3>
+                <ol className="balai-detail-events">
+                  {detailEvents.map((event, i) => (
+                    <li key={i}>
+                      <strong>
+                        {event.previousDecision} → {event.decision}
+                      </strong>
+                      <div className="subtle">
+                        {event.actor} · {formatRecordedAt(event.recordedAt)}
+                      </div>
+                      {event.note && <p>{event.note}</p>}
+                      {event.previousNote && (
+                        <p className="subtle">
+                          Catatan sebelumnya: {event.previousNote}
+                        </p>
+                      )}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            {selected.stage === "Tahap 3B" &&
+              (cycleSnapshots.length > 0 || cycleCurrent) && (
+                <>
+                  <h3>Rekaman V&V periode {selected.period}</h3>
+                  <ol className="balai-detail-events">
+                    {[
+                      ...cycleSnapshots,
+                      ...(cycleCurrent ? [cycleCurrent] : []),
+                    ].map((cycle, i) => (
+                      <li key={i}>
+                        <strong>
+                          {i < cycleSnapshots.length
+                            ? `Arsip revisi ${i + 1}`
+                            : "Kondisi periode terkini"}{" "}
+                          · {cycle.userReview ?? "Belum Diperiksa"}
+                        </strong>
+                        {cycle.userReviewNote && <p>{cycle.userReviewNote}</p>}
+                        {cycle.reviewReason && (
+                          <p>Alasan pemeriksaan ulang: {cycle.reviewReason}</p>
+                        )}
+                        {Object.entries(cycle.surveyReviews ?? {}).map(
+                          ([type, review]) => (
+                            <div key={type}>
+                              <strong>
+                                {type}: {review?.decision ?? "Belum Diperiksa"}
+                              </strong>
+                              {review?.reviewedAt && (
+                                <div className="subtle">
+                                  Waktu pemeriksaan: {review.reviewedAt}
+                                </div>
+                              )}
+                              {review?.note && <p>{review.note}</p>}
+                            </div>
+                          ),
+                        )}
+                        {cycle.certificateId && (
+                          <p>Referensi BA: {cycle.certificateId}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+            {selected.stage === "Tahap 5" &&
+              (auditSnapshots.length > 0 || auditCurrent) && (
+                <>
+                  <h3>Rekaman audit tingkat 2</h3>
+                  <ol className="balai-detail-events">
+                    {[
+                      ...auditSnapshots,
+                      ...(auditCurrent ? [auditCurrent] : []),
+                    ].map((audit, i) => (
+                      <li key={i}>
+                        <strong>
+                          {i < auditSnapshots.length
+                            ? `Arsip audit ${i + 1}`
+                            : "Kondisi audit terkini"}{" "}
+                          · {audit.status}
+                        </strong>
+                        {audit.decisionNote && <p>{audit.decisionNote}</p>}
+                        {audit.reviewReason && (
+                          <p>Alasan review ulang: {audit.reviewReason}</p>
+                        )}
+                        {audit.baNumber && (
+                          <p>Referensi BA: {audit.baNumber}</p>
+                        )}
+                      </li>
+                    ))}
+                  </ol>
+                </>
+              )}
+            {selected.stage === "Tahap 4" && reviewSnapshots.length > 0 && (
+              <>
+                <h3>Hasil V&V bertahap per jenis survei</h3>
+                <ol className="balai-detail-events">
+                  {reviewSnapshots.map(([type, review]) => (
+                    <li key={type}>
+                      <strong>
+                        {type} · {review?.decision ?? "Belum Diperiksa"}
+                      </strong>
+                      {review?.reviewedAt && (
+                        <div className="subtle">
+                          Waktu pemeriksaan: {review.reviewedAt}
+                        </div>
+                      )}
+                      {review?.note && <p>{review.note}</p>}
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            {detailCorrections.length > 0 && (
+              <>
+                <h3>Temuan dan tindak lanjut</h3>
+                <ol className="balai-detail-events">
+                  {detailCorrections.map((c, i) => (
+                    <li key={i}>
+                      <strong>
+                        {c.id} · {c.status}
+                      </strong>
+                      <p>{c.rejectionReason || "Tidak ada alasan tersimpan"}</p>
+                    </li>
+                  ))}
+                </ol>
+              </>
+            )}
+            <details className="c-data-note">
+              <summary>Cakupan riwayat</summary>
+              <p>
+                Riwayat mengikuti rekaman tersimpan. Waktu atau pelaku yang
+                belum tercatat tidak ditambahkan; kelengkapan jurnal dapat
+                berbeda pada rekaman lama.
+              </p>
+            </details>
+            <button
+              type="button"
+              className="btn"
+              onClick={() => setSelected(null)}
+            >
+              Tutup
+            </button>
+          </section>
+        </div>
+      )}
+    </div>
+  );
 }

@@ -1,34 +1,252 @@
-import {isRoleTestMode} from '../../workflow/access/packageAccess';
-import { ArrowRight, BarChart3, ClipboardCheck, FileText, Settings } from 'lucide-react';
-
-import type { WorkflowRole } from '../../workflow/model';
-import { ROLE_DEMO_USERS, WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE } from '../../workflow/workflowConfig';
-
-export function RoleEntryScreen({currentRole,onEnter}:{currentRole:WorkflowRole;onEnter:(role:WorkflowRole)=>void}){
- if(!isRoleTestMode())return <div className="session-entry"><div className="session-entry-card"><div className="session-mark">JALA <b>MUTU</b></div><h1>Monitoring QA/QC Survei Kondisi Jalan</h1><p>Ruang kerja paket, pemeriksaan, tindak lanjut, dan dokumen mutu.</p><div className="wf-callout">Sesi frontend lokal · {currentRole}<br/>Data disimpan pada perangkat ini. Identitas dan penugasan server belum tersambung.</div><button type="button" className="wf-button primary" onClick={()=>onEnter(currentRole)}>Buka Paket Saya <ArrowRight size={16}/></button></div></div>;
- const roleIcon=(role:WorkflowRole)=>role==='Penyedia Jasa / Ketua Tim'?FileText:role==='PIC Balai / Pengguna Jasa'?ClipboardCheck:role==='Direktorat / Pusat'?BarChart3:Settings;
- return <div style={{minHeight:'100vh',background:'linear-gradient(135deg,#edf6fb 0%,#f7fafc 48%,#eef7f4 100%)',display:'grid',placeItems:'center',padding:24}}>
-  <div style={{width:'min(1040px,100%)'}}>
-   <div style={{textAlign:'center',marginBottom:22}}>
-    <img src={`${import.meta.env.BASE_URL}jala-mutu-mark.png`} alt="Simbol JALA MUTU" style={{width:54,height:54,objectFit:'contain'}}/>
-    <div style={{fontSize:26,fontWeight:800,letterSpacing:.2,color:'#17344b',marginTop:8}}>JALA <span style={{color:'#1689c9'}}>MUTU</span></div>
-    <div style={{fontSize:12,color:'#60778b',marginTop:5}}>Pengujian frontend · bukan pemilihan kewenangan pengguna operasional</div>
-   </div>
-   <div style={{background:'#fff',border:'1px solid #dce7ee',borderRadius:12,padding:18,boxShadow:'0 18px 55px rgba(40,78,105,.10)'}}>
-    <div style={{display:'flex',justifyContent:'space-between',gap:12,alignItems:'center',flexWrap:'wrap',marginBottom:14}}>
-     <div><strong style={{fontSize:15,color:'#233f54'}}>Lingkungan pengujian role terisolasi</strong><div style={{fontSize:10,color:'#6d8293',marginTop:3}}>Pilih actor untuk melihat menu dan aksi yang relevan. Pemilihan ini mengatur pengalaman UI sementara; kontrol akses backend akan diintegrasikan kemudian.</div></div>
-     
-    </div>
-    <div style={{display:'grid',gridTemplateColumns:'repeat(auto-fit,minmax(210px,1fr))',gap:12}}>
-     {WORKFLOW_ROLE_OPTIONS.map(role=>{const Icon=roleIcon(role);const user=ROLE_DEMO_USERS.find(([,r])=>r===role)?.[0]||'Pengguna';return <button key={role} type="button" onClick={()=>onEnter(role)} data-testid={`button-enter-role-${role.toLowerCase().replace(/[^a-z0-9]+/g,'-')}`} style={{textAlign:'left',background:role===currentRole?'#f2f8fc':'#fff',border:role===currentRole?'1px solid #4ca3d4':'1px solid #dce6ed',borderRadius:9,padding:14,cursor:'pointer',minHeight:150}}>
-      <div style={{width:34,height:34,borderRadius:8,display:'grid',placeItems:'center',background:'#e9f4fa',color:'#167db7',marginBottom:11}}><Icon size={18}/></div>
-      <div style={{fontWeight:800,fontSize:11,color:'#244257'}}>{role}</div>
-      <div style={{fontSize:9,color:'#748797',marginTop:3}}>Akun pratinjau: {user}</div>
-      <div style={{fontSize:9.5,lineHeight:1.55,color:'#566d7f',marginTop:9}}>{WORKFLOW_ROLE_SCOPE[role]}</div>
-      <div style={{display:'flex',alignItems:'center',gap:5,color:'#167db7',fontSize:9,fontWeight:700,marginTop:11}}>Buka sesi uji <ArrowRight size={11}/></div>
-     </button>})}
-    </div>
-   </div>
-  </div>
- </div>;
+import { BlockerSummary } from "../../design/WorkPatterns";
+import { useState } from "react";
+import {
+  ArrowRight,
+  Eye,
+  EyeOff,
+  ShieldCheck,
+  Route,
+  ClipboardCheck,
+  Settings,
+  Building2,
+  Layers3,
+} from "lucide-react";
+import { isRoleTestMode } from "../../workflow/access/packageAccess";
+import type { WorkflowRole } from "../../workflow/model";
+import { WORKFLOW_ROLE_OPTIONS } from "../../workflow/workflowConfig";
+import { unavailableAuth, type AuthAdapter } from "../../auth/adapter";
+const personas = [
+  { name: "Penyedia", detail: "Persiapan, bukti & tindak lanjut", icon: Route },
+  { name: "PIC Balai", detail: "Pemeriksaan & validasi", icon: ClipboardCheck },
+  { name: "Direktorat", detail: "Audit & pengawasan mutu", icon: Building2 },
+  { name: "Admin", detail: "Administrasi & akses", icon: Settings },
+];
+export function RoleEntryScreen({
+  currentRole,
+  onEnter,
+  adapter = unavailableAuth,
+}: {
+  currentRole: WorkflowRole;
+  onEnter: (role: WorkflowRole) => void;
+  adapter?: AuthAdapter;
+}) {
+  const [showPassword, setShowPassword] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [message, setMessage] = useState("");
+  return (
+    <main className="jm-entry">
+      <section className="jm-entry-story" aria-label="Tentang JALA MUTU">
+        <a
+          className="jm-entry-brand"
+          href="/"
+          aria-label="JALA MUTU halaman masuk"
+        >
+          <img src={`${import.meta.env.BASE_URL}jala-mutu-mark.png`} alt="" />
+          <span>
+            JALA <b>MUTU</b>
+            <small>SISTEM PENGENDALIAN MUTU</small>
+          </span>
+        </a>
+        <div className="jm-story-copy">
+          <span className="jm-eyebrow">
+            <span />
+            TERHUBUNG DALAM SATU ALUR
+          </span>
+          <h1>
+            Jalan yang andal.
+            <br />
+            <em>
+              Berawal dari data
+              <br />
+              {" "}yang bermutu.
+            </em>
+          </h1>
+          <p>
+            Ruang kerja pengendalian mutu survei jalan dan jembatan, dari
+            persiapan hingga penerimaan data.
+          </p>
+        </div>
+        <div className="jm-road-art" aria-hidden="true">
+          <svg viewBox="0 0 680 270" fill="none">
+            <defs>
+              <linearGradient id="road" x1="100" y1="250" x2="600" y2="30">
+                <stop stopColor="#194a5d" />
+                <stop offset="1" stopColor="#326d77" />
+              </linearGradient>
+            </defs>
+            <path
+              d="M-50 240 210 110 360 180 730 5"
+              stroke="#85b9b1"
+              strokeWidth="1"
+            />
+            <path
+              d="m-40 285 250-130 150 70L740 50"
+              stroke="#85b9b1"
+              strokeWidth="1"
+            />
+            <path
+              d="M-50 262 210 132 360 202 730 27"
+              stroke="url(#road)"
+              strokeWidth="39"
+            />
+            <path
+              d="M-50 262 210 132 360 202 730 27"
+              stroke="#f9d17c"
+              strokeWidth="2"
+              strokeDasharray="12 12"
+            />
+            <path
+              d="m415 157 0-110 108 60 0-108M415 47l108 60M415 78l108 60M415 110l108 60"
+              stroke="#d0e6de"
+              strokeWidth="3"
+            />
+            <path d="m415 47 54 84 54-24" stroke="#d0e6de" strokeWidth="1" />
+            <circle cx="210" cy="132" r="7" fill="#e9b967" />
+            <circle cx="360" cy="202" r="7" fill="#e9b967" />
+            <circle cx="570" cy="103" r="7" fill="#e9b967" />
+          </svg>
+          <span className="jm-art-label">
+            <Layers3 size={14} /> BUKTI · PEMERIKSAAN · KETERTELUSURAN
+          </span>
+        </div>
+        <footer>
+          <ShieldCheck size={16} />
+          Satu alur QA/QC. Kewenangan tetap terjaga.
+        </footer>
+      </section>
+      <section className="jm-entry-access" aria-label="Masuk ke JALA MUTU">
+        <div className="jm-login-card">
+          <span className="jm-eyebrow">SELAMAT DATANG</span>
+          <h2>Masuk ke ruang kerja</h2>
+          <p>Gunakan akun yang ditugaskan untuk mengakses pekerjaan Anda.</p>
+          <form
+            onSubmit={async (e) => {
+              e.preventDefault();
+              setMessage("");
+              if (!adapter.available) {
+                setMessage("Login belum tersedia pada lingkungan ini.");
+                return;
+              }
+              setBusy(true);
+              try {
+                const form = new FormData(e.currentTarget);
+                await adapter.signIn({
+                  username: String(form.get("username")),
+                  password: String(form.get("password")),
+                });
+                setMessage(
+                  "Sesi diterima. Pengaitan identitas backend ke ruang kerja memerlukan integrasi.",
+                );
+              } catch {
+                setMessage(
+                  "Tidak dapat masuk. Periksa akun atau coba kembali.",
+                );
+              } finally {
+                setBusy(false);
+              }
+            }}
+          >
+            <label htmlFor="jm-username">Nama pengguna</label>
+            <input
+              id="jm-username"
+              name="username"
+              autoComplete="username"
+              required
+              placeholder="Nama pengguna Anda"
+              disabled={busy}
+            />
+            <label htmlFor="jm-password">Kata sandi</label>
+            <div className="jm-password">
+              <input
+                id="jm-password"
+                name="password"
+                type={showPassword ? "text" : "password"}
+                autoComplete="current-password"
+                required
+                placeholder="Masukkan kata sandi"
+                disabled={busy}
+              />
+              <button
+                type="button"
+                aria-label={
+                  showPassword
+                    ? "Sembunyikan kata sandi"
+                    : "Tampilkan kata sandi"
+                }
+                aria-pressed={showPassword}
+                onClick={() => setShowPassword(!showPassword)}
+              >
+                {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+              </button>
+            </div>
+            <BlockerSummary
+              title={
+                adapter.available
+                  ? "Akses sesuai penugasan"
+                  : "Login belum tersedia pada lingkungan ini."
+              }
+            >
+              <br />
+              {adapter.available
+                ? "Gunakan identitas akun yang sah."
+                : "Koneksi autentikasi sedang disiapkan."}
+            </BlockerSummary>
+            {message && (
+              <p className="jm-form-message" role="alert">
+                {message}
+              </p>
+            )}
+            <button
+              className="jm-signin"
+              type="submit"
+              disabled={!adapter.available || busy}
+            >
+              {busy ? "Menghubungkan…" : "Masuk"}
+              <ArrowRight size={18} />
+            </button>
+          </form>
+          <div className="jm-role-caption">RUANG KERJA SESUAI KEWENANGAN</div>
+          <div className="jm-personas">
+            {personas.map(({ name, detail, icon: Icon }) => (
+              <div key={name}>
+                <Icon size={19} />
+                <span>
+                  <b>{name}</b>
+                  <small>{detail}</small>
+                </span>
+              </div>
+            ))}
+          </div>
+          {isRoleTestMode() && (
+            <details
+              className="jm-dev-access"
+              open={
+                new URLSearchParams(location.search).get("testRoles") === "1"
+              }
+            >
+              <summary>Uji Peran · lingkungan pengembangan</summary>
+              <p>
+                Sesi simulasi lokal. Bukan autentikasi pengguna operasional.
+              </p>
+              <div>
+                {WORKFLOW_ROLE_OPTIONS.map((role, i) => (
+                  <button
+                    key={role}
+                    type="button"
+                    aria-current={role === currentRole ? "true" : undefined}
+                    onClick={() => onEnter(role)}
+                    data-testid={`button-enter-role-${role.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`}
+                  >
+                    {personas[i].name}
+                    <ArrowRight size={14} />
+                  </button>
+                ))}
+              </div>
+            </details>
+          )}
+        </div>
+        <footer>JALA MUTU · Pengendalian mutu survei jalan & jembatan</footer>
+      </section>
+    </main>
+  );
 }

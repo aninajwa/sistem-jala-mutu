@@ -1,3 +1,5 @@
+import { ContextNotes } from "../workflow/comments/ContextNotes";
+import type { Principal } from "../workflow/repository/contracts";
 import {useEffect} from 'react';
 import '../workflow/ui09.css';
 
@@ -19,6 +21,8 @@ import "./corrections/corrections.css";
 
 type Props = {
   packageId: string;
+  principal: Principal;
+  notesRecipient: Principal;
   workflow: OperationalWorkflowState;
   selection: string;
   onBack: () => void;
@@ -36,6 +40,8 @@ type Props = {
 
 export default function PackageDetailPage({
   packageId,
+  principal,
+  notesRecipient,
   workflow,
   selection,
   onBack,
@@ -107,6 +113,15 @@ export default function PackageDetailPage({
         onCorrections={onReturnToCorrections}
       />
 
+      {selection === "/entry:Persiapan & SPMK" && (
+        <ContextNotes key={`${packageId}:stage0`} context="stage0" state={workflow} principal={principal} recipient={notesRecipient} />
+      )}
+      {selection === "/documents:Kalibrasi & personel" && (
+        <ContextNotes key={`${packageId}:stage1`} context="stage1" state={workflow} principal={principal} recipient={notesRecipient} />
+      )}
+      {selection === "/verification:Audit tingkat 1–3" && (
+        <ContextNotes key={packageId} state={workflow} principal={principal} recipient={notesRecipient} />
+      )}
       {showOverview ? (
         <PackageOverview
           state={workflow}

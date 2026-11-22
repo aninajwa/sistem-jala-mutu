@@ -1,4 +1,3 @@
-import {RoleWorkSection} from '../RoleWorkSection';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import {
@@ -283,10 +282,9 @@ export function Stage3DailyWorkspace(props: WorkflowStageProps) {
         "Survei harian",
         "Pantau pelaksanaan survei harian, kelengkapan bukti QA/QC, kondisi alat, dan kesiapan menuju verifikasi berkala.",
       )}
-      <p className="wf-note">Rekaman harian dicatat Penyedia. PIC Balai dan Direktorat memantau; pemeriksaan bersama dilakukan pada Tahap 3B sesuai periode, bukan menyetujui setiap rekaman.</p>
       <Stage3DailyRecordsTable state={state} />
       {canEnterDaily&&<button type="button" className="wf-button primary" onClick={()=>setEntryOpen(value=>!value)}>{entryOpen?'Tutup pengisian':'Catat atau lengkapi kegiatan'}</button>}
-      <RoleWorkSection primary={canEnterDaily} title="Kegiatan, pemeriksaan harian dan bukti Penyedia"><div hidden={!entryOpen&&canEnterDaily}>
+      {canEnterDaily && <section aria-label="Pencatatan kegiatan harian" hidden={!entryOpen}>
       <details><summary>Prasyarat pencatatan · {stageReady?'terpenuhi':'belum terpenuhi'}</summary>
       <div className="wf-grid">
         <Panel title="Data kegiatan & kewenangan" icon={Activity}>
@@ -865,13 +863,10 @@ export function Stage3DailyWorkspace(props: WorkflowStageProps) {
           </div>
         </div>
       )}
+      <DocumentAttachments scope={`${state.project.id}:stage3a-${daily.surveyType}`} categories={[`Bukti kegiatan ${daily.surveyType}`, 'Checklist / catatan pemeriksaan harian', 'Pengamanan data harian']} editable={canEnterDaily}/>
+      </section>}
       {!canEnterDaily && (
         <Panel title="Monitoring kegiatan lapangan" icon={Eye}>
-          <div className="wf-callout">
-            Pada peran ini, Survei Harian ditampilkan sebagai monitoring.
-            Pencatatan kegiatan dan bukti dilakukan oleh Penyedia Jasa / Ketua
-            Tim; Balai meninjau hasilnya pada proses verifikasi/validasi.
-          </div>
           <div className="wf-kpis">
             <div className="wf-kpi">
               <div className="wf-kpi-label">Rekaman tercatat</div>
@@ -900,8 +895,6 @@ export function Stage3DailyWorkspace(props: WorkflowStageProps) {
           </div>
         </Panel>
       )}
-      <DocumentAttachments scope={`${state.project.id}:stage3a-${daily.surveyType}`} categories={[`Bukti kegiatan ${daily.surveyType}`, 'Checklist / catatan pemeriksaan harian', 'Pengamanan data harian']} editable={canEnterDaily}/>
-      </div></RoleWorkSection>
       <details className="wf-panel"><summary className="wf-panel-head">Ringkasan monitoring</summary>{weeklySummary}{stage3AGate}</details>
 
     </>

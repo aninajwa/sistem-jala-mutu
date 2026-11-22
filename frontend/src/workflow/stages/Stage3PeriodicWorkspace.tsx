@@ -132,7 +132,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   ).length;
   const openPeriodFindings=state.corrections.filter(item=>['Konsistensi gagal','Temuan proses verval'].includes(item.source)&&item.status!=='Ditutup'&&(item.cyclePeriod===undefined||item.cyclePeriod===activeStage3BPeriod));
   const baReviewBlockers=[...reviewLocks,
-    ...(!stage3bPeriodRange.start||!stage3bPeriodRange.end?['Jadwal dan periode pemeriksaan belum ditetapkan.']:[]),
+    ...(!stage3bPeriodRange.start||!stage3bPeriodRange.end?['Periode data belum tersedia. Penyedia perlu melengkapi tanggal survei.']:[]),
     ...(!state.cycle.periodCompleted?['Penyedia belum menyerahkan hasil periode.']:[]),
     ...selectedCycleTypes.flatMap(type=>['consistency','internal','periodic14'].filter(phase=>!sourceReady(type,phase)).map(phase=>`${type}: ${phase==='consistency'?'Konsistensi':phase==='internal'?'V&V Internal':'V&V Bersama'} belum lengkap.`)),
     ...(checked!==allProtocols.length?['Pemeriksaan pelaksanaan belum lengkap.']:[]),
@@ -366,6 +366,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           });
         }}
       />
+      <p className="wf-note">Jadwal sesi V&amp;V bersama belum tercatat.</p>
       {canReviewCycle && (
 <div className="stage-role-priority">
       <Panel
@@ -376,13 +377,15 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       >
         {canReviewCycle ? (
           <>
-            <div className="wf-callout">
-              Khusus PIC Balai / Pengguna Jasa: periksa data, hasil konsistensi,
-              checklist dan evidence Penyedia sebelum memberikan keputusan.
-              Temuan harus ditindaklanjuti dan tidak boleh dianggap lolos.
-            </div>
-            {reviewLocks.length>0&&<div className="wf-callout warn" role="status"><strong>Review belum dapat dicatat — bukan gangguan tombol</strong><p>Prasyarat pemeriksaan belum terpenuhi. Pilihan keputusan dan isian review ditahan agar tidak menghasilkan persetujuan yang tidak sah.</p><details><summary>Lihat {reviewLocks.length} alasan tertahan</summary><ul>{reviewLocks.map(reason=><li key={reason}>{reason}</li>)}</ul></details><button className="wf-button" onClick={()=>onNavigate('/entry:Validasi produksi')}>Periksa Tahap 2</button></div>}
-            {!state.cycle.periodCompleted&&<p className="wf-note">Penyedia belum menyerahkan hasil periode ini. Review baru dapat dicatat setelah prasyarat terpenuhi; keputusan Sesuai juga memerlukan V&V Bersama yang lengkap.</p>}
+            {reviewLocks.length > 0 && (
+              <div className="wf-callout warn" role="status">
+                <details>
+                  <summary>Pemeriksaan tertahan · {reviewLocks.length} prasyarat</summary>
+                  <ul>{reviewLocks.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                </details>
+                <button type="button" className="wf-button" onClick={() => onNavigate('/entry:Validasi produksi')}>Periksa Tahap 2</button>
+              </div>
+            )}
             {conformityLock&&<p className="wf-note">Keputusan Sesuai tertahan: {conformityLock}. Buka V&V Bersama untuk melengkapi pemeriksaan jenis yang dipilih.</p>}
             <div className="wf-fields">
               <Field label="Jenis survei yang direview">
@@ -586,20 +589,16 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
         }}
       />
 
-      <div className="wf-callout" role="status">
-        <strong>{canPrepareCycle ? 'Pekerjaan Ketua Tim' : canReviewCycle ? 'Pekerjaan PIC Balai' : 'Pemantauan periode'}</strong>
-        <p className="wf-note">
-          {canPrepareCycle
-            ? 'Isi konsistensi dan V&V internal, lengkapi bukti, lalu serahkan hasil periode untuk diperiksa Balai.'
-            : canReviewCycle
-              ? state.cycle.periodCompleted
-                ? 'Periksa V&V bersama, hasil sistem dan bukti Penyedia; kemudian catat review per jenis survei.'
-                : 'Menunggu penyerahan hasil periode dari Ketua Tim. Checklist pelaksanaan Penyedia hanya untuk dipantau.'
-              : 'Pantau kelengkapan, hasil pemeriksaan, temuan dan keputusan Balai. Isian teknis hanya dapat diubah aktor yang berwenang.'}
-        </p>
-      </div>
-      <details className="wf-panel"><summary className="wf-panel-head">{canPrepareCycle ? 'Checklist pelaksanaan periode · Ketua Tim' : 'Detail & Riwayat · Checklist pelaksanaan Ketua Tim (hanya lihat)'} ({checked}/{allProtocols.length})</summary>
-        {allProtocols.map(protocol=><CheckRow key={protocol} id={`cycle-protocol-${testId(protocol)}`} label={protocol} checked={!!state.cycle.checkedProtocols[protocol]} disabled={!canPrepareCycle} onChange={value=>updateProtocol(protocol,value)}/>)}
+      <details className="wf-panel">
+        <summary className="wf-panel-head">Checklist pelaksanaan periode ({checked}/{allProtocols.length})</summary>
+        {canPrepareCycle ? allProtocols.map((protocol) => (
+          <CheckRow key={protocol} id={`cycle-protocol-${testId(protocol)}`} label={protocol}
+            checked={!!state.cycle.checkedProtocols[protocol]} onChange={(value) => updateProtocol(protocol, value)} />
+        )) : (
+          <ul className="wf-body">
+            {allProtocols.map((protocol) => <li key={protocol}>{protocol} — {state.cycle.checkedProtocols[protocol] ? "Tercatat" : "Belum tercatat"}</li>)}
+          </ul>
+        )}
       </details>
       {canPrepareCycle ? <DocumentAttachments scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`,`stage3b-supporting-evidence-${activeStage3BPeriod}`]} editable={canPrepareCycle}/> : <details className="wf-panel"><summary className="wf-panel-head">Detail & Riwayat · Bukti Penyedia (hanya lihat)</summary><DocumentAttachments scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`,`stage3b-supporting-evidence-${activeStage3BPeriod}`]} editable={false}/></details>}
       <div className="wf-grid">

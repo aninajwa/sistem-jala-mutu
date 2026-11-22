@@ -15,3 +15,32 @@ test('Direktorat tidak menerima tugas audit pusat saat audit Balai belum lulus',
 test('Direktorat melihat proses audit tingkat 3 setelah audit Balai lulus',()=>{const s=fixture();s.audits[1].status='Lulus';s.audits[2].status='Dalam Review';assert.equal(list(s,D)[0].priority,'action');});
 test('Admin tidak memperoleh tugas keputusan teknis walau ada pengajuan',()=>{const s=fixture();s.project.preparation.reportApproval='Diajukan';s.audits[1].status='Dalam Review';assert.equal(list(s,A)[0].priority,'monitor');});
 test('Tidak mengubah state sumber ketika menghitung antrian',()=>{const s=fixture();const before=JSON.stringify(s);list(s,B);assert.equal(JSON.stringify(s),before);});
+
+test('Penyedia melihat kasus yang sudah diajukan sebagai pekerjaan pemeriksa', () => {
+  const state = fixture();
+  state.corrections = [{
+    id: 'C-1',
+    status: 'Menunggu Persetujuan',
+    blockedStage: 'Tahap 3B',
+  } as OperationalWorkflowState['corrections'][number]];
+  assert.equal(list(state, P)[0].priority, 'waiting');
+});
+
+
+test('Persetujuan produksi lama yang syaratnya tidak berlaku lagi menjadi tugas Penyedia', () => {
+  const state = fixture();
+  state.productionApproval = 'Disetujui';
+  state.productionApprovalBa = 'BA-TEST-01';
+  const queue = list(state, P)[0];
+  assert.equal(queue.priority, 'action');
+  assert.match(queue.label, /validasi produksi/i);
+});
+
+test('Balai melihat persetujuan produksi lama yang perlu diperiksa ulang', () => {
+  const state = fixture();
+  state.productionApproval = 'Disetujui';
+  state.productionApprovalBa = 'BA-TEST-01';
+  const queue = list(state, B)[0];
+  assert.equal(queue.priority, 'action');
+  assert.match(queue.label, /periksa ulang/i);
+});

@@ -9,3 +9,13 @@ Thumbs.db
 .idea
 .vscode/*
 !.vscode/settings.json
+# JALA MUTU - generated test output
+/frontend/test-artifacts/
+/frontend/.patch02-test-backups/
+/frontend/.patch02-test-fix-backups/
+# Local patch and temporary backups
+*.before-*
+*.backup
+*.bak-*
+*.orig
+*.log

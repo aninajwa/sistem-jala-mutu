@@ -28,18 +28,18 @@ export function stage2RoleOverview(
     : 'Belum diajukan';
   const tone: Stage2RoleOverview['tone'] = approval === 'Disetujui' && !hasBlockers
     ? 'success' : approval === 'Diajukan' || approval === 'Draft' ? 'neutral' : 'warning';
-  const suffix = `${selectedCount} jenis survei dalam lingkup · ${blockerCount} persyaratan yang perlu diperhatikan.`;
+  const suffix = `${selectedCount} jenis survei · ${blockerCount} persyaratan belum terpenuhi.`;
 
   if (role === 'Penyedia Jasa / Ketua Tim') return {
-    eyebrow: 'PEKERJAAN PENYEDIA', title: 'Lengkapi hasil uji, periksa persyaratan, lalu ajukan',
-    description: 'Isi data uji setiap jenis survei dan lengkapi bukti sebelum mengajukan hasil kepada PIC Balai.',
+    eyebrow: 'PEKERJAAN PENYEDIA', title: 'Lengkapi hasil uji',
+    description: 'Lengkapi data dan bukti untuk setiap jenis survei.',
     actionLabel: approval === 'Perlu Revisi' || approval === 'Ditolak' ? 'Periksa perbaikan dan pengajuan' : 'Buka pengajuan hasil uji',
     actionTarget: 'stage2-role-action', status, tone,
     helper: hasBlockers ? `Belum siap diajukan. ${suffix}` : `Periksa seluruh bukti sebelum mengajukan. ${suffix}`,
   };
   if (role === 'PIC Balai / Pengguna Jasa') return {
-    eyebrow: 'PEMERIKSAAN PIC BALAI', title: 'Periksa hasil uji dan bukti sebelum memutuskan',
-    description: 'Tinjau seluruh jenis survei, hasil pemeriksaan sistem, dan referensi BA. Keputusan harus mengikuti hasil pemeriksaan.',
+    eyebrow: 'PEMERIKSAAN PIC BALAI', title: 'Periksa hasil uji',
+    description: 'Nilai hasil uji, bukti, dan kelayakan alat serta metode.',
     actionLabel: 'Buka area keputusan Balai', actionTarget: 'stage2-role-action', status, tone,
     helper: approval !== 'Diajukan'
       ? `Belum ada pengajuan aktif yang dapat diputuskan. ${suffix}`
@@ -47,14 +47,14 @@ export function stage2RoleOverview(
       : `Hasil diajukan; periksa bukti dan isi referensi BA sebelum persetujuan. ${suffix}`,
   };
   if (role === 'Direktorat / Pusat') return {
-    eyebrow: 'PEMANTAUAN DIREKTORAT', title: 'Pantau hasil validasi dan keputusan Balai',
-    description: 'Gunakan status dan bukti Tahap 2 sebagai konteks audit tingkat pusat. Persetujuan metode Tahap 2 adalah kewenangan Balai.',
+    eyebrow: 'PEMANTAUAN DIREKTORAT', title: 'Pantau hasil validasi',
+    description: 'Hasil uji, bukti, dan keputusan Balai.',
     actionLabel: 'Lihat status keputusan', actionTarget: 'stage2-role-action', status, tone,
     helper: `Tidak ada tindakan persetujuan Tahap 2 untuk Direktorat. ${suffix}`,
   };
   return {
-    eyebrow: 'PEMANTAUAN ADMIN', title: 'Pantau kelengkapan data tanpa keputusan teknis',
-    description: 'Periksa keterbacaan data dan status administrasi. Perbaikan atau persetujuan teknis tetap dilakukan peran operasional yang berwenang.',
+    eyebrow: 'PEMANTAUAN ADMIN', title: 'Pantau status validasi',
+    description: 'Kelengkapan data dan status pemeriksaan paket.',
     actionLabel: 'Lihat status pemeriksaan', actionTarget: 'stage2-role-action', status, tone,
     helper: `Admin tidak mengajukan maupun menyetujui hasil uji. ${suffix}`,
   };

@@ -242,46 +242,7 @@ export function Badge({
 }) {
   return <span className={`wf-status ${tone}`}>{children}</span>;
 }
-export function Panel({
-  title,
-  icon: Icon = Activity,
-  extra,
-  children,
-}: {
-  title: string;
-  icon?: any;
-  extra?: any;
-  children: any;
-}) {
-  return (
-    <section className="wf-panel">
-      <div className="wf-panel-head">
-        <h3>
-          <Icon size={14} />
-          {title}
-        </h3>
-        {extra}
-      </div>
-      <div className="wf-body">{children}</div>
-    </section>
-  );
-}
-export function Field({
-  label,
-  children,
-  full = false,
-}: {
-  label: string;
-  children: any;
-  full?: boolean;
-}) {
-  return (
-    <div className={`wf-field ${full ? "full" : ""}`}>
-      <label>{label}</label>
-      {children}
-    </div>
-  );
-}
+export {FormPanel as Panel, FormField as Field} from '../../design/b/FormPatterns';
 export function Button({
   children,
   onClick,

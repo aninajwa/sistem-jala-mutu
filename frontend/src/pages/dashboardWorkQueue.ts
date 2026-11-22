@@ -1,3 +1,5 @@
+import { effectiveProductionApproval } from "../workflow/workflowGate";
+import { correctionNextStep } from "../workflow/checkpoint09Corrections";
 import type {OperationalWorkflowState, WorkflowRole} from '../workflow/model';
 
 export type QueuePriority = 'action' | 'waiting' | 'monitor' | 'complete';
@@ -18,6 +20,7 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
     const open = (state.corrections || []).filter(item => item.status !== 'Ditutup').length;
     const preparation = state.project.preparation.reportApproval;
     const production = state.productionApproval;
+    const productionNeedsReview = production === 'Disetujui' && !effectiveProductionApproval(state);
     const cycle = state.cycle;
     const audits = state.audits || [];
     const accepted = Boolean(state.acceptance?.finalAcceptance);
@@ -25,7 +28,11 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
 
     if (role === 'Admin') return item('monitor', 'Pantau paket', 'Lihat status dan referensi paket; keputusan teknis berada pada pemeriksa berwenang.');
     if (role === 'Penyedia Jasa / Ketua Tim') {
-      if (open) return item('action', 'Tindak lanjuti koreksi', `${open} kasus belum ditutup. Periksa pemilik kasus, bukti, dan tahap verifikasi.`);
+      const pending = (state.corrections || []).filter(entry => entry.status !== 'Ditutup');
+      const own = pending.filter(entry => !entry.blockedStage || correctionNextStep(entry).actor === role);
+      if (own.length) return item('action', 'Tindak lanjuti koreksi', `${own.length} kasus perlu tindakan Anda.`);
+      if (pending.length) return item('waiting', 'Menunggu pemeriksaan koreksi', `${pending.length} kasus menunggu pemeriksa.`);
+      if (productionNeedsReview) return item('action', 'Periksa validasi produksi', 'Persetujuan sebelumnya perlu pemeriksaan ulang sebelum pekerjaan berikutnya.');
       if (preparation === 'Perlu Revisi' || preparation === 'Ditolak' || production === 'Perlu Revisi' || production === 'Ditolak')
         return item('action', 'Perlu perbaikan', 'Periksa catatan pemeriksa pada persiapan atau validasi produksi.');
       if (preparation === 'Diajukan' || production === 'Diajukan' || (cycle?.periodCompleted && cycle?.userReview !== 'Sesuai'))
@@ -34,6 +41,7 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
       return item('action', 'Lanjutkan pekerjaan paket', 'Buka paket untuk melihat tahapan, formulir, dan persyaratan yang belum lengkap.');
     }
     if (role === 'PIC Balai / Pengguna Jasa') {
+      if (productionNeedsReview) return item('action', 'Periksa ulang validasi', 'Syarat persetujuan alat dan metode berubah; periksa bukti dan keputusan sebelumnya.');
       if (preparation === 'Diajukan' || production === 'Diajukan' || (cycle?.periodCompleted && cycle?.userReview !== 'Sesuai') || audits[1]?.status === 'Dalam Review' || audits[1]?.status === 'Klarifikasi')
         return item('action', 'Perlu pemeriksaan Balai', 'Periksa antrean dan bukti sebelum mencatat keputusan sesuai kewenangan.');
       if (open) return item('monitor', 'Pantau koreksi', `${open} kasus belum ditutup. Periksa tindak lanjut dan kewenangan verifikasi.`);

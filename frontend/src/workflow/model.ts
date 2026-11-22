@@ -22,6 +22,30 @@ export type PreparationState = {
   reviewerNote: string;
 };
 
+export type CalibrationReviewSubject = 'Alat dan personel' | 'Sertifikat kalibrasi' | 'Hasil kalibrasi' | 'Dokumen pendukung';
+export type CalibrationReviewResponse = { note: string; reference?: string; respondedAt: string };
+export type CalibrationReviewEntry = {
+  result: 'Sesuai' | 'Perlu klarifikasi' | 'Ada ketidaksesuaian';
+  note: string;
+  evidenceReference: string;
+  reviewedAt: string;
+  reviewer: 'PIC Balai / Pengguna Jasa';
+  sourceSignature: string;
+  response?: CalibrationReviewResponse;
+  history?: Omit<CalibrationReviewEntry, 'history'>[];
+};
+/** Hasil per bagian disimpan mandiri; data lama tidak dianggap memenuhi semua bagian. */
+export type CalibrationReview = {
+  result: 'Sesuai' | 'Perlu klarifikasi' | 'Ada ketidaksesuaian';
+  subject: CalibrationReviewSubject;
+  sections?: Partial<Record<CalibrationReviewSubject, CalibrationReviewEntry>>;
+  note: string;
+  evidenceReference: string;
+  reviewedAt: string;
+  reviewer: 'PIC Balai / Pengguna Jasa';
+  sourceSignature: string;
+};
+
 export type CalibrationRecord = {
   id: string;
   equipment: string;
@@ -248,6 +272,8 @@ export type AcceptanceTerm = {
 };
 
 export type CorrectionCase = {
+  /** Exact origin of a formal calibration finding; immutable after creation. */
+  calibrationFinding?: { surveyType: SurveyType; subject: CalibrationReviewSubject; sourceSignature: string; reviewedAt: string };
   cyclePeriod?: number;
   id: string;
   source: string;
@@ -262,6 +288,8 @@ export type CorrectionCase = {
   fieldDataValid: 'Ya' | 'Tidak' | 'Tidak Berlaku' | '';
   surveyType: SurveyType;
   actionType: string;
+  /** Rencana pekerjaan yang akan dilaksanakan; bukan laporan pelaksanaan. */
+  proposedPlan?: string;
   evidence: string;
   originalValue: string;
   proposedValue: string;
@@ -365,6 +393,7 @@ productionApprovalNote: string;
   };
   calibrations: CalibrationRecord[];
   calibrationChecklist: Record<SurveyType, boolean>;
+  calibrationReviews?: Partial<Record<SurveyType, CalibrationReview>>;
   productionTests: Record<SurveyType, ProductionTest>;
   productionFailures?: Partial<Record<string, { reference: string; methodReview: string; date: string }[]>>;
   productionTestDates?: Partial<Record<SurveyType,string>>;
@@ -667,6 +696,7 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
       cycleHistory: parsed.cycleHistory ?? {},
       calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
+      calibrationReviews: parsed.calibrationReviews ?? {},
       submission: {
         ...INITIAL_WORKFLOW.submission,
         ...parsed.submission,

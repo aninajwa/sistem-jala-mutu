@@ -1,4 +1,4 @@
-﻿
+
 import { useState } from "react";
 import { usePersistedDraft } from "../../hooks/usePersistedDraft";
 import type { CorrectionCase } from "../model";
@@ -268,7 +268,8 @@ export function CorrectionExecutionForm({
         ...actionSpec.fields.map(f => `${f.label}: ${actionValues[f.id] || ""}`),
         draft.changeDetail.trim() ? `Lingkup atau rincian tindakan: ${draft.changeDetail.trim()}` : "",
         draft.resultEvaluation.trim() ? `Hasil evaluasi tindakan: ${draft.resultEvaluation.trim()}` : "",
-        `Lampiran lokal: ${hasFile ? "Ada" : "Tidak ada"}`,
+        `Lampiran tersedia pada perangkat ini: ${hasFile ? "Ada" : "Tidak ada"}`,
+        "Bukti file belum dikirim atau diverifikasi pada server; rujukan dokumen sumber wajib dapat diperiksa oleh pemeriksa.",
         draft.evidenceNote.trim()
           ? `Catatan bukti: ${draft.evidenceNote.trim()}`
           : "",
@@ -279,8 +280,8 @@ export function CorrectionExecutionForm({
       // Mencatat referensi pelaksanaan, bukan mengedit raw/cleaned SMD.
       onSubmit(reference);
     } catch (cause) {
-      console.error("Gagal mengirim hasil pelaksanaan perbaikan", cause);
-      setError("Pengiriman hasil pelaksanaan gagal. Periksa penyimpanan bukti dan coba kembali; jika berulang, lihat Console browser.");
+      console.error("Gagal mencatat hasil pelaksanaan perbaikan", cause);
+      setError("Hasil pelaksanaan belum tercatat. Periksa lampiran lokal dan coba kembali.");
     } finally {
       setSubmitting(false);
     }
@@ -358,6 +359,10 @@ export function CorrectionExecutionForm({
     <strong>{correction.linkedRecordId || "Belum tertaut"}</strong>
   </div>
 
+  <div className="full">
+    <small>Rencana yang disetujui</small>
+    <p>{correction.proposedPlan || "Rincian rencana belum tercatat pada kasus lama."}</p>
+  </div>
   <div className="full">
     <small>Masalah yang harus diperbaiki</small>
     <p>{correction.rejectionReason || "Belum dicatat"}</p>
