@@ -495,7 +495,11 @@ before(async () => {
 
     if (url.pathname === '/rest/v1/paket_kontrak') {
       const filter = url.searchParams.get('paket_id');
-      if (!filter) return send([]);
+      // Unfiltered list (GET /paket, review queue): package 3 is readable, 999 fails its per-package reads.
+      if (!filter) return send(url.searchParams.get('offset') === '0' && token !== 'foreign-reviewer'
+        ? [{ paket_id: 3, nama_paket: 'Paket Ujian', nomor_kontrak: 'K-1', tahun_anggaran: 2026, balai_id: 1, status: 'DRAFT', created_by: 3, created_at: '2026-10-17' },
+           { paket_id: 999, nama_paket: 'Paket Rusak', nomor_kontrak: 'K-999', tahun_anggaran: 2026, balai_id: 1, status: 'DRAFT', created_by: 3, created_at: '2026-10-18' }]
+        : []);
       return send(filter === 'eq.3' && token !== 'foreign-reviewer' ? [{ paket_id: 3, balai_id: 1, created_by: 3, nama_paket: 'Paket Ujian', status: 'DRAFT', nama_ppk: null, tgl_spmk: null }] : []);
     }
     if (url.pathname === '/rest/v1/jenis_dokumen') return send([{ jenis_dokumen_id: 1, kode: 'LAPORAN_PENDAHULUAN', nama: 'Laporan Pendahuluan' }]);
@@ -1901,4 +1905,38 @@ test('Verval CREATE is authenticated, provider-only, package-limited and require
     jatuh_tempo: null, panjang_periode_km: null, status: null,
   });
   assert.equal((await request(path, 'provider', body)).status, 409);
+});
+
+test('review queue returns server submission rows for each visible package', async () => {
+  const r = await request('/review-queue', 'reviewer');
+  assert.equal(r.status, 200);
+  const rows = r.body.data.filter(row => row.paket_id === 3);
+  const stage0 = rows.find(row => row.tahap === 'Tahap 0');
+  assert.deepEqual(stage0, { paket_id: 3, nama_paket: 'Paket Ujian', balai_id: 1, tahap: 'Tahap 0', jenis: 'Review persiapan', status: stage0.status });
+  assert.equal(typeof stage0.status, 'string');
+  assert.deepEqual(rows.find(row => row.tahap === 'Tahap 1'), { paket_id: 3, nama_paket: 'Paket Ujian', balai_id: 1, tahap: 'Tahap 1', jenis: 'Konfirmasi kalibrasi', status: 'DISETUJUI' });
+  const trials = trialRows.filter(row => row.paket_id === 3);
+  const stage2 = rows.filter(row => row.tahap === 'Tahap 2');
+  assert.equal(stage2.length, trials.length);
+  for (const trial of trials) {
+    assert.deepEqual(stage2.find(row => row.uji_coba_id === trial.uji_coba_id), { paket_id: 3, nama_paket: 'Paket Ujian', balai_id: 1, tahap: 'Tahap 2', jenis: `Uji coba #${trial.uji_coba_id}`, status: trial.status, uji_coba_id: trial.uji_coba_id });
+  }
+});
+
+test('review queue requires login', async () => {
+  assert.equal((await request('/review-queue')).status, 401);
+});
+
+test('review queue marks partial when one package read fails', async () => {
+  const r = await request('/review-queue', 'reviewer');
+  assert.equal(r.status, 200);
+  assert.equal(r.body.partial, true);
+  assert.equal(r.body.data.some(row => row.paket_id === 999), false);
+  assert.ok(r.body.data.some(row => row.paket_id === 3));
+});
+
+test('review queue for a caller with no packages is an empty list', async () => {
+  const r = await request('/review-queue', 'foreign-reviewer');
+  assert.equal(r.status, 200);
+  assert.deepEqual(r.body, { data: [], partial: false });
 });
