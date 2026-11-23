@@ -1,75 +1,121 @@
-# Jala Mutu workflow completion status
+# Status Penyelesaian Jala Mutu
 
-Repository code reviewed: 2026-11-18  
-The working tree contains extensive staged, unstaged, and untracked changes. Local implementation status describes this checkout only. Database and workflow statements below are labeled by evidence source and are not inferred from proposal SQL or UI state.
+Disusun ulang 2026-11-23 dengan membaca kode di branch `integrasi-backend` (commit `1094da4` + perubahan lokal pada `frontend/src/auth/config.ts`). Klaim di sini berasal dari kode dan test yang dijalankan, **bukan dari catatan lama**.
 
-This document separates local implementation, installed database support, and authenticated browser verification. A route or UI in the working tree does not prove that its RPC is installed, its feature gate is enabled, or that a live workflow was proven.
+Tiga hal berbeda:
 
-## Status snapshot
+- **Kode ada** — route/UI tersedia di repo.
+- **RPC terpasang** — fungsi sudah ada di database Supabase. Ini tidak diperiksa ulang dalam audit ini; lihat `backend/db-reference/*-applied.sql` untuk yang tercatat terpasang.
+- **Terverifikasi E2E** — sudah dicoba login sungguhan di browser dan datanya terbaca kembali. **Belum ada tahap yang tercatat terverifikasi E2E.**
 
-**Stage 1 handoff (2026-11-18):** Local code now recovers an ambiguous PIC review response through the authoritative GET and blocks another decision until status is rechecked if the result remains uncertain. Focused local tests and both typechecks passed. **Authenticated GET after this change is not verified in this session.** The user reports that the installed RPCs returned package 3 as `DIAJUKAN`, version 1, `pengajuan_trail_id` 217, matching snapshot, and no PIC decision; this remains user-reported evidence until Provider and authorized PIC GETs confirm it. The previously recorded `BELUM_DIAJUKAN`/version 0 read is older and conflicts with that report, so it is not treated as current.
+## 1. Peta per tahap
 
-**Next verification:** Use an already-authenticated Provider session and an authorized PIC session to GET package 3 after refresh, compare status/version/snapshot, and confirm `stage2_allowed=false`. No credential was read or used and no mutation was attempted in this update.
+"Server" artinya UI memanggil `/api` dan data tersimpan di Supabase. "Demo lokal" artinya data hanya ada di localStorage browser.
 
-| Area | Code status | Database status | Authenticated browser status | Current evidence / gap |
+| Tahap | Submodul UI | Frontend (mode login) | Backend + RPC | Gate |
 |---|---|---|---|---|
-| Authentication and package creation | Supabase login, `/api/me`, package list/detail, and create flow are implemented locally | The 2026-11-09 inspection found a package-draft RPC; current code calls `buat_paket_draft_dengan_scope`, whose availability/signature must be verified in isolated QA | Not end-to-end verified | Frontend roles come from the authenticated backend identity. Current local changes still need an authenticated create/readback check. |
-| Tahap 0 preparation | Implemented locally: checklist, evidence link, PDF registration/upload, submit and PIC review routes/adapters | Required RPCs and private Storage bucket were verified previously; active project contains non-test records | Not end-to-end verified | Need an isolated test project and explicitly authorized writes to prove persistence. |
-| Tahap 1 Provider/PIC confirmation | Local API adds the route-only `aktif` field; exact bigint audit IDs are preserved; Provider submit and PIC review recover ambiguous mutation responses only through GET. Unresolved outcomes set refresh-required and do not retry. | Prior installation/readback reports exist, including the user-reported package 3 version-1 submission; not rechecked live in this session. | No authenticated browser GET after the response-recovery changes | Focused local tests cover malformed/lost response recovery, version checks and no retry. Next proof: Provider and scoped PIC GET package 3 after refresh. Survey-specific mandatory evidence remains unresolved; PIC suitability is not inferred from answer counts. |
-| Tahap 2 production validation | Server adapter and UI operations implemented locally | Required RPC contracts were previously verified present | Not end-to-end verified | Real persistence/review remains untested against an isolated database. |
-| Tahap 3A survey sessions/segments | Server-backed input UI and adapters implemented locally | RPC contracts were previously verified present | Not end-to-end verified | Real authenticated writes and readback remain untested. |
-| Tahap 3B periodic Verval | Workspace and API contracts exist locally; production calls are disabled unless `STAGE3B_PRODUCTION_RPCS=true` | 2026-11-09 inspection found read RPCs and a test/QA allowlisted create RPC; no production lifecycle RPCs | Not end-to-end verified | Production cycle creation, review, submission, and consistency writes still require installed, verified contracts. |
-| Corrections | UI and Express route contracts exist locally; read/write calls are disabled unless `CORRECTION_PRODUCTION_RPCS=true` | 2026-11-09 inspection found only `baca_senarai_koreksi` and `baca_koreksi`; mutation RPCs were absent | Not end-to-end verified | Do not enable the feature gate. Authorization, state transitions, closure, and concurrency rules remain unresolved. |
-| Tahap 4–6 preparation/audit/acceptance | Tahap 4 LRS read/write code exists behind `STAGE4_LRS_RPCS`; submit/review are behind `STAGE4_WORKFLOW_RPCS`. Tahap 5–6 UI remains local/demo. | LRS and workflow gates are off in the QA template; candidate contracts/migrations are not proof of installation. The 2026-11-09 inspection found no approved Tahap 4–6 lifecycle RPCs. | Not end-to-end verified | Stage 4 LRS persistence and submit/review need QA verification and approved rules. Stage 5–6 need server contracts, authorization, and lifecycle definitions. |
+| Login & identitas | — | Server (`AuthGate.tsx`, `/api/me`) | `authenticated_identity_self` | — |
+| Paket | `/packages:Ringkasan Paket` | Server: daftar, detail, buat (`CreatePackageDialog`), edit draft, scope survei, amandemen scope, ruas paket | `buat_paket_draft_dengan_scope`, `ubah_paket_draft`, `baca/simpan_scope_survei_kontrak`, `*_pindaan_scope_survei`, `*_ruas_paket` | ruas: `PACKAGE_ROAD_ASSIGNMENT_*` |
+| **0** Persiapan | `/entry:Persiapan & SPMK` | Server: checklist, unggah/tautkan PDF, ajukan, review PIC | `baca/simpan_checklist_persiapan`, `tautkan_bukti_persiapan`, `ajukan_persiapan`, `review_persiapan`, dokumen + Storage `dokumen-persiapan` | — |
+| **1** Kalibrasi & personel | `/documents:Kalibrasi & personel` | Server (`ServerStage1DirahWorkspace`): tim, alat, personel, kualifikasi, sertifikat, checklist IRI, konfirmasi PIC | `daftar_tim_survei`, `daftar_alat_tim`, `simpan_kalibrasi_alat`, `daftar_personel_tim`, `*_checklist_kalibrasi_iri`, `*_konfirmasi_kalibrasi_tahap1` | IRI: `STAGE1_IRI_*`; konfirmasi: `STAGE1_PIC_CONFIRMATION_*` |
+| **2** Validasi produksi | `/entry:Validasi produksi` | Server (`ServerStage2Workspace`): uji coba, seksi, pengukuran, evaluasi IRI, ajukan, review | `simpan_uji_coba*`, `ajukan_uji_coba`, `review_uji_coba`, `*_evaluasi_uji_coba`, `baca_kriteria_uji_coba` | — |
+| **3A** Survei harian | `/entry:Survei harian` | Server (`ServerStage3DailyWorkspace`): sesi survei, data segmen, pemeriksaan harian alat | `simpan/baca_sesi_survei`, `simpan/baca_data_segmen`, `*_pemeriksaan_harian_alat_prototype` | — (pemeriksaan harian alat diberi label *prototype*) |
+| **3B** Verval 14 hari | `/verification:Verval 14 hari` | Server (`ServerVervalWorkspace`) jika gate aktif | `*_siklus_verval`, `*_uji_konsistensi_verval` | `STAGE3B_PRODUCTION_RPCS` |
+| **4** Gerbang RNI/LRS | `/entry:Gerbang RNI/LRS` | Server (`ServerStage4Workspace`) | `baca/simpan_validasi_lrs`, `baca_status_validasi_lrs`, `ajukan/review_validasi_lrs` | `STAGE4_LRS_RPCS`; ajukan/review: `STAGE4_WORKFLOW_RPCS` |
+| **5** Audit tingkat 1–3 | `/verification:Audit tingkat 1–3` | **Demo baca saja.** `OperationalWorkflowWorkspace` dengan `serverReadOnly`, nilai tidak berasal dari server, tombol aksi dinonaktifkan | Tidak ada | — |
+| **6** Penerimaan & termin | `/reports:Penerimaan & termin` | **Demo baca saja**, seperti Tahap 5 | Tidak ada | — |
+| Koreksi | `/actions` | Server (`ServerCorrectionDashboard`) | 10 RPC `*_koreksi`; mutasi belum tentu terpasang | `CORRECTION_PRODUCTION_RPCS` |
+| Admin | `/audit` (role Admin) | Server: pengguna, hak akses, jejak aktivitas | `admin_daftar_pengguna`, `admin_daftar_jejak_aktivitas`, RPC penugasan peran | `ADMIN_ROLE_*` |
 
-## Correction investigation (priority blocker)
+### Halaman umum (di luar workspace paket)
 
-Read-only catalog inspection of project `Jala-Mutu` found these correction RPCs installed:
+| Halaman | Sumber data |
+|---|---|
+| Dashboard `/` | Campuran: `useServerDashboard` (paket + koreksi) dan blok lokal (review per jenis survei). Kartu "Penerimaan akhir" tertulis *Belum tersedia dari server*. Ada banner "Dashboard umum masih pratinjau lokal". |
+| Dokumen `/documents` | Untuk PIC: server (`ServerPicDocuments`). Katalog BA/arsip lampiran: lokal (`documentRepository`, `attachmentRepository`). |
+| Data Master, Entry, Verifikasi, Kepatuhan, Laporan, Notifikasi | Demo lokal (`useDemoStore`, `demoData.ts`). Penjadwal notifikasi hanya berjalan di mode demo. |
 
-- `baca_senarai_koreksi(p_paket_id integer)`
-- `baca_koreksi(p_paket_id integer, p_koreksi_id integer)`
+## 2. Konfigurasi lokal saat ini (perhatian)
 
-The following RPCs are called by `backend/src/routes/koreksi.ts` but were not found in the active public function catalog:
+Nilai di bawah dibaca dari `.env` lokal (bukan template). Nilai rahasia tidak dibaca.
 
-- `buat_koreksi`, `ubah_koreksi`, `verifikasi_koreksi`, `ajukan_koreksi`,
-- `review_koreksi`, `laksana_koreksi`, `uji_ulang_koreksi`, `tutup_koreksi`.
+- `backend/.env` dan `frontend/.env` mengarah ke proyek **utama** `vnvknmwcidberkjwtqjx`, bukan Sandbox.
+- Gate yang `true`: `STAGE1_IRI_*`, `STAGE1_PIC_CONFIRMATION_*`, `PACKAGE_ROAD_ASSIGNMENT_*`, `STAGE4_LRS_RPCS`.
+- Gate yang `false` atau tidak diisi: `STAGE4_WORKFLOW_RPCS`, `STAGE3B_PRODUCTION_RPCS`, `CORRECTION_PRODUCTION_RPCS`, `ADMIN_ROLE_*`.
+- Perubahan lokal yang belum di-commit di `frontend/src/auth/config.ts` menambahkan URL proyek utama ke allowlist login. Sebelumnya hanya Sandbox yang diizinkan.
 
-The read RPCs are `SECURITY DEFINER`, have a fixed empty `search_path`, and grant `EXECUTE` to `authenticated` (not `anon`).
+Akibatnya: setiap simpan/ajukan dari dev lokal **menulis ke database utama**.
 
-Repository SQL under `backend/proposals/koreksi-rpc-proposal.sql` is explicitly a design proposal, not a ready migration. Active schema inspection confirms only PK/FK constraints for the correction lifecycle tables; mutation tables do not expose a version column. The route schemas currently require `expected_version`, so this cannot provide database-enforced optimistic concurrency without an approved schema/business contract. The proposal also explicitly leaves provider ownership scope, surveyor/team-leader identity, PIC/revision semantics, retest authority/history, and close conditions unconfirmed.
+**Keputusan (2026-11-23):** proyek `Jala-Mutu` (`vnvknmwcidberkjwtqjx`) dipakai untuk pengembangan; Sandbox tidak dipakai. Pemeriksaan baca-saja via Supabase MCP menunjukkan isinya data uji, bukan produksi:
 
-**Safe conclusion:** do not generate/deploy write RPCs yet. Required business decisions are listed in “Human decisions required”.
+- 8 paket, semuanya bernama `UJIAN …`, `UJI ALUR …`, `PW-TEST-…` atau `JM_E2E_TEST …`, berstatus `DRAFT`.
+- 36 akun: admin 1, direktorat 1, pic_balai 33, penyedia_jasa 1. Peran `pimpinan` belum ada di tabel `peran`.
+- 51 migrasi terpasang (terakhir `add_authenticated_identity_self`).
 
-## Tahap 3B and Tahap 4–6 inventory
+### RPC yang dipanggil backend tetapi belum terpasang (17 dari 83)
 
-- `backend/src/routes/siklus-verval.ts` contains production list/detail/consistency and create/write contracts, but production calls fail closed unless `STAGE3B_PRODUCTION_RPCS=true`. The 2026-11-09 database inspection found read RPCs and a test-only create RPC, not a complete production lifecycle. The current proposal migration must be reviewed and verified in QA before enabling the gate.
-- The authenticated Tahap 3B workspace is `frontend/src/pages/ServerVervalWorkspace.tsx`; the original periodic workflow in `frontend/src/workflow/stages/Stage3PeriodicWorkspace.tsx` remains local/demo state and is not proof of server persistence.
-- The current working tree includes authenticated Tahap 4 LRS endpoints/UI, but reads and writes fail closed unless `STAGE4_LRS_RPCS=true`. Submit/review is separately gated by `STAGE4_WORKFLOW_RPCS`; neither gate should be enabled based only on local code or candidate SQL. Tahap 5–6 authenticated lifecycle endpoints/contracts remain unavailable in the inspected implementation.
-- Related database tables do not define transition rules or authorization. Do not add direct table writes; use approved, tested RPC contracts for lifecycle changes.
+| Area | RPC hilang | Gate |
+|---|---|---|
+| Koreksi | `buat_koreksi`, `ubah_koreksi`, `verifikasi_koreksi`, `ajukan_koreksi`, `review_koreksi`, `laksana_koreksi`, `uji_ulang_koreksi`, `tutup_koreksi` | `CORRECTION_PRODUCTION_RPCS` |
+| Amandemen scope paket | `ajukan_pindaan_scope_survei`, `baca_pindaan_scope_survei`, `review_pindaan_scope_survei` | **tidak ada gate**, jadi endpoint mengembalikan 503 "Fungsi database … belum tersedia" |
+| Tahap 4 | `ajukan_validasi_lrs`, `review_validasi_lrs` | `STAGE4_WORKFLOW_RPCS` |
+| Tahap 3B | `buat_siklus_verval`, `simpan_uji_konsistensi_verval` (yang terpasang: `buat_siklus_verval_testqa`) | `STAGE3B_PRODUCTION_RPCS` |
+| Tahap 3A | `baca_senarai_pemeriksaan_harian_alat_prototype`, `catat_pemeriksaan_harian_alat_prototype` | — |
 
-## Environment and verification limits
+Tabel ERD untuk Tahap 5–6 (`audit`, `sampel_audit`, `upload_sistem`, `upload_pesan_validasi`, `berita_acara`, `penandatangan_ba`, `penerimaan_data`, `termin`) dan Koreksi (`kasus_temuan`, `tindakan_perbaikan`, `uji_ulang`, `koreksi_data`, `verifikasi_koreksi`, `riwayat_status_kasus`) sudah ada, tetapi masih kosong. Tabel referensi `aturan_sampling_audit`, `aturan_koreksi` dan `jenis_tindakan` juga kosong.
 
-- The configured Supabase project has previously been described as containing existing package, checklist, document and approval records; it is not treated as an isolated test fixture. Its current environment classification has not been established here.
-- No remote mutation, Storage upload, migration, or deployment was performed during this investigation.
-- Local tests/typechecks do not prove authenticated server persistence. No authenticated browser journey was run for the Stage 1 status update.
-- The focused correction read-RPC contract tests passed (2/2) when rerun outside the sandbox after Node's test runner failed with `spawn EPERM` inside it.
-- `git diff --check` reported a pre-existing extra blank line at EOF in the already-modified `frontend/src/pages/serverStage3Data.test.ts`; that unrelated file was left untouched.
+## 3. Hasil pemeriksaan otomatis (2026-11-23)
 
-## Human decisions required before correction write RPCs
+| Perintah | Hasil |
+|---|---|
+| `backend: npm run typecheck` | Lulus |
+| `backend: node --test tests/*.test.mjs` | 283/283 lulus setelah perbaikan Fase 1 (sebelumnya 233 lulus / 50 gagal) |
+| `frontend: npm run typecheck` | Lulus |
+| `frontend: npm run test:domain` | 240/240 lulus |
+| `frontend: npm run test:permissions` | 9/9 lulus |
+| `frontend: npm run test:auth` | 4/4 lulus |
 
-1. Which role owns each verification layer (surveyor, team leader, Balai) and how those identities map to authenticated profiles/assignments.
-2. Whether the provider is authorized by `paket_kontrak.created_by`, `penyedia_id`, or another assignment relation.
-3. Authoritative allowed values/mappings for `sumber_tipe`, `sumber_id`, `tahap_tertahan`, severity, action type, and correction status.
-4. Whether PIC “Perlu Revisi” returns the case to draft, clears which verification records, and which actor may resubmit.
-5. Whether retests are append-only attempts and who may record/review each attempt.
-6. Who may close a correction at each blocked stage and the exact evidence/verification conditions for closure.
-7. Concurrency strategy: approve adding version metadata/migration, or remove expected-version behavior in favor of an explicitly accepted locking/version mechanism.
+Ke-50 kegagalan berasal dari test yang tertinggal dari kode. Tidak ada kode route yang diubah. Perbaikan di Fase 1:
 
-## Smallest safe next sequence
+- **`tests/api.test.mjs`:**
+  - server test sekarang dijalankan dengan gate `CORRECTION_PRODUCTION_RPCS`, `STAGE3B_PRODUCTION_RPCS` dan `STAGE1_PIC_CONFIRMATION_*`;
+  - mock ditambah `baca_konfirmasi_kalibrasi_tahap1` (status `DISETUJUI`), yang menjadi syarat Tahap 2/3A;
+  - mock pembuatan paket memakai `buat_paket_draft_dengan_scope` + `jenis_survei_ids`;
+  - test create Verval memakai kontrak produksi (`request_id`).
+- **Test kontrak:**
+  - penanda header SQL admin disamakan dengan header baru (`CANDIDATE ONLY; … never in shared databases`);
+  - test audit trail menormalkan CRLF (sebelumnya gagal hanya di checkout Windows);
+  - test Verval/OpenAPI disesuaikan dengan route produksi yang di-gate.
+- **Belum dijalankan:** test unit `backend/src/**/*.test.ts` (tidak masuk `npm test`) dan `tests/admin-role-management-runtime.pg.mjs` (butuh PostgreSQL 17, jalan di CI).
 
-1. Obtain the correction decisions above, especially authorization, state transitions, closure and concurrency.
-2. Write and test local correction SQL migrations against an isolated database branch; do not apply them to the shared configured project.
-3. Add contract tests for every RPC signature, role/state rejection, atomic history, version conflicts and returned readback shape.
-4. Deploy only after a separate review/approval, then verify authenticated correction writes on an isolated test fixture.
-5. In parallel after the business owner confirms scope, define Stage 1 readiness rules and Tahap 4–6 transition contracts before exposing those workflows as server-backed.
+Skrip Playwright frontend (`test:browser`, `test:journey`, dan lainnya) tidak dijalankan.
 
+## 4. Utang teknis yang terlihat di kode
+
+- **Dua jalur UI hidup berdampingan:**
+  - jalur demo lokal (`useDemoStore`, `usePackageStore`, `OperationalWorkflowWorkspace`, `PackageDetailPage`);
+  - jalur server (`ServerPackageWorkspace` dan `Server*Workspace`).
+
+  `App.tsx` memilih jalurnya berdasarkan `authenticatedRole`.
+- **Komponen yang terlalu besar:** `ServerPackageWorkspace.tsx` 1.284 baris, `App.tsx` 617 baris.
+- **File cadangan yang ikut ter-commit:** `frontend/src/workflow/OperationalWorkflowWorkspace.tsx.backup-20261015-091606`.
+- **`backend/openapi.yaml` (31 path) tidak lengkap** dibanding ~110 handler route. `backend/API-INTEGRASI-FRONTEND.md` juga hanya mencakup sebagian.
+- **`backend/migrations/` hanya berisi satu file** (`Migration_4E_4G_QAQC.sql`). Riwayat skema yang sebenarnya tersebar di `db-reference/` dan `proposals/`.
+
+## 5. Dokumen lain dan statusnya
+
+| File | Status |
+|---|---|
+| `frontend/PANDUAN-LOGIN.md` | **Usang.** Menyebut workspace workflow masih lokal, padahal Tahap 0–4 sudah server-backed. |
+| `docs/laporan-v2.1/*` | Laporan historis 5 Nov 2026 (rilis V2.1). Bukan status terkini. |
+| `docs/agent-notes/*` | Catatan desain 17 Okt 2026 (sampling, urutan audit, acuan survei). Masih relevan sebagai aturan domain. |
+| `docs/specs/*`, `backend/proposals/*.md` | Spesifikasi/rancangan per fitur. Rujuk saat mengerjakan fitur terkait. |
+| `docs/admin-sandbox-auth-setup.md` | Panduan menyiapkan akun di Sandbox untuk QA Admin. |
+| `backend/API-INTEGRASI-FRONTEND.md` | Sebagian. Kode di `backend/src/routes/` adalah sumber kebenaran. |
+
+## 6. Keputusan yang masih diperlukan (dari kode yang ada)
+
+- **Koreksi:** siapa yang boleh membuat, memverifikasi, mereview dan menutup kasus; transisi status; versi/konkurensi. `backend/proposals/koreksi-rpc-proposal.sql` masih rancangan.
+- **Tahap 5–6:** belum ada kontrak RPC, aturan peran, maupun lifecycle sama sekali.
+- **Tahap 3B dan Tahap 4 (ajukan/review):** perlu verifikasi RPC di Sandbox sebelum gate dinyalakan.
+- **Proyek Supabase untuk pengembangan:** proyek utama atau Sandbox (lihat bagian 2).

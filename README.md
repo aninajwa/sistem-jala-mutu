@@ -1,89 +1,120 @@
-# JALA-MUTU — Dashboard QA/QC Survei Jalan
+# JALA-MUTU — Dashboard QA/QC Survei Kondisi Jalan
 
-Repo ini berisi dua aplikasi yang dijalankan terpisah:
+Dashboard untuk mengawal mutu (QA/QC) paket kontrak survei kondisi jalan, mengacu KAK SKJ TA 2027 Bab 11.10. Alur kerjanya Tahap 0–6 ditambah Tindakan Perbaikan/Koreksi (diagram di `docs/alur-qaqc/`).
 
-| Folder | Isi | Teknologi | Port lokal |
-|---|---|---|---|
-| `frontend/` | Dashboard dan ruang kerja QA/QC | React 19, Vite 7, Tailwind 4 | 5173 |
-| `backend/` | REST API | Express 5, TypeScript | 5000 |
-| `docs/` | Diagram alur dan catatan implementasi | Markdown, Mermaid | — |
+Status setiap tahap — mana yang sudah tersambung ke server dan mana yang masih demo — ada di **[docs/WORKFLOW_COMPLETION_STATUS.md](docs/WORKFLOW_COMPLETION_STATUS.md)**. Dokumen itu disusun dari kode, bukan dari catatan lama.
 
-Frontend memakai Supabase Auth untuk login dan mengirim access token sebagai Bearer token ke backend. Backend memeriksa identiti/peranan pengguna dan membaca atau menulis data melalui Supabase. **Tidak semua halaman lama/demo memakai API**; beberapa alur lokal masih menyimpan data di browser. Lihat [status penyelesaian workflow](docs/WORKFLOW_COMPLETION_STATUS.md) sebelum menganggap suatu tahap siap dipakai.
+## Struktur repo
 
-## Prasyarat
+| Folder | Isi | Teknologi |
+|---|---|---|
+| `frontend/` | SPA dashboard, port 5173 | React 19, Vite 7, Tailwind 4, Radix UI, wouter, React Query, Leaflet, Recharts, `@supabase/supabase-js` |
+| `backend/` | REST API di `/api`, port 5000 | Express 5, TypeScript, zod, pino, multer; build dengan esbuild |
+| `docs/` | Diagram alur, status, spec, laporan lama | Markdown, Mermaid |
+| `.github/workflows/` | CI: test manajemen peran admin pada PostgreSQL 17 sungguhan | GitHub Actions |
 
-- Node.js 20 atau lebih baru untuk frontend.
-- Node.js 22 atau lebih baru untuk backend.
-- Kredensial proyek QA Supabase yang sesuai. Jangan gunakan service-role/secret key di frontend.
+## Arsitektur singkat
+
+```
+Browser ──login──▶ Supabase Auth
+   │  Bearer token
+   ▼
+Frontend (Vite, proxy /api) ──▶ Backend Express /api
+                                   │  requireAuth: /auth/v1/user + RPC authenticated_identity_self
+                                   │  zod validation, cek peran, feature gate
+                                   ▼
+                          Supabase PostgREST RPC  (token pengguna, publishable key)
+                          Supabase Storage (bucket private, PDF)
+```
+
+- **Backend tidak memakai service-role key.** Semua panggilan ke Supabase memakai token pengguna dan publishable key, jadi otorisasi akhir ada pada RPC (`SECURITY DEFINER`) dan RLS di database.
+- **Backend tidak menulis tabel secara langsung.** Semua baca/tulis lewat RPC `/rest/v1/rpc/*` (lihat `backend/src/routes/`).
+- **Drizzle hanya placeholder.** `backend/src/db/schema` kosong. **Jangan jalankan `npm run db:push`.**
+- Kode SQL ada di tiga tempat:
+  - `backend/db-reference/*-applied.sql` — salinan RPC yang tercatat sudah dipasang;
+  - `*-preview.sql` / `*-candidate.sql` — belum dipasang;
+  - `backend/proposals/` — rancangan, bukan migrasi siap pakai.
+
+## Peran
+
+Peran diambil dari database (`peran` + `penugasan`), bukan dipilih bebas di UI (`frontend/src/auth/identity.ts`).
+
+| Kode DB | Nama di UI | Catatan |
+|---|---|---|
+| `penyedia_jasa` | Penyedia Jasa / Ketua Tim | Membuat paket, mengisi dan mengajukan setiap tahap |
+| `pic_balai` | PIC Balai / Pengguna Jasa | Mereview/menyetujui, membuat master ruas untuk Balai-nya |
+| `direktorat` | Direktorat / Pusat | Pemantauan dan audit |
+| `pimpinan` | Pimpinan | Hanya daftar 50 paket pertama, baca saja (`LeadershipHome` di `AuthGate.tsx`) |
+| `admin` | Admin | Kelola pengguna, peran dan jejak audit. **Ditolak untuk semua penulisan workflow** (`middleware/workflow-write.ts`) |
+
+Akun dengan beberapa peran memilih peran setelah login. Akun yang punya peran admin langsung masuk ke area Admin.
 
 ## Menjalankan lokal
 
-Salin fail contoh environment, lalu isi nilai proyek QA yang benar. Jalankan perintah dari root repo.
-
-Terminal 1 — backend:
+Prasyarat: Node.js ≥ 22 untuk backend, Node.js ≥ 20 untuk frontend.
 
 ```bash
-cp "backend/.env copy.example" backend/.env
+# Terminal 1 — backend
+cp "backend/.env copy.example" backend/.env   # isi SUPABASE_URL dan SUPABASE_PUBLISHABLE_KEY
+cd backend && npm install && npm run dev     # build lalu jalankan di http://localhost:5000
+# health check: http://localhost:5000/api/healthz
+
+# Terminal 2 — frontend
+cp frontend/.env.example frontend/.env       # isi VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY (proyek yang sama)
+cd frontend && npm install && npm run dev    # http://localhost:5173, /api diproxy ke :5000
 ```
 
-Isi `SUPABASE_URL`, `SUPABASE_PUBLISHABLE_KEY`, dan `DATABASE_URL` di `backend/.env`. Nilai fitur yang berakhiran `_ENABLED`/`_RPCS` hendaklah kekal `false` kecuali kontrak database berkaitan telah disemak, dipasang dan disahkan di QA. Kemudian:
+### Proyek Supabase yang diizinkan
+
+- **Frontend** hanya menerima dua URL (`frontend/src/auth/config.ts`):
+  - Jala-Mutu utama: `vnvknmwcidberkjwtqjx`;
+  - Jala-Mutu-Admin-Sandbox: `yehwlrlbtcxtlogenahw`.
+
+  Secret atau service-role key ditolak.
+- **Backend** dengan `ADMIN_SANDBOX_QA=true` akan menolak start kecuali `SUPABASE_URL` adalah Sandbox (`backend/src/config/supabase.ts`).
+- Pengembangan memakai proyek `Jala-Mutu`. Isinya saat ini data uji (lihat dokumen status), tetapi penulisan dari lokal tetap mengubah database bersama itu.
+
+### Feature gate backend
+
+Gate di bawah ini fail-closed: kalau nilainya tidak `true`, endpoint terkait mengembalikan 503. Nyalakan hanya setelah RPC terkait terpasang dan diverifikasi.
+
+| Variabel | Membuka |
+|---|---|
+| `STAGE1_IRI_CHECKLIST_ENABLED`, `STAGE1_IRI_PROJECT_DRAFT_ACCEPTED`, `STAGE1_IRI_AUTHORIZATION_CONTRACT_INSTALLED` | Checklist kalibrasi IRI Tahap 1 (ketiganya harus `true`) |
+| `STAGE1_PIC_CONFIRMATION_ENABLED`, `_APPROVED`, `_AUTHORIZATION_INSTALLED` | Pengajuan/review konfirmasi kalibrasi Tahap 1 |
+| `PACKAGE_ROAD_ASSIGNMENT_ENABLED`, `_APPROVED`, `_AUTHORIZATION_INSTALLED` | Penetapan ruas jalan ke paket |
+| `STAGE3B_PRODUCTION_RPCS` | Siklus Verval 14 hari (Tahap 3B) |
+| `STAGE4_LRS_RPCS` | Baca/simpan validasi LRS Tahap 4 |
+| `STAGE4_WORKFLOW_RPCS` | Ajukan/review Tahap 4 |
+| `CORRECTION_PRODUCTION_RPCS` | Semua endpoint Koreksi |
+| `ADMIN_ROLE_READS_ENABLED`, `ADMIN_ROLE_MANAGEMENT_ENABLED` | Baca/ubah penugasan peran oleh Admin |
+
+Di frontend, `VITE_ADMIN_ROLE_MUTATIONS_ENABLED` menampilkan aksi ubah peran.
+
+### Mode demo
+
+`?testRoles=1` (atau `VITE_ENABLE_ROLE_TESTING=true`) hanya berjalan di `npm run dev`. Mode ini melewati login dan memakai paket demo `PAKET-DEMO-00x` yang disimpan di browser. Tidak ada yang dikirim ke server.
+
+## Test
 
 ```bash
 cd backend
-npm install
-npm run dev
-```
+npm run typecheck   # tsc
+npm test            # build + node --test tests/*.test.mjs (Supabase di-mock)
 
-`npm run dev` membina backend kemudian menjalankannya di `http://localhost:5000`. Health check: `http://localhost:5000/api/healthz`.
-
-Terminal 2 — frontend:
-
-```bash
-cp frontend/.env.example frontend/.env
-```
-
-Isi `VITE_SUPABASE_URL` dan `VITE_SUPABASE_PUBLISHABLE_KEY` dengan proyek QA yang sama. Template mengarahkan `VITE_API_BASE_URL` ke `http://localhost:5000/api`. Alternatifnya, kosongkan/hapus nilai itu agar frontend memakai `/api` melalui proxy Vite. Jika mengganti alamat API, pastikan path `/api` tetap disertakan. Kemudian:
-
-```bash
 cd frontend
-npm install
-npm run dev
+npm run typecheck
+npm run test:domain       # aturan workflow, adapter server, dashboard
+npm run test:permissions  # vitest: matriks izin
+npm run test:auth
+# test:browser, test:journey, test:login, dll. = skrip Playwright (butuh app berjalan)
 ```
 
-Buka `http://localhost:5173`. Proxy development meneruskan `/api/*` ke `http://localhost:5000` secara default. `VITE_API_PROXY_TARGET` dapat dipakai untuk mengubah alamat tujuan proxy.
+Hasil terakhir (2026-11-23): kedua typecheck lulus, test backend 283/283 lulus, dan test unit frontend lulus.
 
-## Build
+## Aturan penting
 
-Jalankan dalam folder aplikasi masing-masing:
-
-```bash
-cd backend
-npm run build
-npm start
-```
-
-```bash
-cd frontend
-npm run build
-```
-
-Frontend menghasilkan fail statik di `frontend/dist/`; backend menghasilkan `backend/dist/`.
-
-## Status dan batasan penting
-
-- Login Supabase, pemuatan identiti/peranan melalui `/api/me`, senarai/butiran paket, dan beberapa operasi workflow telah mempunyai implementasi server-backed di working tree.
-- Keberadaan implementasi atau RPC dalam kontrak belum membuktikan ia berfungsi hujung-ke-hujung pada browser dengan database QA. Status verifikasi dan batas setiap tahap dicatat dalam [dokumen status workflow](docs/WORKFLOW_COMPLETION_STATUS.md).
-- Sebahagian fungsi Tahap 1, Tahap 3B, Tahap 4–6 dan pembetulan masih berupa kandidat, read-only, dibatasi feature flag, atau menunggu keputusan aturan bisnis/pemasangan RPC.
-- Jangan jalankan `npm run db:push`: skema Drizzle bukan sumber skema aplikasi Supabase dan dinyatakan sebagai placeholder. Perubahan Supabase perlu melalui migrasi yang disemak dan diuji di proyek QA.
-- Jangan commit fail `.env` atau masukkan Supabase secret/service-role key ke frontend.
-
-Mode uji pemilihan peranan hanya tersedia dalam development melalui `?testRoles=1`; ia menggunakan alur demo lokal dan bukan autentikasi produksi.
-
-## Susunan repo
-
-- `frontend/src/auth/` — login Supabase dan klien API.
-- `frontend/src/pages/` — halaman serta ruang kerja paket server-backed.
-- `backend/src/routes/` — route API Express.
-- `backend/src/services/` — integrasi Supabase dan polisi feature gate.
-- `backend/proposals/` dan `backend/db-reference/` — kandidat SQL/kontrak; fail di sini tidak bermakna migrasi sudah dipasang.
-- `docs/` — spesifikasi dan status implementasi.
+- Jangan commit `.env`. Jangan taruh secret/service-role key di frontend.
+- Jangan jalankan `npm run db:push`.
+- Perubahan database dilakukan lewat migrasi SQL yang sudah direview, diuji dulu di Sandbox/branch terisolasi, baru dipasang.
+- Jangan nyalakan feature gate hanya karena kodenya sudah ada. RPC-nya harus terpasang dan terverifikasi.
