@@ -11,6 +11,7 @@ import {
 import { WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE } from "../workflowConfig";
 
 export type WorkflowStageProps = {
+  principalId?: string;
   selection: string;
   state: OperationalWorkflowState;
   onUpdate: (

@@ -68,12 +68,12 @@ export function OperationalWorkflowWorkspace(
   if (!Screen) return null;
   return (
     <div className="wf" data-testid="operational-workflow-workspace">
-      <StageActionContext
+      {props.selection !== "/entry:Survei harian" && <StageActionContext
         state={props.state}
         selection={props.selection}
         onNavigate={props.onNavigate}
-      />
-      {!(["/entry:Persiapan & SPMK", "/documents:Kalibrasi & personel"].includes(props.selection)) && (
+      />}
+      {!(["/entry:Persiapan & SPMK", "/documents:Kalibrasi & personel", "/entry:Survei harian"].includes(props.selection)) && (
         <StageChecklistIndex
           key={`${props.selection}:${props.state.role}`}
           state={props.state}

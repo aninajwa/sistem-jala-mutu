@@ -57,19 +57,27 @@ type Stage2DirectorateNote = {
   text: string;
   recordedAt: string;
   author: "Direktorat / Pusat";
+  authorId?: string;
+  editedAt?: string;
+  withdrawnAt?: string;
+  withdrawnReason?: string;
+  history?: Array<{ action: "edit" | "withdraw"; at: string; priorText: string; reason?: string }>;
 };
 
 /** Catatan koordinasi Tahap 2: tidak menggantikan pemeriksaan/keputusan Balai. */
-function Stage2DirectorateNotes({ packageId, surveyType, role }: {
+function Stage2DirectorateNotes({ packageId, surveyType, role, principalId }: {
   packageId: string;
   surveyType: SurveyType;
   role: WorkflowStageProps["state"]["role"];
+  principalId?: string;
 }) {
   const storageKey = `jala-stage2-directorate-notes-v1:${encodeURIComponent(packageId)}`;
   const [notes, setNotes] = useState<Stage2DirectorateNote[]>([]);
   const [draftNote, setDraftNote] = useState("");
   const [error, setError] = useState("");
   const [open, setOpen] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editingText, setEditingText] = useState("");
   const canWrite = role === "Direktorat / Pusat";
 
   useEffect(() => {
@@ -100,6 +108,7 @@ function Stage2DirectorateNotes({ packageId, surveyType, role }: {
       text,
       recordedAt: new Date().toISOString(),
       author: "Direktorat / Pusat",
+      ...(principalId ? {authorId: principalId} : {}),
     };
     try {
       const previous = readLocal<Stage2DirectorateNote[]>(storageKey, []);
@@ -114,13 +123,49 @@ function Stage2DirectorateNotes({ packageId, surveyType, role }: {
     }
   };
 
+  const canManage = (note: Stage2DirectorateNote) => !!principalId && canWrite &&
+    note.authorId === principalId && !note.withdrawnAt;
+  function saveRevision(note: Stage2DirectorateNote, withdrawn = false) {
+    if (!canManage(note)) return;
+    const value = editingText.trim();
+    if (!withdrawn && (value.length < 3 || value.length > 2000)) {
+      setError("Isi catatan 3–2.000 karakter."); return;
+    }
+    const reason = withdrawn ? window.prompt("Alasan menarik catatan:") : null;
+    if (withdrawn && (reason === null || !reason.trim() || !window.confirm("Tarik catatan? Riwayat tetap tersimpan."))) return;
+    try {
+      const current = readLocal<Stage2DirectorateNote[]>(storageKey, []);
+      const now = new Date().toISOString();
+      const next = current.map(entry => entry.id === note.id && entry.authorId === principalId && !entry.withdrawnAt
+        ? withdrawn
+          ? { ...entry, withdrawnAt: now, withdrawnReason: reason!.trim(), history: [...(entry.history ?? []), { action: "withdraw" as const, at: now, priorText: entry.text, reason: reason!.trim() }] }
+          : { ...entry, text: value, editedAt: now, history: [...(entry.history ?? []), { action: "edit" as const, at: now, priorText: entry.text }] }
+        : entry);
+      writeLocal(storageKey, next);
+      setNotes(next);
+      setEditingId(null);
+      setError("");
+    } catch { setError("Perubahan catatan belum tersimpan."); }
+  }
+
   return <section className="wf-panel stage2-directorate-notes" aria-label="Catatan tambahan Direktorat">
     <div className="wf-panel-head"><h3>Catatan Direktorat · {surveyType}</h3><span>{applicable.length ? `${applicable.length} catatan` : "Belum ada catatan"}</span></div>
     <div className="wf-panel-body" style={{display: "grid", gap: 12}}>
       {applicable.length > 0 ? <ul style={{paddingLeft: 18, margin: 0, display: "grid", gap: 12}}>
         {applicable.map((note) => <li key={note.id}>
           <strong>{note.surveyType}</strong> · <time dateTime={note.recordedAt}>{new Date(note.recordedAt).toLocaleString("id-ID")}</time>
-          <p style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", margin: "6px 0 0"}}>{note.text}</p>
+          {note.withdrawnAt ? <p>Catatan ditarik oleh penulis.</p> : editingId === note.id ? <div>
+            <label>Ubah catatan<textarea rows={3} maxLength={2000} value={editingText} onChange={event => setEditingText(event.target.value)} /></label>
+            <button type="button" className="wf-button primary" onClick={() => saveRevision(note)}>Simpan perubahan</button>
+            <button type="button" className="wf-button" onClick={() => setEditingId(null)}>Batal</button>
+          </div> : <p style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere", margin: "6px 0 0"}}>{note.text}{note.editedAt ? " · Diedit" : ""}</p>}
+          {canManage(note) && editingId !== note.id && <div className="wf-toolbar">
+            <button type="button" className="wf-button" onClick={() => {setEditingId(note.id); setEditingText(note.text);}}>Edit</button>
+            <button type="button" className="wf-button" onClick={() => saveRevision(note, true)}>Tarik catatan</button>
+          </div>}
+          {note.authorId === principalId && !!note.history?.length && <details><summary>Riwayat perubahan ({note.history.length})</summary>
+            {note.history.map((item, i) => <p key={i}>{item.action === "edit" ? "Sebelum diedit" : "Penarikan"}: {item.priorText}</p>)}
+          </details>}
         </li>)}
       </ul> : null}
       {canWrite && <div>
@@ -844,7 +889,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
       {canEnterProduction && <section className="stage2-priority-action" aria-label="Pengajuan hasil uji">
           {roleAction}
       </section>}
-      <Stage2DirectorateNotes packageId={state.project.id} surveyType={prodType} role={state.role} />
+      <Stage2DirectorateNotes packageId={state.project.id} surveyType={prodType} role={state.role} principalId={props.principalId} />
       <details className="stage2-history stage2-documents">
         <summary>Dokumen kalibrasi dan persetujuan</summary>
         <div className="stage2-documents__body">

@@ -288,18 +288,17 @@ try {
   await actor("Penyedia Jasa / Ketua Tim");
   await page.goto(url("/entry:Survei harian"));
   await openFilterPanels(page);
-  await page
-    .getByRole("button", { name: "Catat atau lengkapi kegiatan", exact: true })
-    .click();
   for (const [recordIndex, date] of Array.from({ length: 20 }, (_, index) =>
     index < 10 ? "2027-05-01" : "2027-05-15",
   ).entries()) {
+    await page.getByRole("button", { name: "Catat kegiatan", exact: true }).click();
     await page.getByTestId("input-daily-date").fill(date);
     await page.getByTestId("input-daily-time").fill("08:00");
     await page.getByTestId("input-daily-length").fill("0.25");
     await page.getByTestId("input-daily-lane").fill("L1");
     await page.getByTestId("input-daily-operator").fill("Operator uji");
     await page.getByTestId("input-daily-driver").fill("Pengemudi uji");
+    await page.getByRole("button", { name: "Lanjut ke data survei" }).click();
     await page.getByTestId("input-daily-raw").fill("RAW-RNI-UJI-" + date);
     for (const [key, value] of Object.entries({
       assetId: "RNI-" + date + "-" + recordIndex,
@@ -316,8 +315,9 @@ try {
       inventoryForm: "FORM-RNI-UJI-42",
     }))
       await page.getByTestId("input-daily-technical-" + key).fill(value);
+    await page.getByRole("button", { name: "Lanjut ke pemeriksaan" }).click();
     for (const input of await page
-      .locator(".wf-stage3a-stack .wf-check input[type=checkbox]:enabled")
+      .locator(".stage3a-checks .wf-check input[type=checkbox]:enabled")
       .all())
       await input.check();
     await page.getByTestId("button-daily-save").click();

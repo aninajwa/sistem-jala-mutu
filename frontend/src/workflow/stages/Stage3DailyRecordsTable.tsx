@@ -1,157 +1,79 @@
-import { useState } from "react";
-import { ClipboardList } from "lucide-react";
+import { useState } from 'react';
+import { ClipboardList } from 'lucide-react';
+import type { OperationalWorkflowState, DailySurveyRecord } from '../model';
+import { dailyChecks, dailyFields } from '../surveyStandards';
 
-import type { OperationalWorkflowState } from "../model";
-import { dailyChecks, dailyFields } from "../surveyStandards";
+type Props = { state: OperationalWorkflowState; onEdit?: (record: DailySurveyRecord) => void };
 
-type Props = {
-  state: OperationalWorkflowState;
-};
-
-export function Stage3DailyRecordsTable({ state }: Props) {
-  const [survey, setSurvey] = useState("");
-  const [date, setDate] = useState("");
-  const scoped = state.dailyRecords.filter(
-    (record) =>
-      state.project.surveyTypes.includes(record.surveyType) &&
-      state.project.routes.includes(record.road),
+export function Stage3DailyRecordsTable({ state, onEdit }: Props) {
+  const [survey, setSurvey] = useState('');
+  const [date, setDate] = useState('');
+  const [road, setRoad] = useState('');
+  const [expanded, setExpanded] = useState<string | null>(null);
+  const isAdmin = state.role === 'Admin';
+  const isProvider = state.role === 'Penyedia Jasa / Ketua Tim';
+  const isDirectorate = state.role === 'Direktorat / Pusat';
+  const scoped = state.dailyRecords.filter(record =>
+    state.project.surveyTypes.includes(record.surveyType) && state.project.routes.includes(record.road),
   );
-
-  const records = scoped.filter((record) => (!survey || record.surveyType === survey) && (!date || record.date === date));
+  const records = scoped.filter(record =>
+    (!survey || record.surveyType === survey) && (!date || record.date === date) && (!road || record.road === road),
+  ).sort((a, b) => b.date.localeCompare(a.date) || b.time.localeCompare(a.time));
+  const byType = state.project.surveyTypes.map(type => ({ type, count: records.filter(record => record.surveyType === type).length })).filter(item => item.count);
   return (
-    <section className="wf-panel">
+    <section className="wf-panel stage3a-records" aria-label="Daftar kegiatan harian">
       <div className="wf-panel-head">
-        <h3>
-          <ClipboardList size={14} />
-          Rekaman Kegiatan Lapangan
-        </h3>
-
-        <span className="wf-note">{records.length} rekaman</span>
+        <h3><ClipboardList size={16} aria-hidden="true" /> {isAdmin ? 'Status rekaman harian' : isDirectorate ? 'Kegiatan per survei' : isProvider ? 'Riwayat kegiatan' : 'Data kegiatan yang tercatat'}</h3>
+        <span className="wf-note">{records.length} kegiatan</span>
       </div>
-
       <div className="wf-body">
-        {scoped.length > 0 && <div className="wf-toolbar">
-          <label className="wf-field">Tanggal kegiatan<input type="date" value={date} onChange={(event) => setDate(event.target.value)} /></label>
-          <label className="wf-field">Jenis survei
-            <select value={survey} onChange={(event) => setSurvey(event.target.value)}>
-              <option value="">Semua jenis</option>
-              {[...new Set(scoped.map((record) => record.surveyType))].map((type) => <option key={type}>{type}</option>)}
-            </select>
-          </label>
-          {(date || survey) && <button type="button" className="wf-button" onClick={() => { setDate(""); setSurvey(""); }}>Hapus filter</button>}
-        </div>}
-        {records.length === 0 ? (
-          <div className="wf-empty">
-            {scoped.length ? "Tidak ada rekaman pada tanggal dan jenis survei yang dipilih." : "Belum ada rekaman survei harian untuk lingkup paket ini."}
-          </div>
-        ) : (
-          <div className="wf-table">
-            <table data-testid="table-daily-records">
-              <thead>
-                <tr>
-                  <th>ID / Waktu</th>
-                  <th>Jenis Survei / Ruas</th>
-                  <th>Lajur / Arah</th>
-                  <th>Cuaca / Alat</th>
-                  <th>Hasil Referensi</th>
-                  <th>Status / Pemeriksaan</th>
-                </tr>
-              </thead>
-
-              <tbody>
-                {records.map((record) => {
-                  const checks = dailyChecks(record);
-                  const completedChecks = checks.filter(
-                    (key) => record.dailyToolCheck?.[key],
-                  ).length;
-
-                  return (
-                    <tr key={record.id} data-testid={`row-daily-${record.id}`}>
-                      <td>
-                        <strong>{record.id}</strong>
-                        <div className="wf-note">
-                          {record.date} {record.time}
-                        </div>
-                      </td>
-
-                      <td>
-                        <strong>{record.surveyType}</strong>
-                        <div className="wf-note">{record.road}</div>
-                        <div className="wf-note">
-                          {record.lengthKm} km
-                          {record.surveyType === "Lalu Lintas"
-                            ? ` · ${record.trafficDurationMinutes} menit`
-                            : ""}
-                        </div>
-                        <div className="wf-note">POI: {record.poi || "—"}</div>
-
-                        <details>
-                          <summary>Metadata teknis</summary>
-
-                          {record.technicalData ? (
-                            dailyFields(record).map((field) => (
-                              <div className="wf-note" key={field.key}>
-                                {field.label}:{" "}
-                                {record.technicalData?.[field.key] || "—"}
-                              </div>
-                            ))
-                          ) : (
-                            <span className="wf-note">
-                              Metadata teknis belum tersedia.
-                            </span>
-                          )}
-                        </details>
-                      </td>
-
-                      <td>
-                        {record.lane} · {record.direction}
-                      </td>
-
-                      <td>
-                        {record.weather}
-                        <div className="wf-note">{record.tool}</div>
-                        <div className="wf-note">
-                          {record.operator} / {record.driver}
-                        </div>
-                      </td>
-
-                      <td>
-                        <div>{record.rawValue || "—"}</div>
-
-                        <div className="wf-note">
-                          Hasil tercatat: {record.cleanedValue || "—"}
-                        </div>
-
-                        {record.cleaningReason && (
-                          <div className="wf-note">
-                            Catatan: {record.cleaningReason}
-                          </div>
-                        )}
-                      </td>
-
-                      <td>
-                        <span
-                          className={`wf-status ${
-                            record.state === "Tercatat" ? "good" : "warn"
-                          }`}
-                        >
-                          {record.state}
-                        </span>
-
-                        <div className="wf-note">
-                          {completedChecks}/{checks.length} pemeriksaan alat
-                        </div>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
+        <div className="stage3a-filters">
+          <label>Tanggal <input aria-label="Filter tanggal kegiatan" type="date" value={date} onChange={e => setDate(e.target.value)} /></label>
+          <label>Jenis survei <select aria-label="Filter jenis survei" value={survey} onChange={e => setSurvey(e.target.value)}>
+            <option value="">Semua</option>{state.project.surveyTypes.map(type => <option key={type} value={type}>{type}</option>)}
+          </select></label>
+          <label>Ruas <select aria-label="Filter ruas" value={road} onChange={e => setRoad(e.target.value)}>
+            <option value="">Semua</option>{state.project.routes.map(item => <option key={item} value={item}>{item}</option>)}
+          </select></label>
+          {(date || survey || road) && <button type="button" className="wf-button" onClick={() => { setDate(''); setSurvey(''); setRoad(''); }}>Hapus filter</button>}
+        </div>
+        {isDirectorate && byType.length > 0 && <div className="stage3a-type-summary">{byType.map(item => <span key={item.type}><strong>{item.count}</strong> {item.type}</span>)}</div>}
+        {!records.length ? <div className="wf-empty">{scoped.length ? 'Tidak ada kegiatan yang cocok dengan filter.' : 'Belum ada kegiatan yang tercatat pada paket ini.'}</div>
+          : <div className="stage3a-record-list" data-testid="table-daily-records">
+            {records.map(record => {
+              const checks = dailyChecks(record);
+              const completed = checks.filter(key => record.dailyToolCheck?.[key]).length;
+              const selected = expanded === record.id;
+              return <article className="stage3a-record" key={record.id} data-testid={`row-daily-${record.id}`}>
+                <div className="stage3a-record-main">
+                  <div className="stage3a-record-date"><strong>{record.date}</strong><span>{record.time}</span></div>
+                  <div className="stage3a-record-subject"><strong>{record.surveyType} · {record.road}</strong><span>{record.id}{!isAdmin ? ` · ${record.lane} · ${record.direction}` : ''}</span></div>
+                  <span className={`stage3a-state ${record.state === 'Tercatat' ? 'good' : 'attention'}`}>{record.state === 'Tercatat' && completed < checks.length ? 'Tersimpan · cek harian belum lengkap' : record.state}</span>
+                  <button type="button" className="wf-button" aria-expanded={selected} aria-controls={`stage3a-detail-${record.id}`}
+                    onClick={() => setExpanded(selected ? null : record.id)}>{selected ? 'Tutup' : 'Lihat detail'}</button>
+                  {onEdit && <button type="button" className="wf-button" onClick={() => onEdit(record)}>Perbarui</button>}
+                </div>
+                {selected && <div className="stage3a-record-detail" id={`stage3a-detail-${record.id}`}>
+                  <div><strong>Pelaksanaan</strong><dl>
+                    <dt>Ruas</dt><dd>{record.road}</dd><dt>Alat</dt><dd>{record.tool || '—'}</dd>
+                    <dt>Panjang</dt><dd>{record.lengthKm} km</dd>
+                    {!isAdmin && <><dt>Operator</dt><dd>{record.operator || '—'}</dd><dt>Cuaca</dt><dd>{record.weather}</dd></>}
+                  </dl></div>
+                  {!isAdmin && <div><strong>Pemeriksaan harian</strong><p>{completed} dari {checks.length} butir diperiksa{completed < checks.length ? ' · perlu dilengkapi' : ''}</p>
+                    <ul>{checks.map(key => <li key={key}>{record.dailyToolCheck?.[key] ? '✓' : '–'} {key}</li>)}</ul>
+                  </div>}
+                  {!isAdmin && <div><strong>Hasil & catatan</strong>
+                    <p>{record.rawValue || 'Hasil belum tersedia'}</p>
+                    {record.disturbances && <p>Gangguan: {record.disturbances}</p>}
+                    {record.eventNotes && <p>Catatan: {record.eventNotes}</p>}
+                    <details><summary>Data teknis {record.surveyType}</summary><dl>{dailyFields(record).map(field => <span className="stage3a-datum" key={field.key}><dt>{field.label.replace(' (simulasi)', '')}</dt><dd>{record.technicalData?.[field.key] || '—'}</dd></span>)}</dl></details>
+                  </div>}
+                </div>}
+              </article>;
+            })}
+          </div>}
       </div>
     </section>
   );
 }
-
 export default Stage3DailyRecordsTable;

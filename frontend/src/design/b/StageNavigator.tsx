@@ -44,7 +44,7 @@ export function StageNavigator({
           >
             <span>{item.code.replace("Tahap ", "")}</span>
             <strong>{item.selection.split(":")[1]}</strong>
-            {item.code === process && <small>Posisi saat ini</small>}
+
           </button>
         ))}
       </nav>

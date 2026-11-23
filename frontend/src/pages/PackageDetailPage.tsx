@@ -68,6 +68,7 @@ export default function PackageDetailPage({
     return (
       <div className="package-detail-page ui09-workspace">
         <OperationalWorkflowWorkspace
+          principalId={principal.id}
           key={packageId}
           selection={selection}
           state={workflow}
@@ -91,6 +92,7 @@ export default function PackageDetailPage({
           <CorrectionReadOnlyDetail workflow={workflow} />
         ) : (
           <OperationalWorkflowWorkspace
+          principalId={principal.id}
             key={packageId}
             selection={selection}
             state={workflow}
@@ -119,6 +121,12 @@ export default function PackageDetailPage({
       {selection === "/documents:Kalibrasi & personel" && (
         <ContextNotes key={`${packageId}:stage1`} context="stage1" state={workflow} principal={principal} recipient={notesRecipient} />
       )}
+      {selection === "/entry:Survei harian" && (
+        <div className="stage3a-note-toolbar">
+          <ContextNotes key={`${packageId}:stage3a`} context="stage3a" state={workflow} principal={principal} recipient={notesRecipient} />
+          <ContextNotes key={`${packageId}:stage3a-field`} context="stage3a-field" state={workflow} principal={principal} recipient={notesRecipient} />
+        </div>
+      )}
       {selection === "/verification:Audit tingkat 1–3" && (
         <ContextNotes key={packageId} state={workflow} principal={principal} recipient={notesRecipient} />
       )}
@@ -130,6 +138,7 @@ export default function PackageDetailPage({
         />
       ) : (
         <OperationalWorkflowWorkspace
+          principalId={principal.id}
           key={packageId}
           selection={selection}
           state={workflow}
