@@ -16,7 +16,7 @@ type Request = <T>(path: string, token: string, init?: RequestInit) => Promise<T
 
 const PAGE_SIZE = 50;
 const MAX_PAGES = 20;
-const CONCURRENCY = 4;
+const CONCURRENCY = 8;
 
 const rpc = <T>(request: Request, token: string, name: string, packageId: number) =>
   request<T>(`/rest/v1/rpc/${name}`, token, { method: 'POST', body: JSON.stringify({ p_paket_id: packageId }) });
