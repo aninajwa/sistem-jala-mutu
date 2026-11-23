@@ -228,8 +228,9 @@ test('submit readiness remains disabled when official server gate is inactive', 
   ]);
   assert.match(contract, /validasi_kelengkapan_resmi_aktif/);
   assert.match(sqlReference, /'syarat_submit_aktif',false/);
-  assert.match(stage, /Pengajuan rasmi dinonaktifkan kerana syarat submit server belum aktif/);
-  assert.match(stage, /!!server \|\| complete !== allItems\.length/);
+  // Server submit follows the server-computed canSubmit (contract DRAFT, checklist open, report linked).
+  assert.match(stage, /disabled=\{server \? !server\.canSubmit \|\| server\.saving :/);
+  assert.match(stage, /if \(status === 'Diajukan'\) server\.onSubmit\?\.\(\);/);
 });
 
 test('Dirah checkbox interaction cycles through Ya, Tidak, and unanswered without conflating values', () => {
@@ -244,12 +245,14 @@ test('authenticated stage keeps Dirah gate and role-card structure, with tri-sta
     readFile(new URL('../workflow/WorkflowComponents.tsx', import.meta.url), 'utf8'),
     readFile(new URL('../workflow/OperationalWorkflowWorkspace.tsx', import.meta.url), 'utf8'),
   ]);
-  for (const marker of ['Kesiapan menuju Kalibrasi & Validasi Awal', 'workflow-role-block provider', 'INPUT PENYEDIA', 'Telaah data awal', 'Rencana survei lapangan', 'Koordinasi & uji kesiapan', 'Dokumen pendahuluan', 'Pengajuan ke PIC Balai', 'Review Persiapan']) assert.ok(stage.includes(marker), `missing Dirah structure ${marker}`);
+  // Markers of the redesigned Dirah Stage 0 (step form + provider/reviewer role blocks).
+  for (const marker of ['Stage0StepForm', 'workflow-role-block provider', 'workflow-role-block reviewer', 'Telaah data awal', 'Rencana survei lapangan', 'Koordinasi & uji kesiapan', 'Dokumen pendahuluan', 'Pengajuan ke PIC Balai', 'Pemeriksaan persiapan']) assert.ok(stage.includes(marker), `missing Dirah structure ${marker}`);
   assert.match(workflowComponents, /indeterminate=item\.onAnswer!==undefined&&item\.answer==='Tidak'/);
   assert.match(workflowComponents, /data-answer=\{item\.onAnswer\?/);
   assert.match(workspace, /DraftPersistenceBoundary enabled=\{false\}/);
-  assert.match(stage, /server \? officialServerReady : complete === allItems\.length/);
-  assert.match(stage, /server \? false : complete === allItems\.length/);
+  // Server mode counts only mapped server answers and reads status from the server submission.
+  assert.match(stage, /const complete = server\s*\? server\.mappedItems\.filter\(item => server\.answers\[item\.itemId\]\?\.jawaban === 'Ya'\)\.length/);
+  assert.match(stage, /const approval: ApprovalState = server \? serverApprovalState\(serverSubmissionStatus\) : prep\.reportApproval/);
 });
 
 test('authenticated Stage 0 checkbox cycles through onChange without cancelling the browser toggle', async () => {
@@ -260,8 +263,8 @@ test('authenticated Stage 0 checkbox cycles through onChange without cancelling 
   ]);
   assert.match(component, /onChange=\{event=>item\.onAnswer\?cycle\(\):onChange\(event\.target\.checked\)\}/);
   assert.doesNotMatch(component, /onClick=\{item\.onAnswer\?event=>\{event\.preventDefault\(\)/);
-  assert.match(stage, /server \? !server\.editable \|\| server\.saving/);
-  assert.match(workspace, /inert=\{props\.serverReadOnly&&!serverStage0\}/);
+  assert.match(stage, /const canEditChecklist = server \? server\.editable && !server\.saving :/);
+  assert.match(workspace, /inert=\{props\.serverReadOnly && !serverStage0\}/);
 });
 
 test('failed checklist save rolls the optimistic answers back to the last server snapshot', async () => {

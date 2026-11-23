@@ -44,8 +44,10 @@ export function useDemoStore(activeRole: WorkflowRole, enabled = true) {
     }));
   };
 
+  const demoAllowed = (type:RecordType)=>type==='master'?activeRole==='Admin':type==='survey'?activeRole==='Penyedia Jasa / Ketua Tim':type==='finding'?activeRole==='Penyedia Jasa / Ketua Tim':false;
   const addOrEdit = (type: RecordType, form: Record<string, string>) => {
     if (!enabled) return;
+    if(!demoAllowed(type)){setNotice('Perubahan demo ditolak: bukan kewenangan peran aktif.');return;}
     const id =
       editing ||
       `${type === 'survey' ? 'SRV' : type === 'finding' ? 'TP-027' : type === 'doc' ? 'DOC' : 'REF'}-${Date.now().toString().slice(-5)}`;
@@ -124,6 +126,7 @@ export function useDemoStore(activeRole: WorkflowRole, enabled = true) {
 
   const updateStatus = (type: 'survey' | 'finding' | 'doc', id: string, status: string) => {
     if (!enabled) return;
+    if(!demoAllowed(type)){setNotice('Perubahan status ditolak: bukan kewenangan peran aktif.');return;}
     setStore(p =>
       type === 'survey'
         ? { ...p, surveys: p.surveys.map(x => (x.id === id ? { ...x, status } : x)) }
@@ -138,12 +141,14 @@ export function useDemoStore(activeRole: WorkflowRole, enabled = true) {
 
   const beginEdit = (type: RecordType, id: string) => {
     if (!enabled) return;
+    if(!demoAllowed(type)){setNotice('Form ini hanya tersedia bagi peran yang berwenang.');return;}
     setEditing(id);
     setModal(type);
   };
 
   const openNew = (type: RecordType) => {
     if (!enabled) return;
+    if(!demoAllowed(type)){setNotice('Form ini hanya tersedia bagi peran yang berwenang.');return;}
     setEditing(null);
     setModal(type);
   };

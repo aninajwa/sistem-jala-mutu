@@ -1,3 +1,5 @@
+import { packageStatus } from '../workflow/packageStore';
+
 import type { OperationalWorkflowState, WorkflowRole } from '../workflow/model';
 import { isInPeriod } from '../lib/periods';
 import { isValidReviewDate } from './reviewDateValidation';
@@ -7,7 +9,7 @@ export type DashboardPackage = OperationalWorkflowState;
 export type SurveyReviewItem = {
   packageId: string; packageName: string; surveyType: string;
   stage: 'Review berkala' | 'V&V bertahap'; decision: 'Sesuai' | 'Temuan';
-  reviewedAt: string; note: string; evidenceReferences: string[];
+  reviewedAt: string; note: string; evidenceReferences: string[]; period?: number;
 };
 export type DashboardMetrics = {
   surveyReviews: SurveyReviewItem[];
@@ -18,6 +20,13 @@ export type DashboardMetrics = {
   trend: {label:string; records:number}[];
   attention: {id:string; name:string; balai:string; open:number; pending:number}[];
 };
+
+function matchesPeriod(date: string, filter: string) {
+  if (filter === "Semua periode") return true;
+  if (filter.startsWith("Bulan ")) return date.slice(0, 7) === filter.slice(6);
+  if (/^Tahun \d{4}$/.test(filter)) return date.slice(0, 4) === filter.slice(6);
+  return isInPeriod(date, filter);
+}
 
 /** Only consume the package collection already scoped by the parent application.
  * This does not replace backend authorization or imply access to unscoped records. */
@@ -35,27 +44,28 @@ export function aggregateDashboard(packages: Record<string, DashboardPackage>, r
   for (const [id,p] of entries) {
     // Only explicit, current review decisions are counted. Never infer from survey volume,
     // historical cycles, generic package status, or an unconfirmed pending re-review.
-    const appendReviews = (stage: SurveyReviewItem['stage'], source: typeof p.cycle.surveyReviews, pending: string[] = []) => {
+    const appendReviews = (stage: SurveyReviewItem['stage'], source: typeof p.cycle.surveyReviews, pending: string[] = [], period?: number) => {
       for (const [surveyType, review] of Object.entries(source ?? {})) {
         if (!review || pending.includes(surveyType) || (review.decision !== 'Sesuai' && review.decision !== 'Temuan')) continue;
-        if (!isValidReviewDate(review.reviewedAt)) continue;
+        if (!isValidReviewDate(review.reviewedAt) || !matchesPeriod(review.reviewedAt, periodFilter)) continue;
+        if (surveyFilter !== "Semua" && surveyType !== surveyFilter) continue;
         if (!p.project.surveyTypes.includes(surveyType as typeof p.project.surveyTypes[number])) continue;
-        surveyReviews.push({packageId:id,packageName:p.project.packageName||id,surveyType,stage,decision:review.decision,reviewedAt:review.reviewedAt,note:review.note||'',evidenceReferences:traceReviewEvidence(review).references});
+        surveyReviews.push({packageId:id,packageName:p.project.packageName||id,surveyType,stage,decision:review.decision,reviewedAt:review.reviewedAt,note:review.note||'',evidenceReferences:traceReviewEvidence(review).references, ...(period === undefined ? {} : { period })});
       }
     };
-    appendReviews('Review berkala',p.cycle?.surveyReviews,p.cycle?.reviewPendingTypes);
+    if (!p.cycle?.requiresReview) appendReviews('Review berkala',p.cycle?.surveyReviews,p.cycle?.reviewPendingTypes,p.activeCyclePeriod ?? 1);
     appendReviews('V&V bertahap',p.submission?.stagedReviews);
     const open = p.corrections.filter(c=>c.status!=='Ditutup').length;
     const closed = p.corrections.length-open;
     const pending = p.corrections.filter(c=>c.status==='Menunggu Persetujuan'||c.status==='Verifikasi Ulang').length;
     const audits = p.audits.filter(a=>a && (a.status==='Dalam Review'||a.status==='Klarifikasi')).length;
     correctionsOpen+=open; correctionsClosed+=closed; awaitingReview+=pending; auditPending+=audits;
-    if (p.acceptance.finalAcceptance) accepted++;
+    if (p.acceptance.finalAcceptance && packageStatus(p) === 'Diterima') accepted++;
     const balai = p.project.balai || 'Balai belum ditentukan';
     const b=byBalai.get(balai)||{name:balai,packages:0,open:0}; b.packages++;b.open+=open;byBalai.set(balai,b);
     for (const r of p.dailyRecords) {
       if (r.state!=='Tercatat') continue;
-      if (periodFilter.startsWith('Bulan ') ? r.date.slice(0,7)!==periodFilter.slice(6) : /^Tahun \d{4}$/.test(periodFilter) ? r.date.slice(0,4)!==periodFilter.slice(6) : periodFilter !== 'Semua periode' && !isInPeriod(r.date, periodFilter)) continue;
+      if (!matchesPeriod(r.date, periodFilter)) continue;
       if (surveyFilter!=='Semua' && r.surveyType!==surveyFilter) continue;
       dailyRecords++;
       bySurvey.set(r.surveyType,(bySurvey.get(r.surveyType)||0)+1);

@@ -764,3 +764,18 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* Penyedia: a compact work queue; no analytics cards or redundant workflow banners. */
+.provider-case-queue { margin-top: 10px; }
+.provider-case-queue li { align-items: start; }
+.provider-case-content { min-width: 0; }
+.provider-case-topline { display: flex; gap: 9px; align-items: center; flex-wrap: wrap; margin-bottom: 7px; }
+.provider-case-queue .provider-case-content h3 { margin: 0 0 5px; font-size: 14px; }
+.provider-case-context { color: var(--corr-muted); }
+.provider-case-finding { max-width: 76ch; }
+.provider-case-facts { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 7px 18px; margin: 12px 0 0; }
+.provider-case-facts div { min-width: 0; }
+.provider-case-facts dt { color: var(--corr-muted); font-size: 11px; }
+.provider-case-facts dd { margin: 3px 0 0; overflow-wrap: anywhere; }
+.provider-case-action time { font-size: 12px; }
+@media(max-width: 640px) { .provider-case-facts { grid-template-columns: 1fr; } .provider-case-action { width: 100%; } }

@@ -41,6 +41,10 @@ export function documentActionErrors(state:OperationalWorkflowState,identity:BaI
  if(state.role==='Admin'||!(action==='submit'||action==='reopen'?author:reviewer))return ['Tindakan dokumen ini di luar kewenangan peran Anda.'];
  if(action==='reopen')return latest?.status==='submitted-local'?['Dokumen sedang diperiksa; tunggu keputusan pemeriksa.']:[];
  if(action==='submit'){
+  if(identity.kind==='penerimaan'){
+   const readiness=baDecisionErrors(documentReviewContext(state,identity),'penerimaan',identity.auditLevel as 1|2|3);
+   if(readiness.length)return readiness;
+  }
   if(latest?.status==='submitted-local')return ['Revisi ini sudah diajukan.'];
   if(latest?.status==='reviewed-local')return ['Buka revisi baru sebelum mengajukan kembali.'];
   return missing?['Masih ada isian template yang belum dilengkapi. Periksa bagian dokumen.']:[];
@@ -55,7 +59,10 @@ export function documentActionErrors(state:OperationalWorkflowState,identity:BaI
   const sourceInfo=range?{...state.project,periodStart:range.start,periodEnd:range.end}:state.project;
   const sourceStatus=source||identity.survey==='Lendutan'&&['internal','periodic14'].includes(phase)?sourceInspectionStatus(sourceScope,identity.survey,phase,state.productionTests.PCI.pciManual!==false,sourceInfo):undefined;
   const errors=baDecisionErrors(documentReviewContext(state,identity),identity.kind,identity.auditLevel as 1|2|3);
-  if(sourceStatus&&(!sourceStatus.complete||sourceStatus.concerns.length))errors.push('Checklist atau evaluasi sumber belum lengkap/memenuhi; periksa tahap sumber.');
+  if(sourceStatus&&(!sourceStatus.complete||sourceStatus.concerns.length)){
+   const details=[sourceStatus.reason,...sourceStatus.concerns].filter(Boolean).join(' ');
+   errors.push(`Checklist atau evaluasi sumber belum lengkap/memenuhi; periksa tahap sumber ${identity.survey}${identity.period?` periode ${identity.period}`:''}. ${details}`.trim());
+  }
   if(identity.kind==='bertahap'&&!source&&!stagedFallbackReviewReady(state,identity.survey as SurveyType))errors.push('Pemeriksaan bertahap jenis survei ini belum tercatat.');
   if(latest.sourceFingerprint!==documentFingerprint(state,identity))errors.push('Data pemeriksaan berubah setelah pengajuan; minta revisi dan ajukan ulang.');
   if(missing)errors.push('Masih ada isian template yang belum dilengkapi.');

@@ -30,3 +30,26 @@
 .source-key-values input{width:100%;min-width:0;border:1px solid #cad7e5;padding:7px;border-radius:4px}
 .source-key-values small{display:block}.source-table-section .wf-table-wrap{max-width:100%;overflow:auto}
 @media(max-width:760px){.source-key-values{grid-template-columns:1fr}.documents-area .wf-toolbar>label{max-width:100%;min-width:0}.documents-area select{max-width:100%}}
+
+/* Tahap 6: dedicated read-only oversight and administrative monitor. */
+.wf-monitoring-overview{display:grid;gap:16px;min-width:0}
+.wf-monitoring-header{padding:0 0 10px;border-bottom:1px solid #dce7e2}
+.wf-monitoring-header .wf-title{margin:6px 0 3px}
+.wf-monitoring-header>p:last-child{margin:0;color:#557086;font-size:13px}
+.wf-monitoring-overview .wf-kpis{grid-template-columns:repeat(4,minmax(0,1fr))}
+.wf-monitoring-overview .wf-kpi-value{font-size:16px;line-height:1.35;overflow-wrap:anywhere}
+.wf-monitoring-section{border:1px solid #dce7e2;border-radius:9px;padding:16px;background:#fff;min-width:0}
+.wf-monitoring-section>h3{margin:0 0 12px;font-size:15px;color:#19394a}
+.wf-monitoring-section .v2-decision-facts{margin:0 0 16px}
+@media(max-width:800px){.wf-monitoring-overview .wf-kpis{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:420px){.wf-monitoring-section{padding:12px}.wf-monitoring-overview .wf-kpi-value{font-size:14px}}
+
+/* Konteks kasus tetap terlihat ketika berpindah fase tanpa mengulang formulir. */
+.correction-case-identity { display:flex; justify-content:space-between; align-items:flex-start; gap:12px; flex-wrap:wrap; padding:14px 16px; border:1px solid var(--border, #dde4ed); border-radius:12px; background:var(--card, #fff); }
+.correction-case-identity-main { display:flex; flex-wrap:wrap; align-items:center; gap:7px 14px; min-width:0; }
+.correction-case-identity-main strong { overflow-wrap:anywhere; }
+.correction-case-id { font-weight:700; font-variant-numeric:tabular-nums; }
+.correction-case-identity-status { display:flex; flex-wrap:wrap; align-items:center; gap:8px; font-size:13px; }
+.correction-work-nav { display:flex; flex-wrap:wrap; gap:8px; }
+.correction-work-nav [aria-current="step"] { outline:2px solid currentColor; outline-offset:1px; }
+@media (max-width: 600px) { .correction-case-identity { padding:12px; } .correction-work-nav { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .correction-work-nav .wf-button { min-width:0; white-space:normal; } }

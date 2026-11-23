@@ -1,7 +1,10 @@
+import {isBalaiVervalCascade,isBalaiPeriodDecision} from './access/balaiVervalCascade';
+import {balaiDecisionError} from './balaiDecisionPolicy';
 import {correctionMutationError} from './checkpoint09Corrections';
 import type { OperationalWorkflowState } from "./model";
 import { canPerformAction, type WorkflowAction } from "./workflowPermissions";
 import { evaluateStageGate } from "./workflowGate";
+import {isOnlyCalibrationResponseUpdate,validCalibrationReviewShape,changedSuitableCalibrationSectionIsInvalid} from './calibrationReview';
 const changed = (a: unknown, b: unknown) =>
   JSON.stringify(a) !== JSON.stringify(b);
 /** Frontend safeguards only; backend must independently authorize every mutation. */
@@ -10,19 +13,23 @@ export function workflowMutationError(
   after: OperationalWorkflowState,
   selection: string,
 ): string | undefined {
+  const decisionError = balaiDecisionError(before,after);
+  if(decisionError)return decisionError;
   const role = before.role;
   const allow = (action: WorkflowAction) => canPerformAction(role, action);
   const denied = "Peran aktif tidak berwenang melakukan perubahan ini.";
   if (selection === "/audit:Peran & backup")
     return allow("administration.manage") ? undefined : denied;
   if (role === "Admin") return denied;
-  if(selection==="/actions:Koreksi berbukti"){const error=correctionMutationError(before,after);if(error)return error;}
+  if(selection==="/verification:Verval 14 hari"&&(isBalaiVervalCascade(before,after)||isBalaiPeriodDecision(before,after)))return undefined;
+  if(changed(before.corrections,after.corrections)){const error=correctionMutationError(before,after);if(error)return error;}
   // Check decisions separately from supporting-data edits and automatic invalidation.
   if (changed(before.project, after.project)) {
     const approval = after.project.preparation.reportApproval;
-    const reviewing =
-      changed(before.project.preparation.reportApproval, approval) &&
-      ["Disetujui", "Perlu Revisi", "Ditolak"].includes(approval);
+    const noteOnly = before.project.preparation.reviewerNote !== after.project.preparation.reviewerNote &&
+      JSON.stringify({...before.project,preparation:{...before.project.preparation,reviewerNote:after.project.preparation.reviewerNote}}) === JSON.stringify(after.project);
+    const reviewing = noteOnly || (changed(before.project.preparation.reportApproval, approval) &&
+      ["Disetujui", "Perlu Revisi", "Ditolak"].includes(approval));
     if (
       !allow(
         reviewing
@@ -39,8 +46,32 @@ export function workflowMutationError(
     changed(before.calibrationChecklist, after.calibrationChecklist)
   )
     if (!allow("calibration.edit")) return denied;
+  if (changed(before.calibrationReviews, after.calibrationReviews)) {
+    const isProviderInvalidation = allow('calibration.edit') && (changed(before.calibrations,after.calibrations) || changed(before.calibrationChecklist,after.calibrationChecklist)) &&
+      Object.keys(after.calibrationReviews ?? {}).every(type =>
+        JSON.stringify((after.calibrationReviews ?? {})[type as import('./model').SurveyType]) ===
+        JSON.stringify((before.calibrationReviews ?? {})[type as import('./model').SurveyType]) ||
+        (after.calibrationReviews ?? {})[type as import('./model').SurveyType] === undefined
+      );
+    const isProviderResponse = allow('calibration.edit') && isOnlyCalibrationResponseUpdate(before,after);
+    if (!isProviderInvalidation && !isProviderResponse && !allow('calibration.review')) return denied;
+    if (!validCalibrationReviewShape(after)) return 'Isi hasil pemeriksaan belum lengkap atau tidak sah.';
+    if (allow('calibration.review')) {
+      if (changedSuitableCalibrationSectionIsInvalid(before,after))return 'Bukti pada bagian ini belum memenuhi syarat untuk hasil Sesuai.';
+      if (changed(before.calibrations, after.calibrations) || changed(before.calibrationChecklist, after.calibrationChecklist)) return denied;
+      for (const [type, entry] of Object.entries(after.calibrationReviews ?? {})) {
+        if (!before.project.surveyTypes.includes(type as import('./model').SurveyType)) return 'Jenis survei pemeriksaan di luar lingkup paket.';
+        if (entry && (!entry.note.trim() || (entry.result === 'Ada ketidaksesuaian' && !entry.evidenceReference.trim())))
+          return 'Catatan dan bukti temuan wajib dilengkapi.';
+      }
+    }
+  }
   if (changed(before.productionTests, after.productionTests))
     if (!allow("production.edit")) return denied;
+  if (changed(before.productionApprovalNote,after.productionApprovalNote) &&
+      after.productionApproval !== 'Diajukan' && !allow('production.review')) return denied;
+  if (changed(before.productionApproval,after.productionApproval) &&
+      ['Perlu Revisi','Ditolak'].includes(after.productionApproval) && !allow('production.review')) return denied;
   if (
     after.productionApproval === "Disetujui" &&
     before.productionApproval !== "Disetujui"
@@ -110,8 +141,18 @@ export function workflowMutationError(
     if (!evaluateStageGate(before, "Tahap 2").readyToComplete)
       return "Persetujuan produksi belum tercatat.";
   }
-  if (selection === "/entry:Gerbang RNI/LRS" && !allow("submission.prepare"))
-    return denied;
+  if (selection === '/entry:Gerbang RNI/LRS') {
+    const {stagedReviews:oldReviews,...oldInput}=before.submission;
+    const {stagedReviews:newReviews,...newInput}=after.submission;
+    const reviewsChanged=changed(oldReviews,newReviews);
+    if(reviewsChanged&&!allow('submission.review'))return denied;
+    if(changed(oldInput,newInput)&&!allow('submission.prepare'))return denied;
+    if(!reviewsChanged&&!changed(oldInput,newInput)&&!allow('submission.prepare'))return denied;
+    if(reviewsChanged)for(const [type,review] of Object.entries(newReviews??{})){
+      if(!before.project.surveyTypes.includes(type as import('./model').SurveyType))return 'Jenis survei review berada di luar lingkup paket.';
+      if(review?.decision==='Temuan'&&oldReviews?.[type as import('./model').SurveyType]?.decision!=='Temuan'&&!review.note.trim())return 'Uraian temuan V&V bertahap wajib diisi.';
+    }
+  }
   if (selection === "/verification:Audit tingkat 1–3") {
     for (let i = 0; i < 3; i++) {
       if (!changed(before.audits[i], after.audits[i])) continue;
@@ -144,6 +185,8 @@ export function workflowMutationError(
       "acceptanceCriteria",
       "acceptanceDecision",
       "finalAcceptanceBa",
+      "acceptanceRejectionReason",
+      "acceptanceReviewNote",
     ];
     const review = reviewKeys.some((key) =>
       changed(

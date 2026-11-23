@@ -7,7 +7,7 @@ import { PACKAGE_WORKFLOW_ITEMS } from '../workflow/roleNavigation';
 test('Dirah screen registry covers every package stage route', async () => {
   const source = await readFile(new URL('../workflow/OperationalWorkflowWorkspace.tsx', import.meta.url), 'utf8');
   for (const item of PACKAGE_WORKFLOW_ITEMS) assert.ok(source.includes(`"${item.selection}"`), `missing Dirah screen mapping for ${item.selection}`);
-  for (const component of ['Stage0PreparationWorkspace','Stage1CalibrationWorkspace','Stage2ProductionWorkspace','LocalStage3DailyWorkspace','Stage3PeriodicWorkspace','Stage4DataPreparationWorkspace','Stage5AuditWorkspace','Stage6AcceptanceWorkspace']) {
+  for (const component of ['Stage0PreparationWorkspace','Stage1CalibrationWorkspace','Stage2ProductionWorkspace','Stage3DailyWorkspace','Stage3PeriodicWorkspace','Stage4DataPreparationWorkspace','Stage5AuditWorkspace','Stage6AcceptanceWorkspace']) {
     assert.ok(source.includes(component), `missing original Dirah component ${component}`);
   }
 });
@@ -60,7 +60,8 @@ test('authenticated server package workspace renders Dirah stage presentation re
   assert.match(source, /<OperationalWorkflowWorkspace[\s\S]*?serverReadOnly/);
   assert.match(source, /serverPreparation=\{selection === PREPARATION \?/);
   assert.match(source, /mapPreparationChecklist\(checklist\.items\)/);
-  assert.match(stage, /<GateSummary[\s\S]*?Kesiapan menuju Kalibrasi & Validasi Awal/);
+  assert.match(stage, /<Stage0StepForm locked=\{!canEditChecklist\}/);
+  assert.match(stage, /triStateForSection\('Telaah data awal'\)/);
   assert.match(stage, /workflow-role-block provider/);
   assert.match(stage, /workflow-role-block reviewer/);
   assert.match(stage, /renderChecklist\([\s\S]*?PREPARATION_SOURCE_REVIEWS/);
@@ -74,9 +75,9 @@ test('authenticated server package workspace renders Dirah stage presentation re
 test('read-only Dirah stages suppress local draft persistence and stage action controls', async () => {
   const source = await readFile(new URL('../workflow/OperationalWorkflowWorkspace.tsx', import.meta.url), 'utf8');
   assert.match(source, /DraftPersistenceBoundary enabled=\{false\}/);
-  assert.match(source, /inert=\{props\.serverReadOnly&&!serverStage0\}/);
+  assert.match(source, /inert=\{props\.serverReadOnly && !serverStage0\}/);
   assert.match(source, /props\.serverReadOnly && props\.serverPreparation/);
-  assert.match(source, /!props\.serverReadOnly&&/);
+  assert.match(source, /!props\.serverReadOnly && props\.selection !== "\/entry:Survei harian"/);
   assert.equal(serverPackageStage(SERVER_STAGE3B), 'stage3b-readonly');
 });
 

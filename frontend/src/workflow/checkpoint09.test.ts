@@ -30,7 +30,7 @@ test('09 penutupan tidak boleh melewati uji, mengubah bukti, atau menghapus kasu
  assert.ok(mutate(roles[0],{status:'Ditutup'},{owner:'diganti'}));
 });
 test('09 usulan perlu penanggung jawab, bukti, dan verifikasi internal; Admin tidak menulis',()=>{
- const old={status:'Terbuka' as const,approval:'Draft' as const,rootCause:'Metode',evidence:'REF',owner:'Ketua Tim',fieldDataValid:'Tidak' as const,actionType:'Survei ulang sebagian ruas',verification:{surveyor:true,teamLeader:true,balai:false}};
+ const old={status:'Terbuka' as const,approval:'Draft' as const,rootCause:'Metode',evidence:'REF',owner:'Ketua Tim',fieldDataValid:'Tidak' as const,actionType:'Survei ulang sebagian ruas',proposedPlan:'Lakukan survei ulang dengan pembuktian sesuai temuan.',verification:{surveyor:true,teamLeader:true,balai:false}};
  assert.equal(mutate(roles[0],old,{status:'Menunggu Persetujuan',approval:'Diajukan'}),undefined);
  assert.ok(mutate(roles[0],{...old,owner:''},{status:'Menunggu Persetujuan',approval:'Diajukan'}));
  assert.ok(mutate(roles[3],old,{owner:'Admin'}));assert.equal(mutate(roles[0],{...old,status:'Verifikasi Ulang',retest:'Gagal'},{status:'Terbuka',approval:'Draft',owner:'PIC revisi'}),undefined);

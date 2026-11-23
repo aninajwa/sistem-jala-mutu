@@ -12,3 +12,9 @@ export function filterReport(rows:ReportRow[],f:ReportFilter):ReportRow[]{
 export function summarizeReport(rows:ReportRow[]) {
  return {records:rows.length,packages:new Set(rows.map(r=>r.packageId)).size,undated:rows.filter(r=>!r.date).length,statuses:[...new Set(rows.map(r=>r.status))].sort().map(status=>({status,count:rows.filter(r=>r.status===status).length}))};
 }
+
+/** Shared by the on-screen recap and the export so both use the same scope. */
+export function matchesReportSearch(row: object, search: string) {
+  const term = search.trim().toLocaleLowerCase("id-ID");
+  return Object.values(row).join(" ").toLocaleLowerCase("id-ID").includes(term);
+}

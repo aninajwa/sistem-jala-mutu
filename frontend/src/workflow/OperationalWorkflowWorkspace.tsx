@@ -1,13 +1,15 @@
-import {StageChecklistIndex} from './Checkpoint09Package';
-import './checkpoint09.css';
-import {StageActionContext} from './StageActionContext';
+import { PACKAGE_WORKFLOW_ITEMS } from "./roleNavigation";
+import { StageScene } from "../design/b/StageScene";
+import { StageChecklistIndex } from "./Checkpoint09Package";
+import "./checkpoint09.css";
+import { StageActionContext } from "./StageActionContext";
 import type { ComponentType } from "react";
 import "./workflow.css";
 import type { WorkflowStageProps } from "./stages/stageSupport";
 import { Stage0PreparationWorkspace } from "./stages/Stage0PreparationWorkspace";
 import { Stage1CalibrationWorkspace } from "./stages/Stage1CalibrationWorkspace";
 import { Stage2ProductionWorkspace } from "./stages/Stage2ProductionWorkspace";
-import { LocalStage3DailyWorkspace } from "./stages/Stage3DailyWorkspace";
+import { Stage3DailyWorkspace } from "./stages/Stage3DailyWorkspace";
 import { Stage3PeriodicWorkspace } from "./stages/Stage3PeriodicWorkspace";
 import { Stage4DataPreparationWorkspace } from "./stages/Stage4DataPreparationWorkspace";
 import { Stage5AuditWorkspace } from "./stages/Stage5AuditWorkspace";
@@ -25,7 +27,7 @@ const screens: Record<string, ComponentType<WorkflowStageProps>> = {
   "/entry:Persiapan & SPMK": Stage0PreparationWorkspace,
   "/documents:Kalibrasi & personel": Stage1CalibrationWorkspace,
   "/entry:Validasi produksi": Stage2ProductionWorkspace,
-  "/entry:Survei harian": LocalStage3DailyWorkspace,
+  "/entry:Survei harian": Stage3DailyWorkspace,
   "/verification:Verval 14 hari": Stage3PeriodicWorkspace,
   "/entry:Gerbang RNI/LRS": Stage4DataPreparationWorkspace,
   "/verification:Audit tingkat 1–3": Stage5AuditWorkspace,
@@ -64,18 +66,32 @@ export function OperationalWorkflowWorkspace(
   if (!Screen) return null;
   const serverStage0 = props.serverReadOnly && props.serverPreparation && props.selection === "/entry:Persiapan & SPMK";
   const unavailableStage = props.serverReadOnly && (props.selection === "/verification:Audit tingkat 1–3" || props.selection === "/reports:Penerimaan & termin");
-  const screen=<div className="wf" data-testid="operational-workflow-workspace">
-    {!props.serverReadOnly&&<>
-      <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate}/>
-      <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection}/>
-    </>}
-    {props.serverReadOnly&&!serverStage0&&<p className="wf-note" role="status">{unavailableStage?'Pratinjau saja — fungsi tahap ini belum tersedia melalui server. Kontrol di bawah dinonaktifkan.':props.serverStatusNote||'Status tahap ini belum tersedia dari server.'}</p>}
-    <div inert={props.serverReadOnly&&!serverStage0} aria-disabled={props.serverReadOnly&&!serverStage0||undefined} data-testid={props.serverReadOnly?'server-readonly-dirah-stage':undefined}>
-      {unavailableStage
-        ? <fieldset className="ui09-disabled-preview" disabled><Screen key={`${props.state.project.id}:${props.selection}`} {...props} /></fieldset>
-        : <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />}
+  const stageCode = PACKAGE_WORKFLOW_ITEMS.find((item) => item.selection === props.selection)?.code;
+  const stageScreen = (
+    <StageScene key={`${props.state.project.id}:${props.selection}`} role={props.state.role} stage={stageCode}>
+      <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />
+    </StageScene>
+  );
+  const screen = (
+    <div className="wf" data-testid="operational-workflow-workspace">
+      {!props.serverReadOnly && props.selection !== "/entry:Survei harian" && (
+        <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate} />
+      )}
+      {!props.serverReadOnly && !(["/entry:Persiapan & SPMK", "/documents:Kalibrasi & personel", "/entry:Survei harian"].includes(props.selection)) && (
+        <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection} />
+      )}
+      {props.serverReadOnly && !serverStage0 && (
+        <p className="wf-note" role="status">
+          {unavailableStage
+            ? "Pratinjau saja — fungsi tahap ini belum tersedia melalui server. Kontrol di bawah dinonaktifkan."
+            : props.serverStatusNote || "Status tahap ini belum tersedia dari server."}
+        </p>
+      )}
+      <div inert={props.serverReadOnly && !serverStage0} aria-disabled={(props.serverReadOnly && !serverStage0) || undefined} data-testid={props.serverReadOnly ? "server-readonly-dirah-stage" : undefined}>
+        {unavailableStage ? <fieldset className="ui09-disabled-preview" disabled>{stageScreen}</fieldset> : stageScreen}
+      </div>
     </div>
-  </div>;
+  );
   return props.serverReadOnly
     ? <DraftPersistenceBoundary enabled={false}>{screen}</DraftPersistenceBoundary>
     : screen;

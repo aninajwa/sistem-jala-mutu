@@ -35,3 +35,11 @@ function parseCsv(content:string){const rows:string[][]=[];let row:string[]=[],c
 test('CSV actual bytes roundtrip and same filters as display',()=>{const data={A:pkg(),B:pkg('B')};const file=createReportCsv(data,principal(),'activities',{...EMPTY_FILTER,status:'Tercatat'});const parsed=parseCsv(file.content);const body=parsed.slice(parsed.findIndex(r=>r[0]==='ID Paket')+1);assert.equal(body.length,1);assert.equal(body[0][1],data.A.project.packageName);assert.equal(body[0][0],'A');assert.equal(body[0][4],'2026-11-01');assert.equal(body[0][6],'Tercatat');assert.ok(parsed.some(r=>r.join(' ').includes('belum terhubung API')));assert.ok(file.filename.endsWith('.csv'));});
 test('CSV neutralizes spreadsheet formulas',()=>{for(const v of ['=cmd()', '+SUM(A1)', '-1+2','@foo',' \t=HYPERLINK("x")'])assert.ok(csvCell(v).startsWith('"\''));});
 test('all report kinds share display/export population and context',()=>{for(const kind of ['activities','reviews','corrections'] as const){const data={A:pkg()},p=principal();const rows=readLocalReports(data,p).rows[kind];for(const status of new Set(rows.map(r=>r.status))){const filter={...EMPTY_FILTER,status};const file=createReportCsv(data,p,kind,filter);const parsed=parseCsv(file.content);const body=parsed.slice(parsed.findIndex(r=>r[0]==='ID Paket')+1);assert.equal(body.length,filterReport(rows,filter).length);assert.ok(body.every(r=>r[6]===status));assert.ok(body.every(r=>r[5]===rows.find(s=>s.status===status)!.dateBasis));}}});
+
+test("CSV respects the case-insensitive search shown in the recap", () => {
+  const file = createReportCsv({ A: pkg() }, principal(), "activities", EMPTY_FILTER, "  rUaS 2 ");
+  assert.equal(file.count, 1);
+  assert.match(file.content, /Ruas 2/);
+  assert.doesNotMatch(file.content, /Ruas 1/);
+  assert.throws(() => createReportCsv({ A: pkg() }, principal(), "activities", EMPTY_FILTER, "Tidak ada"));
+});

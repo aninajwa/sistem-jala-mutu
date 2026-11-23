@@ -1,34 +1,572 @@
-import {chromium} from 'playwright';import {createServer} from 'vite';import {fileURLToPath} from 'node:url';import fs from 'node:fs';import assert from 'node:assert/strict';import {createDemoWorkflow} from '../src/workflow/demoScenario';import {PACKAGE_STORE_KEY} from '../src/workflow/packageStore';import {evaluateStageGate} from '../src/workflow/workflowGate';
-const output=process.env.TEST_ARTIFACTS||'test-artifacts/blank-journey';fs.mkdirSync(output,{recursive:true});const state=createDemoWorkflow('start');state.project.id='PAKET-DEMO-001';state.project.surveyTypes=['RNI'];state.project.surveyStartDate='2027-05-01';state.project.surveyEndDate='2027-05-28';
-for(const test of Object.values(state.productionTests)){for(const [key,value] of Object.entries(test))if(typeof value==='number'||typeof value==='boolean')(test as any)[key]=typeof value==='number'?0:false;test.referenceChecks={};test.productionDetails={};test.evidenceReference='';test.sourceMode='Pencatatan manual';}state.productionTests.PCI.pciManual=true;
-state.cycle={...state.cycle,lastCompletedDate:'',selectedTypes:['RNI'],checkedProtocols:{},iriCoefficientVariation:null,pciAiStandardDeviation:null,reRatingStatus:'Belum Diperiksa',consistency:'Belum Diperiksa',bridgeFieldValidation:false,finalPeriodValidation:false,certificateId:'',userReview:'Belum Diperiksa',surveyReviews:{},periodCompleted:false};state.submission={...state.submission,coordinatesBoundToLrs:false,formatGlossaryCompliant:false,stationingConsistent:false,rawSeparated:false,cleanedSeparated:false,rniValidatedDate:'',requiredDocuments:{},internalAudit:{},rawFileName:'',cleanedFileName:'',validationStatus:'Draft'};state.acceptance={...state.acceptance,terms:state.acceptance.terms.map(term=>({...term,complete:false,progress:0,note:''})),acceptanceCriteria:{},partialReceipts:[],acceptanceDecision:'Belum Diperiksa',finalAcceptance:false,finalAcceptanceBa:'',finalReport:false,semesterTwoRevalidation:false};assert.equal(state.calibrations.length,0);assert.equal(state.dailyRecords.length,0);
-const server=await createServer({configFile:fileURLToPath(new URL('../vite.config.ts',import.meta.url)),server:{host:'127.0.0.1',port:5174,strictPort:true}});await server.listen();const executablePath=process.env.CHROMIUM_EXECUTABLE;const browser=await chromium.launch({...(executablePath?{executablePath}:{}),headless:true,args:executablePath?['--no-sandbox','--disable-dev-shm-usage','--use-gl=angle','--use-angle=swiftshader','--enable-unsafe-swiftshader','--no-zygote']:[]});const context=await browser.newContext({viewport:{width:1440,height:1000}});await context.addInitScript(({key,state})=>{if(location.origin!=='http://127.0.0.1:5174'||sessionStorage.getItem('initialized'))return;sessionStorage.setItem('initialized','yes');localStorage.setItem(key,JSON.stringify({activePackageId:state.project.id,activeRole:state.role,packages:{[state.project.id]:state}}));localStorage.setItem('jala-mutu-demo-session-v1','active');},{key:PACKAGE_STORE_KEY,state});const page=await context.newPage(),steps:any[]=[];let complete=false;
-const url=(s:string)=>'http://127.0.0.1:5174'+s.split(':')[0]+'?testRoles=1&submodule='+encodeURIComponent(s);async function snapshot(){return page.evaluate(key=>JSON.parse(localStorage.getItem(key)!).packages['PAKET-DEMO-001'],PACKAGE_STORE_KEY);}async function actor(role:string){await page.evaluate(({key,role})=>{const store=JSON.parse(localStorage.getItem(key)!);store.activeRole=role;store.packages['PAKET-DEMO-001'].role=role;localStorage.setItem(key,JSON.stringify(store));},{key:PACKAGE_STORE_KEY,role});await page.reload();}function field(label:string){return page.getByLabel(new RegExp('^'+label.replace(/[.*+?^${}()|[\]\\]/g,'\\$&')+'(?:$|\\s)')).or(page.locator('.wf-field').filter({has:page.locator('label').filter({hasText:new RegExp('^'+label+'$')})}).locator('input,select,textarea')).first();}async function record(stage:string){const current=await snapshot();steps.push({stage,events:current.events.length,gate:evaluateStageGate(current,stage as any)});await page.screenshot({path:output+'/'+stage.replaceAll(' ','-')+'.png'});}
-try{
-await page.goto(url('/entry:Persiapan & SPMK'));for(const input of await page.locator('.wf-check input[type=checkbox]:enabled').all())await input.check();await page.getByTestId('button-prep-submit').click();assert.equal((await snapshot()).project.preparation.reportApproval,'Diajukan');await actor('PIC Balai / Pengguna Jasa');await page.getByTestId('input-prep-review-note').fill('Perbaiki referensi uji');await page.getByTestId('button-prep-revise').click();await actor('Penyedia Jasa / Ketua Tim');await page.getByTestId('button-prep-submit').click();await actor('PIC Balai / Pengguna Jasa');await page.getByTestId('button-prep-approve').click();await record('Tahap 0');
-await actor('Penyedia Jasa / Ketua Tim');await page.goto(url('/documents:Kalibrasi & personel'));await page.getByTestId('button-open-calibration-form').click();for(const [label,value] of [['Nomor seri','RNI-UJI-001'],['Tahun alat','2027'],['PIC / personel','Personel uji terisolasi'],['Kalibrasi terakhir','2027-05-01'],['Berlaku sampai','2027-12-31'],['Metode / standar kalibrasi','Prosedur uji RNI'],['Nomor / referensi sertifikat','SERT-UJI-001']])await field(label).fill(value);await page.getByLabel('Kualifikasi personel tercatat',{exact:true}).check();await page.getByLabel('Pelatihan / kompetensi tercatat',{exact:true}).check();await page.getByTestId('button-save-calibration').click();const form=page.locator('.source-exact-checklist');for(const section of await form.locator('.structured-checklist-section').all())if(await section.getAttribute('open')===null)await section.locator(':scope > summary').click();for(const group of await form.locator('fieldset').all())await group.locator('input[type=radio],input[type=checkbox]').first().check();await page.getByTestId('button-save-source-calibration').click();await record('Tahap 1');await page.goto(url('/entry:Validasi produksi'));
-const productionPanel=page.locator('section.wf-panel').filter({has:page.getByRole('heading',{name:'Data Uji Coba RNI',exact:true})});await productionPanel.getByLabel('Panjang uji (km)',{exact:true}).fill('5');
-for(const label of ['Ruas','STA awal','STA akhir','Link description','LRP / referensi lokasi','Inventori penampang melintang','Atribut inventori','Referensi GPS/GNSS','RAW GPS / data inventori'])await productionPanel.getByLabel(label,{exact:true}).fill(label==='STA akhir'?'STA 5+000':label==='STA awal'?'STA 0+000':'Data uji RNI terisolasi');
-for(const input of await productionPanel.locator('input[type=checkbox]:enabled').all())await input.check();await page.getByLabel(/^Referensi hasil uji/).fill('REF-UJI-RNI-001');await field('Alasan pencatatan manual').fill('Integrasi belum tersedia, data pengujian dicatat manual');await page.getByTestId('button-production-submit-review').click();assert.equal((await snapshot()).productionApproval,'Diajukan');await actor('PIC Balai / Pengguna Jasa');await page.getByTestId('input-production-approval-ba').fill('BA-UJI-METODE-RNI-001');await page.getByTestId('button-production-approve-method').click();assert.equal((await snapshot()).productionApproval,'Disetujui');await record('Tahap 2');
-await actor('Penyedia Jasa / Ketua Tim');await page.goto(url('/entry:Survei harian'));await page.getByRole('button',{name:'Catat atau lengkapi kegiatan',exact:true}).click();
-for(const [recordIndex,date] of Array.from({length:20},(_,index)=>index<10?'2027-05-01':'2027-05-15').entries()){
-await page.getByTestId('input-daily-date').fill(date);await page.getByTestId('input-daily-time').fill('08:00');await page.getByTestId('input-daily-length').fill('0.25');await page.getByTestId('input-daily-lane').fill('L1');await page.getByTestId('input-daily-operator').fill('Operator uji');await page.getByTestId('input-daily-driver').fill('Pengemudi uji');await page.getByTestId('input-daily-raw').fill('RAW-RNI-UJI-'+date);
-for(const [key,value] of Object.entries({assetId:'RNI-'+date+'-'+recordIndex,longitude:'98.6',latitude:'3.5',evidence:'REF-RNI-UJI',fromSta:String(recordIndex*25),toSta:String((recordIndex+1)*25),laneCode:'L1',surfaceType:'ASPAL',surfaceYear:'2026',laneWidth:'3.5',surfaceWidth:'7',inventoryForm:'FORM-RNI-UJI-42'}))await page.getByTestId('input-daily-technical-'+key).fill(value);
-for(const input of await page.locator('.wf-stage3a-stack .wf-check input[type=checkbox]:enabled').all())await input.check();await page.getByTestId('button-daily-save').click();}
-assert.equal((await snapshot()).dailyRecords.length,20);await page.reload();assert.equal((await snapshot()).dailyRecords.length,20);await record('Tahap 3A');
-await page.goto(url('/verification:Verval 14 hari'));
-async function fillPeriodForm(activity:string){await page.getByRole('tab',{name:activity,exact:true}).click();const form=page.locator('.source-exact-checklist');for(const section of await form.locator('.structured-checklist-section').all())if(await section.getAttribute('open')===null)await section.locator(':scope > summary').click();for(const group of await form.locator('fieldset').all()){if(await group.locator('input[type=radio]:enabled').count())await group.locator('input[type=radio]').first().check();else for(const input of await group.locator('input[type=checkbox]:enabled').all())await input.check();}}
-for(const period of ['1','2']){await actor('Penyedia Jasa / Ketua Tim');await page.getByLabel('Periode pemeriksaan',{exact:true}).selectOption(period);await fillPeriodForm('Konsistensi');await fillPeriodForm('V&V Internal');for(const input of await page.locator('.wf-check input[type=checkbox]:enabled').all())await input.check();await page.getByTestId('select-cycle-rerating').selectOption('Sesuai');await actor('PIC Balai / Pengguna Jasa');await fillPeriodForm('V&V Bersama / 2-Mingguan');await page.getByTestId('input-cycle-user-review-note').fill('Hasil uji RNI periode '+period+' diperiksa');await page.getByTestId('select-cycle-user-review').selectOption('Sesuai');await page.getByTestId('check-cycle-final-period-validation').check();await page.getByTestId('input-cycle-final-location').fill('Lokasi uji RNI awal');await page.getByTestId('check-cycle-tool-unchanged').check();await page.getByTestId('input-cycle-ba').fill('BA-UJI-RNI-P'+period);await page.getByTestId('button-cycle-complete').click();assert.equal((await snapshot()).cycle.certificateId,'BA-UJI-RNI-P'+period);}
-await page.reload();assert.equal((await snapshot()).cycleHistory['1'].certificateId,'BA-UJI-RNI-P1');await record('Tahap 3B');
-await actor('Penyedia Jasa / Ketua Tim');await page.goto(url('/entry:Gerbang RNI/LRS'));
-for(const input of await page.locator('.wf-check input[type=checkbox]:enabled').all()){if(await input.getAttribute('data-testid')!=='check-submission-route-changed')await input.check();}
-await page.getByTestId('input-submission-deviation').fill('0');await page.getByTestId('select-submission-geometry').selectOption('SHP');await page.getByTestId('input-submission-topology').fill('0');await page.getByTestId('input-submission-rni-date').fill('2027-05-20');await page.getByTestId('input-submission-raw-file').fill('RAW-RNI-UJI');await page.getByTestId('input-submission-clean-file').fill('CLEAN-RNI-UJI');await page.getByTestId('input-submission-video').fill('VIDEO-RNI-UJI');
-await page.getByTestId('button-go-audit-one').click();
-async function fillSourceQuestions(){const form=page.locator('.source-exact-checklist');for(const details of await page.locator('.role-work-details').all())if(await details.getAttribute('open')===null)await details.locator(':scope > summary').click();for(const section of await form.locator('.structured-checklist-section').all())if(await section.getAttribute('open')===null)await section.locator(':scope > summary').click();for(const group of await form.locator('fieldset').all()){if(await group.locator('input[type=radio]:enabled').count())await group.locator('input[type=radio]').first().check();else for(const input of await group.locator('input[type=checkbox]:enabled').all())await input.check();}}
-async function audit(level:number,role:string){await actor(role);await page.goto(url('/verification:Audit tingkat 1–3'));await page.getByTestId('button-audit-level-'+level).click();await page.getByTestId('button-create-samples-'+level).click();await fillSourceQuestions();for(const input of await page.locator('.wf-check input[type=checkbox]:enabled').all())await input.check();await page.getByTestId('input-audit-note-'+level).fill('Pemeriksaan data RNI uji terisolasi selesai');await page.getByTestId('input-audit-ba-'+level).fill('BA-UJI-AUDIT-'+level);await page.getByTestId('button-save-audit-'+level).click();await page.getByTestId('select-audit-status-'+level).selectOption('Lulus');assert.equal((await snapshot()).audits[level-1].status,'Lulus');}
-await audit(1,'Penyedia Jasa / Ketua Tim');await actor('PIC Balai / Pengguna Jasa');await page.goto(url('/entry:Gerbang RNI/LRS'));await fillSourceQuestions();await actor('Penyedia Jasa / Ketua Tim');await page.goto(url('/entry:Gerbang RNI/LRS'));await page.getByTestId('button-submission-validate').click();assert.equal((await snapshot()).submission.validationStatus,'VALID');await record('Tahap 4');await audit(2,'PIC Balai / Pengguna Jasa');await audit(3,'Direktorat / Pusat');await record('Tahap 5');
-await actor('PIC Balai / Pengguna Jasa');await page.goto(url('/reports:Penerimaan & termin'));
-for(const id of ['T1','T2','T3']){await actor('PIC Balai / Pengguna Jasa');await page.getByLabel('BA penerimaan '+id,{exact:true}).check();await actor('Penyedia Jasa / Ketua Tim');await page.getByTestId('input-term-progress-'+id).fill('100');await page.getByTestId('button-save-term-'+id).click();assert.equal((await snapshot()).acceptance.terms.find((term:any)=>term.id===id).complete,true);}
-await page.getByTestId('input-semester-two-finalReportReference').fill('LAPORAN-AKHIR-UJI-RNI');await page.getByTestId('check-acceptance-final-report').check();await actor('PIC Balai / Pengguna Jasa');await page.getByLabel('BA penerimaan T4',{exact:true}).check();await actor('Penyedia Jasa / Ketua Tim');await page.getByTestId('input-term-progress-T4').fill('100');await page.getByTestId('button-save-term-T4').click();await actor('PIC Balai / Pengguna Jasa');for(const input of await page.locator('input[type=checkbox]:enabled').all())await input.check();await page.getByTestId('select-acceptance-decision').selectOption('Diterima');await page.getByTestId('input-final-acceptance-ba').fill('BA-PENERIMAAN-UJI-RNI');await page.getByTestId('button-final-acceptance').click();await page.reload();assert.equal((await snapshot()).acceptance.finalAcceptance,true);await record('Tahap 6');complete=true;
-
-}catch(error){fs.writeFileSync(output+'/journey-error.txt',String(error));fs.writeFileSync(output+'/journey-state.json',JSON.stringify(await snapshot(),null,2));fs.writeFileSync(output+'/journey-dom.txt',await page.locator('body').innerText());fs.writeFileSync(output+'/journey-storage.json',JSON.stringify(await page.evaluate(()=>Object.fromEntries(Object.entries(localStorage))),null,2));await page.screenshot({path:output+'/journey-error.png',fullPage:true});throw error;}finally{fs.writeFileSync(output+'/journey-progress.json',JSON.stringify({startedFromBlank:true,completeJourneyFromBlank:complete,steps},null,2));await browser.close();await server.close();}
+import { openFilterPanels } from "./filterInteractions";
+import {
+  fillSourceForm,
+  fillPreparationChecklist,
+} from "./sourceFormInteractions";
+import { chromium } from "playwright";
+import { createServer } from "vite";
+import { fileURLToPath } from "node:url";
+import fs from "node:fs";
+import assert from "node:assert/strict";
+import { createDemoWorkflow } from "../src/workflow/demoScenario";
+import { PACKAGE_STORE_KEY } from "../src/workflow/packageStore";
+import { evaluateStageGate } from "../src/workflow/workflowGate";
+const output = process.env.TEST_ARTIFACTS || "test-artifacts/blank-journey";
+fs.mkdirSync(output, { recursive: true });
+const state = createDemoWorkflow("start");
+state.project.id = "PAKET-DEMO-001";
+state.project.surveyTypes = ["RNI"];
+state.project.surveyStartDate = "2027-05-01";
+state.project.surveyEndDate = "2027-05-28";
+for (const test of Object.values(state.productionTests)) {
+  for (const [key, value] of Object.entries(test))
+    if (typeof value === "number" || typeof value === "boolean")
+      (test as any)[key] = typeof value === "number" ? 0 : false;
+  test.referenceChecks = {};
+  test.productionDetails = {};
+  test.evidenceReference = "";
+  test.sourceMode = "Pencatatan manual";
+}
+state.productionTests.PCI.pciManual = true;
+state.cycle = {
+  ...state.cycle,
+  lastCompletedDate: "",
+  selectedTypes: ["RNI"],
+  checkedProtocols: {},
+  iriCoefficientVariation: null,
+  pciAiStandardDeviation: null,
+  reRatingStatus: "Belum Diperiksa",
+  consistency: "Belum Diperiksa",
+  bridgeFieldValidation: false,
+  finalPeriodValidation: false,
+  certificateId: "",
+  userReview: "Belum Diperiksa",
+  surveyReviews: {},
+  periodCompleted: false,
+};
+state.submission = {
+  ...state.submission,
+  coordinatesBoundToLrs: false,
+  formatGlossaryCompliant: false,
+  stationingConsistent: false,
+  rawSeparated: false,
+  cleanedSeparated: false,
+  rniValidatedDate: "",
+  requiredDocuments: {},
+  internalAudit: {},
+  rawFileName: "",
+  cleanedFileName: "",
+  validationStatus: "Draft",
+};
+state.acceptance = {
+  ...state.acceptance,
+  terms: state.acceptance.terms.map((term) => ({
+    ...term,
+    complete: false,
+    progress: 0,
+    note: "",
+  })),
+  acceptanceCriteria: {},
+  partialReceipts: [],
+  acceptanceDecision: "Belum Diperiksa",
+  finalAcceptance: false,
+  finalAcceptanceBa: "",
+  finalReport: false,
+  semesterTwoRevalidation: false,
+};
+assert.equal(state.calibrations.length, 0);
+assert.equal(state.dailyRecords.length, 0);
+const server = await createServer({
+  configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
+  server: { host: "127.0.0.1", port: 5174, strictPort: true },
+});
+await server.listen();
+const executablePath = process.env.CHROMIUM_EXECUTABLE;
+const browser = await chromium.launch({
+  ...(executablePath ? { executablePath } : {}),
+  headless: true,
+  args: executablePath
+    ? [
+        "--no-sandbox",
+        "--disable-dev-shm-usage",
+        "--use-gl=angle",
+        "--use-angle=swiftshader",
+        "--enable-unsafe-swiftshader",
+        "--no-zygote",
+      ]
+    : [],
+});
+const context = await browser.newContext({
+  viewport: { width: 1440, height: 1000 },
+});
+await context.addInitScript(
+  ({ key, state }) => {
+    if (
+      location.origin !== "http://127.0.0.1:5174" ||
+      sessionStorage.getItem("initialized")
+    )
+      return;
+    sessionStorage.setItem("initialized", "yes");
+    localStorage.setItem(
+      key,
+      JSON.stringify({
+        activePackageId: state.project.id,
+        activeRole: state.role,
+        packages: { [state.project.id]: state },
+      }),
+    );
+    localStorage.setItem("jala-mutu-demo-session-v1", "active");
+  },
+  { key: PACKAGE_STORE_KEY, state },
+);
+const page = await context.newPage(),
+  steps: any[] = [];
+let complete = false;
+page.setDefaultTimeout(15000);
+const url = (s: string) =>
+  "http://127.0.0.1:5174" +
+  s.split(":")[0] +
+  "?testRoles=1&submodule=" +
+  encodeURIComponent(s);
+async function snapshot() {
+  return page.evaluate(
+    (key) => JSON.parse(localStorage.getItem(key)!).packages["PAKET-DEMO-001"],
+    PACKAGE_STORE_KEY,
+  );
+}
+async function actor(role: string) {
+  await page.evaluate(
+    ({ key, role }) => {
+      const store = JSON.parse(localStorage.getItem(key)!);
+      store.activeRole = role;
+      store.packages["PAKET-DEMO-001"].role = role;
+      localStorage.setItem(key, JSON.stringify(store));
+    },
+    { key: PACKAGE_STORE_KEY, role },
+  );
+  await page.reload();
+}
+function field(label: string) {
+  return page
+    .getByLabel(
+      new RegExp(
+        "^" + label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&") + "(?:$|\\s)",
+      ),
+    )
+    .or(
+      page
+        .locator(".wf-field")
+        .filter({
+          has: page
+            .locator("label")
+            .filter({ hasText: new RegExp("^" + label + "$") }),
+        })
+        .locator("input,select,textarea"),
+    )
+    .first();
+}
+async function record(stage: string) {
+  const current = await snapshot();
+  steps.push({
+    stage,
+    events: current.events.length,
+    gate: evaluateStageGate(current, stage as any),
+  });
+  await page.screenshot({
+    path: output + "/" + stage.replaceAll(" ", "-") + ".png",
+  });
+}
+try {
+  await page.goto(url("/entry:Persiapan & SPMK"));
+  await openFilterPanels(page);
+  await fillPreparationChecklist(page);
+  await page.getByTestId("button-prep-submit").click();
+  assert.equal(
+    (await snapshot()).project.preparation.reportApproval,
+    "Diajukan",
+  );
+  await actor("PIC Balai / Pengguna Jasa");
+  await page
+    .getByTestId("input-prep-review-note")
+    .fill("Perbaiki referensi uji");
+  await page.getByTestId("button-prep-revise").click();
+  await actor("Penyedia Jasa / Ketua Tim");
+  await page.getByTestId("button-prep-submit").click();
+  await actor("PIC Balai / Pengguna Jasa");
+  await page.getByTestId("button-prep-approve").click();
+  await record("Tahap 0");
+  await actor("Penyedia Jasa / Ketua Tim");
+  await page.goto(url("/documents:Kalibrasi & personel"));
+  await openFilterPanels(page);
+  await page.getByTestId("button-open-calibration-form").click();
+  for (const [label, value] of [
+    ["Nomor seri", "RNI-UJI-001"],
+    ["Tahun alat", "2027"],
+    ["PIC / personel", "Personel uji terisolasi"],
+    ["Kalibrasi terakhir", "2027-05-01"],
+    ["Berlaku sampai", "2027-12-31"],
+    ["Metode / standar kalibrasi", "Prosedur uji RNI"],
+    ["Nomor / referensi sertifikat", "SERT-UJI-001"],
+  ])
+    await field(label).fill(value);
+  await page
+    .getByLabel("Kualifikasi personel tercatat", { exact: true })
+    .check();
+  await page
+    .getByLabel("Pelatihan / kompetensi tercatat", { exact: true })
+    .check();
+  await page.getByTestId("button-save-calibration").click();
+  const form = page.locator(".source-exact-checklist");
+  for (const section of await form
+    .locator(".structured-checklist-section")
+    .all())
+    if ((await section.getAttribute("open")) === null)
+      await section.locator(":scope > summary").click();
+  for (const group of await form.locator("fieldset").all())
+    await group
+      .locator("input[type=radio],input[type=checkbox]")
+      .first()
+      .check();
+  await fillSourceForm(form);
+  await page.getByTestId("button-save-source-calibration").click();
+  await record("Tahap 1");
+  await page.goto(url("/entry:Validasi produksi"));
+  await openFilterPanels(page);
+  for (const d of await page.locator(".role-work-details").all())
+    if ((await d.getAttribute("open")) === null)
+      await d.locator(":scope > summary").click();
+  const productionPanel = page
+    .locator("section.wf-panel")
+    .filter({
+      has: page.getByRole("heading", {
+        name: "Data Uji Coba RNI",
+        exact: true,
+      }),
+    });
+  await productionPanel
+    .getByLabel("Panjang uji (km)", { exact: true })
+    .fill("5");
+  for (const label of [
+    "Ruas",
+    "STA awal",
+    "STA akhir",
+    "Link description",
+    "LRP / referensi lokasi",
+    "Inventori penampang melintang",
+    "Atribut inventori",
+    "Referensi GPS/GNSS",
+    "RAW GPS / data inventori",
+  ])
+    await productionPanel
+      .getByLabel(label, { exact: true })
+      .fill(
+        label === "STA akhir"
+          ? "STA 5+000"
+          : label === "STA awal"
+            ? "STA 0+000"
+            : "Data uji RNI terisolasi",
+      );
+  for (const input of await productionPanel
+    .locator("input[type=checkbox]:enabled")
+    .all())
+    await input.check();
+  await page
+    .getByLabel(/^Referensi hasil uji(?! gagal)/)
+    .fill("REF-UJI-RNI-001");
+  await field("Alasan pencatatan manual").fill(
+    "Integrasi belum tersedia, data pengujian dicatat manual",
+  );
+  await page.getByTestId("button-production-submit-review").click();
+  assert.equal((await snapshot()).productionApproval, "Diajukan");
+  await actor("PIC Balai / Pengguna Jasa");
+  await page
+    .getByTestId("input-production-approval-ba")
+    .fill("BA-UJI-METODE-RNI-001");
+  await page.getByTestId("button-production-approve-method").click();
+  assert.equal((await snapshot()).productionApproval, "Disetujui");
+  await record("Tahap 2");
+  await actor("Penyedia Jasa / Ketua Tim");
+  await page.goto(url("/entry:Survei harian"));
+  await openFilterPanels(page);
+  for (const [recordIndex, date] of Array.from({ length: 20 }, (_, index) =>
+    index < 10 ? "2027-05-01" : "2027-05-15",
+  ).entries()) {
+    await page.getByRole("button", { name: "Catat kegiatan", exact: true }).click();
+    await page.getByTestId("input-daily-date").fill(date);
+    await page.getByTestId("input-daily-time").fill("08:00");
+    await page.getByTestId("input-daily-length").fill("0.25");
+    await page.getByTestId("input-daily-lane").fill("L1");
+    await page.getByTestId("input-daily-operator").fill("Operator uji");
+    await page.getByTestId("input-daily-driver").fill("Pengemudi uji");
+    await page.getByRole("button", { name: "Lanjut ke data survei" }).click();
+    await page.getByTestId("input-daily-raw").fill("RAW-RNI-UJI-" + date);
+    for (const [key, value] of Object.entries({
+      assetId: "RNI-" + date + "-" + recordIndex,
+      longitude: "98.6",
+      latitude: "3.5",
+      evidence: "REF-RNI-UJI",
+      fromSta: String(recordIndex * 25),
+      toSta: String((recordIndex + 1) * 25),
+      laneCode: "L1",
+      surfaceType: "ASPAL",
+      surfaceYear: "2026",
+      laneWidth: "3.5",
+      surfaceWidth: "7",
+      inventoryForm: "FORM-RNI-UJI-42",
+    }))
+      await page.getByTestId("input-daily-technical-" + key).fill(value);
+    await page.getByRole("button", { name: "Lanjut ke pemeriksaan" }).click();
+    for (const input of await page
+      .locator(".stage3a-checks .wf-check input[type=checkbox]:enabled")
+      .all())
+      await input.check();
+    await page.getByTestId("button-daily-save").click();
+  }
+  assert.equal((await snapshot()).dailyRecords.length, 20);
+  await page.reload();
+  assert.equal((await snapshot()).dailyRecords.length, 20);
+  await record("Tahap 3A");
+  await page.goto(url("/verification:Verval 14 hari"));
+  await openFilterPanels(page);
+  async function fillPeriodForm(activity: string) {
+    await page.getByRole("tab", { name: activity, exact: true }).click();
+    await fillSourceForm(page.locator(".source-exact-checklist"));
+  }
+  async function openNestedDetails(control: any) {
+    const ancestors = await control.locator("xpath=ancestor::details").all();
+    for (const detail of ancestors.reverse()) {
+      if ((await detail.getAttribute("open")) === null)
+        await detail.locator(":scope > summary").click();
+    }
+  }
+  for (const period of ["1", "2"]) {
+    await actor("Penyedia Jasa / Ketua Tim");
+    await page
+      .getByLabel("Periode pemeriksaan", { exact: true })
+      .selectOption(period);
+    await fillPeriodForm("Konsistensi");
+    await fillPeriodForm("V&V Internal");
+    const protocols = page
+      .locator("details.wf-panel")
+      .filter({
+        has: page.getByTestId("check-cycle-protocol-rni-minimal-panjang-5-km"),
+      });
+    assert.equal(
+      await protocols.count(),
+      1,
+      "Expected RNI period execution checklist",
+    );
+    if ((await protocols.getAttribute("open")) === null)
+      await protocols.locator(":scope > summary").click();
+    for (const detail of await page.locator(".role-work-details").all())
+      if ((await detail.getAttribute("open")) === null)
+        await detail.locator(":scope > summary").click();
+    for (const input of await page
+      .locator(".wf-check input[type=checkbox]:enabled")
+      .all()) {
+      assert.equal(
+        await input.isVisible(),
+        true,
+        `Enabled V&V checkbox hidden: ${await input.getAttribute("data-testid")}`,
+      );
+      await input.check();
+    }
+    await page.getByTestId("select-cycle-rerating").selectOption("Sesuai");
+    await actor("PIC Balai / Pengguna Jasa");
+    await fillPeriodForm("V&V Bersama / 2-Mingguan");
+    await page
+      .getByTestId("input-cycle-user-review-note")
+      .fill("Hasil uji RNI periode " + period + " diperiksa");
+    await page.getByTestId("select-cycle-user-review").selectOption("Sesuai");
+    await openNestedDetails(
+      page.getByTestId("check-cycle-final-period-validation"),
+    );
+    await page.getByTestId("check-cycle-final-period-validation").check();
+    await openNestedDetails(page.getByTestId("input-cycle-final-location"));
+    await page
+      .getByTestId("input-cycle-final-location")
+      .fill("Lokasi uji RNI awal");
+    await openNestedDetails(page.getByTestId("check-cycle-tool-unchanged"));
+    await page.getByTestId("check-cycle-tool-unchanged").check();
+    await page.getByTestId("input-cycle-ba").fill("BA-UJI-RNI-P" + period);
+    await page.getByTestId("button-cycle-complete").click();
+    assert.equal(
+      (await snapshot()).cycle.certificateId,
+      "BA-UJI-RNI-P" + period,
+    );
+  }
+  await page.reload();
+  assert.equal(
+    (await snapshot()).cycleHistory["1"].certificateId,
+    "BA-UJI-RNI-P1",
+  );
+  await record("Tahap 3B");
+  await actor("Penyedia Jasa / Ketua Tim");
+  await page.goto(url("/entry:Gerbang RNI/LRS"));
+  await openFilterPanels(page);
+  for (const input of await page
+    .locator(".wf-check input[type=checkbox]:enabled")
+    .all()) {
+    if (
+      (await input.getAttribute("data-testid")) !==
+      "check-submission-route-changed"
+    )
+      await input.check();
+  }
+  await page.getByTestId("input-submission-deviation").fill("0");
+  await page.getByTestId("select-submission-geometry").selectOption("SHP");
+  await page.getByTestId("input-submission-topology").fill("0");
+  await page.getByTestId("input-submission-rni-date").fill("2027-05-20");
+  await page.getByTestId("input-submission-raw-file").fill("RAW-RNI-UJI");
+  await page.getByTestId("input-submission-clean-file").fill("CLEAN-RNI-UJI");
+  await page.getByTestId("input-submission-video").fill("VIDEO-RNI-UJI");
+  await page.getByTestId("button-go-audit-one").click();
+  async function fillSourceQuestions() {
+    for (const d of await page.locator(".role-work-details").all())
+      if ((await d.getAttribute("open")) === null)
+        await d.locator(":scope > summary").click();
+    await fillSourceForm(page.locator(".source-exact-checklist"));
+  }
+  async function audit(level: number, role: string) {
+    await actor(role);
+    await page.goto(url("/verification:Audit tingkat 1–3"));
+    await openFilterPanels(page);
+    await page.getByTestId("button-audit-level-" + level).click();
+    await page.getByTestId("button-create-samples-" + level).click();
+    await fillSourceQuestions();
+    for (const input of await page
+      .locator(".wf-check input[type=checkbox]:enabled")
+      .all())
+      await input.check();
+    if (level > 1) {
+      const units = page.getByTestId("table-sample-units-" + level);
+      for (const detail of (
+        await units.locator("xpath=ancestor::details").all()
+      ).reverse())
+        if ((await detail.getAttribute("open")) === null)
+          await detail.locator(":scope > summary").click();
+      for (const row of await units.locator("tbody tr").all()) {
+        await row.getByRole("combobox").selectOption("Valid");
+        await row.getByRole("textbox").fill("REF-UJI-RNI-SAMPEL-" + level);
+      }
+    }
+    await page
+      .getByTestId("input-audit-note-" + level)
+      .fill("Pemeriksaan data RNI uji terisolasi selesai");
+    await page
+      .getByTestId("input-audit-ba-" + level)
+      .fill("BA-UJI-AUDIT-" + level);
+    await page.getByTestId("button-save-audit-" + level).click();
+    await page
+      .getByTestId("select-audit-status-" + level)
+      .selectOption("Lulus");
+    assert.equal((await snapshot()).audits[level - 1].status, "Lulus");
+  }
+  await audit(1, "Penyedia Jasa / Ketua Tim");
+  await actor("PIC Balai / Pengguna Jasa");
+  await page.goto(url("/entry:Gerbang RNI/LRS"));
+  await openFilterPanels(page);
+  await fillSourceQuestions();
+  await actor("Penyedia Jasa / Ketua Tim");
+  await page.goto(url("/entry:Gerbang RNI/LRS"));
+  await openFilterPanels(page);
+  await page.getByTestId("button-submission-validate").click();
+  assert.equal((await snapshot()).submission.validationStatus, "VALID");
+  await record("Tahap 4");
+  await audit(2, "PIC Balai / Pengguna Jasa");
+  await audit(3, "Direktorat / Pusat");
+  await record("Tahap 5");
+  await actor("PIC Balai / Pengguna Jasa");
+  await page.goto(url("/reports:Penerimaan & termin"));
+  await openFilterPanels(page);
+  for (const id of ["T1", "T2", "T3"]) {
+    await actor("PIC Balai / Pengguna Jasa");
+    await page.getByLabel("BA penerimaan " + id, { exact: true }).check();
+    await actor("Penyedia Jasa / Ketua Tim");
+    await page.getByTestId("input-term-progress-" + id).fill("100");
+    await page.getByTestId("button-save-term-" + id).click();
+    assert.equal(
+      (await snapshot()).acceptance.terms.find((term: any) => term.id === id)
+        .complete,
+      true,
+    );
+  }
+  await page
+    .getByTestId("input-semester-two-finalReportReference")
+    .fill("LAPORAN-AKHIR-UJI-RNI");
+  await page.getByTestId("check-acceptance-final-report").check();
+  await actor("PIC Balai / Pengguna Jasa");
+  await page.getByLabel("BA penerimaan T4", { exact: true }).check();
+  await actor("Penyedia Jasa / Ketua Tim");
+  await page.getByTestId("input-term-progress-T4").fill("100");
+  await page.getByTestId("button-save-term-T4").click();
+  await actor("PIC Balai / Pengguna Jasa");
+  for (const input of await page.locator("input[type=checkbox]:enabled").all())
+    await input.check();
+  await page.getByTestId("select-acceptance-decision").selectOption("Diterima");
+  await page
+    .getByTestId("input-final-acceptance-ba")
+    .fill("BA-PENERIMAAN-UJI-RNI");
+  await page.getByTestId("button-final-acceptance").click();
+  await page.reload();
+  assert.equal((await snapshot()).acceptance.finalAcceptance, true);
+  await record("Tahap 6");
+  complete = true;
+} catch (error) {
+  fs.writeFileSync(
+    output + "/journey-error.txt",
+    error instanceof Error ? error.stack || String(error) : String(error),
+  );
+  const diagnostics = [
+    [
+      "journey-state.json",
+      async () => JSON.stringify(await snapshot(), null, 2),
+    ],
+    ["journey-dom.txt", async () => await page.locator("body").innerText()],
+    [
+      "journey-storage.json",
+      async () =>
+        JSON.stringify(
+          await page.evaluate(() =>
+            Object.fromEntries(Object.entries(localStorage)),
+          ),
+          null,
+          2,
+        ),
+    ],
+  ] as const;
+  for (const [filename, read] of diagnostics) {
+    try {
+      fs.writeFileSync(output + "/" + filename, await read());
+    } catch (diagnosticError) {
+      fs.writeFileSync(
+        output + "/" + filename + ".diagnostic-error.txt",
+        String(diagnosticError),
+      );
+    }
+  }
+  try {
+    await page.screenshot({
+      path: output + "/journey-error.png",
+      fullPage: true,
+      timeout: 5000,
+    });
+  } catch (diagnosticError) {
+    fs.writeFileSync(
+      output + "/journey-screenshot-error.txt",
+      String(diagnosticError),
+    );
+  }
+  throw error;
+} finally {
+  fs.writeFileSync(
+    output + "/journey-progress.json",
+    JSON.stringify(
+      { startedFromBlank: true, completeJourneyFromBlank: complete, steps },
+      null,
+      2,
+    ),
+  );
+  await browser.close();
+  await server.close();
+}

@@ -1,3 +1,5 @@
+import { finalAcceptanceBlockers } from './acceptanceReadiness';
+import { evaluateWorkflowGates } from './workflowGate';
 import {hasPendingRecheck} from './workflowRevisions';
 import {workflowFormIssues} from './repository/workflowReconciliation';
 import { localPersistence } from './repository/localPersistence';
@@ -1006,105 +1008,11 @@ export function loadWorkflowPackageStore():
 export function derivePackageStage(
   state: OperationalWorkflowState,
 ): string {
-  /* Tahap 0 */
-  if (
-    state.project.preparation
-      .reportApproval !==
-    'Disetujui'
-  ) {
-    return 'Tahap 0';
-  }
-
-  /* Tahap 1 */
-  const calibrationReady =
-    state.project.surveyTypes
-      .length > 0 &&
-    state.project.surveyTypes.every(
-      type =>
-        !!state
-          .calibrationChecklist[
-          type
-        ] &&
-        state.calibrations.some(
-          record =>
-            record.surveyType ===
-              type &&
-            record.condition ===
-              'Baik' &&
-            record
-              .qualificationValid &&
-            record
-              .trainingVerified &&
-            record.dueDate >=
-              state.simulationDate,
-        ),
-    );
-
-  if (!calibrationReady) {
-    return 'Tahap 1';
-  }
-
-  /* Tahap 2 */
-  if (
-    state.productionApproval !==
-    'Disetujui'
-  ) {
-    return 'Tahap 2';
-  }
-
-  /* Tahap 3A */
-  if (
-    !state.dailyRecords.length
-  ) {
-    return 'Tahap 3A';
-  }
-
-  /* Tahap 3B */
-  if (
-    state.corrections.some(
-      item =>
-        item.status !==
-        'Ditutup',
-    ) ||
-    state.cycle.requiresReview ||
-    Object.values(state.cycleHistory??{}).some(cycle=>cycle.requiresReview) ||
-    state.cycle.consistency !==
-      'Konsisten' ||
-    state.cycle.userReview !==
-      'Sesuai'
-  ) {
-    return 'Tahap 3B';
-  }
-
-  /* Tahap 4 */
-  if (
-    state.submission
-      .validationStatus !==
-    'VALID'
-  ) {
-    return 'Tahap 4';
-  }
-
-  /* Tahap 5 */
-  if (
-    state.audits.some(
-      item =>
-        item.status !==
-        'Lulus' || item.requiresReview,
-    )
-  ) {
-    return 'Tahap 5';
-  }
-
-  /* Tahap 6 */
-  if (
-    !state.acceptance
-      .finalAcceptance
-  ) {
-    return 'Tahap 6';
-  }
-
-  return 'Selesai';
+  const incomplete = evaluateWorkflowGates(state).find(gate => !gate.readyToComplete);
+  if (incomplete) return incomplete.stage;
+  const { acceptance } = state;
+  const accepted = acceptance.acceptanceDecision === 'Diterima' || acceptance.acceptanceDecision === 'Diterima dengan Catatan';
+  return accepted && acceptance.finalAcceptanceBa?.trim() && !finalAcceptanceBlockers(state).length ? 'Selesai' : 'Tahap 6';
 }
 
 /* =========================================================
@@ -1114,88 +1022,33 @@ export function derivePackageStage(
 export function packageWaitingFor(
   state: OperationalWorkflowState,
 ): string {
-  if (
-    state.project.preparation
-      .reportApproval ===
-    'Diajukan'
-  ) {
-    return 'PIC Balai';
+  const stage = derivePackageStage(state);
+  switch (stage) {
+    case 'Tahap 0':
+      return state.project.preparation.reportApproval === 'Diajukan' ? 'PIC Balai' : 'Penyedia';
+    case 'Tahap 1':
+    case 'Tahap 3A':
+      return 'Penyedia';
+    case 'Tahap 2':
+      return state.productionApproval === 'Diajukan' ? 'PIC Balai' : 'Penyedia';
+    case 'Tahap 3B': {
+      const correction = state.corrections.find(item => item.status !== 'Ditutup' &&
+        (item.blockedStage === 'Verval 14 hari' || item.source === 'Konsistensi gagal' || item.source === 'Temuan proses verval'));
+      if (correction) return ['Menunggu Persetujuan', 'Dilaksanakan', 'Verifikasi Ulang'].includes(correction.status) ? 'PIC Balai' : 'Penyedia';
+      const { cycle } = state;
+      return cycle.periodCompleted && cycle.consistency === 'Konsisten' && cycle.userReview !== 'Temuan' ? 'PIC Balai' : 'Penyedia';
+    }
+    case 'Tahap 4':
+      return 'Penyedia';
+    case 'Tahap 5': {
+      const audit = state.audits.find(item => item.status !== 'Lulus' || item.requiresReview);
+      return audit?.level === 1 ? 'Penyedia' : audit?.level === 2 ? 'PIC Balai' : 'Direktorat';
+    }
+    case 'Tahap 6':
+      return 'PIC Balai';
+    default:
+      return '-';
   }
-
-  if (
-    state.project.preparation
-      .reportApproval ===
-      'Perlu Revisi' ||
-    state.project.preparation
-      .reportApproval ===
-      'Draft'
-  ) {
-    return 'Penyedia';
-  }
-
-  if (
-    state.productionApproval ===
-    'Diajukan'
-  ) {
-    return 'PIC Balai';
-  }
-
-  if (
-    state.productionApproval ===
-      'Perlu Revisi' ||
-    state.productionApproval ===
-      'Draft'
-  ) {
-    return 'Penyedia';
-  }
-
-  const openCorrection = state.corrections.find(item => item.status !== 'Ditutup');
-  if (openCorrection) {
-    if (openCorrection.status === 'Menunggu Persetujuan' ||
-        openCorrection.status === 'Dilaksanakan' ||
-        openCorrection.status === 'Verifikasi Ulang') return 'PIC Balai';
-    if (openCorrection.status === 'Disetujui' || openCorrection.status === 'Terbuka') return 'Penyedia';
-  }
-
-  if (
-    state.cycle.userReview !==
-    'Sesuai'
-  ) {
-    return 'PIC Balai';
-  }
-
-  if (
-    state.audits[0].requiresReview ||
-    state.audits[0].status !==
-    'Lulus'
-  ) {
-    return 'Penyedia';
-  }
-
-  if (
-    state.audits[1].requiresReview ||
-    state.audits[1].status !==
-    'Lulus'
-  ) {
-    return 'PIC Balai';
-  }
-
-  if (
-    state.audits[2].requiresReview ||
-    state.audits[2].status !==
-    'Lulus'
-  ) {
-    return 'Direktorat';
-  }
-
-  if (
-    !state.acceptance
-      .finalAcceptance
-  ) {
-    return 'PIC Balai';
-  }
-
-  return '-';
 }
 
 /* =========================================================

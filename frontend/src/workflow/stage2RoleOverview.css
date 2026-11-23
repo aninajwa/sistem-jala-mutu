@@ -1,0 +1,129 @@
+.stage2-role-overview {display:grid;grid-template-columns:minmax(0,1.35fr) minmax(260px,.85fr);gap:16px;align-items:stretch;margin:16px 0 22px}
+.stage2-role-overview__main,.stage2-role-overview__status {min-width:0;border:1px solid #dae5ee;border-radius:16px;padding:22px;background:#fff}
+.stage2-role-overview__main {background:linear-gradient(130deg,#f0f7fd 0%,#fff 85%)}
+.stage2-role-overview__eyebrow {font-size:11px;font-weight:800;letter-spacing:.08em;color:#145e86}
+.stage2-role-overview h2 {font-size:clamp(18px,2vw,24px);line-height:1.3;margin:9px 0;color:#173b54}
+.stage2-role-overview p {line-height:1.55;margin:8px 0 0;color:#465f72;font-size:14px}
+.stage2-role-overview__link {display:inline-flex;align-items:center;gap:8px;margin-top:17px;padding:11px 16px;border-radius:10px;background:#146b9f;color:#fff!important;font-size:14px;font-weight:700;text-decoration:none}
+.stage2-role-overview__link:focus-visible {outline:3px solid #f39c52;outline-offset:3px}
+.stage2-role-overview__status {background:#f5f8fc;border-left:4px solid #8a9dad;display:flex;flex-direction:column;justify-content:center}
+.stage2-role-overview__status>span {color:#557083;font-size:12px;font-weight:700}
+.stage2-role-overview__status>strong {font-size:17px;line-height:1.4;margin-top:8px;color:#193d57}
+.stage2-role-overview__status--warning {background:#fff8ed;border-left-color:#d58b2b}
+.stage2-role-overview__status--success {background:#effaf6;border-left-color:#208c6d}
+#stage2-role-action {scroll-margin-top:90px}
+@media(max-width:760px){.stage2-role-overview{grid-template-columns:minmax(0,1fr);gap:10px;margin:12px 0 18px}.stage2-role-overview__main,.stage2-role-overview__status{padding:16px;border-radius:13px}.stage2-role-overview__link{width:100%;justify-content:center;min-height:44px}.stage2-role-overview__status>strong{font-size:16px}}
+
+/* Tahap 2: selected-survey workspace, with only role-owned controls displayed. */
+.stage2-clean {display:flex;flex-direction:column;gap:12px;min-width:0}
+.stage2-clean .stage2-role-overview {margin:2px 0 4px;gap:12px}
+.stage2-clean .stage2-role-overview__main {background:#f5f9fb;border-color:#d8e5ec}
+.stage2-clean .stage2-role-overview__main,.stage2-clean .stage2-role-overview__status {padding:16px 19px}
+.stage2-clean .stage2-role-overview h2 {font-size:20px;margin:5px 0}
+.stage2-clean .stage2-role-overview p {font-size:13px;line-height:1.45;margin-top:4px}
+.stage2-clean .stage2-role-overview__link {margin-top:12px;padding:9px 14px;background:#126783}
+.stage2-clean .stage2-evaluation-caption,.stage2-clean .stage2-origin {font-size:13px;color:#607787;margin:0 0 10px}
+.stage2-clean .stage2-blockers {margin:0}
+.stage2-clean .stage2-history {padding:11px 14px;border:1px solid #dbe6eb;border-radius:12px;background:#fff}
+.stage2-clean .stage2-history>summary {cursor:pointer;font-weight:650;color:#205268}
+.stage2-clean .stage2-decision-note {padding:12px 14px;margin:8px 0;background:#f1f7f9;border-radius:10px}
+.stage2-clean .stage2-decision-note p {margin:5px 0 0;white-space:pre-wrap}
+.stage2-clean .production-workspace-columns {align-items:start}
+@media(max-width:760px){.stage2-clean .stage2-role-overview__main,.stage2-clean .stage2-role-overview__status{padding:14px}}
+
+/* Tahap 2 — navigasi jenis survei dan informasi berjenjang */
+.stage2-clean .stage2-survey-picker {padding:14px 16px;border:1px solid #dce6ed;border-radius:14px;background:#fff;min-width:0}
+.stage2-clean .stage2-survey-picker__heading {display:flex;flex-wrap:wrap;justify-content:space-between;gap:5px 16px;align-items:baseline;margin-bottom:11px}
+.stage2-clean .stage2-survey-picker__heading strong {font-size:14px;color:#23465a}
+.stage2-clean .stage2-survey-picker__heading>span {color:#637d89;font-size:12px}
+.stage2-clean .stage2-survey-picker__items {display:flex;flex-wrap:wrap;gap:8px}
+.stage2-clean .stage2-survey-picker__button {display:inline-flex;align-items:center;gap:9px;min-height:39px;padding:8px 13px;color:#365a6f;border:1px solid #dce6ed;background:#f8fbfc;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:background .15s,border-color .15s}
+.stage2-clean .stage2-survey-picker__button:hover {border-color:#8fb6c6;background:#eef7f8}
+.stage2-clean .stage2-survey-picker__button.is-active {background:#145f76;border-color:#145f76;color:white;box-shadow:0 2px 7px rgba(13,66,84,.13)}
+.stage2-clean .stage2-survey-picker__button:focus-visible {outline:3px solid #ebad58;outline-offset:2px}
+.stage2-clean .stage2-survey-picker__indicator {height:7px;width:7px;border-radius:50%;background:#d2a253;flex:none}
+.stage2-clean .stage2-survey-picker__indicator.is-complete {background:#299a80}
+.stage2-clean .stage2-selection-status {display:flex;align-items:center;gap:10px;flex-wrap:wrap;padding:0 3px;color:#526c78;font-size:13px}
+.stage2-clean .stage2-selection-status>strong {color:#204b60;font-size:14px}
+.stage2-clean .stage2-selection-status>span {flex:1 1 auto}
+.stage2-clean .stage2-documents__body {display:grid;gap:9px;padding-top:12px}
+.stage2-clean .stage2-note-actions {display:flex;justify-content:flex-end;margin-top:10px}
+@media(max-width:760px){.stage2-clean .stage2-survey-picker {padding:12px}.stage2-clean .stage2-survey-picker__items {display:grid;grid-template-columns:repeat(2,minmax(0,1fr))}.stage2-clean .stage2-survey-picker__button {justify-content:space-between}.stage2-clean .stage2-selection-status>span{flex-basis:50%}}
+
+/* Redesign Tahap 2: satu pekerjaan terlihat, rincian tetap tersedia saat diperlukan. */
+.stage2-clean {gap:14px}
+.stage2-clean .stage2-role-overview--compact {display:flex;gap:18px;align-items:center;justify-content:space-between;padding:16px 20px;background:#fff;border:1px solid #d7e6eb;border-radius:15px;margin:0}
+.stage2-clean .stage2-role-overview--compact .stage2-role-overview__main {padding:0;background:transparent;border:0;flex:1;min-width:0}
+.stage2-clean .stage2-role-overview--compact .stage2-role-overview__eyebrow {font-size:10px;letter-spacing:.08em;color:#147a84}
+.stage2-clean .stage2-role-overview--compact h2 {font-size:19px;margin:3px 0 1px}
+.stage2-clean .stage2-role-overview--compact p {margin:0;font-size:12px;color:#6a7d86}
+.stage2-clean .stage2-role-overview--compact .stage2-role-overview__status {padding:0 0 0 18px;border:0;border-left:1px solid #d7e6eb;background:none;max-width:300px;min-width:190px}
+.stage2-clean .stage2-role-overview--compact .stage2-role-overview__status strong {font-size:14px;margin:3px 0 0}
+.stage2-clean .stage2-role-overview--compact .stage2-role-overview__status small {color:#a36a24;font-size:11px;margin-top:3px}
+.stage2-clean .stage2-selection-status {padding:13px 16px;background:#f4f9f9;border:1px solid #dce9e9;border-radius:13px;gap:16px}
+.stage2-clean .stage2-selection-status > div:first-child {min-width:90px;display:grid;gap:2px}
+.stage2-clean .stage2-selection-status__label {display:block;color:#67838a;font-size:10px;font-weight:750;letter-spacing:.06em}
+.stage2-clean .stage2-selection-status__progress {flex:1;display:grid;gap:7px;min-width:140px}
+.stage2-clean .stage2-selection-status__progress>span {font-size:12px;color:#4b6872}
+.stage2-clean .stage2-mini-track {height:5px;width:100%;background:#dce9ea;border-radius:9px;overflow:hidden}
+.stage2-clean .stage2-mini-track>div {height:100%;border-radius:9px;background:#16877b}
+.stage2-clean .stage2-priority-action {width:100%}
+.stage2-clean .stage2-priority-action .wf-panel {border-color:#c5dfe2;box-shadow:0 3px 14px rgba(22,79,91,.035)}
+.stage2-clean .stage2-survey-progress {background:#fff;border:1px solid #dbe8ed;border-radius:12px;overflow:hidden}
+.stage2-clean .stage2-survey-progress>summary {padding:12px 14px;color:#285668;font-size:12px;font-weight:700;cursor:pointer}
+.stage2-clean .stage2-survey-progress>.wf-panel {margin:0;border:0;border-top:1px solid #e3eef1;box-shadow:none}
+.stage2-clean .stage2-evaluation-count {display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap;margin:0 0 12px}
+.stage2-clean .stage2-evaluation-count strong {font-size:15px;color:#184a54}
+.stage2-clean .stage2-evaluation-count span {font-size:12px;color:#627c84}
+.stage2-clean .stage2-issues {display:grid;gap:0;border:1px solid #f1dfc6;border-radius:10px;overflow:hidden;margin:10px 0}
+.stage2-clean .stage2-issue {display:flex;align-items:flex-start;gap:10px;padding:10px 12px;background:#fffaf1;border-bottom:1px solid #f3e7d7;font-size:12px;font-weight:600;color:#77542b}
+.stage2-clean .stage2-issue:last-child {border-bottom:0}
+.stage2-clean .stage2-issue__dot {flex:none;width:7px;height:7px;margin-top:5px;border-radius:50%;background:#d79a3a}
+.stage2-clean .stage2-evaluation-detail {margin-top:12px;border:1px solid #dbe8ed;border-radius:10px;background:#fff;overflow:hidden}
+.stage2-clean .stage2-evaluation-detail>summary {padding:12px 14px;font-size:12px;font-weight:700;color:#225469;cursor:pointer}
+.stage2-clean .stage2-checklist-row {display:flex;align-items:center;justify-content:space-between;gap:10px;padding:10px 14px;border-top:1px solid #e7eef1;font-size:12px}
+.stage2-clean .stage2-checklist-row>span {min-width:0}
+.stage2-clean .stage2-checklist-row small {display:block;color:#647c85;font-weight:400;margin-top:2px}
+.stage2-clean .production-workspace-columns {gap:14px}
+.stage2-clean .production-helper .wf-callout {font-size:12px}
+@media(max-width:760px) {
+  .stage2-clean .stage2-role-overview--compact {display:block;padding:15px}
+  .stage2-clean .stage2-role-overview--compact .stage2-role-overview__status {border-left:0;border-top:1px solid #dce8ec;max-width:none;padding:10px 0 0;margin-top:12px}
+  .stage2-clean .stage2-selection-status {gap:10px}
+  .stage2-clean .stage2-selection-status__progress {order:3;flex-basis:100%}
+}
+
+/* Tahap 2: satu alur kerja untuk Penyedia, bukan dua formulir yang bersaing. */
+.stage2-clean .production-workspace-columns {display:grid;grid-template-columns:minmax(0,1fr);gap:12px}
+.stage2-clean .production-column {min-width:0}
+.stage2-clean .stage2-work-intro {display:flex;align-items:center;flex-wrap:wrap;gap:8px;margin:2px 0 0;padding:12px 14px;background:#f2f8f8;border:1px solid #d9e9e8;border-radius:12px}
+.stage2-clean .stage2-work-intro span {display:inline-flex;align-items:center;gap:7px;font-size:12px;font-weight:700;color:#23566a}
+.stage2-clean .stage2-work-intro span+span:before {content:'›';margin:0 5px 0 0;font-size:17px;color:#819aa5}
+.stage2-clean .stage2-work-intro strong {display:inline-grid;place-items:center;width:21px;height:21px;color:#fff;background:#147c80;border-radius:50%;font-size:11px}
+.stage2-clean .stage2-failed-trial {margin-top:9px;width:100%;border:1px solid #e7d3bb;border-radius:10px;background:#fffaf5}
+.stage2-clean .stage2-failed-trial>summary {padding:12px 14px;cursor:pointer;color:#805524;font-weight:700;font-size:12px}
+.stage2-clean .stage2-failed-trial__body {padding:0 14px 14px;display:grid;gap:9px}
+.stage2-clean .stage2-failed-trial__body p {margin:0;color:#6a5742;font-size:12px;line-height:1.5}
+.stage2-clean .stage2-failed-trial__body label {font-size:12px}
+.stage2-clean .stage2-document-entry {display:grid;gap:9px;padding:14px;background:#f8fbfc;border:1px solid #e1e9ed;border-radius:11px}
+.stage2-clean .stage2-document-entry>strong {font-size:14px;color:#174f63}
+.stage2-clean .stage2-document-entry>span,.stage2-clean .stage2-document-caveat {font-size:12px;color:#607b87;margin:0;line-height:1.45}
+.stage2-clean .stage2-document-entry .wf-row {margin:0}
+@media(max-width:680px){.stage2-clean .stage2-work-intro {gap:7px}.stage2-clean .stage2-work-intro span {font-size:11px}}
+
+/* Tahap 2 UX: data dan bukti berdampingan, evaluasi satu baris di bawah. */
+.stage2-clean .production-workspace-columns.stage2-provider-layout {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px;align-items:start}
+.stage2-clean .stage2-provider-layout > .production-column {min-width:0}
+.stage2-clean .stage2-provider-layout > .production-column:last-child {grid-column:1 / -1}
+.stage2-clean .stage2-test-form {border:1px solid #d6e5eb;border-radius:12px;overflow:hidden;background:#fff}
+.stage2-clean .stage2-test-form > summary {display:flex;gap:8px;flex-wrap:wrap;justify-content:space-between;align-items:center;padding:14px 16px;cursor:pointer;font-weight:750;color:#1b4e60;background:#f1f7f8}
+.stage2-clean .stage2-test-form > summary > span {font-weight:400;font-size:12px;color:#67818a}
+.stage2-clean .stage2-test-form__body {padding:12px 14px}
+.stage2-clean .stage2-review-data {background:#fff;border:1px solid #c9e0e6;border-radius:12px;margin:12px 0;overflow:hidden}
+.stage2-clean .stage2-review-data > summary {cursor:pointer;padding:14px 16px;font-weight:750;color:#1b5268;background:#f2f9fa}
+.stage2-clean .stage2-review-data__body {padding:12px 16px}
+.stage2-clean .stage2-review-data__body > p,.stage2-clean .stage2-review-data__empty {font-size:12px;color:#607783;line-height:1.5}
+.stage2-clean .stage2-review-data__empty {margin:12px 16px}
+.stage2-clean .stage2-data-column .wf-panel {box-shadow:none}
+.stage2-clean .stage2-directorate-notes .wf-panel-body:empty {display:none}
+@media(max-width:1000px){.stage2-clean .production-workspace-columns.stage2-provider-layout {grid-template-columns:minmax(0,1fr)}}

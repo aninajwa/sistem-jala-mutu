@@ -222,3 +222,25 @@ test("audit cascade retains decisions and only permits review flags at later lev
   after.audits[2] = { ...before.audits[2], status: "Belum Dimulai" };
   assert.ok(workflowMutationError(before, after, "/verification:Audit tingkat 1–3"));
 });
+
+
+test('review activity journal keeps notes, decisions, resubmission and legacy history', () => {
+  const s=fresh();s.role='PIC Balai / Pengguna Jasa';
+  const note=retainDecisionHistory(s,{...s,productionApprovalNote:'Periksa sertifikat'});
+  assert.equal(note.reviewActivityHistory?.at(-1)?.action,'catatan');
+  assert.equal(note.reviewActivityHistory?.at(-1)?.note,'Periksa sertifikat');
+  const rejected=retainDecisionHistory(note,{...note,productionApproval:'Perlu Revisi'});
+  assert.equal(rejected.reviewActivityHistory?.at(-1)?.action,'keputusan');
+  const provider={...rejected,role:'Penyedia Jasa / Ketua Tim' as const};
+  const submitted=retainDecisionHistory(provider,{...provider,productionApproval:'Diajukan'});
+  assert.equal(submitted.reviewActivityHistory?.at(-1)?.action,'pengajuan-ulang');
+  assert.equal(submitted.reviewActivityHistory?.length,3);
+  assert.equal(submitted.reviewActivityHistory?.[0].note,'Periksa sertifikat');
+  assert.equal(retainDecisionHistory(submitted,structuredClone(submitted)).reviewActivityHistory?.length,3);
+});
+test('period and audit activities keep distinct scope and do not overwrite old entries',()=>{
+  const s=fresh();s.role='PIC Balai / Pengguna Jasa';
+  const n=retainDecisionHistory(s,{...s,cycle:{...s.cycle,userReview:'Temuan',userReviewNote:'Ulang sampel'},audits:s.audits.map((a,i)=>i===1?{...a,decisionNote:'Cek sampel'}:a) as typeof s.audits});
+  assert.ok(n.reviewActivityHistory?.some(e=>e.stage==='Tahap 3B'&&e.period===2&&e.note==='Ulang sampel'));
+  assert.ok(n.reviewActivityHistory?.some(e=>e.stage==='Tahap 5'&&e.auditLevel===2&&e.note==='Cek sampel'));
+});

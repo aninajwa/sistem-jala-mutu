@@ -61,3 +61,15 @@ test('setiap tujuh BA memiliki autofill berbasis data yang tersedia tanpa mengis
   for(const field of template.fields.filter(f=>/tanda tangan|nip/i.test(`${f.label} ${f.context}`)))assert.equal(mapped[field.id],undefined,`${template.id} mengisi identitas resmi`);
  }
 });
+
+
+test('automatic audit BA number uses its exact audit level for every consumer',()=>{
+ const state=createDemoWorkflow('complete'),template=BA_TEMPLATES.find(t=>t.id==='audit')!;
+ state.audits.forEach((audit,index)=>audit.baNumber=`BA-T${index+1}`);
+ const field=template.fields.find(f=>/^(diisi nomor dokumen|nomor ba)$/i.test(f.label))!;
+ assert.ok(field,'Audit template must include a document-number field');
+ for(const level of [1,2,3] as const){
+  const values=automaticFields(template,state,'IRI',{start:'',end:''},level);
+  assert.equal(values[field.id],`BA-T${level}`);
+ }
+});

@@ -1,0 +1,65 @@
+/* Tahap 0: pekerjaan utama di depan; informasi teknis hanya jika dibuka. */
+.stage0-compact-status{display:flex;flex-wrap:wrap;align-items:center;gap:8px 20px;margin:8px 0 15px;padding:10px 14px;background:#fff;border:1px solid #d6e2e8;border-radius:9px;font-size:.84rem;color:#36586a}
+.stage0-compact-status strong{color:#163d52}
+.stage0-section-anchor{scroll-margin-top:90px;min-width:0}
+.stage0-section-anchor>h3{font-size:1rem;margin:20px 0 10px;color:#244c62}
+.stage0-quiet-detail{margin:0 0 10px;color:#496577;font-size:.82rem}
+.stage0-quiet-detail summary{cursor:pointer;width:max-content;max-width:100%;padding:7px 0;color:#18617c}
+.stage0-quiet-detail p{margin:4px 0 10px;line-height:1.5}
+.workflow-role-block .documents-area{margin-top:0}
+.workflow-role-block .document-upload-flow{padding:14px;border:1px solid #d9e4e9;border-radius:9px;background:#f8fafb}
+.workflow-role-block .document-upload-flow .document-category-label{font-weight:600;font-size:.86rem}
+.workflow-role-block .document-upload-flow select{min-height:42px;background:#fff}
+.workflow-role-block .document-upload-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.stage0-local-note{color:#687f8d;font-size:.77rem;margin:4px 0 0}
+@media(max-width:600px){.stage0-compact-status{padding:9px 11px;gap:7px 12px}.workflow-role-block .document-upload-flow{padding:10px}}
+
+/* Empat role: satu pekerjaan utama tanpa kartu reviewer pada monitor. */
+.stage0-package-identity{margin-left:auto;color:#527183;min-width:0;overflow-wrap:anywhere}
+.stage0-status-message{padding:12px 14px;background:#f4f8fa;border-left:3px solid #277f88;color:#31566a;border-radius:4px;font-size:.9rem}
+.stage0-review-summary{display:flex;justify-content:space-between;align-items:center;gap:12px;padding:10px 0 16px;flex-wrap:wrap;font-size:.9rem}
+.stage0-review-summary span{color:#567181}
+.stage0-review-actions{display:flex;gap:8px;flex-wrap:wrap}
+.stage0-monitor{padding:16px 18px;border:1px solid #dbe6e9;border-radius:10px;background:#fff}
+.stage0-monitor h3{font-size:1rem;margin:0 0 14px;color:#163d52}
+.stage0-monitor dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:0}
+.stage0-monitor dl>div{min-width:0}
+.stage0-monitor dt{font-size:.78rem;color:#5b7180;margin-bottom:4px}
+.stage0-monitor dd{margin:0;font-weight:600;color:#1a4154;overflow-wrap:anywhere}
+.stage0-review-result{margin:14px 0 0;border-top:1px solid #e6edf0;padding-top:12px;font-size:.87rem}
+.stage0-readonly-checklists{margin:14px 0;border:1px solid #dbe6e9;border-radius:9px;padding:12px 15px;background:#fff}
+.stage0-readonly-checklists>summary{cursor:pointer;font-weight:600;color:#1d5269}
+.stage0-review-groups{display:grid;gap:14px;margin-top:12px}
+.stage0-review-group h4{font-size:.9rem;margin:0 0 7px;color:#234e60}
+@media(max-width:600px){.stage0-package-identity{width:100%;margin-left:0}.stage0-monitor dl{grid-template-columns:1fr}.stage0-review-actions>*{flex:1 1 auto}}
+
+/* Tahap 0 — tampilan ringkas, tetap mempertahankan tema proyek. */
+.stage0-compact-status{background:#f5f9f9;border-color:#d8e6e8;gap:8px 24px}
+.workflow-role-block.provider>.wf-panel{border-radius:12px}
+.stage0-readonly-checklists{padding:0;overflow:hidden;border-color:#d5e4e8}
+.stage0-readonly-checklists>summary{padding:14px 16px;background:#f8fbfb}
+.stage0-readonly-checklists[open]>summary{border-bottom:1px solid #dce7eb}
+.stage0-review-groups{padding:14px 16px;max-height:440px;overflow:auto;overscroll-behavior:contain}
+.stage0-review-group .v2-checklist-results{margin-bottom:0}
+.stage0-monitor{border-top:3px solid #168b8a;box-shadow:0 3px 12px #133f5710}
+@media(max-width:640px){.stage0-review-groups{max-height:340px}}
+
+/* Ringkasan empat kelompok persiapan: detail hanya saat dibutuhkan. */
+.stage0-review-groups{display:grid;gap:9px;max-height:none;overflow:visible;padding:12px}
+.stage0-review-group-detail{border:1px solid #dce8ec;border-radius:9px;background:#fff;overflow:hidden}
+.stage0-review-group-detail>summary{list-style:none;display:flex;align-items:center;justify-content:space-between;gap:14px;padding:13px 15px;cursor:pointer;color:#18465b;font-weight:650;font-size:.89rem}
+.stage0-review-group-detail>summary::-webkit-details-marker{display:none}
+.stage0-review-group-detail>summary:before{content:'▸';color:#187b81;margin-right:3px}
+.stage0-review-group-detail[open]>summary:before{content:'▾'}
+.stage0-review-group-detail[open]>summary{border-bottom:1px solid #e3edef;background:#f7fafb}
+.stage0-review-group-detail>summary>span:first-child{flex:1}
+.stage0-group-count{font-size:.78rem;font-weight:600;white-space:nowrap;color:#547487}
+.stage0-compact-results{margin:0!important;padding:5px 14px 10px!important;list-style:none}
+.stage0-compact-results li{display:grid;grid-template-columns:minmax(0,1fr) 72px;gap:14px;align-items:center;min-height:37px;border-bottom:1px solid #e7edef;padding:6px 4px;font-size:.83rem}
+.stage0-compact-results li:last-child{border-bottom:0}
+.stage0-compact-results li>span{min-width:0;overflow-wrap:anywhere}
+.stage0-compact-results li>strong{text-align:center;justify-self:end;min-width:57px;padding:4px 7px;border-radius:6px;font-size:.75rem;font-weight:600}
+.stage0-compact-results li>strong.is-complete{background:#e3f3ee;color:#176453}
+.stage0-compact-results li>strong.is-pending{background:#f1f4f5;color:#687b83}
+@media(min-width:820px){.stage0-review-groups{grid-template-columns:repeat(2,minmax(0,1fr));align-items:start}}
+@media(max-width:540px){.stage0-review-groups{padding:8px}.stage0-compact-results li{grid-template-columns:minmax(0,1fr) 62px;gap:8px}}

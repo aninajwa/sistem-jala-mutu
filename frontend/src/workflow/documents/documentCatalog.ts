@@ -105,7 +105,7 @@ export function listPackageDocuments(state: OperationalWorkflowState) {
     const context=identity.period?{...state,cycle}:state;
     const range=identity.period?periodRange(state.project.id,identity.period,state.project.surveyStartDate,state.project.surveyEndDate):{start:state.project.surveyStartDate??'',end:state.project.surveyEndDate??''};
     const locked=latest?.status==='submitted-local'||latest?.status==='reviewed-local';
-    const values=locked?latest.fields:{...record.draft,...automaticFields(template,context,identity.survey as SurveyType,range),...technicalFields(template,context,identity.survey as SurveyType,range,identity.auditLevel)};
+    const values=locked?latest.fields:{...record.draft,...automaticFields(template,context,identity.survey as SurveyType,range,identity.auditLevel as 1|2|3),...technicalFields(template,context,identity.survey as SurveyType,range,identity.auditLevel)};
     const missing=baFieldErrors(identity.kind,identity.survey as SurveyType,values).length;
     rows.push({
       missing,

@@ -6,7 +6,7 @@ export type StageOperation='view'|'draft'|'submit'|'comment'|'approve'|'revise'|
 const P:WorkflowRole='Penyedia Jasa / Ketua Tim',B:WorkflowRole='PIC Balai / Pengguna Jasa',D:WorkflowRole='Direktorat / Pusat';
 export const STAGE_POLICY:Record<WorkflowStage,{draft:WorkflowRole[];submit:WorkflowRole[];review:WorkflowRole[];ba:WorkflowRole[];purpose:string;source:string;next:string}>={
  'Tahap 0':{draft:[P],submit:[P],review:[B],ba:[],purpose:'Lengkapi survei pendahuluan dan laporan; Balai memeriksa hasil pengajuan.',source:'KAK 11.1 Survei Pendahuluan; Flowchart 01a; arahan mentor',next:'Kalibrasi alat dan personel'},
- 'Tahap 1':{draft:[P],submit:[],review:[],ba:[P],purpose:'Catat alat, personel, kalibrasi, sertifikat dan kesiapan sesuai jenis survei.',source:'Flowchart 01b; Draft PP kalibrasi; format BA Kalibrasi dan Validasi',next:'Validasi produksi dan persetujuan metode pada Tahap 2'},
+ 'Tahap 1':{draft:[P],submit:[],review:[B],ba:[P],purpose:'Catat alat, personel, kalibrasi, sertifikat dan kesiapan sesuai jenis survei.',source:'Flowchart 01b; Draft PP kalibrasi; format BA Kalibrasi dan Validasi',next:'Validasi produksi dan persetujuan metode pada Tahap 2'},
  'Tahap 2':{draft:[P],submit:[P],review:[B],ba:[P],purpose:'Periksa hasil uji dari sumber, lengkapi referensi, lalu ajukan penggunaan alat/metode.',source:'KAK 11.1–11.9; Flowchart 01c–01d; arahan mentor',next:'Pelaksanaan harian dan V&V berkala berjalan paralel'},
  'Tahap 3A':{draft:[P],submit:[],review:[],ba:[],purpose:'Catat kegiatan harian dan bukti pelaksanaan. Tidak ada persetujuan Balai per hari.',source:'Flowchart 02a; KAK 11.10; arahan mentor',next:'Lanjutkan kegiatan harian dan pemeriksaan periode 3B'},
  'Tahap 3B':{draft:[P],submit:[P],review:[B],ba:[P,B],purpose:'Penyedia melaporkan pemeriksaan internal; Balai meninjau kegiatan bersama dan BA per periode.',source:'KAK 11.10; Flowchart 02b–02c; checklist konsistensi/internal/2-mingguan',next:'Tindak lanjuti temuan atau lanjutkan penyiapan data'},
@@ -21,7 +21,7 @@ export function mayOperate(role:WorkflowRole,stage:WorkflowStage,operation:Stage
  if(stage==='Tahap 5'){const actor=[P,B,D][auditLevel-1];return role===actor&&operation!=='submit'&&canPerformAction(role,(['audit.internal','audit.balai','audit.directorate'] as const)[auditLevel-1]);}
  const actions:Partial<Record<WorkflowStage,[WorkflowAction,WorkflowAction|undefined,WorkflowAction|undefined]>>={
  'Tahap 0':['preparation.edit','preparation.submit','preparation.review'],
- 'Tahap 1':['calibration.edit',undefined,undefined],
+ 'Tahap 1':['calibration.edit',undefined,'calibration.review'],
  'Tahap 2':['production.edit','production.submit','production.review'],
  'Tahap 3A':['daily.record',undefined,undefined],
  'Tahap 3B':['periodic.internal','periodic.internal','periodic.review'],

@@ -22,6 +22,30 @@ export type PreparationState = {
   reviewerNote: string;
 };
 
+export type CalibrationReviewSubject = 'Alat dan personel' | 'Sertifikat kalibrasi' | 'Hasil kalibrasi' | 'Dokumen pendukung';
+export type CalibrationReviewResponse = { note: string; reference?: string; respondedAt: string };
+export type CalibrationReviewEntry = {
+  result: 'Sesuai' | 'Perlu klarifikasi' | 'Ada ketidaksesuaian';
+  note: string;
+  evidenceReference: string;
+  reviewedAt: string;
+  reviewer: 'PIC Balai / Pengguna Jasa';
+  sourceSignature: string;
+  response?: CalibrationReviewResponse;
+  history?: Omit<CalibrationReviewEntry, 'history'>[];
+};
+/** Hasil per bagian disimpan mandiri; data lama tidak dianggap memenuhi semua bagian. */
+export type CalibrationReview = {
+  result: 'Sesuai' | 'Perlu klarifikasi' | 'Ada ketidaksesuaian';
+  subject: CalibrationReviewSubject;
+  sections?: Partial<Record<CalibrationReviewSubject, CalibrationReviewEntry>>;
+  note: string;
+  evidenceReference: string;
+  reviewedAt: string;
+  reviewer: 'PIC Balai / Pengguna Jasa';
+  sourceSignature: string;
+};
+
 export type CalibrationRecord = {
   id: string;
   equipment: string;
@@ -250,6 +274,8 @@ export type AcceptanceTerm = {
 };
 
 export type CorrectionCase = {
+  /** Exact origin of a formal calibration finding; immutable after creation. */
+  calibrationFinding?: { surveyType: SurveyType; subject: CalibrationReviewSubject; sourceSignature: string; reviewedAt: string };
   cyclePeriod?: number;
   id: string;
   source: string;
@@ -264,6 +290,8 @@ export type CorrectionCase = {
   fieldDataValid: 'Ya' | 'Tidak' | 'Tidak Berlaku' | '';
   surveyType: SurveyType;
   actionType: string;
+  /** Rencana pekerjaan yang akan dilaksanakan; bukan laporan pelaksanaan. */
+  proposedPlan?: string;
   evidence: string;
   originalValue: string;
   proposedValue: string;
@@ -320,7 +348,24 @@ export type WorkflowEvent = {
   newValue?: string;
 };
 
+/** Append-only review actions; older snapshots remain readable without fabricated metadata. */
+export type ReviewActivity = {
+  id: string;
+  recordedAt: string;
+  actor: WorkflowRole;
+  stage: 'Tahap 0' | 'Tahap 2' | 'Tahap 3B' | 'Tahap 5' | 'Tahap 6';
+  period?: number;
+  auditLevel?: 1 | 2 | 3;
+  action: 'catatan' | 'keputusan' | 'pengajuan-ulang' | 'pengajuan' | 'perubahan-pemeriksaan';
+  previousStatus: string;
+  status: string;
+  previousNote: string;
+  note: string;
+};
+
 export type OperationalWorkflowState = {
+  reviewActivityHistory?: ReviewActivity[];
+  balaiDecisionHistory?: Array<{stage:'Tahap 0'|'Tahap 2'|'Tahap 6'; recordedAt:string; actor:WorkflowRole; previousDecision:string; decision:string; previousNote:string; note:string; previousReference?:string; reference?:string}>;
   pciMethodDrafts?: Partial<Record<"manual" | "ai", ProductionTest>>;
   flowContractVersion?: number;
   simulationDate: string;
@@ -356,8 +401,10 @@ export type OperationalWorkflowState = {
   };
   calibrations: CalibrationRecord[];
   calibrationChecklist: Record<SurveyType, boolean>;
+  calibrationReviews?: Partial<Record<SurveyType, CalibrationReview>>;
   productionTests: Record<SurveyType, ProductionTest>;
-  productionTestDates?: Partial<Record<SurveyType, string>>;
+  productionFailures?: Partial<Record<string, { reference: string; methodReview: string; date: string }[]>>;
+  productionTestDates?: Partial<Record<SurveyType,string>>;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
   cycleHistory?: Record<string, VervalCycle>;
@@ -373,7 +420,8 @@ export type OperationalWorkflowState = {
     finalAcceptance: boolean;
     finalAcceptanceBa?: string;
     acceptanceCriteria?: Record<string, boolean>;
-    acceptanceDecision?: 'Belum Diperiksa' | 'Diterima' | 'Ditolak';
+    acceptanceDecision?: 'Belum Diperiksa' | 'Diterima' | 'Diterima dengan Catatan' | 'Ditolak';
+    acceptanceReviewNote?: string;
     acceptanceRejectionReason?: string;
     semesterTwoEvidence?: SemesterTwoEvidence;
   };
@@ -655,7 +703,8 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
       ])) as OperationalWorkflowState['productionTests'],
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
       cycleHistory: parsed.cycleHistory ?? {},
-      calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type => [type, parsed.calibrationChecklist?.[type] ?? false])) as Record<SurveyType, boolean>,
+      calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
+      calibrationReviews: parsed.calibrationReviews ?? {},
       submission: {
         ...INITIAL_WORKFLOW.submission,
         ...parsed.submission,
@@ -1037,8 +1086,14 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     const detail =
       test.productionDetails ?? {};
 
+    // Nama field di formulir dan key lama sama-sama diterima; jangan ubah data historis.
+    const sourceField: Record<string, string> = {
+      slopeGeometry: 'geometry',
+      slopeMaterial: 'materialCondition',
+      protectionStructure: 'engineeringStructure',
+    };
     const text = (key: string) =>
-      String(detail[key] ?? '').trim();
+      String(detail[key] || detail[sourceField[key]] || '').trim();
 
     const yes = (key: string) =>
       detail[key] === true;

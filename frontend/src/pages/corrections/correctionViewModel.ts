@@ -190,3 +190,29 @@ export function correctionMetrics(rows: CorrectionRow[], role: WorkflowRole) {
     { label: "Selesai", value: count(r => r.status === "Ditutup"), tone: "green" },
   ];
 }
+
+/** One canonical next action per case; no review actions are exposed to Penyedia. */
+export function providerCorrectionAction(item: CorrectionCase): { label: string; description: string } {
+  if (item.status === "Ditutup") return { label: "Lihat riwayat", description: "Kasus selesai" };
+  if (item.status === "Menunggu Persetujuan") return { label: "Lihat pengajuan", description: "Menunggu keputusan pemeriksa" };
+  if (item.status === "Dilaksanakan" || item.status === "Verifikasi Ulang") {
+    return { label: "Lihat hasil tindakan", description: "Menunggu pemeriksaan ulang oleh pemeriksa tahap asal" };
+  }
+  if (item.status === "Disetujui") return { label: "Catat pelaksanaan", description: "Laksanakan tindakan yang telah disetujui" };
+  if (item.retest === "Gagal") return { label: "Perbaiki usulan", description: "Perbaiki berdasarkan hasil pemeriksaan ulang" };
+  if (item.approval === "Perlu Revisi") return { label: "Revisi usulan", description: "Lengkapi usulan sesuai alasan pemeriksa" };
+  return { label: "Lengkapi usulan", description: "Susun dan ajukan rencana tindakan berbukti" };
+}
+
+/** Tugas dengan tenggat sah diprioritaskan; urutan stabil untuk entri tanpa tenggat. */
+export function sortProviderCorrections(rows: CorrectionRow[], tab: string): CorrectionRow[] {
+  if (tab !== "Tugas Saya") return [...rows];
+  return [...rows].sort((a, b) => {
+    const aDate = a.dueDate || "9999-12-31";
+    const bDate = b.dueDate || "9999-12-31";
+    const byDate = aDate.localeCompare(bDate);
+    if (byDate) return byDate;
+    const priority: Record<CorrectionCase["severity"], number> = { Kritis: 0, Mayor: 1, Minor: 2 };
+    return priority[a.severity] - priority[b.severity];
+  });
+}

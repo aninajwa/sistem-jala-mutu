@@ -1,3 +1,5 @@
+import {recordPeriodicBa} from '../periodicDecision';
+import {applyPeriodicFinding} from '../periodicFinding';
 import {periodicSurveyTypes} from '../reviewReadiness';
 import {evaluateStageGate} from '../workflowGate';
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
@@ -69,6 +71,9 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     : (selectedCycleTypes[0] ?? reviewType);
   const surveyReview = state.cycle.surveyReviews?.[selectedReviewType];
   const dueCycle = cycleDueDate(state.cycle.lastCompletedDate);
+  const pciAi = state.productionTests.PCI.pciManual === false;
+  const pciMetric = pciAi ? 'pciAiStandardDeviation' : 'pciManualMaxDifferencePercent';
+  const pciLimit = pciAi ? 8 : 10;
   const evaluateCycleConsistency = (
     types: SurveyType[],
     iriCv: number | null,
@@ -81,10 +86,10 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       (iriCv !== null && Number.isFinite(iriCv) && iriCv >= 0 && iriCv <= 5);
     const pciPass =
       !types.includes("PCI") ||
-      (pciSd !== null && Number.isFinite(pciSd) && pciSd >= 0 && pciSd <= 10);
+      (pciSd !== null && Number.isFinite(pciSd) && pciSd >= 0 && pciSd <= pciLimit);
     if (
       (types.includes("IRI") && iriCv !== null && iriCv > 5) ||
-      (types.includes("PCI") && pciSd !== null && pciSd > 10) ||
+      (types.includes("PCI") && pciSd !== null && pciSd > pciLimit) ||
       reRating === "Tidak Sesuai"
     )
       return "Tidak Konsisten";
@@ -105,7 +110,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const consistencyResult = evaluateCycleConsistency(
     selectedCycleTypes,
     state.cycle.iriCoefficientVariation,
-    state.cycle.pciManualMaxDifferencePercent ?? null,
+    state.cycle[pciMetric] ?? null,
     state.cycle.reRatingStatus,
   );
   const canPrepareCycle = state.role === "Penyedia Jasa / Ketua Tim";
@@ -127,7 +132,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   ).length;
   const openPeriodFindings=state.corrections.filter(item=>['Konsistensi gagal','Temuan proses verval'].includes(item.source)&&item.status!=='Ditutup'&&(item.cyclePeriod===undefined||item.cyclePeriod===activeStage3BPeriod));
   const baReviewBlockers=[...reviewLocks,
-    ...(!stage3bPeriodRange.start||!stage3bPeriodRange.end?['Jadwal dan periode pemeriksaan belum ditetapkan.']:[]),
+    ...(!stage3bPeriodRange.start||!stage3bPeriodRange.end?['Periode data belum tersedia. Penyedia perlu melengkapi tanggal survei.']:[]),
     ...(!state.cycle.periodCompleted?['Penyedia belum menyerahkan hasil periode.']:[]),
     ...selectedCycleTypes.flatMap(type=>['consistency','internal','periodic14'].filter(phase=>!sourceReady(type,phase)).map(phase=>`${type}: ${phase==='consistency'?'Konsistensi':phase==='internal'?'V&V Internal':'V&V Bersama'} belum lengkap.`)),
     ...(checked!==allProtocols.length?['Pemeriksaan pelaksanaan belum lengkap.']:[]),
@@ -136,7 +141,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     ...(openPeriodFindings.length?['Selesaikan tindak lanjut temuan periode sebelum mencatat BA.']:[]),
     ...(!(draft.cycleBa??state.cycle.certificateId).trim()?['Referensi BA belum diisi.']:[])];
   const updateConsistencyMetric = (
-    key: "iriCoefficientVariation" | "pciManualMaxDifferencePercent",
+    key: "iriCoefficientVariation" | "pciManualMaxDifferencePercent" | "pciAiStandardDeviation",
     value: number | null,
   ) => {
     if (state.role !== "Penyedia Jasa / Ketua Tim") {
@@ -150,9 +155,9 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
         ? value
         : state.cycle.iriCoefficientVariation;
     const pciSd =
-      key === "pciManualMaxDifferencePercent"
+      key === pciMetric
         ? value
-        : (state.cycle.pciManualMaxDifferencePercent ?? null);
+        : (state.cycle[pciMetric] ?? null);
     updateCycle(
       {
         [key]: value,
@@ -163,7 +168,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           state.cycle.reRatingStatus,
         ),
       },
-      `Catat ${key === "iriCoefficientVariation" ? "IRI CV" : "Selisih PCI Manual (%)"} verval`,
+      `Catat ${key === "iriCoefficientVariation" ? "IRI CV" : pciAi ? "SD PCI AI" : "Selisih PCI Manual (%)"} verval`,
     );
   };
   const updateReRating = (value: VervalCycle["reRatingStatus"]) => {
@@ -179,7 +184,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
         consistency: evaluateCycleConsistency(
           selectedCycleTypes,
           state.cycle.iriCoefficientVariation,
-          state.cycle.pciManualMaxDifferencePercent ?? null,
+          state.cycle[pciMetric] ?? null,
           value,
         ),
       },
@@ -205,7 +210,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       (type) =>
         (type === "IRI" && (state.cycle.iriCoefficientVariation ?? 0) > 5) ||
         (type === "PCI" &&
-          (state.cycle.pciManualMaxDifferencePercent ?? 0) > 10) ||
+          (state.cycle[pciMetric] ?? 0) > pciLimit) ||
         state.cycle.reRatingStatus === "Tidak Sesuai",
     );
     const heldIds = state.dailyRecords
@@ -259,30 +264,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     }
     if(baReviewBlockers.length){setNotice(baReviewBlockers.join(' '));return;}
     const certificateId = (draft.cycleBa ?? state.cycle.certificateId).trim();
-    const heldIds = new Set(state.cycle.heldRecordIds);
-    commit("Catat BA verval Balai 14 hari", certificateId, (s) => {
-      const invalidated = invalidateVervalStages(
-        s,
-        "BA verval baru tercatat; validasi LRS dan audit perlu diulang.",
-      );
-      return {
-        ...invalidated,
-        cycle: {
-          ...s.cycle,
-          requiresReview: false,
-          reviewReason: "",
-          lastCompletedDate: stage3bPeriodRange.end||s.simulationDate,
-          certificateId,
-          consistency: "Konsisten",
-          heldRecordIds: [],
-        },
-        dailyRecords: s.dailyRecords.map((record) =>
-          heldIds.has(record.id) && record.state === "Ditahan"
-            ? { ...record, state: "Tercatat" }
-            : record,
-        ),
-      };
-    });
+    commit("Catat BA verval Balai 14 hari", certificateId,
+      (s) => recordPeriodicBa(s, certificateId));
     setNotice("BA verval Balai dicatat pada paket saat ini.");
   };
   const updateFieldValidation = (
@@ -314,6 +297,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     if(patch.userReview==='Sesuai'&&(!state.cycle.periodCompleted||!sourceReady(selectedReviewType,'periodic14'))){
       setNotice('Selesaikan pemeriksaan bersama dan tunggu hasil periode Penyedia sebelum mencatat Sesuai.');return;
     }
+    if(patch.userReview==='Temuan'&&!(surveyReview?.note??'').trim()){setNotice('Uraian temuan wajib diisi sebelum meminta perbaikan. Catatan biasa tidak otomatis membuat temuan.');return;}
     const scopedPatch =
       "userReview" in patch || "userReviewNote" in patch
         ? reviewSurvey(
@@ -341,11 +325,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           surveyReview?.note ||
           "Pengguna Jasa menemukan ketidaksesuaian proses/hasil verval",
       };
-      commit("Buka kasus dari pemeriksaan proses verval", c.id, (s) => ({
-        ...invalidateVervalStages(s,'Temuan pemeriksaan periode memerlukan tindak lanjut.'),
-        cycle:{...s.cycle,...scopedPatch},
-        corrections: [c, ...s.corrections],
-      }));
+      commit("Buka kasus dari pemeriksaan proses verval", c.id,
+        (s) => applyPeriodicFinding(s, selectedReviewType, c.id));
     } else {
       updateCycle(scopedPatch,"Catat pemeriksaan Pengguna Jasa dan bukti akhir periode");
     }
@@ -385,6 +366,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           });
         }}
       />
+      <p className="wf-note">Jadwal sesi V&amp;V bersama belum tercatat.</p>
       {canReviewCycle && (
 <div className="stage-role-priority">
       <Panel
@@ -395,13 +377,15 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       >
         {canReviewCycle ? (
           <>
-            <div className="wf-callout">
-              Khusus PIC Balai / Pengguna Jasa: periksa data, hasil konsistensi,
-              checklist dan evidence Penyedia sebelum memberikan keputusan.
-              Temuan harus ditindaklanjuti dan tidak boleh dianggap lolos.
-            </div>
-            {reviewLocks.length>0&&<div className="wf-callout warn" role="status"><strong>Review belum dapat dicatat — bukan gangguan tombol</strong><p>Prasyarat pemeriksaan belum terpenuhi. Pilihan keputusan dan isian review ditahan agar tidak menghasilkan persetujuan yang tidak sah.</p><details><summary>Lihat {reviewLocks.length} alasan tertahan</summary><ul>{reviewLocks.map(reason=><li key={reason}>{reason}</li>)}</ul></details><button className="wf-button" onClick={()=>onNavigate('/entry:Validasi produksi')}>Periksa Tahap 2</button></div>}
-            {!state.cycle.periodCompleted&&<p className="wf-note">Penyedia belum menyerahkan hasil periode ini. Review baru dapat dicatat setelah prasyarat terpenuhi; keputusan Sesuai juga memerlukan V&V Bersama yang lengkap.</p>}
+            {reviewLocks.length > 0 && (
+              <div className="wf-callout warn" role="status">
+                <details>
+                  <summary>Pemeriksaan tertahan · {reviewLocks.length} prasyarat</summary>
+                  <ul>{reviewLocks.map((reason) => <li key={reason}>{reason}</li>)}</ul>
+                </details>
+                <button type="button" className="wf-button" onClick={() => onNavigate('/entry:Validasi produksi')}>Periksa Tahap 2</button>
+              </div>
+            )}
             {conformityLock&&<p className="wf-note">Keputusan Sesuai tertahan: {conformityLock}. Buka V&V Bersama untuk melengkapi pemeriksaan jenis yang dipilih.</p>}
             <div className="wf-fields">
               <Field label="Jenis survei yang direview">
@@ -605,20 +589,16 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
         }}
       />
 
-      <div className="wf-callout" role="status">
-        <strong>{canPrepareCycle ? 'Pekerjaan Ketua Tim' : canReviewCycle ? 'Pekerjaan PIC Balai' : 'Pemantauan periode'}</strong>
-        <p className="wf-note">
-          {canPrepareCycle
-            ? 'Isi konsistensi dan V&V internal, lengkapi bukti, lalu serahkan hasil periode untuk diperiksa Balai.'
-            : canReviewCycle
-              ? state.cycle.periodCompleted
-                ? 'Periksa V&V bersama, hasil sistem dan bukti Penyedia; kemudian catat review per jenis survei.'
-                : 'Menunggu penyerahan hasil periode dari Ketua Tim. Checklist pelaksanaan Penyedia hanya untuk dipantau.'
-              : 'Pantau kelengkapan, hasil pemeriksaan, temuan dan keputusan Balai. Isian teknis hanya dapat diubah aktor yang berwenang.'}
-        </p>
-      </div>
-      <details className="wf-panel"><summary className="wf-panel-head">{canPrepareCycle ? 'Checklist pelaksanaan periode · Ketua Tim' : 'Detail & Riwayat · Checklist pelaksanaan Ketua Tim (hanya lihat)'} ({checked}/{allProtocols.length})</summary>
-        {allProtocols.map(protocol=><CheckRow key={protocol} id={`cycle-protocol-${testId(protocol)}`} label={protocol} checked={!!state.cycle.checkedProtocols[protocol]} disabled={!canPrepareCycle} onChange={value=>updateProtocol(protocol,value)}/>)}
+      <details className="wf-panel">
+        <summary className="wf-panel-head">Checklist pelaksanaan periode ({checked}/{allProtocols.length})</summary>
+        {canPrepareCycle ? allProtocols.map((protocol) => (
+          <CheckRow key={protocol} id={`cycle-protocol-${testId(protocol)}`} label={protocol}
+            checked={!!state.cycle.checkedProtocols[protocol]} onChange={(value) => updateProtocol(protocol, value)} />
+        )) : (
+          <ul className="wf-body">
+            {allProtocols.map((protocol) => <li key={protocol}>{protocol} — {state.cycle.checkedProtocols[protocol] ? "Tercatat" : "Belum tercatat"}</li>)}
+          </ul>
+        )}
       </details>
       {canPrepareCycle ? <DocumentAttachments scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`,`stage3b-supporting-evidence-${activeStage3BPeriod}`]} editable={canPrepareCycle}/> : <details className="wf-panel"><summary className="wf-panel-head">Detail & Riwayat · Bukti Penyedia (hanya lihat)</summary><DocumentAttachments scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`,`stage3b-supporting-evidence-${activeStage3BPeriod}`]} editable={false}/></details>}
       <div className="wf-grid">
@@ -693,17 +673,17 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
               </Field>
             )}
             {selectedCycleTypes.includes("PCI") && (
-              <Field label="Selisih PCI Manual (maks. 10%)">
+              <Field label={pciAi ? "Standar deviasi PCI AI (maks. 8)" : "Selisih PCI Manual (maks. 10%)"}>
                 <input
                   type="number"
                   min="0"
                   step="0.1"
                   data-testid="input-cycle-pci-ai-sd"
-                  value={state.cycle.pciManualMaxDifferencePercent ?? ""}
+                  value={state.cycle[pciMetric] ?? ""}
                   readOnly={!canPrepareCycle}
                   onChange={(e) =>
                     updateConsistencyMetric(
-                      "pciManualMaxDifferencePercent",
+                      pciMetric,
                       e.target.value === "" ? null : Number(e.target.value),
                     )
                   }

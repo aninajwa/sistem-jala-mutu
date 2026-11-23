@@ -1,3 +1,4 @@
+import { Link } from "wouter";
 import ReportFilters from "../reports/ReportFilters";
 import Dashboard from "../reports/Dashboard";
 import PeriodicReports from "../reports/PeriodicReports";
@@ -14,7 +15,7 @@ import {
   type ReportFilter,
   type ReportKind,
 } from "../reports/model";
-import { filterError, filterReport, summarizeReport } from "../reports/query";
+import { filterError, filterReport, summarizeReport, matchesReportSearch } from "../reports/query";
 import { createReportCsv, downloadReport } from "../reports/export";
 
 export default function ReportsPage(p: PageProps & { principal: Principal }) {
@@ -30,12 +31,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
   const snapshot = readLocalReports(p.packages, p.principal);
   const source = snapshot.rows[kind];
   const allRows = filterReport(source, filter);
-  const rows = allRows.filter((r) =>
-    Object.values(r)
-      .join(" ")
-      .toLocaleLowerCase("id-ID")
-      .includes(search.toLocaleLowerCase("id-ID")),
-  );
+  const rows = allRows.filter((row) => matchesReportSearch(row, search));
   const count = dashboard ? 4 : 10;
   const current = Math.min(page, Math.max(1, Math.ceil(rows.length / count)));
   const visible = rows.slice(
@@ -92,20 +88,28 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
           administrasi untuk mengelola penugasan dan akses. Admin tidak memiliki
           kewenangan persetujuan teknis QA/QC.
         </div>
+        <div className="c-access-actions">
+          <Link className="btn primary" href="/audit">
+            Kelola penugasan & akses
+          </Link>
+          <Link className="btn" href="/">
+            Kembali ke dashboard
+          </Link>
+        </div>
       </>
     );
   return (
     <div className="rv-workspace">
       <PageHeading
-        label="Dashboard & Laporan"
-        detail={`${roleHint}. ${p.principal.role.startsWith("Penyedia") ? "Pantau aktivitas dan siapkan laporan paket Anda." : p.principal.role.startsWith("PIC") ? "Pantau pemeriksaan dan tindak lanjut paket dalam kewenangan." : "Bandingkan aktivitas lintas Balai dalam cakupan monitoring."}`}
+        label={dashboard ? "Dashboard Operasional" : periodic ? "Laporan periodik" : "Rekap & Ekspor"}
+        detail={roleHint}
         action={
           !dashboard && !periodic ? (
             <button
               className="btn primary"
-              disabled={!!error || !allRows.length}
+              disabled={!!error || !rows.length}
               title={
-                !allRows.length
+                !rows.length
                   ? "Tidak ada rekaman pada filter ini"
                   : "Unduh rekap informatif CSV"
               }
@@ -116,6 +120,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
                     p.principal,
                     kind,
                     filter,
+                    search,
                   );
                   downloadReport(file);
                   setMessage(
@@ -133,23 +138,6 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
           ) : undefined
         }
       />
-      <div className="rv-nav">
-        {["Dashboard Operasional", "Rekap & Ekspor", "Laporan periodik"].map(
-          (label, i) => (
-            <button
-              key={label}
-              className={`btn ${(i === 0 && dashboard) || (i === 1 && !dashboard && !periodic) || (i === 2 && periodic) ? "primary" : ""}`}
-              onClick={() => p.setActiveTab(i === 0 ? "Semua" : label)}
-            >
-              {label}
-            </button>
-          ),
-        )}
-      </div>
-      <p className="subtle">
-        Sumber lokal frontend (termasuk data uji pengembangan) · API laporan/SMD belum terhubung · Rekap
-        informatif, bukan pengesahan.
-      </p>
       {periodic ? (
         <PeriodicReports {...p} />
       ) : (
@@ -179,32 +167,6 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
           {message && <p role="status">{message}</p>}
           {snapshot.warnings.length > 0 && (
             <p role="alert">{snapshot.warnings.join(" ")}</p>
-          )}
-          {dashboard && (
-            <div className="rv-card" style={{ marginTop: 12 }}>
-              <h3>
-                {p.principal.role.startsWith("Penyedia")
-                  ? "Siapkan laporan paket Anda"
-                  : p.principal.role.startsWith("PIC")
-                    ? "Tinjau pekerjaan dalam kewenangan"
-                    : "Monitoring lintas Balai"}
-              </h3>
-              <p className="subtle">
-                {p.principal.role.startsWith("Penyedia")
-                  ? "Kelola draf, lampiran, dan versi laporan pada perangkat ini."
-                  : p.principal.role.startsWith("PIC")
-                    ? "Telusuri pemeriksaan terkini dan tindak lanjut. Antrean pengajuan laporan menunggu layanan backend."
-                    : "Perbandingan aktivitas hanya mencakup paket yang ditugaskan; seluruh Balai tidak otomatis terbuka."}
-              </p>
-              <button
-                className="btn"
-                onClick={() => p.setActiveTab("Laporan periodik")}
-              >
-                {p.principal.role.startsWith("Penyedia")
-                  ? "Kelola draf laporan"
-                  : "Katalog dan kesiapan laporan"}
-              </button>
-            </div>
           )}
           {dashboard && (
             <Dashboard
@@ -315,7 +277,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
                   ? "Belum ada paket dalam penugasan Anda."
                   : source.length
                     ? "Tidak ada rekaman yang sesuai filter. Ubah atau reset filter."
-                    : "Data rekap ini belum tercatat pada paket dalam penugasan. Data backend belum terhubung."}
+                    : "Data rekap ini belum tercatat pada paket dalam penugasan. "}
               </div>
             )}
             <div className="panel-body">

@@ -15,6 +15,7 @@ export type PageProps = {
   workflow: OperationalWorkflowState;
   packages: Record<string, OperationalWorkflowState>;
   openPackage: (id: string) => void;
+  openPackageReview: (id:string, selection:string, context?:{period?:number;auditLevel?:number}) => void;
   openPackageBA: (id: string, kind: string, context?: {survey?:string;period?:number;auditLevel?:number;returnTo?:string}) => void;
   balai: string;
   periode: string;

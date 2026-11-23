@@ -60,7 +60,7 @@ export function LegacyWorkflowDocuments({state, period=1, periodRange, onNavigat
   ]:kind==='bertahap'?[
     ['Verifikasi dan data yang diserahkan',Object.entries(state.submission).filter(([,v])=>typeof v!=='object').map(([k,v])=>`${k}: ${String(v??'')}`).join(' · ')]
   ]:kind==='penerimaan'?[
-    ['Keputusan penerimaan',`Keputusan: ${state.acceptance.acceptanceDecision||'Belum diperiksa'}; Catatan: ${state.acceptance.acceptanceRejectionReason||'Belum tersedia'}`],
+    ['Keputusan penerimaan',`Keputusan: ${state.acceptance.acceptanceDecision||'Belum diperiksa'}; Catatan: ${state.acceptance.acceptanceRejectionReason||state.acceptance.acceptanceReviewNote||'Belum tersedia'}`],
     ['Hasil audit terkait',relatedAudit.map(({audit,level})=>`Tingkat ${level}: ${audit.status}; Referensi: ${audit.baNumber||'belum ada'}`).join('\n')]
   ]:[];
   // Only collect values the source systems do not already hold. Legacy section drafts stay in storage.

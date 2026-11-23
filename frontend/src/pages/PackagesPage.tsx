@@ -1,76 +1,312 @@
-import { apiRequest } from '../auth/client';
-import { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Building2, Search, FolderOpen, Archive, Plus } from 'lucide-react';
-import type { OperationalWorkflowState, WorkflowRole } from '../workflow/model';
-import { derivePackageStage, packageStatus, packageWaitingFor } from '../workflow/packageStore';
-import { isLegacyExample, isRoleTestMode } from '../workflow/access/packageAccess';
-import { packageMenuLabel } from '../workflow/roleNavigation';
-import { readDeclaredPackageSurveyScopes } from '../workflow/declaredPackageSurveyScope';
-import { mapServerPackagesToDirahPackages,
-  type ServerBalaiRow, type ServerPackageListResponse, type ServerPackageRow } from './serverPackageView';
-import { CreatePackageDialog } from './CreatePackageDialog';
-import { canCreateServerPackage, type CreatedServerPackage } from './serverPackageCreation';
-type Props = { packages: Record<string, OperationalWorkflowState>; role: WorkflowRole; onOpen: (id: string) => void; onCreatePackage?: () => void; serverPackageStatuses?: Record<string, string> };
-function LocalPackagesPage({ packages, role, onOpen, onCreatePackage, serverPackageStatuses }: Props) {
-    const [search, setSearch] = useState(''), [balai, setBalai] = useState(''), [status, setStatus] = useState(''), [showLegacy, setShowLegacy] = useState(() => import.meta.env.DEV);
-    const all = Object.values(packages), legacy = all.filter(isLegacyExample);
-    const rows = useMemo(() => all.filter(s => (showLegacy || !isLegacyExample(s)) && (!balai || s.project.balai === balai) && (!status || (serverPackageStatuses ? serverPackageStatuses[s.project.id] === status : derivePackageStage(s) === status)) && `${s.project.packageName} ${s.project.id} ${s.project.contractor} ${s.project.routes.join(' ')}`.toLowerCase().includes(search.toLowerCase())), [all, balai, status, showLegacy, search, serverPackageStatuses]);
-    const statusOptions = [...new Set(all.map(item => serverPackageStatuses?.[item.project.id] ?? derivePackageStage(item)))];
-    return <div className="package-page operational-list">
-        <div className="package-page-head">
-          <div>
-            <div className="eyebrow">PENGELOLAAN PAKET QA/QC</div>
-            <h1>{packageMenuLabel(role)}</h1>
-            <p>{role === 'Admin' ? 'Pantau identitas dan pengaturan paket. Keputusan teknis tetap menjadi kewenangan pelaksana pemeriksaan.' : 'Pilih paket penugasan untuk melanjutkan pekerjaan atau meninjau hasil pemeriksaan.'}</p>
-          </div>
-          <div className="package-head-actions">
-            {onCreatePackage && (role === 'Penyedia Jasa / Ketua Tim' || role === 'Admin') && (
-              <button type="button" className="wf-button primary" onClick={onCreatePackage} data-testid="button-create-package-authenticated">
-                <Plus size={14} /> Buat Paket
-              </button>
-            )}
-            <span className="package-count">{rows.length} paket terlihat</span>
-          </div>
-        </div>
-        <div className="package-list-filters"><label className="package-search"><Search size={16} /><input aria-label="Cari paket" placeholder="Cari nama paket, nomor, ruas atau penyedia…" value={search} onChange={e => setSearch(e.target.value)} /></label>
-            {new Set(all.map(s => s.project.balai)).size > 1 && <select aria-label="Filter Balai paket" value={balai} onChange={e => setBalai(e.target.value)}><option value="">Seluruh Balai dalam cakupan</option>{[...new Set(all.map(s => s.project.balai))].map(value => <option key={value}>{value}</option>)}</select>}
-            <select aria-label={serverPackageStatuses ? 'Filter status paket' : 'Filter tahap paket'} value={status} onChange={e => setStatus(e.target.value)}><option value="">{serverPackageStatuses ? 'Semua status paket' : 'Semua tahap'}</option>{statusOptions.map(value => <option key={value}>{value}</option>)}</select></div>
-        {!!legacy.length && <details className="legacy-packages"><summary><Archive size={14} /> {legacy.length} paket contoh lama tersimpan</summary><p>Data lama tetap disimpan. Tampilkan jika diperlukan untuk pemeriksaan; tidak ada data yang dihapus.</p><label><input type="checkbox" checked={showLegacy} onChange={e => setShowLegacy(e.target.checked)} /> Tampilkan paket contoh lama</label></details>}
-        <div className="package-list">{rows.map(s => {
-          const contractor = s.project.contractor || 'Penyedia belum ditetapkan';
-          const routes = s.project.routes?.length
-            ? s.project.routes.join(', ')
-            : 'Ruas belum ditetapkan';
+import { apiRequest } from "../auth/client";
+import { readDeclaredPackageSurveyScopes } from "../workflow/declaredPackageSurveyScope";
+import {
+  mapServerPackagesToDirahPackages,
+  type ServerBalaiRow,
+  type ServerPackageListResponse,
+  type ServerPackageRow,
+} from "./serverPackageView";
+import { CreatePackageDialog } from "./CreatePackageDialog";
+import { canCreateServerPackage, type CreatedServerPackage } from "./serverPackageCreation";
+import { FilterPanel } from "../design/b/FilterPanel";
+import { WorkspaceHeading, StatePill } from "../design/b/Patterns";
+import { Feedback } from "../design/Feedback";
+import { balaiReviewQueue } from "../workflow/balaiReviewQueue";
+import { useEffect, useMemo, useState } from "react";
+import {
+  ArrowRight,
+  Building2,
+  Search,
+  ClipboardList,
+  FolderOpen,
+  Archive,
+  Plus,
+} from "lucide-react";
+import type { OperationalWorkflowState, WorkflowRole } from "../workflow/model";
+import {
+  derivePackageStage,
+  packageStatus,
+  packageWaitingFor,
+} from "../workflow/packageStore";
+import { isLegacyExample, isRoleTestMode } from "../workflow/access/packageAccess";
+import { packageMenuLabel } from "../workflow/roleNavigation";
 
-          return (
-            <article className="package-card" key={s.project.id} data-testid={`package-card-${s.project.id}`}>
-              <div className="package-card-main">
-                <div className="package-id">{s.project.contractNumber || s.project.id}</div>
-                <h2>{s.project.packageName}</h2>
-                <div className="package-meta">
-                  <span><Building2 size={14} />{s.project.balai}</span>
-                  <span>{s.project.semester}</span>
-                </div>
-                <p>{contractor} · {routes}</p>
+type Props = {
+  packages: Record<string, OperationalWorkflowState>;
+  role: WorkflowRole;
+  onOpen: (id: string) => void;
+  onOpenReview?: (
+    id: string,
+    selection: string,
+    context?: { period?: number; auditLevel?: number },
+  ) => void;
+  /** Server mode: show the create action and server package statuses instead of local derivations. */
+  onCreatePackage?: () => void;
+  serverPackageStatuses?: Record<string, string>;
+};
+function LocalPackagesPage({
+  packages,
+  role,
+  onOpen,
+  onOpenReview,
+  onCreatePackage,
+  serverPackageStatuses,
+}: Props) {
+  const stageOf = (s: OperationalWorkflowState) =>
+    serverPackageStatuses ? serverPackageStatusLabel(serverPackageStatuses[s.project.id]) : derivePackageStage(s);
+  const statusOf = (s: OperationalWorkflowState) =>
+    serverPackageStatuses ? serverPackageStatusLabel(serverPackageStatuses[s.project.id]) : packageStatus(s);
+  const waitingOf = (s: OperationalWorkflowState) =>
+    serverPackageStatuses ? "Lihat status per tahap di workspace paket" : packageWaitingFor(s);
+  const [compact, setCompact] = useState(false);
+  const provider = role === "Penyedia Jasa / Ketua Tim";
+  const [search, setSearch] = useState("");
+  const [balai, setBalai] = useState("");
+  const [status, setStatus] = useState("");
+  const [showLegacy, setShowLegacy] = useState(() => import.meta.env.DEV);
+  const reviewItems = useMemo(
+    () =>
+      role === "PIC Balai / Pengguna Jasa" ? balaiReviewQueue(packages) : [],
+    [packages, role],
+  );
+  const all = Object.values(packages),
+    legacy = all.filter(isLegacyExample);
+  const rows = useMemo(
+    () =>
+      all.filter(
+        (s) =>
+          (showLegacy || !isLegacyExample(s)) &&
+          (!balai || s.project.balai === balai) &&
+          (!status || stageOf(s) === status) &&
+          `${s.project.packageName} ${s.project.id} ${s.project.contractor} ${s.project.routes.join(" ")}`
+            .toLowerCase()
+            .includes(search.toLowerCase()),
+      ),
+    [all, balai, status, showLegacy, search],
+  );
+  return (
+    <div
+      className={`package-page b-package-catalog ${compact ? "is-compact" : ""}`}
+    >
+      <WorkspaceHeading
+        eyebrow="PAKET & LINGKUP PENUGASAN"
+        title={packageMenuLabel(role)}
+        description={
+          role === "Admin"
+            ? "Pantau administrasi paket. Keputusan teknis berada pada pemeriksa."
+            : "Pilih paket untuk melanjutkan pekerjaan sesuai tahap dan kewenangan."
+        }
+        action={onCreatePackage && (role === "Penyedia Jasa / Ketua Tim" || role === "Admin") ? (
+          <button type="button" className="wf-button primary" onClick={onCreatePackage} data-testid="button-create-package-authenticated">
+            <Plus size={16} /> Buat Paket
+          </button>
+        ) : undefined}
+      />
+      <FilterPanel
+        title="Filter paket"
+        activeCount={Number(!!search) + Number(!!balai) + Number(!!status)}
+        onReset={() => {
+          setSearch("");
+          setBalai("");
+          setStatus("");
+        }}
+      >
+        {" "}
+        <div className="b-catalog-toolbar">
+          <label className="package-search">
+            <Search size={17} />
+            <input
+              aria-label="Cari paket"
+              placeholder="Nama paket, ruas, atau Penyedia…"
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+            />
+          </label>
+          {new Set(all.map((s) => s.project.balai)).size > 1 && (
+            <select
+              aria-label="Filter Balai paket"
+              value={balai}
+              onChange={(e) => setBalai(e.target.value)}
+            >
+              <option value="">Seluruh Balai dalam cakupan</option>
+              {[...new Set(all.map((s) => s.project.balai))].map((v) => (
+                <option key={v}>{v}</option>
+              ))}
+            </select>
+          )}
+          <select
+            aria-label="Filter tahap paket"
+            value={status}
+            onChange={(e) => setStatus(e.target.value)}
+          >
+            <option value="">Semua tahap</option>
+            {[...new Set(all.map(stageOf))].map((v) => (
+              <option key={v}>{v}</option>
+            ))}
+          </select>
+          {!provider && <button
+            className="btn"
+            aria-pressed={compact}
+            onClick={() => setCompact(!compact)}
+          >
+            {compact ? "Tampilan kartu" : "Tampilan ringkas"}
+          </button>}
+        </div>
+      </FilterPanel>
+      <div className="b-catalog-caption">
+        <span>{rows.length} paket dalam filter</span>
+        {!!legacy.length && (
+          <details className="legacy-packages">
+            <summary>
+              <Archive size={14} />
+              {legacy.length} paket contoh tersimpan
+            </summary>
+            <label>
+              <input
+                type="checkbox"
+                checked={showLegacy}
+                onChange={(e) => setShowLegacy(e.target.checked)}
+              />
+              Tampilkan paket contoh lama
+            </label>
+            <p>Data historis tetap disimpan.</p>
+          </details>
+        )}
+      </div>
+      {provider && rows.length > 0 && (
+        <ul className="provider-case-queue" aria-label="Paket dalam penugasan">
+          {rows.map((state) => (
+            <li key={state.project.id} data-testid={`package-card-${state.project.id}`}>
+              <div>
+                <small>{state.project.contractNumber || state.project.id}</small>
+                <h2>{state.project.packageName}</h2>
+                <p>{state.project.balai} · {state.project.semester}</p>
+                <p>{state.project.surveyTypes.join(", ") || "Jenis survei belum tercatat"}</p>
+                <p>{state.project.routes.join(", ") || "Ruas belum tercatat"}</p>
               </div>
-              <div className="package-card-status">
-                <div><small>Tahap</small><strong>{serverPackageStatuses ? 'Belum diverifikasi' : derivePackageStage(s)}</strong></div>
-                <div><small>Status</small><strong>{serverPackageStatuses ? serverPackageStatusLabel(serverPackageStatuses[s.project.id]) : packageStatus(s)}</strong></div>
-                <div><small>Tanggung jawab berikutnya</small><strong>{serverPackageStatuses ? 'Belum ditentukan' : packageWaitingFor(s)}</strong></div>
-                <button className="wf-button primary" onClick={() => onOpen(s.project.id)}>
-                  Buka paket <ArrowRight size={15} />
+              <div className="provider-case-action">
+                <strong>{serverPackageStatuses ? statusOf(state) : `${derivePackageStage(state)} · ${packageStatus(state)}`}</strong>
+                <span>{waitingOf(state)}</span>
+                <button type="button" className="wf-button primary" onClick={() => onOpen(state.project.id)}>
+                  Buka Paket <ArrowRight size={14} aria-hidden="true" />
                 </button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
+      {!provider && <div className="b-package-grid">
+        {rows.map((s) => {
+          const review =
+            role === "PIC Balai / Pengguna Jasa"
+              ? reviewItems.find(
+                  (row) =>
+                    row.packageId === s.project.id &&
+                    row.status === "Perlu Review",
+                )
+              : undefined;
+          return (
+            <article
+              className="package-card b-package-tile"
+              key={s.project.id}
+              data-testid={`package-card-${s.project.id}`}
+            >
+              <div className="b-package-tile-heading">
+                <span className="b-row-icon">
+                  <ClipboardList size={22} />
+                </span>
+                <span className="package-id">
+                  {s.project.contractNumber || s.project.id}
+                </span>
+                <StatePill>{stageOf(s)}</StatePill>
+              </div>
+              <h2>{s.project.packageName}</h2>
+              <div className="package-meta">
+                <span>
+                  <Building2 size={14} />
+                  {s.project.balai}
+                </span>
+                <span>{s.project.semester}</span>
+              </div>
+              <p className="b-package-identity">
+                {s.project.contractor}
+                <br />
+                {s.project.routes.join(", ")}
+              </p>
+              <div className="package-scope">
+                {s.project.surveyTypes.map((type) => (
+                  <span key={type}>{type}</span>
+                ))}
+              </div>
+              <dl className="b-package-facts">
+                <div>
+                  <dt>Status paket</dt>
+                  <dd>{statusOf(s)}</dd>
+                </div>
+                <div>
+                  <dt>Pemilik langkah berikutnya</dt>
+                  <dd>{waitingOf(s)}</dd>
+                </div>
+              </dl>
+              <div className="b-package-actions">
+                {review && onOpenReview ? (
+                  <>
+                    <div>
+                      <small>Pengajuan perlu ditinjau</small>
+                      <strong>{review.kind}</strong>
+                    </div>
+                    <button
+                      className="wf-button primary"
+                      onClick={() =>
+                        onOpenReview(s.project.id, review.selection, {
+                          period: review.period,
+                          auditLevel: review.auditLevel,
+                        })
+                      }
+                    >
+                      Buka pemeriksaan Balai
+                      <ArrowRight size={15} />
+                    </button>
+                    <button
+                      className="b-text-action"
+                      onClick={() => onOpen(s.project.id)}
+                    >
+                      Lihat paket
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    className="wf-button primary"
+                    onClick={() => onOpen(s.project.id)}
+                  >
+                    Buka paket
+                    <ArrowRight size={15} />
+                  </button>
+                )}
               </div>
             </article>
           );
-        })}</div>
-        {!rows.length && <div className="package-empty"><FolderOpen size={32} /><h2>Tidak ada paket yang sesuai</h2><p>Periksa kata pencarian, filter, atau penugasan akun.</p></div>}
-    </div>;
+        })}
+      </div>}
+      {!rows.length && (
+        <Feedback
+          kind="empty"
+          title={
+            all.length
+              ? "Tidak ada paket yang sesuai"
+              : "Belum ada paket dalam penugasan"
+          }
+          description={
+            all.length
+              ? "Sesuaikan pencarian atau filter paket."
+              : "Periksa cakupan akun dengan pengelola penugasan."
+          }
+        />
+      )}
+    </div>
+  );
 }
 
-
-// Real sessions stay on the Dirah UI. The list is refetched from the backend
-// and mapped into the exact view model the Dirah component already expects.
 export default function PackagesPage(props: Props) {
     return isRoleTestMode() ? <LocalPackagesPage {...props} /> : <ServerPackagesPage role={props.role} onOpen={props.onOpen} />;
 }

@@ -1,6 +1,8 @@
 import {INITIAL_WORKFLOW} from '../workflow/model';
+import {workflowMutationError} from '../workflow/access/workflowMutationGuard';
 import {packageRepository} from '../workflow/repository/packageRepository';
 import {localPrincipal,canViewPackage,visiblePackages,isRoleTestMode} from '../workflow/access/packageAccess';
+import {resolveEditablePackageId} from '../workflow/access/resolveEditablePackageId';
 import { localPersistence } from '../workflow/repository/localPersistence';
 import { addCorrectionDemoPackages } from "../workflow/testing/correctionDemoPackages";
 
@@ -20,6 +22,7 @@ type WorkflowPackageStore,
 
 
 export function usePackageStore(authenticatedRole?: WorkflowRole) {
+  const [mutationError, setMutationError] = useState("");
   const [packageStore, setPackageStore] =
     useState<WorkflowPackageStore>(() => {
       const saved = authenticatedRole
@@ -51,6 +54,7 @@ export function usePackageStore(authenticatedRole?: WorkflowRole) {
       packageRepository.save(packageStore);
     } catch (error) {
       console.error('Gagal menyimpan paket:', error);
+      setMutationError("Penyimpanan paket gagal. Perubahan mungkin hilang saat halaman dimuat ulang.");
     }
   }, [packageStore, authenticatedRole]);
 
@@ -113,26 +117,29 @@ export function usePackageStore(authenticatedRole?: WorkflowRole) {
     _activity: string,
     _object: string,
   ) => {
+    setMutationError("");
     setPackageStore(current => {
-      const id = current.activePackageId;
-
-      if (!id || !current.packages[id]) {
+      // The stage workspace renders the first role-visible package when a
+      // direct URL has no active selection. Persist the same package when
+      // the user first edits, rather than silently discarding the update.
+      const visible = visiblePackages(
+        current.packages,
+        localPrincipal(current.activeRole, current.packages),
+      );
+      const id = resolveEditablePackageId(current.activePackageId, Object.keys(visible));
+      if (!id || id !== workflow.project.id || current.activeRole !== packageStore.activeRole) {
+        queueMicrotask(() => setMutationError("Perubahan tidak disimpan. Buka paket yang tersedia dari Paket Saya."));
         return current;
       }
+      const previous = visible[id];
 
-      const previous = current.packages[id];
-      if(!canViewPackage(localPrincipal(current.activeRole,current.packages),previous))return current;
-
-      return {
-        ...current,
-        packages: {
-          ...current.packages,
-          [id]: update({
-            ...previous,
-            role: current.activeRole,
-          }),
-        },
-      };
+      const proposed=update({...previous,role:current.activeRole});
+      const violation=workflowMutationError({...previous,role:current.activeRole},proposed,current.activeRole);
+      if (violation) {
+        queueMicrotask(() => setMutationError("Perubahan tidak disimpan. " + violation));
+        return current;
+      }
+      return {...current,activePackageId:id,packages:{...current.packages,[id]:proposed}};
     });
   };
 
@@ -147,5 +154,6 @@ export function usePackageStore(authenticatedRole?: WorkflowRole) {
     closePackage,
     setRole,
     updateWorkflow,
+    mutationError,
   };
 }

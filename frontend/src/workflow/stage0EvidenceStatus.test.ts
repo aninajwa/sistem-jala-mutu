@@ -1,0 +1,11 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {summarizeStage0Evidence} from './stage0EvidenceStatus';
+const empty={links:[],availableKeys:new Set<string>(),legacyReferences:{}};
+const report=(input:Parameters<typeof summarizeStage0Evidence>[0])=>summarizeStage0Evidence(input)[0];
+test('tanpa bukti tidak boleh dinyatakan tersedia',()=>assert.equal(report(empty).status,'belum-tercatat'));
+test('nomor referensi tidak dianggap berkas nyata',()=>assert.equal(report({...empty,legacyReferences:{'stage0-laporan-pendahuluan':{reference:'LP-001'}}}).status,'referensi'));
+test('tautan tanpa berkas dapat dibaca tidak dianggap tersedia',()=>assert.equal(report({...empty,links:[{key:'foo',categories:['Laporan Pendahuluan'],status:'Tersedia'}]}).status,'belum-tercatat'));
+test('berkas lokal dan kategori yang benar dihitung',()=>assert.equal(report({...empty,availableKeys:new Set(['foo']),links:[{key:'foo',categories:['Laporan Pendahuluan'],status:'Tersedia'}]}).status,'berkas-lokal'));
+test('berkas berstatus perbaikan tidak dianggap siap',()=>assert.equal(report({...empty,availableKeys:new Set(['foo']),links:[{key:'foo',categories:['Laporan Pendahuluan'],status:'Perlu perbaikan'}]}).status,'perlu-perbaikan'));
+test('berkas tidak terkait atau sudah dilepas diabaikan',()=>assert.equal(report({...empty,availableKeys:new Set(['foo']),links:[{key:'foo',categories:['Laporan Pendahuluan'],status:'Tersedia',detached:true}]}).status,'belum-tercatat'));

@@ -40,6 +40,7 @@ function makeCase(
     rootCause: submitted ? "Metode" : "",
     fieldDataValid: submitted ? "Tidak" : "",
     actionType: item.action,
+    proposedPlan: submitted ? "Tindakan sesuai temuan dengan bukti dan evaluasi ulang pada tahap sumber." : "",
     evidence: submitted
       ? `EVID-${item.id} · referensi dokumen pengujian`
       : "",

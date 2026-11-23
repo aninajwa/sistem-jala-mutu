@@ -8,7 +8,8 @@ const officialOnly=/\b(tanda tangan|bertanda tangan|ditandatangani|paraf|nip\.?|
 export function baFieldRequiredForDraft(field:TemplateField,all:TemplateField[]){
  if(field.required===false)return false;
  if(officialOnly.test(`${field.section??''} ${field.label} ${field.context}`))return false;
- if(conditional.test(`${field.section??''} ${field.label} ${field.context}`))return false;
+ // Checklist dengan pilihan N/A tetap perlu dijawab: N/A adalah keputusan eksplisit, bukan kolom kosong.
+ if(conditional.test(`${field.section??''} ${field.label} ${field.context}`)&&!field.choices?.includes('N/A'))return false;
  if(field.required===true)return true;
  if(noteLike.test(field.label))return false;
  if(/^(diisi nomor dokumen|nomor ba|nomor:)$/i.test(field.label.trim()))return false;

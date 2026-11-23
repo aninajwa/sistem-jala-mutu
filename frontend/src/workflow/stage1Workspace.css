@@ -1,0 +1,42 @@
+/* Tahap 1 — penyajian per peran. Tidak mengubah model atau workflow. */
+.stage1-clean{display:grid;gap:16px;min-width:0;max-width:100%}
+.stage1-clean .wf-panel{box-shadow:none}
+.stage1-topline{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;background:#f2f7f8;border:1px solid #dce9e9;border-radius:10px;font-size:.92rem}
+.stage1-survey-container,.stage1-survey-picker{min-width:0}
+.stage1-clean .calibration-survey-tabs,.stage1-survey-picker{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.stage1-clean .calibration-survey-tabs .wf-button{display:inline-flex;gap:8px;align-items:center}
+.stage1-work-section,.stage1-edit-form,.stage1-inspection,.stage1-record,.stage1-next-row{border:1px solid #dce5e8;border-radius:12px;background:#fff;min-width:0}
+.stage1-work-section,.stage1-edit-form{padding:16px}
+.stage1-section-title h3,.stage1-summary-line h3,.stage1-edit-form h3{margin:0;font-size:1.02rem;font-weight:650;color:#19384a}
+.stage1-summary-line,.stage1-record>summary,.stage1-next-row{display:flex;align-items:center;justify-content:space-between;gap:12px}
+.stage1-clean .calibration-panel-heading{margin:10px 0 0}
+.stage1-clean .calibration-panel-heading>div:first-child{display:none}
+.stage1-clean .calibration-record-list,.stage1-records{display:grid;gap:8px;margin-top:12px}
+.stage1-clean .calibration-record-card,.stage1-record{border:1px solid #e0e8eb;border-radius:9px;background:white;overflow:hidden}
+.stage1-record>summary{padding:12px 14px;cursor:pointer;list-style-position:inside}
+.stage1-record>summary>span{display:grid;gap:3px;min-width:0}
+.stage1-record>summary small{color:#61727f;overflow-wrap:anywhere}
+.stage1-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px 18px;margin:0;padding:12px 16px}
+.stage1-facts div{min-width:0}.stage1-facts dt{font-size:.78rem;color:#647684}.stage1-facts dd{margin:2px 0 0;overflow-wrap:anywhere;font-size:.9rem}
+.stage1-evidence-inline{padding:0 14px 14px}
+.stage1-inspection>summary{padding:14px 16px;cursor:pointer;font-weight:600;color:#19384a}
+.stage1-inspection>summary .wf-badge{margin-left:12px}
+.stage1-inspection>div{min-width:0}
+.stage1-edit-form .wf-fields{margin-top:14px}
+.stage1-next-row{padding:12px 16px;flex-wrap:wrap}
+.stage1-document-link{display:flex;justify-content:flex-start}
+.stage1-empty{margin:0;padding:18px;border:1px dashed #cbdbe0;border-radius:10px;color:#586b76}
+.stage1-mini-note{margin:0;color:#5a6b77;font-size:.85rem}
+@media(max-width:640px){.stage1-clean{gap:12px}.stage1-work-section,.stage1-edit-form{padding:12px}.stage1-facts{grid-template-columns:minmax(0,1fr)}.stage1-topline,.stage1-summary-line{flex-wrap:wrap}.stage1-next-row .wf-button{width:100%;justify-content:center}.stage1-clean .calibration-survey-tabs .wf-button{max-width:100%;white-space:normal}}
+
+.stage1-review-panel{display:grid;gap:12px;background:#fff;border:1px solid #dce5e8;border-radius:12px;padding:16px;min-width:0}.stage1-review-panel .stage1-summary-line{gap:12px}.stage1-review-record{border-left:3px solid #0d7e83;padding:9px 13px;background:#f4f9f9;border-radius:0 8px 8px 0;overflow-wrap:anywhere}.stage1-review-record p{margin:7px 0 0;white-space:pre-wrap}.stage1-review-form{display:grid;gap:12px;padding-top:4px}.stage1-review-form textarea,.stage1-review-form select,.stage1-review-form input{max-width:100%;width:100%}.stage1-review-panel>.wf-button{justify-self:start}@media(max-width:640px){.stage1-review-panel{padding:12px}.stage1-review-panel>.wf-button{width:100%}}
+
+/* Pemeriksaan kalibrasi per bagian */
+.stage1-review-sections{display:grid;grid-template-columns:repeat(auto-fit,minmax(min(100%,330px),1fr));gap:10px;margin:12px 0}
+.stage1-review-section{border:1px solid var(--border,#d9e5e9);border-radius:10px;padding:12px;background:var(--card,#fff);min-width:0}
+.stage1-review-section>.stage1-summary-line{gap:12px;align-items:center;flex-wrap:wrap}
+.stage1-review-section .wf-button{margin-top:8px}
+.stage1-review-section .stage1-review-record{overflow-wrap:anywhere}
+.stage1-review-section .stage1-response-summary{border-left:3px solid #6aadb2;padding:8px 10px;background:#f3faf9;border-radius:5px;margin:8px 0}
+.stage1-form-error{color:#9c2f20;font-size:13px;font-weight:600;background:#fff5f0;border:1px solid #edc1b3;padding:9px 12px;border-radius:7px;margin:9px 0}
+@media(max-width:500px){.stage1-review-section{padding:10px}.stage1-review-sections{grid-template-columns:minmax(0,1fr)}}

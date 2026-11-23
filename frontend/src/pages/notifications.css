@@ -94,3 +94,7 @@
 .notif-stat-red .notif-stat-icon{color:#bd4141;background:#ffe0e0}
 .notif-settings-block>p.notif-muted{margin:0 0 3px;max-width:850px}
 .notif-settings-advanced:not([open]) textarea{display:none}
+
+.notif-page .notif-layout-inbox {
+  display: block;
+}

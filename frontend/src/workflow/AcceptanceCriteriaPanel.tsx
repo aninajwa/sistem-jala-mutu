@@ -1,12 +1,5 @@
-export const ACCEPTANCE_CRITERIA = [
-  'Format data sesuai dengan ketentuan',
-  'Data lengkap untuk semua parameter yang disyaratkan',
-  'Ketelitian data memenuhi standar',
-  'Hasil verifikasi dan validasi menunjukkan kesesuaian',
-  'Dokumentasi QA/QC lengkap dan sesuai',
-] as const;
-
-export type AcceptanceCriterion = (typeof ACCEPTANCE_CRITERIA)[number];
+import { ACCEPTANCE_CRITERIA, type AcceptanceCriterion } from './acceptanceReadiness';
+export { ACCEPTANCE_CRITERIA, type AcceptanceCriterion } from './acceptanceReadiness';
 
 export function AcceptanceCriteriaPanel({
   values,

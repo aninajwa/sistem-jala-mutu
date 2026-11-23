@@ -15,11 +15,11 @@ export function SourceResultTables({document,answers,editable,onChange,projectIn
  const choices=columns.filter(column=>/^(Ya|Tidak|N\/A|Sesuai|Tidak Sesuai|Memenuhi|Tidak Memenuhi)$/i.test(column.trim()));
  if(!rows.some(row=>row.some(sourceCellEditable)))return null;
  return <div className="wf-table-wrap" key={table.table}><table className="wf-table"><thead><tr>{columns.map((column,i)=><th key={i}>{column}</th>)}</tr></thead><tbody>{rows.map((row,i)=><tr key={i}>{row.map((cell,j)=>{
- const known=j>0?projectChecklistValue(row[0]??'',projectInfo):undefined;
  const id=sourceCellKey(table.table,i+2,j+1),label=columns[j]??'',value=answers[id]??'';
  const scalar=sourceScalarResult(document,table.table,i+2,answers);
  const result=bridgeSamplingResult(document,table.table,i+2,answers)??lendutanOngoingResults(document,answers).find(item=>item.table===table.table&&item.row===i+2)??scalar;
  const rule=rules.find(rule=>rule.id===id);
+ const known=rule?.projectLabel?projectChecklistValue(rule.projectLabel,projectInfo):undefined;
  const type=rule&&rule.kind!=='choice'?rule.kind:/tanggal|berlaku hingga|awal survei|akhir survei/i.test(label)?'date':/nilai kondisi|persentase|panjang|jumlah|\(km\)|\(m\)|\(tahun\)|\(%\)/i.test(label)?'number':'text';
  return <td key={j} data-source-field={id}>{sourceChoiceHeader.test(label)?<small>Pilihan dicatat pada pemeriksaan di atas</small>:/tanda tangan/i.test(label)?<small>Belum disahkan · rujuk dokumen persetujuan</small>:result&&/status/i.test(label)?<span title={result.reason}><small>Hasil sistem</small><strong>{result.label}</strong><small>{result.reason}</small></span>:sourceCellEditable(cell)?known!==undefined&&known!==''?<span>{known}</span>:editable?<input aria-label={`${table.heading??document.survey}, ${row[0]||i+1}, ${label}`} type={type} step={type==='number'?'any':undefined} value={value} placeholder={/foto|dokumen|gambar/i.test(label)?'Referensi Dokumen & Lampiran':'Belum diisi'} onChange={e=>onChange(id,e.target.value)}/>:<span>{value||'Belum diisi'}</span>:/[□☐]/.test(cell)?<small>Pilihan dicatat pada pemeriksaan di atas</small>:<span>{cell}</span>}{scalar?.column===j&&!columns.some(column=>/status/i.test(column))&&<small title={scalar.reason}>Hasil sistem: {scalar.label} · {scalar.reason}</small>}</td>;
  })}</tr>)}</tbody></table></div>;

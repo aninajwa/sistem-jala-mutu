@@ -150,3 +150,7 @@
 
 /* Decision provenance on the survey review matrix */
 .ds-review-item{margin:4px 0 9px;font-size:12px;line-height:1.5}.ds-review-item small{display:block;color:#65788b}.ds-review-months{display:grid;gap:8px;margin:12px 0}.ds-review-months>div{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:1px solid #e3ebf1;border-radius:8px;flex-wrap:wrap}
+
+/* Server data status bar above the Dirah dashboard (authenticated mode). */
+.ds-view-toggle{display:flex;flex-wrap:wrap;align-items:center;justify-content:flex-end;gap:8px 12px;margin:0 0 12px;padding:8px 12px;border:1px solid #e0f2fe;border-radius:8px;background:#f0f9ff;color:#0c4a6e;font-size:12px;line-height:1.5}
+.ds-view-toggle span{flex:1 1 240px}

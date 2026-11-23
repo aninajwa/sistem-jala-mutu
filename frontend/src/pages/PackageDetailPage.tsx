@@ -1,3 +1,5 @@
+import { ContextNotes } from "../workflow/comments/ContextNotes";
+import type { Principal } from "../workflow/repository/contracts";
 import {useEffect} from 'react';
 import '../workflow/ui09.css';
 
@@ -19,6 +21,8 @@ import "./corrections/corrections.css";
 
 type Props = {
   packageId: string;
+  principal: Principal;
+  notesRecipient: Principal;
   workflow: OperationalWorkflowState;
   selection: string;
   onBack: () => void;
@@ -31,11 +35,13 @@ type Props = {
     activity: string,
     object: string,
   ) => void;
-  setNotice: (message: string) => void;
+  setNotice: (message: string, tone?: "error") => void;
 };
 
 export default function PackageDetailPage({
   packageId,
+  principal,
+  notesRecipient,
   workflow,
   selection,
   onBack,
@@ -62,6 +68,7 @@ export default function PackageDetailPage({
     return (
       <div className="package-detail-page ui09-workspace">
         <OperationalWorkflowWorkspace
+          principalId={principal.id}
           key={packageId}
           selection={selection}
           state={workflow}
@@ -85,6 +92,7 @@ export default function PackageDetailPage({
           <CorrectionReadOnlyDetail workflow={workflow} />
         ) : (
           <OperationalWorkflowWorkspace
+          principalId={principal.id}
             key={packageId}
             selection={selection}
             state={workflow}
@@ -107,6 +115,21 @@ export default function PackageDetailPage({
         onCorrections={onReturnToCorrections}
       />
 
+      {selection === "/entry:Persiapan & SPMK" && (
+        <ContextNotes key={`${packageId}:stage0`} context="stage0" state={workflow} principal={principal} recipient={notesRecipient} />
+      )}
+      {selection === "/documents:Kalibrasi & personel" && (
+        <ContextNotes key={`${packageId}:stage1`} context="stage1" state={workflow} principal={principal} recipient={notesRecipient} />
+      )}
+      {selection === "/entry:Survei harian" && (
+        <div className="stage3a-note-toolbar">
+          <ContextNotes key={`${packageId}:stage3a`} context="stage3a" state={workflow} principal={principal} recipient={notesRecipient} />
+          <ContextNotes key={`${packageId}:stage3a-field`} context="stage3a-field" state={workflow} principal={principal} recipient={notesRecipient} />
+        </div>
+      )}
+      {selection === "/verification:Audit tingkat 1–3" && (
+        <ContextNotes key={packageId} state={workflow} principal={principal} recipient={notesRecipient} />
+      )}
       {showOverview ? (
         <PackageOverview
           state={workflow}
@@ -115,6 +138,7 @@ export default function PackageDetailPage({
         />
       ) : (
         <OperationalWorkflowWorkspace
+          principalId={principal.id}
           key={packageId}
           selection={selection}
           state={workflow}

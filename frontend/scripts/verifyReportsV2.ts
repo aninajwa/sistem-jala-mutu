@@ -1,3 +1,4 @@
+import { openFilterPanels } from "./filterInteractions";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs/promises";
@@ -7,8 +8,8 @@ import { PACKAGE_STORE_KEY } from "../src/workflow/packageStore";
 const { chromium } = await import(
   process.env.PLAYWRIGHT_MODULE || "playwright"
 );
-const port=Number(process.env.TEST_PORT||5176);
-const baseUrl=`http://127.0.0.1:${port}`;
+const port = Number(process.env.TEST_PORT || 5176);
+const baseUrl = `http://127.0.0.1:${port}`;
 const server = await createServer({
   configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
   server: { host: "127.0.0.1", port, strictPort: true },
@@ -99,7 +100,8 @@ try {
       );
       const page = await context.newPage();
       page.on("pageerror", (e: any) => errors.push(e.message));
-      await page.goto(baseUrl+"/reports?testRoles=1");
+      await page.goto(baseUrl + "/reports?testRoles=1");
+      await openFilterPanels(page);
       if (role === "Admin") {
         await page
           .getByText(
@@ -130,9 +132,11 @@ try {
             });
             throw e;
           });
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket", { exact: true })
           .selectOption("REPORT-TEST-A");
+        await openFilterPanels(page);
         await page
           .getByLabel("Tanggal awal", { exact: true })
           .fill("2035-01-01");
@@ -145,6 +149,7 @@ try {
         await page
           .getByRole("button", { name: "Reset filter", exact: true })
           .click();
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket", { exact: true })
           .selectOption("REPORT-TEST-A");
@@ -168,6 +173,7 @@ try {
           "REPORT-TEST-A",
         );
         await page.getByTestId("table-report-rows").waitFor();
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket", { exact: true })
           .selectOption("REPORT-TEST-A");
@@ -195,6 +201,7 @@ try {
         await page
           .getByRole("button", { name: "Sebelumnya", exact: true })
           .click();
+        await openFilterPanels(page);
         await page
           .getByLabel("Cari rekap", { exact: true })
           .fill("ROW-TEST-13");
@@ -204,12 +211,14 @@ try {
             .count(),
           1,
         );
+        await openFilterPanels(page);
         await page.getByLabel("Cari rekap", { exact: true }).fill("");
         assert.equal(await page.getByTestId("select-global-balai").count(), 0);
         assert.equal(
           await page.getByTestId("mobile-global-filters").count(),
           0,
         );
+        await openFilterPanels(page);
         await page
           .getByLabel("Tanggal awal", { exact: true })
           .fill("2026-11-02");
@@ -226,6 +235,7 @@ try {
         await page
           .getByRole("button", { name: "Reset filter", exact: true })
           .click();
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket", { exact: true })
           .selectOption("REPORT-TEST-A");
@@ -242,9 +252,11 @@ try {
         await download.saveAs(`${out}/role-${index}-${width}.csv`);
         await page.waitForTimeout(150);
         assert.equal(downloads, 1, "exactly one download, no demo export");
+        await openFilterPanels(page);
         await page
           .getByLabel("Jenis rekap", { exact: true })
           .selectOption("reviews");
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket", { exact: true })
           .selectOption("REPORT-TEST-A");
@@ -252,9 +264,11 @@ try {
           await page.getByTestId("table-report-rows").innerText(),
           /Sesuai/,
         );
+        await openFilterPanels(page);
         await page
           .getByLabel("Jenis rekap", { exact: true })
           .selectOption("corrections");
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket", { exact: true })
           .selectOption("REPORT-TEST-A");
@@ -277,12 +291,15 @@ try {
         await page
           .getByText("Draf tersimpan pada browser ini.", { exact: false })
           .waitFor();
+        await openFilterPanels(page);
         await page
           .getByLabel("Paket laporan", { exact: true })
           .selectOption("REPORT-TEST-A");
+        await openFilterPanels(page);
         await page
           .getByLabel("Awal periode", { exact: true })
           .fill("2026-11-01");
+        await openFilterPanels(page);
         await page
           .getByLabel("Akhir periode", { exact: true })
           .fill("2026-11-07");
@@ -301,10 +318,13 @@ try {
             "Kendala",
             "Tindak lanjut",
             "Dokumentasi",
-          ])
+          ]) {
+            await openFilterPanels(page);
             await page
               .getByLabel(label, { exact: true })
               .fill("Uraian uji " + label);
+          }
+          await openFilterPanels(page);
           await page
             .getByLabel("Lampiran draf", { exact: false })
             .setInputFiles({
@@ -321,6 +341,7 @@ try {
           await page
             .getByText("Draf lokal versi 1 tersimpan.", { exact: true })
             .waitFor();
+          await openFilterPanels(page);
           await page
             .getByLabel("Kendala", { exact: true })
             .fill("Revisi kendala");
@@ -381,7 +402,8 @@ try {
           .getByRole("link", { name: "Buka Dokumen Mutu", exact: true })
           .click();
         await page.waitForURL(/\/documents/);
-        await page.goto(baseUrl+"/reports?testRoles=1");
+        await page.goto(baseUrl + "/reports?testRoles=1");
+        await openFilterPanels(page);
         await page
           .getByRole("button", { name: "Lihat Semua · Tindakan", exact: true })
           .click();
@@ -401,10 +423,19 @@ try {
           "REPORT-TEST-A",
         );
       }
-      if(role!=="Admin"){
-        await page.goto(baseUrl+"/?testRoles=1");
-        await page.getByText('Cakupan ringkasan',{exact:true}).waitFor();
-        await page.screenshot({path:`${out}/summary-regression-${index}-${width}.png`,fullPage:true});
+      if (role !== "Admin") {
+        await page.goto(baseUrl + "/?testRoles=1");
+        await openFilterPanels(page);
+        await page.locator(".b-dashboard").waitFor();
+        assert.equal(
+          await page.locator(".b-metrics > .b-metric").count(),
+          4,
+          "All original dashboard KPIs remain available",
+        );
+        await page.screenshot({
+          path: `${out}/summary-regression-${index}-${width}.png`,
+          fullPage: true,
+        });
       }
       results.push({ role, width, status: "pass" });
       await context.close();
