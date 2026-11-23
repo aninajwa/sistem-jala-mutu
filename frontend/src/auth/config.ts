@@ -1,11 +1,13 @@
+export const JALA_MUTU_SUPABASE_URL = 'https://vnvknmwcidberkjwtqjx.supabase.co';
 export const SANDBOX_SUPABASE_URL = 'https://yehwlrlbtcxtlogenahw.supabase.co';
+const ALLOWED_SUPABASE_URLS = [JALA_MUTU_SUPABASE_URL, SANDBOX_SUPABASE_URL];
 
 export function authConfigurationIssue(url: string | undefined, key: string | undefined) {
-  if (!url || !key) return 'Konfigurasi login belum lengkap. Isi URL dan publishable key sandbox pada frontend/.env.';
+  if (!url || !key) return 'Konfigurasi login belum lengkap. Isi URL dan publishable key proyek yang dibenarkan pada frontend/.env.';
   let parsed: URL;
   try { parsed = new URL(url); } catch { return 'Konfigurasi Supabase tidak valid.'; }
-  if (parsed.href !== `${SANDBOX_SUPABASE_URL}/` || key.startsWith('sb_secret_') || /service_role|secret|replace|placeholder/i.test(key)) {
-    return 'Konfigurasi login harus menggunakan URL dan publishable key Jala-Mutu-Admin-Sandbox.';
+  if (!ALLOWED_SUPABASE_URLS.some(allowedUrl => parsed.href === `${allowedUrl}/`) || key.startsWith('sb_secret_') || /service_role|secret|replace|placeholder/i.test(key)) {
+    return 'Konfigurasi login harus menggunakan URL Jala-Mutu atau Jala-Mutu-Admin-Sandbox dan publishable key.';
   }
   return '';
 }
