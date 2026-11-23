@@ -81,12 +81,22 @@ async function runAccount(account: Account) {
     assert.ok(await page.locator(`[data-testid="package-card-${packageId}"]`).count(), `package ${packageId} must be visible`);
     await shot(page, `${account.tag}-packages`);
 
+    const capabilities = page.waitForResponse(
+      response => new URL(response.url()).pathname === `/api/paket/${packageId}/scope-amendment-capabilities`,
+      { timeout: 30000 },
+    );
     await page.goto(`${base}/packages?paket=${packageId}&submodule=${encodeURIComponent('/packages:Ringkasan Paket')}`);
     await page.getByText('FAKTA TAHAP DARI SERVER').waitFor({ timeout: 20000 });
+    const scopeAmendmentEnabled = ((await (await capabilities).json()) as { data: { enabled: boolean } }).data.enabled;
     // Wait until stage facts finished loading before judging the rail.
     await page.waitForFunction(() => !document.body.innerText.includes('Memuat status'), undefined, { timeout: 20000 });
     assert.ok(await page.locator('.jm-stage-stepper button.is-done').count() > 0, 'stage rail must mark server-completed stages');
-    assert.equal(await page.getByText('Permohonan penambahan jenis survei').count(), 0, 'scope amendment panel stays hidden while gated off');
+    // The scope-amendment panel follows the server gate: shown when enabled, hidden otherwise.
+    if (scopeAmendmentEnabled) {
+      await page.getByText('Permohonan penambahan jenis survei').first().waitFor({ timeout: 30000 });
+    } else {
+      assert.equal(await page.getByText('Permohonan penambahan jenis survei').count(), 0, 'scope amendment panel stays hidden while gated off');
+    }
     await shot(page, `${account.tag}-overview`);
 
     for (const [code, selection, heading] of STAGES) {

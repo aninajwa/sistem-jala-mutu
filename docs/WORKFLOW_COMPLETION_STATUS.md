@@ -153,3 +153,16 @@ Skrip Playwright frontend (`test:browser`, `test:journey`, dan lainnya) tidak di
 - Advisor mencatat 142 foreign key tanpa indeks.
 - Perbaikan yang diusulkan (indeks + penyederhanaan policy) adalah migrasi baru, jadi belum dijalankan.
 - Migrasi kandidat `backend/proposals/migrations/20261118120000_package_survey_scope_amendment.sql` juga belum dipasang.
+
+### Pemasangan database 2026-11-23 (disetujui pemilik proyek)
+
+- **Migrasi `package_survey_scope_amendment` sudah terpasang.**
+  - Isinya tabel `paket_survei_kontrak_pindaan` dan RPC `baca/ajukan/review_pindaan_scope_survei`.
+  - Salinannya ada di `backend/db-reference/package-scope-amendment-applied.sql`.
+  - Aktifkan dengan `PACKAGE_SCOPE_AMENDMENT_RPCS=true`. Journey memverifikasi panel tampil saat gate hidup.
+- **Migrasi `rls_hot_path_indexes` sudah terpasang:** 12 indeks untuk kolom yang dipakai policy RLS dan RPC baca (`backend/db-reference/rls-hot-path-indexes-applied.sql`).
+- **Hasil pengukuran setelah indeks:** latensi tidak membaik.
+  - `authenticated_identity_self` rata-rata ~320 ms dan `baca_checklist_persiapan` rata-rata ~1,4 detik saat journey berjalan.
+  - Kesimpulannya, penyebab utama adalah kapasitas compute instance Supabase di bawah beban paralel, bukan rencana query.
+  - Opsi lanjutan: naikkan compute Supabase, atau kurangi request paralel per halaman (misalnya endpoint ringkasan paket gabungan dan cache antrean).
+  - Backend sudah toleran: timeout 20 detik dan cache identitas. Journey 3/3 lulus.
