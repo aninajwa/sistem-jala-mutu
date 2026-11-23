@@ -1,3 +1,4 @@
+import { submittedPeriodicRecords } from '../periodicRecords';
 import type {OperationalWorkflowState} from '../model';
 import {applyPeriodicFinding} from '../periodicFinding';
 import {matchesJournaledTransition} from './providerChecklistCascade';
@@ -18,7 +19,7 @@ import {periodSourceReady,recordPeriodicBa} from '../periodicDecision';
 import {evaluateStageGate} from '../workflowGate';
 /** Reconstruct each allowed Balai review/evidence/BA action and its exact cascade. */
 export function isBalaiPeriodDecision(before:OperationalWorkflowState,after:OperationalWorkflowState){
- if(before.role!=='PIC Balai / Pengguna Jasa'||!evaluateStageGate(before,'Tahap 2').readyToComplete)return false;
+ if(before.role!=='PIC Balai / Pengguna Jasa'||!before.cycle.periodCompleted||!submittedPeriodicRecords(before).confirmed||before.cycle.providerResubmissionRequired||!evaluateStageGate(before,'Tahap 2').readyToComplete)return false;
  const equal=(a:unknown,b:unknown)=>JSON.stringify(a)===JSON.stringify(b);
  const types=periodicSurveyTypes(before),action='Catat pemeriksaan Pengguna Jasa dan bukti akhir periode';
  for(const type of types){
@@ -30,7 +31,7 @@ export function isBalaiPeriodDecision(before:OperationalWorkflowState,after:Oper
   if(clearsPending||review.decision!==(old?.decision??'Belum Diperiksa')||review.reviewedAt!==(old?.reviewedAt??'')){
    // Findings must open their linked correction through applyPeriodicFinding.
    if(review.decision==='Temuan'&&!before.corrections.some(c=>c.source==='Temuan proses verval'&&c.status!=='Ditutup'&&c.surveyType===type&&(c.cyclePeriod===undefined||c.cyclePeriod===(before.activeCyclePeriod??1))))continue;
-   if(review.decision==='Sesuai'&&(!before.cycle.periodCompleted||!periodSourceReady(before,type,'periodic14')))continue;
+   if(review.decision==='Sesuai'&&(!before.cycle.periodCompleted||!submittedPeriodicRecords(before).confirmed||!periodSourceReady(before,type,'periodic14')))continue;
    patch.userReview=review.decision;
   }
   const expected=applyCycleEdit(before,reviewSurvey(before.cycle,type,patch,before.simulationDate,types));

@@ -12,6 +12,7 @@ import { WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE } from "../workflowConfig";
 
 export type WorkflowStageProps = {
   principalId?: string;
+  periodicNotes?: (state: OperationalWorkflowState) => ReactNode;
   selection: string;
   state: OperationalWorkflowState;
   onUpdate: (

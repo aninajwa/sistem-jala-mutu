@@ -62,6 +62,7 @@ try {
     { key: PACKAGE_STORE_KEY, data: state },
   );
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(60_000);
   const url = `http://127.0.0.1:${port}/verification?testRoles=1&submodule=${encodeURIComponent("/verification:Verval 14 hari")}`;
   await page.goto(url);
   await openFilterPanels(page);

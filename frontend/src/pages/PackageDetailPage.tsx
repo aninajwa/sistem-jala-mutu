@@ -139,6 +139,10 @@ export default function PackageDetailPage({
       ) : (
         <OperationalWorkflowWorkspace
           principalId={principal.id}
+          periodicNotes={periodState => (
+            <ContextNotes key={`${packageId}:stage3b:${periodState.activeCyclePeriod ?? 1}`}
+              context="stage3b" state={periodState} principal={principal} recipient={notesRecipient} />
+          )}
           key={packageId}
           selection={selection}
           state={workflow}

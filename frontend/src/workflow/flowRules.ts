@@ -84,6 +84,16 @@ export function correctionClosureErrors(state:OperationalWorkflowState,c:Correct
 
 export function applyClosedCorrection(state:OperationalWorkflowState,c:CorrectionCase):OperationalWorkflowState {
   if(correctionClosureErrors(state,c).length)throw new Error('Kasus belum memenuhi syarat penutupan');
+  const correctionPeriod = c.cyclePeriod ?? state.activeCyclePeriod ?? 1;
+  const activePeriod = state.activeCyclePeriod ?? 1;
+  const isPeriodic = c.blockedStage === 'Verval 14 hari';
+  const archivedCycle = state.cycleHistory?.[String(correctionPeriod)];
+  const markForReview = (cycle: OperationalWorkflowState['cycle']): OperationalWorkflowState['cycle'] => ({
+    ...cycle, requiresReview: true,
+    providerResubmissionRequired: cycle.periodCompleted ? true : cycle.providerResubmissionRequired,
+    reviewReason: `Tindak lanjut ${c.id} selesai; periksa ulang periode ${correctionPeriod}.`,
+    reviewPendingTypes: [...new Set([...(cycle.reviewPendingTypes ?? []), c.surveyType])],
+  });
   const resetsProduction=['Kalibrasi','Validasi produksi'].includes(c.blockedStage);
   // JALA MUTU memverifikasi hasil dari sistem sumber, bukan menulis ulang data survei.
   // proposedValue hanyalah usulan/reference untuk pembandingan QA/QC.
@@ -94,7 +104,10 @@ export function applyClosedCorrection(state:OperationalWorkflowState,c:Correctio
     corrections:state.corrections.map(item=>item.id===c.id?{...item,status:'Ditutup' as const}:item),
     // Data survei tidak diubah; penerimaan versi baru harus berasal dari SMD/API.
     // Keputusan tahapan tidak dibuat 'Sesuai' otomatis karena kasus ditutup.
-    cycle:c.blockedStage==='Verval 14 hari'?{...state.cycle,requiresReview:true,reviewReason:`Tindak lanjut ${c.id} selesai; periksa ulang periode terkait.`}:state.cycle,
+    cycle: isPeriodic && correctionPeriod === activePeriod ? markForReview(state.cycle) : state.cycle,
+    ...(isPeriodic && correctionPeriod !== activePeriod && archivedCycle ? {
+      cycleHistory: { ...state.cycleHistory, [correctionPeriod]: markForReview(archivedCycle) },
+    } : {}),
     submission:{...state.submission,validationStatus:'Draft',validationMessage:'Koreksi selesai; penyerahan dan audit wajib diulang.'},
     audits:markAuditsForReview(state,`Tindak lanjut ${c.id} selesai; tinjau ulang data terkait.`),
     acceptance:{...state.acceptance,terms:state.acceptance.terms.map(t=>['T2','T3','T4'].includes(t.id)?{...t,complete:false}:t),finalReport:false,finalAcceptance:false,semesterTwoRevalidation:false},

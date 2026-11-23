@@ -310,6 +310,28 @@ export function PackageContextHeader({
       `${state.project.surveyStartDate || "Belum diisi"} — ${state.project.surveyEndDate || "Belum diisi"}`,
     ],
   ];
+  if (selection === "/verification:Verval 14 hari") {
+    return (
+      <nav className="stage3b-package-tools" aria-label="Navigasi paket">
+        <button type="button" className="wf-button" onClick={onBack}>
+          <ArrowLeft size={15} /> Daftar paket
+        </button>
+        <details>
+          <summary>Informasi dan tahapan paket</summary>
+          <StageNavigator selection={selection} process={process} onNavigate={onNavigate} />
+          <dl className="stage3b-package-details">
+            {identity.map(([label, value]) => (
+              <div key={label}><dt>{label}</dt><dd>{value || "Belum diisi"}</dd></div>
+            ))}
+          </dl>
+          {issues.length > 0 && <details>
+            <summary>{issues.length} kelengkapan perlu ditinjau</summary>
+            <ul>{issues.map((issue, i) => <li key={i}>{issue.stage} · {issue.message}</li>)}</ul>
+          </details>}
+        </details>
+      </nav>
+    );
+  }
   return (
     <header
       className="package-context ui09-package-header"

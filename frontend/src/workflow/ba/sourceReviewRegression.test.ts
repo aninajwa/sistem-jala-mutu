@@ -1,5 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import {CALIBRATION_REVIEW_SUBJECTS,calibrationSourceSignature} from '../calibrationReview';
+import {effectiveProductionApproval} from '../workflowGate';
 import {withProductionReferences} from '../testing/productionFixture';
 import {createDemoWorkflow} from '../demoScenario';
 import {sourceDocument,sourceDocumentKey,documentQuestions} from '../sourceDocumentModel';
@@ -25,6 +27,15 @@ test('periodic source fixture is complete without concerns but never supplies a 
  const {state,id,doc,key,submitted}=setup();localStorage.setItem(key,JSON.stringify(sourceFormFixture(doc,state.project)));
  const status=sourceInspectionStatus(id.packageId,'IRI','periodic14',true,state.project);
  assert.equal(status.complete,true);assert.deepEqual(status.concerns,[]);
+ // A pilot inspection also depends on a current approval for the same equipment.
+ assert.ok(documentActionErrors(state,id,'approve',submitted(),0,'').includes('Kesiapan alat/metode belum disetujui.'));
+ state.project.surveyTypes=['IRI'];
+ state.calibrations=state.calibrations.filter(item=>item.surveyType==='IRI');
+ const calibration=sourceDocument('IRI','calibration')!;
+ localStorage.setItem(sourceDocumentKey(state.project.id,calibration.id),JSON.stringify(sourceFormFixture(calibration,state.project)));
+ const review={result:'Sesuai',note:'Bukti kalibrasi diperiksa',evidenceReference:'BA Kalibrasi IRI',reviewedAt:state.simulationDate,reviewer:B,sourceSignature:calibrationSourceSignature(state,'IRI')} as const;
+ state.calibrationReviews={IRI:{...review,subject:'Hasil kalibrasi',sections:Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject=>[subject,review]))}};
+ assert.equal(effectiveProductionApproval(state),true);
  const latest=submitted();assert.deepEqual(documentActionErrors(state,id,'approve',latest,0,''),[]);
  for(const role of [P,'Direktorat / Pusat','Admin'] as const){state.role=role;assert.ok(documentActionErrors(state,id,'approve',latest,0,'').length);}
 });

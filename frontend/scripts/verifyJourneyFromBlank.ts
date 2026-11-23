@@ -2,6 +2,7 @@ import { openFilterPanels } from "./filterInteractions";
 import {
   fillSourceForm,
   fillPreparationChecklist,
+  selectPeriodicTask,
 } from "./sourceFormInteractions";
 import { chromium } from "playwright";
 import { createServer } from "vite";
@@ -89,9 +90,7 @@ const browser = await chromium.launch({
     ? [
         "--no-sandbox",
         "--disable-dev-shm-usage",
-        "--use-gl=angle",
-        "--use-angle=swiftshader",
-        "--enable-unsafe-swiftshader",
+        "--disable-gpu",
         "--no-zygote",
       ]
     : [],
@@ -123,6 +122,7 @@ const page = await context.newPage(),
   steps: any[] = [];
 let complete = false;
 page.setDefaultTimeout(15000);
+page.setDefaultNavigationTimeout(60_000);
 const url = (s: string) =>
   "http://127.0.0.1:5174" +
   s.split(":")[0] +
@@ -172,6 +172,7 @@ async function record(stage: string) {
     events: current.events.length,
     gate: evaluateStageGate(current, stage as any),
   });
+  console.log(`${stage} selesai (${new Date().toISOString()})`);
   await page.screenshot({
     path: output + "/" + stage.replaceAll(" ", "-") + ".png",
   });
@@ -217,19 +218,20 @@ try {
     .check();
   await page.getByTestId("button-save-calibration").click();
   const form = page.locator(".source-exact-checklist");
-  for (const section of await form
-    .locator(".structured-checklist-section")
-    .all())
-    if ((await section.getAttribute("open")) === null)
-      await section.locator(":scope > summary").click();
-  for (const group of await form.locator("fieldset").all())
-    await group
-      .locator("input[type=radio],input[type=checkbox]")
-      .first()
-      .check();
   await fillSourceForm(form);
   await page.getByTestId("button-save-source-calibration").click();
+  await actor("PIC Balai / Pengguna Jasa");
+  for (let section = 0; section < 4; section++) {
+    await page.getByTestId(`calibration-section-${section}`)
+      .getByRole("button", { name: "Catat hasil pemeriksaan", exact: true }).click();
+    await page.getByLabel("Hasil pemeriksaan kalibrasi", { exact: true }).selectOption("Sesuai");
+    await page.getByLabel("Catatan pemeriksaan kalibrasi", { exact: true })
+      .fill("Bukti RNI diperiksa Balai");
+    await page.getByTestId("button-save-calibration-review").click();
+  }
+  assert.equal(Object.keys((await snapshot()).calibrationReviews.RNI.sections).length, 4);
   await record("Tahap 1");
+  await actor("Penyedia Jasa / Ketua Tim");
   await page.goto(url("/entry:Validasi produksi"));
   await openFilterPanels(page);
   for (const d of await page.locator(".role-work-details").all())
@@ -329,7 +331,7 @@ try {
   await page.goto(url("/verification:Verval 14 hari"));
   await openFilterPanels(page);
   async function fillPeriodForm(activity: string) {
-    await page.getByRole("tab", { name: activity, exact: true }).click();
+    await selectPeriodicTask(page, activity);
     await fillSourceForm(page.locator(".source-exact-checklist"));
   }
   async function openNestedDetails(control: any) {
@@ -346,8 +348,9 @@ try {
       .selectOption(period);
     await fillPeriodForm("Konsistensi");
     await fillPeriodForm("V&V Internal");
+    await selectPeriodicTask(page, "Penyerahan ke Balai");
     const protocols = page
-      .locator("details.wf-panel")
+      .locator(".stage3b-workspace details")
       .filter({
         has: page.getByTestId("check-cycle-protocol-rni-minimal-panjang-5-km"),
       });
@@ -371,9 +374,15 @@ try {
       );
       await input.check();
     }
+    await selectPeriodicTask(page, "Konsistensi");
+    await openNestedDetails(page.getByTestId("select-cycle-rerating"));
     await page.getByTestId("select-cycle-rerating").selectOption("Sesuai");
+    await selectPeriodicTask(page, "Penyerahan ke Balai");
+    await page.getByTestId("button-cycle-submit").click();
+    assert.equal((await snapshot()).cycle.periodCompleted, true);
     await actor("PIC Balai / Pengguna Jasa");
-    await fillPeriodForm("V&V Bersama / 2-Mingguan");
+    await fillPeriodForm("Pemeriksaan Bersama");
+    await selectPeriodicTask(page, "Keputusan & Tindak Lanjut");
     await page
       .getByTestId("input-cycle-user-review-note")
       .fill("Hasil uji RNI periode " + period + " diperiksa");
@@ -388,6 +397,7 @@ try {
       .fill("Lokasi uji RNI awal");
     await openNestedDetails(page.getByTestId("check-cycle-tool-unchanged"));
     await page.getByTestId("check-cycle-tool-unchanged").check();
+    await selectPeriodicTask(page, "BA");
     await page.getByTestId("input-cycle-ba").fill("BA-UJI-RNI-P" + period);
     await page.getByTestId("button-cycle-complete").click();
     assert.equal(

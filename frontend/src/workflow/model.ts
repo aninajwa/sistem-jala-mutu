@@ -168,6 +168,8 @@ export type DailySurveyRecord = {
 };
 
 export type VervalCycle = {
+  submittedRecordIds?: string[];
+  providerResubmissionRequired?: boolean;
   reviewPendingTypes?: SurveyType[];
   surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string; evidenceReferences?:string[]}>>;
   requiresReview?: boolean;

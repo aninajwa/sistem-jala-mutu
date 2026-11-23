@@ -66,6 +66,11 @@ export function OperationalWorkflowWorkspace(
       ? DocumentsWorkspace
       : screens[props.selection];
   if (!Screen) return null;
+  if (props.selection === "/verification:Verval 14 hari") {
+    return <div className="wf" data-testid="operational-workflow-workspace">
+      <Screen key={`${props.state.project.id}:${props.state.role}`} {...props} />
+    </div>;
+  }
   return (
     <div className="wf" data-testid="operational-workflow-workspace">
       {props.selection !== "/entry:Survei harian" && <StageActionContext

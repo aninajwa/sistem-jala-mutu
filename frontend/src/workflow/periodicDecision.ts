@@ -1,3 +1,4 @@
+import { submittedPeriodicRecords } from './periodicRecords';
 import {CYCLE_PROTOCOLS,CYCLE_SHARED_PROTOCOLS,type OperationalWorkflowState,type SurveyType} from './model';
 import {periodicSurveyTypes} from './reviewReadiness';
 import {sourceInspectionStatus} from './repository/sourceChecklistRepository';
@@ -15,6 +16,8 @@ export function periodicBaBlockers(state:OperationalWorkflowState,certificate:st
  const protocols=[...types.flatMap(type=>CYCLE_PROTOCOLS[type].map(p=>`${type} · ${p}`)),...CYCLE_SHARED_PROTOCOLS];
  const errors=[...evaluateStageGate(state,'Tahap 2').blockers];
  if(!types.length||!range.start||!range.end||!cycle.periodCompleted)errors.push('Lingkup, jadwal dan penyerahan periode wajib lengkap.');
+ if(cycle.periodCompleted && !submittedPeriodicRecords(state).confirmed)errors.push('Daftar rekaman penyerahan belum terkonfirmasi.');
+ if(cycle.providerResubmissionRequired)errors.push('Menunggu pengajuan ulang dari Penyedia.');
  if(types.some(type=>['consistency','internal','periodic14'].some(phase=>!periodSourceReady(state,type,phase))))errors.push('Checklist sumber periode belum lengkap/memenuhi.');
  const pci=state.productionTests.PCI.pciManual===false?cycle.pciAiStandardDeviation:cycle.pciManualMaxDifferencePercent;
  if(protocols.some(p=>!cycle.checkedProtocols[p])||cycle.reRatingStatus!=='Sesuai'||

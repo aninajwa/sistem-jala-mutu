@@ -1,3 +1,4 @@
+import { withCompleteDailyRecord } from '../testing/dailyRecordFixture';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDemoWorkflow} from '../demoScenario';
@@ -11,6 +12,8 @@ import type {OperationalWorkflowState} from '../model';
 function setup(){const s=withProductionReferences(createDemoWorkflow('complete'));s.role='PIC Balai / Pengguna Jasa';s.project.surveyTypes=['IRI'];s.project.surveyStartDate='2027-05-01';s.project.surveyEndDate='2027-05-28';s.cycle.selectedTypes=['IRI'];s.corrections=[];s.activeCyclePeriod=1;s.cycle.surveyReviews={...s.cycle.surveyReviews,IRI:{decision:'Sesuai',note:'Bukti periode perlu diperbaiki',reviewedAt:s.simulationDate}};
  // Fixture for this *later-stage* Balai Verval test: all four calibration checks
  // must already have been recorded. Never alter demoScenario or production data.
+ s.dailyRecords=s.dailyRecords.filter(record=>record.surveyType==='IRI').map(record=>withCompleteDailyRecord({...record,date:'2027-05-07'}));
+ s.cycle.submittedRecordIds=s.dailyRecords.map(record=>record.id);
  const signature=calibrationSourceSignature(s,'IRI');
  const approvedSection={result:'Sesuai' as const,note:'Kalibrasi IRI telah diperiksa Balai.',evidenceReference:'BA-KAL-IRI-UJI-001',reviewedAt:s.simulationDate,reviewer:'PIC Balai / Pengguna Jasa' as const,sourceSignature:signature};
  s.calibrationReviews={...s.calibrationReviews,IRI:{...approvedSection,subject:'Alat dan personel',sections:Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject=>[subject,{...approvedSection}]))}};
@@ -100,4 +103,14 @@ test('workspace and storage guards both accept BA renewal even with an unchanged
  const next=recordPeriodicBa(before,before.cycle.certificateId);assert.notEqual(next,before);
  assert.equal(workspaceMutationError(before,next,'/verification:Verval 14 hari'),undefined);
  assert.equal(workflowMutationError(before,next,before.role),undefined);
+});
+
+test('arsip tanpa daftar penyerahan menahan BA, temuan dan validasi lapangan baru', () => {
+ const before=setup();
+ delete before.cycle.submittedRecordIds;
+ assert.equal(applyPeriodicFinding(before,'IRI','temuan-arsip'),before);
+ assert.equal(recordPeriodicBa(before,'BA-BARU'),before);
+ const next=applyCycleEdit(before,{finalPeriodValidation:!before.cycle.finalPeriodValidation});
+ const after=periodJournal(before,next,'Validasi akhir periode');
+ assert.ok(workflowMutationError(before,after,before.role));
 });

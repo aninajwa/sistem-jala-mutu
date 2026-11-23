@@ -46,15 +46,29 @@ export function recordDailyChange(
   state: OperationalWorkflowState,
   record: DailySurveyRecord,
 ): OperationalWorkflowState {
+  const previous = state.dailyRecords.find(row => row.id === record.id);
   const period = periodForDate(state, record.date);
+  const oldPeriod = previous ? periodForDate(state, previous.date) : undefined;
   const active = state.activeCyclePeriod ?? 1;
-  const reason = `Rekaman ${record.id} pada ${record.date} berubah; periksa ulang periode ${period ?? "terkait"}.`;
+  const reason = `Rekaman ${record.id} pada ${record.date} berubah; periksa ulang periode terkait.`;
   const history = { ...state.cycleHistory };
-  if (period && period !== active && history[String(period)])
-    history[String(period)] = markCycleForReview(
-      history[String(period)],
-      reason,
-    );
+  const markAffected = (cycle: VervalCycle, targetPeriod: number) => {
+    if (targetPeriod !== period && targetPeriod !== oldPeriod) return cycle;
+    const types = [
+      ...(targetPeriod === oldPeriod && previous ? [previous.surveyType] : []),
+      ...(targetPeriod === period ? [record.surveyType] : []),
+    ];
+    return {
+      ...markCycleForReview(cycle, reason),
+      providerResubmissionRequired: cycle.periodCompleted ? true : cycle.providerResubmissionRequired,
+      reviewPendingTypes: [...new Set([...(cycle.reviewPendingTypes ?? []), ...types])],
+    };
+  };
+  for (const targetPeriod of new Set([oldPeriod, period])) {
+    if (targetPeriod && targetPeriod !== active && history[String(targetPeriod)]) {
+      history[String(targetPeriod)] = markAffected(history[String(targetPeriod)], targetPeriod);
+    }
+  }
   return {
     ...state,
     dailyRecords: [
@@ -62,9 +76,8 @@ export function recordDailyChange(
       ...state.dailyRecords.filter((row) => row.id !== record.id),
     ],
     cycle:
-      period === active &&
       (state.cycle.certificateId || state.cycle.periodCompleted)
-        ? markCycleForReview(state.cycle, reason)
+        ? markAffected(state.cycle, active)
         : state.cycle,
     cycleHistory: history,
     submission: {

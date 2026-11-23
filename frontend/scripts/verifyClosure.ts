@@ -1,3 +1,8 @@
+import { withCompleteDailyRecord } from '../src/workflow/testing/dailyRecordFixture';
+import { lendutanOngoingResults } from '../src/workflow/sourceTechnicalEvaluation';
+import { CALIBRATION_REVIEW_SUBJECTS, calibrationSourceSignature } from "../src/workflow/calibrationReview";
+import { sourceFormFixture } from "../src/workflow/testing/sourceFormFixture";
+import { selectPeriodicTask } from "./sourceFormInteractions";
 import { openFilterPanels } from "./filterInteractions";
 import { chromium } from "playwright";
 import { createServer } from "vite";
@@ -8,7 +13,6 @@ import { createDemoWorkflow } from "../src/workflow/demoScenario";
 import { withProductionReferences } from "../src/workflow/testing/productionFixture";
 import { PACKAGE_STORE_KEY } from "../src/workflow/packageStore";
 import {
-  documentQuestions,
   sourceDocument,
   sourceDocumentKey,
 } from "../src/workflow/sourceDocumentModel";
@@ -43,13 +47,32 @@ state.calibrations = [
   },
 ];
 state.calibrationChecklist.Lendutan = true;
-const doc = sourceDocument("Lendutan", "calibration")!,
-  answers = Object.fromEntries(
-    documentQuestions(doc).map((q) => [
-      q.id,
-      q.multiple ? JSON.stringify(q.options) : q.options[0],
-    ]),
-  );
+state.dailyRecords = state.dailyRecords
+  .filter(record => record.surveyType === "Lendutan")
+  .map(record => withCompleteDailyRecord({ ...record, date: "2027-05-07" }));
+const sourceAnswers = Object.fromEntries(["calibration", "consistency"].map(phase => {
+  const doc = sourceDocument("Lendutan", phase)!;
+  const answers = sourceFormFixture(doc, state.project);
+  for (const result of lendutanOngoingResults(doc, answers)) {
+    answers[`value:t${result.table}:r${result.row}:c${result.column + 1}`] = result.reason.includes("pengulangan") ? "3" : "2";
+  }
+  return [sourceDocumentKey(state.project.id, doc.id), JSON.stringify(answers)];
+}));
+const originalStorage = Object.getOwnPropertyDescriptor(globalThis, "localStorage");
+Object.defineProperty(globalThis, "localStorage", { configurable: true, value: {
+  getItem: (key: string) => sourceAnswers[key] ?? null,
+} });
+const approvedSection = {
+  result: "Sesuai" as const, note: "Kalibrasi Lendutan telah diperiksa.",
+  evidenceReference: "BA-KAL-LENDUTAN-UJI", reviewedAt: state.simulationDate,
+  reviewer: "PIC Balai / Pengguna Jasa" as const,
+  sourceSignature: calibrationSourceSignature(state, "Lendutan"),
+};
+state.calibrationReviews = { Lendutan: { ...approvedSection, subject: "Hasil kalibrasi",
+  sections: Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject => [subject, approvedSection])),
+} };
+if (originalStorage) Object.defineProperty(globalThis, "localStorage", originalStorage);
+else Reflect.deleteProperty(globalThis, "localStorage");
 const server = await createServer({
   configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
   server: { host: "127.0.0.1", port: 5176, strictPort: true },
@@ -64,7 +87,7 @@ const context = await browser.newContext({
   viewport: { width: 1440, height: 1000 },
 });
 await context.addInitScript(
-  ({ state, key, answers, sourceKey }) => {
+  ({ state, key, sourceAnswers }) => {
     if (
       location.origin !== "http://127.0.0.1:5176" ||
       sessionStorage.getItem("seeded")
@@ -80,18 +103,19 @@ await context.addInitScript(
       }),
     );
     localStorage.setItem("jala-mutu-demo-session-v1", "active");
-    localStorage.setItem(sourceKey, JSON.stringify(answers));
+    for (const [key, value] of Object.entries(sourceAnswers)) localStorage.setItem(key, value);
   },
   {
     state,
     key: PACKAGE_STORE_KEY,
-    answers,
-    sourceKey: sourceDocumentKey(state.project.id, doc.id),
+    sourceAnswers,
   },
 );
 const page = await context.newPage(),
   results: string[] = [],
   errors: string[] = [];
+page.setDefaultTimeout(25_000);
+page.setDefaultNavigationTimeout(60_000);
 page.on("pageerror", (e) => errors.push(e.message));
 let completed = false;
 const url =
@@ -120,7 +144,7 @@ try {
   await page.goto(url);
   await openFilterPanels(page);
   await page.locator(".source-exact-checklist").waitFor();
-  await page.getByRole("tab", { name: "V&V Internal", exact: true }).click();
+  await selectPeriodicTask(page, "V&V Internal");
   await page.locator(".lendutan-period-review").waitFor();
   await expand();
   for (const name of [
@@ -163,7 +187,7 @@ try {
     false,
   );
   await page.reload();
-  await page.getByRole("tab", { name: "V&V Internal", exact: true }).click();
+  await selectPeriodicTask(page, "V&V Internal");
   await area.getByText("lendutan-bukti.txt", { exact: true }).waitFor();
   await area
     .getByRole("button", { name: "Unduh", exact: true })
@@ -172,16 +196,18 @@ try {
   results.push(
     "Single upload button opens real file picker; blob and filename recover after refresh",
   );
-  const check = page.getByTestId("check-cycle-period-completed"),
-    row = check.locator(".."),
-    inputBox = await check.boundingBox(),
-    labelBox = await row.locator("span").first().boundingBox();
-  assert.ok(
-    inputBox && labelBox && labelBox.x - inputBox.x - inputBox.width < 20,
-  );
+  await selectPeriodicTask(page, "Penyerahan ke Balai");
+  await page.locator(".stage3b-workspace summary").filter({ hasText: /^Pemeriksaan pelaksanaan/ }).click();
+  const check = page.locator('input[data-testid^="check-cycle-protocol-"]').first();
+  const row = check.locator("..");
+  const inputBox = await check.boundingBox(), labelBox = await row.locator("span").first().boundingBox();
+  assert.ok(inputBox && labelBox && labelBox.x - inputBox.x - inputBox.width < 20);
   await row.screenshot({ path: output + "/checkbox-spacing.png" });
-  await check.check();
+  const submit = page.getByTestId("button-cycle-submit");
+  assert.equal(await submit.isEnabled(), true, await page.locator(".stage3b-workspace").innerText());
+  await submit.click();
   await role("PIC Balai / Pengguna Jasa");
+  await selectPeriodicTask(page, "Pemeriksaan Bersama");
   await page.locator(".lendutan-period-review").waitFor();
   await expand();
   for (const name of [...JOINT_PARAMETERS, "Kesimpulan", "Rekomendasi"])
@@ -197,19 +223,21 @@ try {
   await page
     .getByLabel("Lendutan Daftar / referensi titik sampel", { exact: true })
     .fill("DAFTAR-100-TITIK; SAMPLE-1-4");
+  await selectPeriodicTask(page, "Keputusan & Tindak Lanjut");
   const decision = page.getByTestId("select-cycle-user-review");
   assert.equal(
     await decision.locator('option[value="Sesuai"]').isDisabled(),
     true,
   );
-  await page
-    .getByLabel("Lendutan Jumlah titik sampel", { exact: true })
-    .fill("4");
+  await selectPeriodicTask(page, "Pemeriksaan Bersama");
+  await page.getByLabel("Lendutan Jumlah titik sampel", { exact: true }).fill("4");
+  await selectPeriodicTask(page, "Keputusan & Tindak Lanjut");
   assert.equal(
     await decision.locator('option[value="Sesuai"]').isDisabled(),
     false,
   );
   await decision.selectOption("Sesuai");
+  await selectPeriodicTask(page, "Pemeriksaan Bersama");
   await page
     .locator(".lendutan-period-review")
     .screenshot({ path: output + "/lendutan-review-desktop.png" });
@@ -225,6 +253,7 @@ try {
     .selectOption({ label: "lendutan-bukti.txt" });
   await jointArea.getByText("lendutan-bukti.txt", { exact: true }).waitFor();
   await page.reload();
+  await selectPeriodicTask(page, "Pemeriksaan Bersama");
   await jointArea.getByText("lendutan-bukti.txt", { exact: true }).waitFor();
   assert.equal(
     await page
@@ -238,12 +267,7 @@ try {
   await page
     .getByLabel("Periode pemeriksaan", { exact: true })
     .selectOption("2");
-  assert.equal(
-    await page
-      .getByLabel("Lendutan Jumlah titik sampel", { exact: true })
-      .inputValue(),
-    "",
-  );
+  assert.equal(await page.getByLabel("Lendutan Jumlah titik sampel", { exact: true }).count(), 0);
   await page
     .getByLabel("Periode pemeriksaan", { exact: true })
     .selectOption("1");

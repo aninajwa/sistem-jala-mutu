@@ -29,7 +29,7 @@ export function applyCycleEdit(s: OperationalWorkflowState, patch: Partial<Verva
       ...(changesTest
         ? {
             userReview: "Belum Diperiksa" as const,
-            reviewPendingTypes:[...new Set([...(s.cycle.reviewPendingTypes??[]),...affectedReviewTypes(periodicSurveyTypes(s),s.cycle,patch)])],
+            reviewPendingTypes: patch.reviewPendingTypes ?? [...new Set([...(s.cycle.reviewPendingTypes??[]),...affectedReviewTypes(periodicSurveyTypes(s),s.cycle,patch)])],
             bridgeFieldValidation: false,
             finalPeriodValidation: false,
           }

@@ -1,3 +1,6 @@
+import { submittedPeriodicRecords } from '../periodicRecords';
+import { PERIOD_SUBMISSION_ACTION, submitPeriodicResults } from '../periodicSubmission';
+import { matchesJournaledTransition } from './providerChecklistCascade';
 import {isCorrectionClosureCascade} from './correctionClosureCascade';
 import {isBalaiVervalCascade,isBalaiPeriodDecision} from './balaiVervalCascade';
 import { balaiDecisionError } from '../balaiDecisionPolicy';
@@ -57,9 +60,32 @@ export function workflowMutationError(before:OperationalWorkflowState,after:Oper
      ? undefined
      : 'Checklist persiapan dikunci atau perubahan memuat data di luar satu butir checklist dan invalidasi sistem.';
  }
+ if (isExactCyclePeriodSwitch(before, after)) return;
+ if (before.cycle.periodCompleted !== after.cycle.periodCompleted ||
+     differs(before.cycle.submittedRecordIds, after.cycle.submittedRecordIds)) {
+   const expected = submitPeriodicResults(before);
+   return expected !== before && matchesJournaledTransition(before, expected, after,
+     [PERIOD_SUBMISSION_ACTION], before.project.packageName) ? undefined :
+     'Penyerahan periode menunggu hasil konsistensi, validasi internal, dan rekaman yang layak.';
+ }
+ if (before.cycle.providerResubmissionRequired && after.cycle.providerResubmissionRequired === false) {
+   const expected = submitPeriodicResults(before);
+   return expected !== before && matchesJournaledTransition(before, expected, after,
+     [PERIOD_SUBMISSION_ACTION], before.project.packageName) ? undefined :
+     'Penyerahan ulang belum memenuhi persyaratan periode.';
+ }
  if (isProviderUpstreamTransition(before, after)) return;
  if (isCorrectionClosureCascade(before,after)) return;
  if (isBalaiVervalCascade(before, after)||isBalaiPeriodDecision(before,after)) return;
+ const periodReviewKeys = [
+   'userReview', 'surveyReviews', 'certificateId', 'bridgeFieldValidation',
+   'bridgeValidatedPercent', 'bridgeValidationReport', 'finalPeriodValidation',
+   'finalValidationLocation', 'finalToolUnchanged',
+ ] as const;
+ if (role === B && periodReviewKeys.some(key => differs(before.cycle[key], after.cycle[key])) &&
+     (before.cycle.providerResubmissionRequired || !submittedPeriodicRecords(before).confirmed)) {
+   return 'Pemeriksaan Balai menunggu daftar penyerahan periode yang terkonfirmasi.';
+ }
  const decisionError = balaiDecisionError(before, after);
  if (decisionError) return decisionError;
  if (before.productionApproval !== after.productionApproval &&

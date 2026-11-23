@@ -1,3 +1,4 @@
+import { CALIBRATION_REVIEW_SUBJECTS, calibrationSourceSignature } from './calibrationReview';
 import { PRODUCTION_REFERENCE_CHECKS } from './surveyStandards';
 import { withProductionReferences } from './testing/productionFixture';
 import {filledSourceFixture} from './testing/sourceFixture';
@@ -22,6 +23,23 @@ test('PCI method drafts are independent, recover previous values and AI cannot u
    pciManual: false, pciBenchmarkBalanced: true, evidenceReference: 'HASIL-PCI-AI',
    referenceChecks: Object.fromEntries(PRODUCTION_REFERENCE_CHECKS.PCI.map(check => [check, true])),
  });
+ const calibrationReview = {
+   result: 'Sesuai' as const,
+   note: 'Pemeriksaan kalibrasi oleh Balai',
+   evidenceReference: 'BA-KALIBRASI-PCI',
+   reviewedAt: verified.simulationDate,
+   reviewer: 'PIC Balai / Pengguna Jasa' as const,
+   sourceSignature: calibrationSourceSignature(verified, 'PCI'),
+ };
+ verified.calibrationReviews = {
+   PCI: {
+     ...calibrationReview,
+     subject: 'Hasil kalibrasi',
+     sections: Object.fromEntries(
+       CALIBRATION_REVIEW_SUBJECTS.map(subject => [subject, calibrationReview]),
+     ),
+   },
+ };
  assert.equal(evaluateStageGate(verified, 'Tahap 2').readyToComplete, true);
  state.role='Admin';assert.equal(switchPciMethod(state,false),state);
 });

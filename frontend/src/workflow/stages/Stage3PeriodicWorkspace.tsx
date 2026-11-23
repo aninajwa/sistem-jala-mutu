@@ -1,3 +1,9 @@
+import { canEditPeriodicProvider, periodicCorrections, periodicCoverage, periodicHandoverTypes, submittedPeriodicRecords } from '../periodicRecords';
+import { Stage3BMonitoring } from './Stage3BMonitoring';
+import { Stage3BRecordTable } from './Stage3BRecordTable';
+import { localPersistence } from '../repository/localPersistence';
+import { switchWorkflowCyclePeriod } from "../cyclePeriodTransition";
+import { PERIOD_SUBMISSION_ACTION, canSubmitPeriodicResults, periodicRecords, periodicSubmissionBlockers, submitPeriodicResults } from '../periodicSubmission';
 import {recordPeriodicBa} from '../periodicDecision';
 import {applyPeriodicFinding} from '../periodicFinding';
 import {periodicSurveyTypes} from '../reviewReadiness';
@@ -7,11 +13,8 @@ import {DocumentAttachments} from '../DocumentAttachments';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import { reviewSurvey } from "../periodicReview";
 import {
-  CalendarClock,
-  CheckCircle2,
   ClipboardCheck,
   ClipboardList,
-  FileCheck2,
   FileText,
 } from "lucide-react";
 import { useState } from "react";
@@ -19,14 +22,11 @@ import { useState } from "react";
 import {
   CYCLE_PROTOCOLS,
   CYCLE_SHARED_PROTOCOLS,
-  cycleDueDate,
-  daysBetween,
   SurveyType,
   VervalCycle,
 } from "../model";
 import { Stage3BPeriodSelector } from "../Stage3BPeriodSelector";
 import { Stage3BOperationalForms } from "../Stage3BOperationalForms";
-import { GateSummary } from "../WorkflowComponents";
 
 import { useStage3BPeriod } from "../stages/useStage3BPeriod";
 import type { WorkflowStageProps } from "./stageSupport";
@@ -41,19 +41,21 @@ import {
   testId,
 } from "./stageSupport";
 import { useWorkflowStage } from "./useWorkflowStage";
+import "./stage3b-redesign.css";
 
 export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
-  const { selection, state, onUpdate, setNotice, onNavigate } = props;
-  const { baAccess, commit, updateCycle, heading } = useWorkflowStage(props);
+  const { state: packageState, onUpdate, setNotice, onNavigate } = props;
+  const [monitorPeriod, setMonitorPeriod] = useState<number>();
+  const viewOnly = packageState.role === 'Direktorat / Pusat' || packageState.role === 'Admin';
+  const state = viewOnly && monitorPeriod
+    ? switchWorkflowCyclePeriod(packageState, monitorPeriod)
+    : packageState;
+  const { baAccess, commit, updateCycle } = useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage3PeriodicWorkspace:period-${state.activeCyclePeriod??1}`,{});
   const {
-    stage3BCompletion,
     activeStage3BPeriod,
     stage3bPeriodRange,
     setStage3BPeriodRange,
-    stage3BStatus,
-    setStage3BStatus,
-    onStage3BCompletion,
     switchStage3BPeriod,
   } = useStage3BPeriod(
     state.project.id,
@@ -61,7 +63,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     () => {},
     state.activeCyclePeriod,
   );
-  const selectedCycleTypes = periodicSurveyTypes(state);
+  const selectedCycleTypes = state.role === "Penyedia Jasa / Ketua Tim" ? periodicHandoverTypes(state) : periodicSurveyTypes(state);
   const [,refreshSource]=useState(0);
   const [reviewType, setReviewType] = useState<SurveyType>(
     selectedCycleTypes[0] ?? state.project.surveyTypes[0] ?? "IRI",
@@ -70,7 +72,6 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
     ? reviewType
     : (selectedCycleTypes[0] ?? reviewType);
   const surveyReview = state.cycle.surveyReviews?.[selectedReviewType];
-  const dueCycle = cycleDueDate(state.cycle.lastCompletedDate);
   const pciAi = state.productionTests.PCI.pciManual === false;
   const pciMetric = pciAi ? 'pciAiStandardDeviation' : 'pciManualMaxDifferencePercent';
   const pciLimit = pciAi ? 8 : 10;
@@ -106,7 +107,6 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
 
-  const due = daysBetween(state.simulationDate, dueCycle);
   const consistencyResult = evaluateCycleConsistency(
     selectedCycleTypes,
     state.cycle.iriCoefficientVariation,
@@ -117,20 +117,25 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const canReviewCycle = state.role === "PIC Balai / Pengguna Jasa";
   const reviewPrerequisites=evaluateStageGate(state,'Tahap 2');
   const periodScope=activeStage3BPeriod===1?state.project.id:`${state.project.id}::period-${activeStage3BPeriod}`;
-  const reviewLocks=[...(!reviewPrerequisites.readyToComplete?reviewPrerequisites.blockers:[]),...(!selectedCycleTypes.length?['Lingkup jenis survei belum ditetapkan.']:[])];
+  const snapshot = submittedPeriodicRecords(state);
+  const reviewLocks=[...(state.cycle.periodCompleted && !snapshot.confirmed ? ['Daftar rekaman penyerahan tidak dapat dipastikan. Periksa arsip atau lakukan penyerahan ulang jika BA belum tercatat.'] : []),...(state.cycle.providerResubmissionRequired?['Menunggu pengajuan ulang dari Penyedia.']:[]),...(!reviewPrerequisites.readyToComplete?reviewPrerequisites.blockers:[]),...(!selectedCycleTypes.length?['Lingkup jenis survei belum ditetapkan.']:[])];
   const sourceReady=(type:SurveyType,phase:string)=>{const result=sourceInspectionStatus(periodScope,type,phase,state.productionTests.PCI.pciManual!==false,{...state.project,periodStart:stage3bPeriodRange.start,periodEnd:stage3bPeriodRange.end});return result.complete&&(type!=='Lendutan'||!result.concerns.some(reason=>phase==='periodic14'||/CV ≤ 5%|Minimal 3 pengulangan/.test(reason)));};
   const sourceReviewReady=sourceReady(selectedReviewType,'periodic14');
   const conformityLock=!state.cycle.periodCompleted?'Menunggu penyerahan Penyedia':!sourceReviewReady?'Lengkapi pemeriksaan bersama':'';
-  const allProtocols = [
-    ...selectedCycleTypes.flatMap((t) =>
+  const coverage = periodicCoverage(state);
+  const submissionTypes = coverage.filter(entry => entry.recorded > 0).map(entry => entry.type);
+  const protocolsForTypes = (types: SurveyType[]) => [
+    ...types.flatMap((t) =>
       CYCLE_PROTOCOLS[t].map((p) => `${t} · ${p}`),
     ),
     ...CYCLE_SHARED_PROTOCOLS,
   ];
+  const allProtocols = protocolsForTypes(selectedCycleTypes);
+  const handoverProtocols = protocolsForTypes(submissionTypes);
   const checked = allProtocols.filter(
     (x) => state.cycle.checkedProtocols[x],
   ).length;
-  const openPeriodFindings=state.corrections.filter(item=>['Konsistensi gagal','Temuan proses verval'].includes(item.source)&&item.status!=='Ditutup'&&(item.cyclePeriod===undefined||item.cyclePeriod===activeStage3BPeriod));
+  const openPeriodFindings = periodicCorrections(state).filter(item => item.status !== 'Ditutup');
   const baReviewBlockers=[...reviewLocks,
     ...(!stage3bPeriodRange.start||!stage3bPeriodRange.end?['Periode data belum tersedia. Penyedia perlu melengkapi tanggal survei.']:[]),
     ...(!state.cycle.periodCompleted?['Penyedia belum menyerahkan hasil periode.']:[]),
@@ -206,7 +211,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const holdLast14Days = () => {
     if(!canPrepareCycle){setNotice("Penyedia mencatat penahanan data sesuai hasil pemeriksaan.");return;}
     if(!stage3bPeriodRange.start||!stage3bPeriodRange.end){setNotice("Pilih rentang periode terlebih dahulu.");return;}
-    const failedTypes = selectedCycleTypes.filter(
+    const holdScope = state.cycle.periodCompleted ? [selectedReviewType] : selectedCycleTypes;
+    const failedTypes = holdScope.filter(
       (type) =>
         (type === "IRI" && (state.cycle.iriCoefficientVariation ?? 0) > 5) ||
         (type === "PCI" &&
@@ -217,7 +223,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       .filter(
         (record) =>
           record.state === "Tercatat" &&
-          (failedTypes.length ? failedTypes : selectedCycleTypes).includes(
+          (failedTypes.length ? failedTypes : holdScope).includes(
             record.surveyType,
           ) &&
           state.project.routes.includes(record.road) &&
@@ -292,7 +298,10 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
-    if(reviewLocks.length){setNotice(reviewLocks.join(' '));return;}
+    if (!state.cycle.periodCompleted || reviewLocks.length) {
+      setNotice(reviewLocks.join(' ') || 'Menunggu penyerahan Penyedia.');
+      return;
+    }
     if(!selectedCycleTypes.includes(selectedReviewType)){setNotice('Pilih jenis survei yang tersedia pada periode ini.');return;}
     if(patch.userReview==='Sesuai'&&(!state.cycle.periodCompleted||!sourceReady(selectedReviewType,'periodic14'))){
       setNotice('Selesaikan pemeriksaan bersama dan tunggu hasil periode Penyedia sebelum mencatat Sesuai.');return;
@@ -331,30 +340,75 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
       updateCycle(scopedPatch,"Catat pemeriksaan Pengguna Jasa dan bukti akhir periode");
     }
   };
+
+  const providerTasks = [
+    ['consistency', 'Konsistensi'],
+    ['internal', 'V&V Internal'],
+    ['submission', 'Penyerahan ke Balai'],
+    ['documents', 'Dokumen & Catatan'],
+  ] as const;
+  const balaiTasks = [
+    ['results', 'Hasil Penyedia'],
+    ['periodic14', 'Pemeriksaan Bersama'],
+    ['decision', 'Keputusan & Tindak Lanjut'],
+    ['documents', 'BA'],
+  ] as const;
+  const tasks: ReadonlyArray<readonly [string, string]> = canPrepareCycle ? providerTasks : canReviewCycle ? balaiTasks : [];
+  const [task, setTask] = useState<string>(tasks[0]?.[0] ?? 'monitoring');
+  const [providerResult, setProviderResult] = useState<'consistency' | 'internal' | ''>('');
+  const activeTask = tasks.some(([key]) => key === task) ? task : tasks[0]?.[0];
+  const canInspect = canReviewCycle && state.cycle.periodCompleted && reviewLocks.length === 0;
+  const { records: periodRecords, eligible: eligibleRecords, held, incomplete } = periodicRecords(state, selectedCycleTypes);
+  const visibleRecords = canReviewCycle
+    ? state.cycle.providerResubmissionRequired ? [] : snapshot.records
+    : periodRecords;
+  const canEditProviderSurvey = canEditPeriodicProvider(state, selectedReviewType);
+  const visibleSurveyRecords = activeTask === 'submission' || activeTask === 'results'
+    ? visibleRecords
+    : visibleRecords.filter(record => record.surveyType === selectedReviewType);
+  const status = state.cycle.providerResubmissionRequired ? 'Perlu diajukan ulang'
+    : state.cycle.userReview === 'Temuan' || openPeriodFindings.length ? 'Ada temuan'
+    : state.cycle.requiresReview ? 'Perlu diperiksa ulang'
+    : state.cycle.periodCompleted && !snapshot.confirmed ? 'Arsip penyerahan'
+    : state.cycle.certificateId ? 'BA tercatat'
+    : state.cycle.periodCompleted ? 'Diserahkan' : 'Belum diserahkan';
+  const submissionBlockers = activeTask === 'submission' ? periodicSubmissionBlockers(state) : [];
+  const phase = activeTask === 'consistency' || activeTask === 'internal' || activeTask === 'periodic14' ? activeTask : null;
+  const history = (<details className="stage3b-disclosure">
+            <summary >Riwayat periode</summary>
+            <div className="wf-body">
+              {(state.reviewActivityHistory ?? []).filter(entry => entry.stage === 'Tahap 3B' &&
+                entry.period === activeStage3BPeriod).map(entry => (
+                <p key={entry.id}>{entry.recordedAt.slice(0, 10)} · {entry.actor} · {entry.status}
+                  {entry.note && <> · {entry.note}</>}</p>
+              ))}
+              {(state.cycleRevisions?.[String(activeStage3BPeriod)] ?? [])
+                .filter(entry => entry.certificateId).map((entry, index) => (
+                  <p key={index}>BA terdahulu · {entry.certificateId} · {entry.userReview}</p>
+              ))}
+            </div>
+          </details>);
+  const attachments = (<DocumentAttachments compactPeriodic scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`}
+            categories={['Bukti repeatability / hasil pemeriksaan berkala', 'Bukti pendukung periode']}
+            legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`, `stage3b-supporting-evidence-${activeStage3BPeriod}`]}
+            editable={canEditPeriodicProvider(state)} />);
   return (
-    <>
-      {heading(
-        "Tahap 3B · verifikasi dan validasi berkala",
-        "Verval berkala 14 hari",
-        "Penyedia menyiapkan bukti dan checklist periode; hasil pemeriksaan dirangkum sistem, lalu PIC Balai / Pengguna Jasa meninjau, memberi catatan/keputusan, dan mencatat BA berkala.",
-      )}
-      {state.cycle.requiresReview && (
-        <div className="wf-callout warn">
-          Pemeriksaan ulang diperlukan: {state.cycle.reviewReason} BA
-          sebelumnya: {state.cycle.certificateId || "Belum tercatat"}
+    <section className="stage3b-workspace">
+      <header className="stage3b-header">
+        <div>
+          <p className="stage3b-package">Tahap 3B · {state.project.packageName}</p>
+          <h1 className="wf-title">Verifikasi dan validasi berkala</h1>
         </div>
-      )}
-      <p className="wf-note stage-period-hint">Pilih periode terlebih dahulu. Semua pemeriksaan dan BA mengikuti periode yang dipilih.</p>
+        <span className="stage3b-status">{status}</span>
+      </header>
       <Stage3BPeriodSelector
-        simulationDate={state.simulationDate}
-        periodStates={{...state.cycleHistory,[String(activeStage3BPeriod)]:state.cycle}}
         packageId={state.project.id}
         activePeriod={activeStage3BPeriod}
-        onPeriodChange={switchStage3BPeriod}
+        onPeriodChange={viewOnly ? setMonitorPeriod : switchStage3BPeriod}
         onRangeChange={setStage3BPeriodRange}
         surveyStartDate={state.project.surveyStartDate}
         surveyEndDate={state.project.surveyEndDate}
-        editable={state.role==='Penyedia Jasa / Ketua Tim'}
+        editable={canPrepareCycle}
         onScheduleChange={({startDate,endDate})=>{
           if(state.role!=='Penyedia Jasa / Ketua Tim')return;
           commit('Lengkapi jadwal survei','Jadwal paket',current=>{
@@ -366,29 +420,44 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
           });
         }}
       />
-      <p className="wf-note">Jadwal sesi V&amp;V bersama belum tercatat.</p>
-      {canReviewCycle && (
-<div className="stage-role-priority">
-      <Panel
-        title={
-          canReviewCycle ? "Pekerjaan PIC Balai · review periode" : "Hasil review PIC Balai"
-        }
-        icon={ClipboardCheck}
-      >
-        {canReviewCycle ? (
-          <>
-            {reviewLocks.length > 0 && (
-              <div className="wf-callout warn" role="status">
-                <details>
-                  <summary>Pemeriksaan tertahan · {reviewLocks.length} prasyarat</summary>
-                  <ul>{reviewLocks.map((reason) => <li key={reason}>{reason}</li>)}</ul>
-                </details>
-                <button type="button" className="wf-button" onClick={() => onNavigate('/entry:Validasi produksi')}>Periksa Tahap 2</button>
-              </div>
-            )}
-            {conformityLock&&<p className="wf-note">Keputusan Sesuai tertahan: {conformityLock}. Buka V&V Bersama untuk melengkapi pemeriksaan jenis yang dipilih.</p>}
-            <div className="wf-fields">
-              <Field label="Jenis survei yang direview">
+
+      {tasks.length > 0 && (
+        <nav className="stage3b-work-selector" aria-label="Pekerjaan Tahap 3B">
+          {tasks.map(([key, label]) => (
+            <button type="button" key={key} className={`stage3b-work-choice ${activeTask === key ? 'active' : ''}`}
+              aria-current={activeTask === key ? 'page' : undefined} onClick={() => setTask(key)}>
+              {label}
+            </button>
+          ))}
+        </nav>
+      )}
+      {viewOnly ? (
+        <Stage3BMonitoring state={state} surveys={selectedCycleTypes}
+          notes={state.role === 'Direktorat / Pusat' ? props.periodicNotes?.(state) : undefined}
+          attachments={attachments} history={history} />
+      ) : <div className="stage3b-work-content">
+        {activeTask === 'documents' && props.periodicNotes?.(state)}
+        {state.cycle.requiresReview && (activeTask === 'submission' || activeTask === 'decision') && <p role="status">{state.cycle.reviewReason}</p>}
+        {((canPrepareCycle && activeTask !== 'documents') ||
+            (canReviewCycle && state.cycle.periodCompleted && activeTask === 'results')) && (
+          <details className="stage3b-disclosure">
+            <summary>Rekaman Tahap 3A · {visibleSurveyRecords.length} rekaman</summary>
+            <Stage3BRecordTable records={visibleSurveyRecords} status={record =>
+              held.includes(record) ? 'Ditahan'
+                : incomplete.includes(record) ? 'Belum lengkap'
+                : state.cycle.submittedRecordIds?.includes(record.id)
+                  ? state.cycle.providerResubmissionRequired ? 'Perlu diajukan ulang' : 'Diserahkan'
+                  : record.state
+            } />
+          </details>
+        )}
+        {canReviewCycle && !canInspect && <p role="status">
+          {state.cycle.periodCompleted ? reviewLocks[0] : 'Menunggu penyerahan hasil periode dari Penyedia.'}
+        </p>}
+
+        {canInspect && (activeTask === 'periodic14' || activeTask === 'decision') && (
+          <div className="wf-fields">
+              <Field label="Jenis survei">
                 <Select
                   id="select-periodic-review-survey"
                   value={selectedReviewType}
@@ -397,162 +466,12 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                   onChange={(value) => setReviewType(value as SurveyType)}
                 />
               </Field>
-              <Field label="Catatan hasil pemeriksaan" full>
-                <textarea
-                  data-testid="input-cycle-user-review-note"
-                  disabled={reviewLocks.length>0}
-                  rows={3}
-                  value={surveyReview?.note ?? ""}
-                  onChange={(e) =>
-                    reviewEvidence({ userReviewNote: e.target.value })
-                  }
-                  placeholder="Tuliskan catatan Balai, temuan, atau alasan keputusan"
-                />
-              </Field>
-              <Field label="Keputusan review Pengguna Jasa">
-                <Select
-                  id="select-cycle-user-review"
-                  disabled={reviewLocks.length>0}
-                  value={state.cycle.reviewPendingTypes?.includes(selectedReviewType)?'Belum Diperiksa':surveyReview?.decision ?? "Belum Diperiksa"}
-                  options={["Belum Diperiksa", "Sesuai", "Temuan"]}
-                  disabledOptions={conformityLock?{Sesuai:conformityLock}:{}}
-                  onChange={(v) =>
-                    reviewEvidence({
-                      userReview: v as VervalCycle["userReview"],
-                    })
-                  }
-                />
-              </Field>
-              {selectedReviewType === "Jembatan" && (
-                <>
-                  <Field label="Cakupan validasi jembatan (%)">
-                    <input
-                      data-testid="input-cycle-bridge-percent"
-                      disabled={reviewLocks.length>0}
-                      type="number"
-                      min="0"
-                      max="100"
-                      value={state.cycle.bridgeValidatedPercent ?? ""}
-                      onChange={(e) =>
-                        reviewEvidence({
-                          bridgeValidatedPercent: Number(e.target.value),
-                        })
-                      }
-                    />
-                  </Field>
-                  <Field label="Referensi laporan validasi lapangan">
-                    <input
-                      data-testid="input-cycle-bridge-report"
-                      disabled={reviewLocks.length>0}
-                      value={state.cycle.bridgeValidationReport ?? ""}
-                      onChange={(e) =>
-                        reviewEvidence({
-                          bridgeValidationReport: e.target.value,
-                        })
-                      }
-                    />
-                  </Field>
-                </>
-              )}
-              {state.cycle.periodCompleted && (
-                <>
-                  <Field label="Lokasi uji validasi akhir">
-                    <input
-                      data-testid="input-cycle-final-location"
-                      disabled={reviewLocks.length>0}
-                      value={state.cycle.finalValidationLocation ?? ""}
-                      onChange={(e) =>
-                        reviewEvidence({
-                          finalValidationLocation: e.target.value,
-                        })
-                      }
-                      placeholder="Isi bila pemeriksaan akhir dilakukan"
-                    />
-                  </Field>
-                  <CheckRow
-                    id="cycle-tool-unchanged"
-                    disabled={reviewLocks.length>0}
-                    label="Uji akhir membuktikan alat tidak berubah"
-                    checked={!!state.cycle.finalToolUnchanged}
-                    onChange={(v) => reviewEvidence({ finalToolUnchanged: v })}
-                  />
-                </>
-              )}
-              <Field label="Nomor BA V&V 2-Mingguan (bila sudah diterbitkan)">
-                <input
-                  data-testid="input-cycle-ba"
-                  disabled={reviewLocks.length>0}
-                  value={draft.cycleBa ?? state.cycle.certificateId}
-                  onChange={(e) => saveText("cycleBa", e.target.value)}
-                  placeholder="Belum ada nomor BA"
-                />
-              </Field>
-            </div>
-            <p className="wf-note">
-              Nomor BA dan keputusan hanya dicatat oleh PIC Balai. Draft, review dan histori tersedia pada Dokumen & BA.
-            </p>
-          </>
-        ) : (
-          <div className="package-readonly-grid">
-            <div>
-              <small>Keputusan Pengguna Jasa</small>
-              <strong>{state.cycle.userReview ?? "Belum Diperiksa"}</strong>
-            </div>
-            <div>
-              <small>Nomor BA V&V 2-Mingguan</small>
-              <strong>
-                {state.cycle.certificateId || "Belum diterbitkan"}
-              </strong>
-            </div>
-            <div className="wide">
-              <small>Catatan PIC Balai</small>
-              <strong>
-                {state.cycle.userReviewNote?.trim() ||
-                  "Belum ada catatan dari PIC Balai"}
-              </strong>
-            </div>
-            {selectedCycleTypes.includes("Jembatan") && (
-              <div>
-                <small>Validasi jembatan</small>
-                <strong>
-                  {state.cycle.bridgeValidatedPercent === undefined
-                    ? "Belum tercatat"
-                    : `${state.cycle.bridgeValidatedPercent}%`}
-                </strong>
-              </div>
-            )}
-            {state.cycle.periodCompleted && (
-              <>
-                <div>
-                  <small>Lokasi uji validasi akhir</small>
-                  <strong>
-                    {state.cycle.finalValidationLocation || "Belum dicatat"}
-                  </strong>
-                </div>
-                <div>
-                  <small>Konfirmasi kondisi alat</small>
-                  <strong>
-                    {state.cycle.finalToolUnchanged
-                      ? "Sudah dikonfirmasi"
-                      : "Belum dikonfirmasi"}
-                  </strong>
-                </div>
-              </>
-            )}
-            <div className="wide">
-              <small>Akses</small>
-              <strong>
-                {state.role === "Direktorat / Pusat"
-                  ? "Monitoring Direktorat — hanya baca"
-                  : "Hasil review Balai — hanya baca untuk Penyedia"}
-              </strong>
-            </div>
           </div>
         )}
-      </Panel>
-</div>
+      {phase && canPrepareCycle && !canEditProviderSurvey && (
+        <p className="stage3b-notice" role="status">Hasil sudah diserahkan. Isian dapat diperbarui setelah usulan perbaikan disetujui atau saat pengajuan ulang diperlukan.</p>
       )}
-      <Stage3BOperationalForms selectedSurvey={selectedReviewType} onSurveyChange={setReviewType} periodStart={stage3bPeriodRange.start} periodEnd={stage3bPeriodRange.end} pciManual={state.productionTests.PCI.pciManual!==false}
+      {phase && (canPrepareCycle || canInspect) && <Stage3BOperationalForms readOnly={canPrepareCycle && !canEditProviderSurvey} phase={phase} selectedSurvey={selectedReviewType} onSurveyChange={setReviewType} periodStart={stage3bPeriodRange.start} periodEnd={stage3bPeriodRange.end} pciManual={state.productionTests.PCI.pciManual!==false}
         key={`${state.project.id}:${activeStage3BPeriod}`}
         projectInfo={state.project}
         packageId={
@@ -566,16 +485,17 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
             : state.project.surveyTypes
         }
         role={state.role}
-        onCompletionChange={onStage3BCompletion}
         onAnswersChanged={() => {
           refreshSource(value=>value+1);
-          if (!state.cycle.certificateId&&(!surveyReview||surveyReview.decision==='Belum Diperiksa')) return;
+          if (!(canPrepareCycle && state.cycle.periodCompleted) && !state.cycle.certificateId &&
+              (!surveyReview || surveyReview.decision === 'Belum Diperiksa')) return;
           commit(
             "Perbarui checklist periode",
             `Periode ${activeStage3BPeriod}`,
             (current) => ({
               ...current,
-              cycle: (current.cycle.certificateId||current.cycle.surveyReviews?.[selectedReviewType])
+              cycle: (current.role === "Penyedia Jasa / Ketua Tim" && current.cycle.periodCompleted ||
+                current.cycle.certificateId || current.cycle.surveyReviews?.[selectedReviewType])
                 ? {
                     ...current.cycle,
                     requiresReview: true,
@@ -587,74 +507,13 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
             }),
           );
         }}
-      />
+      />}
 
-      <details className="wf-panel">
-        <summary className="wf-panel-head">Checklist pelaksanaan periode ({checked}/{allProtocols.length})</summary>
-        {canPrepareCycle ? allProtocols.map((protocol) => (
-          <CheckRow key={protocol} id={`cycle-protocol-${testId(protocol)}`} label={protocol}
-            checked={!!state.cycle.checkedProtocols[protocol]} onChange={(value) => updateProtocol(protocol, value)} />
-        )) : (
-          <ul className="wf-body">
-            {allProtocols.map((protocol) => <li key={protocol}>{protocol} — {state.cycle.checkedProtocols[protocol] ? "Tercatat" : "Belum tercatat"}</li>)}
-          </ul>
-        )}
-      </details>
-      {canPrepareCycle ? <DocumentAttachments scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`,`stage3b-supporting-evidence-${activeStage3BPeriod}`]} editable={canPrepareCycle}/> : <details className="wf-panel"><summary className="wf-panel-head">Detail & Riwayat · Bukti Penyedia (hanya lihat)</summary><DocumentAttachments scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`,`stage3b-supporting-evidence-${activeStage3BPeriod}`]} editable={false}/></details>}
-      <div className="wf-grid">
-
-        <Panel title="Cakupan pemeriksaan periode" icon={ClipboardList}>
-          <p className="wf-note">
-            Jenis survei berikut berasal dari lingkup paket. Pemeriksaan mengikuti jenis survei pada paket dan periode yang dipilih.
-          </p>
-          <div className="wf-pill-list" style={{ marginTop: 10 }}>
-            {state.project.surveyTypes.map((type) => (
-              <span className="wf-pill" key={type}>
-                <CheckCircle2 size={12} />
-                {type}
-              </span>
-            ))}
-          </div>
-          <div className="wf-note" style={{ marginTop: 10 }}>
-            {state.cycle.periodCompleted
-              ? "Penyedia telah menandai periode sebagai selesai."
-              : "Periode belum ditandai selesai oleh Penyedia."}
-          </div>
-          {canPrepareCycle && (
-            <CheckRow
-              id="cycle-period-completed"
-              label="Serahkan hasil pemeriksaan periode kepada Balai"
-              checked={state.cycle.periodCompleted}
-              onChange={(value) =>
-                updateCycle(
-                  { periodCompleted: value, selectedTypes:selectedCycleTypes },
-                  "Tandai akhir pemeriksaan periode",
-                )
-              }
-            />
-          )}
-        </Panel>
-      </div>
-<details className="stage-technical-details" open={canPrepareCycle}><summary>{canPrepareCycle ? "Hasil teknis dan tindak lanjut periode" : "Detail & Riwayat · Hasil teknis Penyedia (hanya lihat)"}</summary>
-      <div className="wf-grid">
-        <div>
-          <Panel title="Hasil pemeriksaan teknis dan bukti" icon={FileCheck2}>
-            <div className="workflow-data-origin">
-              <span className="origin-badge provider">
-                {canPrepareCycle
-                  ? "Data yang dicatat Penyedia"
-                  : "HASIL PEMERIKSAAN"}
-              </span>
-              <div>
-                <strong>
-                  {canPrepareCycle
-                    ? "Lengkapi hasil bila integrasi sumber belum tersedia"
-                    : "Hasil yang disiapkan Penyedia"}
-                </strong>
-                <span>Hasil pemeriksaan yang tersedia pada paket ini. Nilai dari sistem sumber belum tersedia secara otomatis.</span>
-              </div>
-            </div>
-            {selectedCycleTypes.includes("IRI") && (
+        {canPrepareCycle && canEditProviderSurvey && activeTask === 'consistency' && (
+          <details className="wf-panel">
+            <summary className="wf-panel-head">Hasil konsistensi dan penahanan data</summary>
+            <div className="wf-body">
+            {selectedReviewType === "IRI" && (
               <Field label="IRI CV (maks. 5%)">
                 <input
                   type="number"
@@ -672,7 +531,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                 />
               </Field>
             )}
-            {selectedCycleTypes.includes("PCI") && (
+            {selectedReviewType === "PCI" && (
               <Field label={pciAi ? "Standar deviasi PCI AI (maks. 8)" : "Selisih PCI Manual (maks. 10%)"}>
                 <input
                   type="number"
@@ -705,33 +564,9 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
               className={`wf-callout ${consistencyResult === "Konsisten" ? "" : "danger"}`}
               data-testid="cycle-consistency-result"
             >
-              Hasil pemeriksaan konsistensi:{" "}
-              <strong>{consistencyResult}</strong>. Parameter mengikuti acuan
-              teknis yang berlaku pada jenis survei.
+              Hasil konsistensi · <strong>{consistencyResult}</strong>
             </div>
-            {selectedCycleTypes.includes("Jembatan") && (
-              <CheckRow
-                id="cycle-bridge-field-validation"
-                label="Validasi lapangan jembatan oleh Pengguna Jasa"
-                checked={state.cycle.bridgeFieldValidation}
-                disabled={!canReviewCycle}
-                onChange={(v) =>
-                  updateFieldValidation("bridgeFieldValidation", v)
-                }
-              />
-            )}
-            {state.cycle.periodCompleted && (
-              <CheckRow
-                id="cycle-final-period-validation"
-                label="Validasi periode akhir"
-                checked={state.cycle.finalPeriodValidation}
-                disabled={!canReviewCycle}
-                onChange={(v) =>
-                  updateFieldValidation("finalPeriodValidation", v)
-                }
-              />
-            )}
-            <Field label="Alat/rater terkait data yang ditahan" full>
+            <Field label="Alat atau petugas penilai terkait" full>
               <input
                 data-testid="input-cycle-affected-tool"
                 value={state.cycle.affectedTool ?? ""}
@@ -742,7 +577,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                     "Identifikasi alat terkait HOLD",
                   )
                 }
-                placeholder="Nama alat; kosong = seluruh alat jenis yang gagal"
+                placeholder="Nama alat, bila hanya satu alat yang terkait"
               />
             </Field>
             <div className="wf-toolbar" style={{ marginTop: 10 }}>
@@ -764,6 +599,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                   state.corrections.some(
                     (item) =>
                       item.source === "Konsistensi gagal" &&
+                      item.surveyType === selectedReviewType &&
+                      item.cyclePeriod === activeStage3BPeriod &&
                       item.status !== "Ditutup",
                   )
                 }
@@ -775,6 +612,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                   const c = {
                     ...defaultCase(state),
                     source: "Konsistensi gagal",
+                    surveyType: selectedReviewType,
+                    cyclePeriod: activeStage3BPeriod,
                     blockedStage: "Verval 14 hari",
                     returnStage: "Verval 14 hari",
                     rejectionReason: "Hasil verval tidak konsisten",
@@ -787,59 +626,56 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
               >
                 Buka kasus
               </Button>
-              <Button
-                id="button-cycle-complete"
-                kind="primary"
-                onClick={saveCycle}
-                disabled={!canReviewCycle||baReviewBlockers.length>0}
-              >
-                Catat BA Balai
-              </Button>
-            </div>{canReviewCycle&&baReviewBlockers.length>0&&<details className="wf-note"><summary>BA tertahan · {baReviewBlockers.length} persyaratan</summary><ul>{baReviewBlockers.map((reason,index)=><li key={index}>{reason}</li>)}</ul><a href="#pemeriksaan-berkala">Buka pemeriksaan periode</a>{openPeriodFindings.length>0&&<button className="wf-button" onClick={()=>onNavigate('/actions:Koreksi berbukti')}>Buka tindak lanjut</button>}</details>}
-            {state.cycle.heldRecordIds.length > 0 && (
-              <div className="wf-callout danger" style={{ marginTop: 9 }}>
-                {state.cycle.heldRecordIds.length} rekaman dalam periode ditahan
-                sampai koreksi ditutup dan verval ulang lulus.
-              </div>
-            )}
-            {state.cycle.consistency === "Tidak Konsisten" && (
-              <div className="wf-callout danger" style={{ marginTop: 9 }}>
-                HOLD aktif · data 14 hari terakhir belum boleh diteruskan.
-                Hasil uji ulang harus konsisten sebelum kembali.
-              </div>
-            )}
-          </Panel>
-        </div>
-      </div>
-      </details>
-      {!canReviewCycle && (
-<div className="stage-role-priority">
-      <Panel
-        title={
-          canReviewCycle ? "Pekerjaan PIC Balai · review periode" : "Hasil review PIC Balai"
-        }
-        icon={ClipboardCheck}
-      >
-        {canReviewCycle ? (
-          <>
-            <div className="wf-callout">
-              Khusus PIC Balai / Pengguna Jasa: periksa data, hasil konsistensi,
-              checklist dan evidence Penyedia sebelum memberikan keputusan.
-              Temuan harus ditindaklanjuti dan tidak boleh dianggap lolos.
             </div>
-            {reviewLocks.length>0&&<div className="wf-callout warn" role="status"><strong>Review belum dapat dicatat — bukan gangguan tombol</strong><p>Prasyarat pemeriksaan belum terpenuhi. Pilihan keputusan dan isian review ditahan agar tidak menghasilkan persetujuan yang tidak sah.</p><details><summary>Lihat {reviewLocks.length} alasan tertahan</summary><ul>{reviewLocks.map(reason=><li key={reason}>{reason}</li>)}</ul></details><button className="wf-button" onClick={()=>onNavigate('/entry:Validasi produksi')}>Periksa Tahap 2</button></div>}
-            {!state.cycle.periodCompleted&&<p className="wf-note">Penyedia belum menyerahkan hasil periode ini. Review baru dapat dicatat setelah prasyarat terpenuhi; keputusan Sesuai juga memerlukan V&V Bersama yang lengkap.</p>}
-            {conformityLock&&<p className="wf-note">Keputusan Sesuai tertahan: {conformityLock}. Buka V&V Bersama untuk melengkapi pemeriksaan jenis yang dipilih.</p>}
+
+            </div>
+          </details>
+        )}
+        {canPrepareCycle && activeTask === 'submission' && (
+          <Panel title="Kesiapan penyerahan" icon={ClipboardList}>
+            <div className="stage3b-readiness-counts" aria-label="Ringkasan rekaman">
+              <span><strong>{eligibleRecords.length}</strong> layak</span>
+              <span><strong>{incomplete.length}</strong> belum lengkap</span>
+              <span><strong>{held.length}</strong> ditahan</span>
+            </div>
+            {canSubmitPeriodicResults(state) && <details className="stage3b-coverage">
+              <summary>Cakupan per survei ({coverage.filter(entry => entry.eligible > 0).length}/{coverage.length})</summary>
+              <ul className="stage3b-coverage-list">{coverage.map(entry =>
+                <li key={entry.type}>
+                  <strong>{entry.type}</strong>
+                  <span>{entry.recorded ? `${entry.eligible} dari ${entry.recorded} layak` : 'Belum ada rekaman'}</span>
+                </li>)}
+              </ul>
+            </details>}
+            {!canSubmitPeriodicResults(state) ? <p role="status">Hasil periode telah diserahkan.</p> : <>
+              <details className="stage3b-protocols">
+                <summary>Pemeriksaan pelaksanaan ({handoverProtocols.filter(protocol => state.cycle.checkedProtocols[protocol]).length}/{handoverProtocols.length})</summary>
+                {handoverProtocols.map(protocol => (
+                  <CheckRow key={protocol} id={`cycle-protocol-${testId(protocol)}`} label={protocol}
+                    checked={!!state.cycle.checkedProtocols[protocol]} disabled={!canEditPeriodicProvider(state)} onChange={value => updateProtocol(protocol, value)} />
+                ))}
+              </details>
+              {!!submissionBlockers.length && <div className="stage3b-readiness-issues" role="status">
+                <strong>{submissionBlockers.length} persyaratan belum terpenuhi</strong>
+                <p>{submissionBlockers[0]}</p>
+                {submissionBlockers.length > 1 && <details>
+                  <summary>Lihat semua persyaratan</summary>
+                  <ul>{submissionBlockers.map((reason, index) => <li key={`${index}-${reason}`}>{reason}</li>)}</ul>
+                </details>}
+              </div>}
+              <Button id="button-cycle-submit" kind="primary" disabled={submissionBlockers.length > 0}
+                onClick={() => {
+                  if (submissionBlockers.length) return;
+                  commit(PERIOD_SUBMISSION_ACTION, state.project.packageName, submitPeriodicResults);
+                }}>
+                {state.cycle.periodCompleted ? "Ajukan ulang hasil" : "Serahkan hasil"}
+              </Button>
+            </>}
+          </Panel>
+        )}
+        {canInspect && activeTask === 'decision' && (
+          <Panel title="Keputusan per jenis survei" icon={ClipboardCheck}>
             <div className="wf-fields">
-              <Field label="Jenis survei yang direview">
-                <Select
-                  id="select-periodic-review-survey"
-                  value={selectedReviewType}
-                  disabled={!selectedCycleTypes.length}
-                  options={selectedCycleTypes}
-                  onChange={(value) => setReviewType(value as SurveyType)}
-                />
-              </Field>
               <Field label="Catatan hasil pemeriksaan" full>
                 <textarea
                   data-testid="input-cycle-user-review-note"
@@ -852,7 +688,7 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                   placeholder="Tuliskan catatan Balai, temuan, atau alasan keputusan"
                 />
               </Field>
-              <Field label="Keputusan review Pengguna Jasa">
+              <Field label="Keputusan Balai">
                 <Select
                   id="select-cycle-user-review"
                   disabled={reviewLocks.length>0}
@@ -921,149 +757,131 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
                   />
                 </>
               )}
-              <Field label="Nomor BA V&V 2-Mingguan (bila sudah diterbitkan)">
-                <input
-                  data-testid="input-cycle-ba"
-                  disabled={reviewLocks.length>0}
-                  value={draft.cycleBa ?? state.cycle.certificateId}
-                  onChange={(e) => saveText("cycleBa", e.target.value)}
-                  placeholder="Belum ada nomor BA"
-                />
-              </Field>
-            </div>
-            <p className="wf-note">
-              Nomor BA dan keputusan hanya dicatat oleh PIC Balai. Draft, review dan histori tersedia pada Dokumen & BA.
-            </p>
-          </>
-        ) : (
-          <div className="package-readonly-grid">
-            <div>
-              <small>Keputusan Pengguna Jasa</small>
-              <strong>{state.cycle.userReview ?? "Belum Diperiksa"}</strong>
-            </div>
-            <div>
-              <small>Nomor BA V&V 2-Mingguan</small>
-              <strong>
-                {state.cycle.certificateId || "Belum diterbitkan"}
-              </strong>
-            </div>
-            <div className="wide">
-              <small>Catatan PIC Balai</small>
-              <strong>
-                {state.cycle.userReviewNote?.trim() ||
-                  "Belum ada catatan dari PIC Balai"}
-              </strong>
-            </div>
             {selectedCycleTypes.includes("Jembatan") && (
-              <div>
-                <small>Validasi jembatan</small>
-                <strong>
-                  {state.cycle.bridgeValidatedPercent === undefined
-                    ? "Belum tercatat"
-                    : `${state.cycle.bridgeValidatedPercent}%`}
-                </strong>
-              </div>
+              <CheckRow
+                id="cycle-bridge-field-validation"
+                label="Validasi lapangan jembatan oleh Pengguna Jasa"
+                checked={state.cycle.bridgeFieldValidation}
+                disabled={!canReviewCycle}
+                onChange={(v) =>
+                  updateFieldValidation("bridgeFieldValidation", v)
+                }
+              />
             )}
             {state.cycle.periodCompleted && (
-              <>
-                <div>
-                  <small>Lokasi uji validasi akhir</small>
-                  <strong>
-                    {state.cycle.finalValidationLocation || "Belum dicatat"}
-                  </strong>
-                </div>
-                <div>
-                  <small>Konfirmasi kondisi alat</small>
-                  <strong>
-                    {state.cycle.finalToolUnchanged
-                      ? "Sudah dikonfirmasi"
-                      : "Belum dikonfirmasi"}
-                  </strong>
-                </div>
-              </>
+              <CheckRow
+                id="cycle-final-period-validation"
+                label="Validasi periode akhir"
+                checked={state.cycle.finalPeriodValidation}
+                disabled={!canReviewCycle}
+                onChange={(v) =>
+                  updateFieldValidation("finalPeriodValidation", v)
+                }
+              />
             )}
-            <div className="wide">
-              <small>Akses</small>
-              <strong>
-                {state.role === "Direktorat / Pusat"
-                  ? "Monitoring Direktorat — hanya baca"
-                  : "Hasil review Balai — hanya baca untuk Penyedia"}
-              </strong>
+
             </div>
-          </div>
+          </Panel>
         )}
-      </Panel>
-</div>
-      )}
-      <details className="stage-document-details"><summary>Dokumen periode ini · draft BA & riwayat</summary>
-      <Panel title={`Dokumen BA · Periode ${activeStage3BPeriod}`} icon={FileText}>
-        <p className="wf-note">
-          Hasil pemeriksaan periode ini menjadi dasar isi draft BA. Periksa dan lengkapi data yang memang tersedia; nomor resmi, tanda tangan, dan pengesahan bukan hasil otomatis.
-        </p>
-        <div className="wf-toolbar" style={{ flexWrap: "wrap" }}>
-          {baAccess("konsistensi", "Susun BA Konsistensi", activeStage3BPeriod)}
-          {baAccess("internal", "Susun BA V&V Internal", activeStage3BPeriod)}
-          {baAccess(
-            "duaMingguan",
-            "Susun BA V&V 2-Mingguan",
-            activeStage3BPeriod,
-          )}
-        </div>
-      </Panel>
-      </details>
-      <GateSummary
-        title="Gerbang Tahap 3 → Tahap 4"
-        items={[
-          {
-            label: "Periode survei selesai",
-            ready: state.cycle.periodCompleted,
-            detail: state.cycle.periodCompleted
-              ? "Ditandai selesai"
-              : "Masih dalam masa survei",
-          },
-          {
-            label: "Checklist Konsistensi lengkap",
-            ready: stage3BCompletion.consistency,
-          },
-
-          {
-            label: "Validasi Internal lengkap",
-            ready: stage3BCompletion.internal,
-          },
-
-          {
-            label: "V&V 2-Mingguan lengkap",
-            ready: stage3BCompletion.periodic14,
-          },
-          {
-            label: "System-check konsistensi",
-            ready: consistencyResult === "Konsisten",
-            detail: consistencyResult,
-          },
-          {
-            label: "Keputusan Balai",
-            ready: state.cycle.userReview === "Sesuai",
-            detail: state.cycle.userReview ?? "Belum Diperiksa",
-          },
-          {
-            label: "BA verval Balai",
-            ready: !!state.cycle.certificateId,
-            detail: state.cycle.certificateId || "Belum dicatat",
-          },
-          {
-            label: "Tidak ada HOLD / kasus verval terbuka",
-            ready:
-              state.cycle.heldRecordIds.length === 0 &&
-              !state.corrections.some(
-                (c) =>
-                  c.blockedStage === "Verval 14 hari" && c.status !== "Ditutup",
-              ),
-            detail: state.cycle.heldRecordIds.length
-              ? `${state.cycle.heldRecordIds.length} rekaman ditahan`
-              : "Tidak ada rekaman ditahan",
-          },
-        ]}
-      />
-    </>
+        {canReviewCycle && state.cycle.periodCompleted && activeTask === 'results' && (
+          <Panel title="Bukti pemeriksaan Penyedia" icon={ClipboardCheck}>
+            <div className="wf-fields">
+              <Field label="Jenis survei">
+                <Select id="select-periodic-provider-results-survey" value={selectedReviewType}
+                  options={selectedCycleTypes} onChange={value => setReviewType(value as SurveyType)} />
+              </Field>
+              <label className="wf-field">Formulir Penyedia
+                <select aria-label="Formulir Penyedia" value={providerResult} onChange={event => setProviderResult(
+                  event.target.value === 'consistency' ? 'consistency' :
+                    event.target.value === 'internal' ? 'internal' : '',
+                )}>
+                  <option value="">Pilih formulir</option>
+                  <option value="consistency">Konsistensi</option>
+                  <option value="internal">V&V Internal</option>
+                </select>
+              </label>
+            </div>
+            {providerResult && <Stage3BOperationalForms phase={providerResult} packageId={periodScope}
+              surveyTypes={selectedCycleTypes} role={state.role} selectedSurvey={selectedReviewType}
+              periodStart={stage3bPeriodRange.start} periodEnd={stage3bPeriodRange.end}
+              projectInfo={state.project} pciManual={!pciAi} />}
+          </Panel>
+        )}
+        {(activeTask === 'results' && state.cycle.periodCompleted) || activeTask === 'documents' || (activeTask === 'decision' && openPeriodFindings.length > 0) ? (
+          <Panel title={activeTask === 'documents' ? 'Dokumen dan riwayat periode' : 'Hasil periode'} icon={FileText}>
+            <dl className="stage3b-result-facts">
+              <div><dt>BA V&V 2-Mingguan</dt><dd>{state.cycle.certificateId || 'Belum tercatat'}</dd></div>
+            </dl>
+            {state.role !== 'Admin' && <div className="stage3b-result-list" aria-label="Hasil per survei">
+              {selectedCycleTypes.map(type => {
+                const review = state.cycle.surveyReviews?.[type];
+                const decision = state.cycle.reviewPendingTypes?.includes(type)
+                  ? 'Perlu diperiksa ulang' : review?.decision ?? 'Belum diperiksa';
+                return <div className="stage3b-result-row" key={type}>
+                  <strong>{type}</strong>
+                  <span>{decision}</span>
+                  {review?.note && <details>
+                    <summary>Catatan</summary>
+                    <p>{review.note}</p>
+                  </details>}
+                </div>;
+              })}
+            </div>}
+            {activeTask === 'decision' && openPeriodFindings.length > 0 && (
+              <div className="stage3b-finding-actions">
+                <strong>Tindak lanjut temuan ({openPeriodFindings.length})</strong>
+                <ul>{openPeriodFindings.map(finding => (
+                  <li key={finding.id}>
+                    <button type="button" className="wf-button" onClick={() => {
+                      try {
+                        localPersistence.setItem(`jala-correction-selection:${state.project.id}`, finding.id);
+                      } catch {
+                        setNotice('Pilihan kasus tidak dapat disimpan. Pilih kasus dari daftar.');
+                      }
+                      onNavigate('/actions:Koreksi berbukti');
+                    }}>
+                      {finding.surveyType} · {finding.status} · {finding.id}
+                    </button>
+                  </li>
+                ))}</ul>
+              </div>
+            )}
+          </Panel>
+        ) : null}
+        {(activeTask === 'documents' || (activeTask === 'results' && state.cycle.periodCompleted)) && (
+          attachments
+        )}
+        {activeTask === 'documents' && (
+          history
+        )}
+        {activeTask === 'documents' && (
+          <Panel title="Berita acara" icon={FileText}>
+            {selectedCycleTypes.length > 1 && <label className="wf-field">
+              Jenis survei untuk BA
+              <select value={selectedReviewType} onChange={event => setReviewType(event.target.value as SurveyType)}>
+                {selectedCycleTypes.map(type => <option key={type}>{type}</option>)}
+              </select>
+            </label>}
+            <div className="wf-toolbar">
+              {baAccess("konsistensi", "BA Konsistensi", activeStage3BPeriod, { survey: selectedReviewType })}
+              {baAccess("internal", "BA V&V Internal", activeStage3BPeriod, { survey: selectedReviewType })}
+              {baAccess("duaMingguan", "BA V&V 2-Mingguan", activeStage3BPeriod)}
+            </div>
+            {canInspect && <>
+              <Field label="Nomor BA V&V 2-Mingguan yang diterbitkan">
+                <input data-testid="input-cycle-ba" value={draft.cycleBa ?? state.cycle.certificateId}
+                  onChange={event => saveText('cycleBa', event.target.value)} />
+              </Field>
+              <Button id="button-cycle-complete" kind="primary" disabled={baReviewBlockers.length > 0} onClick={saveCycle}>
+                Catat nomor BA
+              </Button>
+              {baReviewBlockers.length > 0 && <details><summary>Persyaratan pencatatan BA</summary>
+                <ul>{baReviewBlockers.map(reason => <li key={reason}>{reason}</li>)}</ul>
+              </details>}
+            </>}
+          </Panel>
+        )}
+      </div>}
+    </section>
   );
 }

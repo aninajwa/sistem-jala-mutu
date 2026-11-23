@@ -23,7 +23,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
   state: OperationalWorkflowState;
   principal: Principal;
   recipient: Principal;
-  context?: "audit2" | "stage0" | "stage1" | "stage3a" | "stage3a-field";
+  context?: "audit2" | "stage0" | "stage1" | "stage3a" | "stage3a-field" | "stage3b";
 }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [draft, setDraft] = useState("");
@@ -41,7 +41,9 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
   const dialog = useRef<HTMLDialogElement>(null);
   const textId = useId();
   const titleId = useId();
-  const key = context === "stage0" || context === "stage1" || context === "stage3a" || context === "stage3a-field"
+  const key = context === "stage3b"
+    ? `jala-context-note-v1:${encodeURIComponent(state.project.id)}:stage:3b:${state.activeCyclePeriod ?? 1}`
+    : context === "stage0" || context === "stage1" || context === "stage3a" || context === "stage3a-field"
     ? `jala-context-note-v1:${encodeURIComponent(state.project.id)}:stage:${context === "stage0" ? "0" : context === "stage1" ? "1" : context === "stage3a" ? "3a" : "3a-field"}`
     : `jala-context-note-v1:${encodeURIComponent(state.project.id)}:audit:2`;
   const directorate = principal.role === "Direktorat / Pusat";
@@ -54,6 +56,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
     ? state.project.preparation.reportApproval !== "Draft"
     : context === "stage1" ? state.calibrations.length > 0
     : context === "stage3a" || context === "stage3a-field" ? state.dailyRecords.length > 0
+    : context === "stage3b" ? state.cycle.periodCompleted
     : ["Lulus", "Ditolak", "Klarifikasi"].includes(state.audits[1].status);
   const authorAllowed = context === "stage3a-field" ? balai : directorate;
   const canWrite = eligible && authorAllowed && hasResult
@@ -157,7 +160,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
           <h2 id={titleId}>{context === "stage3a-field" ? "Catatan Pengawasan Lapangan" : "Catatan Direktorat"}</h2>
           <button type="button" className="wf-button" onClick={() => dialog.current?.close()}>Tutup</button>
         </div>
-        <p>{state.project.packageName} · {context === "stage0" ? "Tahap 0" : context === "stage1" ? "Tahap 1" : context === "stage3a" || context === "stage3a-field" ? "Tahap 3A" : "Tahap 5"}</p>
+        <p>{state.project.packageName} · {context === "stage0" ? "Tahap 0" : context === "stage1" ? "Tahap 1" : context === "stage3a" || context === "stage3a-field" ? "Tahap 3A" : context === "stage3b" ? `Tahap 3B · Periode ${state.activeCyclePeriod ?? 1}` : "Tahap 5"}</p>
         <small>Catatan tambahan tidak mengubah hasil pemeriksaan.</small>
         {context === "stage0" && directorate && !!state.project.preparation.reviewerNote?.trim() && (
           <section className="v2-note-empty" aria-label="Catatan pemeriksaan Balai">

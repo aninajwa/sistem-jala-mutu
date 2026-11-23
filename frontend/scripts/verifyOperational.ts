@@ -1,3 +1,8 @@
+import { CALIBRATION_REVIEW_SUBJECTS, calibrationSourceSignature } from '../src/workflow/calibrationReview';
+import { sourceDocument, sourceDocumentKey } from '../src/workflow/sourceDocumentModel';
+import { sourceFormFixture } from '../src/workflow/testing/sourceFormFixture';
+import { evaluateStageGate } from '../src/workflow/workflowGate';
+import { withCompleteDailyRecord } from '../src/workflow/testing/dailyRecordFixture';
 import { openFilterPanels } from "./filterInteractions";
 import { fillSourceForm, prepareIriPeriod } from "./sourceFormInteractions";
 import { SURVEY_TYPES } from "../src/workflow/model";
@@ -32,9 +37,7 @@ const browser = await chromium.launch({
     ? [
         "--no-sandbox",
         "--disable-dev-shm-usage",
-        "--use-gl=angle",
-        "--use-angle=swiftshader",
-        "--enable-unsafe-swiftshader",
+        "--disable-gpu",
         "--no-zygote",
       ]
     : [],
@@ -90,21 +93,47 @@ async function setup(
   role: WorkflowRole,
   allSourceTypes = false,
   scope?: SurveyType[],
-  initialScenario?: "preparation-draft" | "audit-review",
+  initialScenario?: "preparation-draft" | "audit-review" | "period-draft",
 ) {
   const context = await browser.newContext({
     viewport: { width: 1440, height: 1000 },
     acceptDownloads: true,
   });
   const state = { ...structuredClone(fixture), role };
+  const sourceAnswers: Record<string, string> = {};
   if (allSourceTypes) state.project.surveyTypes = [...SURVEY_TYPES];
   if (scope) state.project.surveyTypes = scope;
   if (initialScenario === "preparation-draft")
     state.project.preparation.reportApproval = "Draft";
   if (initialScenario === "audit-review")
     state.audits[0].status = "Dalam Review";
+  if (initialScenario === "period-draft") {
+    state.dailyRecords = state.dailyRecords.filter(record => record.surveyType === "IRI")
+      .map(record => withCompleteDailyRecord({ ...record, date: "2027-01-07", state: "Tercatat" }));
+    state.cycle = { ...state.cycle, selectedTypes: ["IRI"], periodCompleted: false,
+      submittedRecordIds: undefined, certificateId: "", userReview: "Belum Diperiksa",
+      surveyReviews: {}, reviewPendingTypes: [], requiresReview: false };
+    const doc = sourceDocument("IRI", "calibration")!;
+    sourceAnswers[sourceDocumentKey(state.project.id, doc.id)] = JSON.stringify(sourceFormFixture(doc, state.project));
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key: string) => sourceAnswers[key] ?? null } });
+    try {
+      const section = {
+        result: 'Sesuai' as const, reviewer: roles[1], reviewedAt: state.simulationDate,
+        note: 'Kalibrasi IRI diperiksa untuk skenario BA', evidenceReference: 'BA-KAL-IRI-UJI',
+        sourceSignature: calibrationSourceSignature(state, 'IRI'),
+      };
+      state.calibrationReviews = { IRI: { ...section, subject: CALIBRATION_REVIEW_SUBJECTS[0],
+        sections: Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject => [subject, section])),
+      } };
+      assert.equal(evaluateStageGate(state, 'Tahap 2').readyToComplete, true);
+    } finally {
+      if (previousStorage) Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+  }
   await context.addInitScript(
-    ({ key, state, role, origin }) => {
+    ({ key, state, role, origin, sourceAnswers }) => {
       if (
         location.origin !== origin ||
         sessionStorage.getItem("fixture-initialized")
@@ -120,11 +149,13 @@ async function setup(
         }),
       );
       localStorage.setItem("jala-mutu-demo-session-v1", "active");
+      for (const [key, value] of Object.entries(sourceAnswers)) localStorage.setItem(key, value);
     },
-    { key: PACKAGE_STORE_KEY, state, role, origin: baseUrl },
+    { key: PACKAGE_STORE_KEY, state, role, origin: baseUrl, sourceAnswers },
   );
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
+  page.setDefaultNavigationTimeout(45000);
   page.on("pageerror", (e) => errors.push(e.message));
   return { context, page };
 }
@@ -242,7 +273,7 @@ try {
         await page
           .locator('[data-testid="operational-workflow-workspace"]')
           .waitFor();
-        await page.locator(".wf-title").first().waitFor();
+        await page.locator(".wf-title, .stage3a-title h1").first().waitFor();
         assert.equal(
           await page.locator('[data-testid="select-global-balai"]').count(),
           0,
@@ -306,7 +337,7 @@ try {
           `${baseUrl}${selections[i].split(":")[0]}?testRoles=1&submodule=${encodeURIComponent(selections[i])}`,
         );
         await openFilterPanels(page);
-        await page.locator(".wf-title").first().waitFor();
+        await page.locator(".wf-title, .stage3a-title h1").first().waitFor();
         await page.screenshot({
           animations: "disabled",
           path: `${output}/screenshots/mobile-role-${r}-stage-${i}.png`,
@@ -648,7 +679,7 @@ try {
 
   // Real BA review/rejection/revision cycle; all input is explicitly isolated test data.
   await scenario("operational-4", async () => {
-    const { context, page } = await setup(roles[0], false, ["IRI"]);
+    const { context, page } = await setup(roles[0], false, ["IRI"], "period-draft");
     const url =
       baseUrl +
       "/documents?testRoles=1&submodule=" +
@@ -673,8 +704,7 @@ try {
       );
       await openDocument();
     }
-    // The periodic source form is owned by Balai. Complete it before submission,
-    // so the submitted fingerprint records the answers that will be reviewed.
+    // Complete the Penyedia submission and Balai review before preparing its BA document.
     await openDocument();
     await prepareIriPeriod(page, actor);
     await actor(roles[0]);
