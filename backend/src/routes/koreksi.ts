@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { paketIdSchema } from '../schemas/paket';
 import {
     koreksiCloseSchema,
@@ -13,6 +14,7 @@ import {
 } from '../schemas/koreksi';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 
 function routeId(value: unknown, label: string) {
     const parsed = paketIdSchema.safeParse(value);

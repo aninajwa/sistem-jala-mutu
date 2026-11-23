@@ -1,10 +1,12 @@
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { paketIdSchema } from '../schemas/paket';
 import { pemeriksaanHarianAlatPrototypeSchema, sesiSurveiCreateSchema } from '../schemas/survei';
 import { dataSegmenCreateSchema, dataSegmenIdSchema } from '../schemas/data-segmen';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 
 function parseId(value: unknown, label: string) {
   const parsed = paketIdSchema.safeParse(value);

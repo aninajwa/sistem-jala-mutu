@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { stage4LrsIdSchema, stage4LrsSaveSchema, stage4WorkflowReviewSchema, stage4WorkflowVersionSchema } from '../schemas/stage4-lrs';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 export const stage4LrsRpcEnabled = (value = process.env.STAGE4_LRS_RPCS) => value === 'true';
 export const stage4LrsCapabilities = (enabled: boolean) => ({
   read: enabled,

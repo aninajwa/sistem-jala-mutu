@@ -4,7 +4,7 @@ import App from '../App';
 import { isRoleTestMode } from '../workflow/access/packageAccess';
 import { setPersistenceNamespace } from '../workflow/repository/localPersistence';
 import { apiRequest, authConfigurationError, supabase } from './client';
-import { assignedRoles, type Identity } from './identity';
+import { assignedRoles, roleForSession, type Identity } from './identity';
 import { preserveSessionForSameUser } from './sessionStability';
 import type { WorkflowRole } from '../workflow/model';
 import './auth.css';
@@ -41,7 +41,7 @@ function AuthenticatedApp() {
         const allowed = assignedRoles(data, session.user.id);
         setPersistenceNamespace(`user:${data.auth_user_id}:`);
         setIdentity(data); setRoles(allowed);
-        setRole(current => current && allowed.includes(current) ? current : allowed.length === 1 ? allowed[0] : null);
+        setRole(current => roleForSession(current, allowed));
       })
       .catch(e => { if (!controller.signal.aborted) { setIdentity(null); setError(e.message); } })
       .finally(() => { if (!controller.signal.aborted) setLoading(false); });

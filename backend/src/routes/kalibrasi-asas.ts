@@ -1,8 +1,10 @@
 import { Router, type RequestHandler } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { paketIdSchema } from '../schemas/paket';
 import { providerSchema, teamSchema, teamEquipmentSchema } from '../schemas/kalibrasi-asas';
 const router = Router(); // Mounted under paket router's requireAuth.
+router.use(denyAdminWorkflowWrites);
 function id(value: unknown) { const result = paketIdSchema.safeParse(value); if (!result.success) throw new ApiError(400, 'ID tidak valid'); return result.data; }
 function page(value: unknown) { if (value === undefined) return 1; if (typeof value !== 'string' || !/^[1-9]\d*$/.test(value) || Number(value)>1000000) throw new ApiError(400,'page tidak valid'); return Number(value); }
 const providerOnly: RequestHandler = (_req,res,next) => {

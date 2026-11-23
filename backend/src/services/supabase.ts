@@ -16,7 +16,16 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
   } catch { throw new ApiError(503, 'Supabase tidak dapat dihubungi'); }
   if (!response.ok) {
     const failure = await response.json().catch(() => null) as { code?: string; message?: string; error?: string } | null;
-    if (path === '/auth/v1/user') throw new ApiError(401, 'Sesi tidak valid atau telah tamat');
+    if (path.startsWith('/rest/v1/rpc/admin_') && /(?:daftar_peran_dapat_ditugaskan|daftar_penugasan_peran|tambah_penugasan_peran|ubah_penugasan_peran|cabut_penugasan_peran)$/.test(path)) {
+      if (failure?.code === '28000' || response.status === 401) throw new ApiError(401, 'Sesi tidak valid atau telah tamat');
+      if (failure?.code === '42501' || response.status === 403) throw new ApiError(403, 'Akses tidak dibenarkan');
+      if (failure?.code === 'P0002' || response.status === 404) throw new ApiError(404, 'Pengguna atau penugasan tidak ditemukan');
+      if (['40001', '23505', '23514'].includes(failure?.code ?? '')) throw new ApiError(409, 'Penugasan atau cakupan telah berubah atau berkonflik. Baca semula');
+      if (['22023', '22003'].includes(failure?.code ?? '')) throw new ApiError(400, 'Data penugasan peran tidak valid');
+      if (failure?.code === 'PGRST202') throw new ApiError(503, 'RPC manajemen peran belum tersedia');
+      throw new ApiError(500, 'Permintaan manajemen peran gagal');
+    }
+    if (path === '/auth/v1/user' || response.status === 401) throw new ApiError(401, 'Sesi tidak valid atau telah tamat');
     // PostgREST uses PGRST202 when a requested RPC is absent from its schema cache.
     // Surface this as a setup gap rather than a generic upstream failure.
     if (failure?.code === 'PGRST202' && path.startsWith('/rest/v1/rpc/')) {

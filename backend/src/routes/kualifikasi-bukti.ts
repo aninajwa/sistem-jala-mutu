@@ -1,10 +1,12 @@
 import { Router, type RequestHandler } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { upload, storeAndRegister, readPdfBytes, type StoredPdf } from '../services/pdf-storage';
 import { paketIdSchema } from '../schemas/paket';
 import { qualificationEvidenceUploadSchema } from '../schemas/personel';
 import { visibleMember, providerOnly } from './personel';
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 const BUCKET = 'dokumen-kualifikasi';
 const ROOT = '/paket/:id/tim/:timId/personel/:personelId/kualifikasi/:kualifikasiId/bukti';
 const columns = 'kualifikasi_id,personel_id,jenis,nomor,jenjang,berlaku_sd,dokumen_id,versi,updated_at';

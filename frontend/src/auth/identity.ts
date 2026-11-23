@@ -23,3 +23,16 @@ export function assignedRoles(identity: Identity, authUserId: string) {
   if (!roles.length) throw new Error('Akun belum memiliki peran yang didukung. Hubungi admin untuk memeriksa penugasan.');
   return roles;
 }
+
+export function preferredRole(roles: Array<WorkflowRole | 'Pimpinan'>) {
+  // An account with a server-assigned Admin role should enter the Admin area
+  // directly; UI role choice must never be how Admin authority is established.
+  if (roles.includes('Admin')) return 'Admin';
+  return roles.length === 1 ? roles[0] : null;
+}
+
+export function roleForSession(current: WorkflowRole | 'Pimpinan' | null, roles: Array<WorkflowRole | 'Pimpinan'>) {
+  const preferred = preferredRole(roles);
+  if (preferred === 'Admin') return preferred;
+  return current && roles.includes(current) ? current : preferred;
+}

@@ -13,6 +13,7 @@ import {
 import { CheckCircle2 } from 'lucide-react';
 
 import { workflowSubmodules } from './app/navigation';
+import './app/admin-ui.css';
 
 import { AppSidebar } from './components/app/AppSidebar';
 import {
@@ -30,6 +31,10 @@ import { isInPeriod } from './lib/periods';
 
 import ActionsPage from './pages/ActionsPage';
 import AuditPage from './pages/AuditPage';
+import AdminUsersPage from './pages/AdminUsersPage';
+import AdminAccessPage from './pages/AdminAccessPage';
+import AdminAuditTrailPage from './pages/AdminAuditTrailPage';
+import { canViewAdminAccess } from './pages/adminAccessModel';
 import CompliancePage from './pages/CompliancePage';
 import DashboardPage from './pages/DashboardPage';
 import DocumentsPage from './pages/DocumentsPage';
@@ -421,7 +426,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
   return (
     <WouterRouter>
       <div
-        className="app-shell"
+        className={`app-shell${authenticatedRole === 'Admin' ? ' admin-shell' : ''}`}
 
       >
         <AppSidebar
@@ -572,7 +577,11 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 </Route>
 
                 <Route path="/audit">
-                  <AuditPage {...pageProps} />
+                  {canViewAdminAccess(pageProps.workflow.role)
+                    ? pageProps.activeTab === 'Hak akses' ? <AdminAccessPage />
+                      : pageProps.activeTab === 'Jejak aktivitas' ? <AdminAuditTrailPage />
+                        : <AdminUsersPage />
+                    : <AuditPage {...pageProps} />}
                 </Route>
 
                 <Route>

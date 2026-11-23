@@ -1,8 +1,10 @@
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { siklusVervalCreateBodySchema, siklusVervalIdSchema } from '../schemas/siklus-verval';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 
 function parseId(value: unknown, label: string) {
   const parsed = siklusVervalIdSchema.safeParse(value);

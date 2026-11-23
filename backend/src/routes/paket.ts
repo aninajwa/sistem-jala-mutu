@@ -12,6 +12,7 @@ import siklusVervalRouter from './siklus-verval';
 import stage4LrsRouter from './stage4-lrs';
 import { checklistDraftSchema, checklistEvidenceSchema, preparationSubmitSchema, preparationReviewSchema } from '../schemas/checklist';
 import { requireAuth } from '../middleware/auth';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { ApiError, supabaseRequest } from '../services/supabase';
 import { paketDraftSchema, paketPatchSchema, paketIdSchema } from '../schemas/paket';
 const router = Router();
@@ -30,7 +31,7 @@ router.get('/paket', async (req, res) => {
   const data = await supabaseRequest(`/rest/v1/paket_kontrak?select=paket_id,nama_paket,nomor_kontrak,tahun_anggaran,balai_id,status,created_by,created_at&order=paket_id.desc&limit=50&offset=${(page - 1) * 50}`, res.locals.identity.token);
   res.json({ data, page, page_size: 50 });
 });
-router.post('/paket', async (req, res) => {
+router.post('/paket', denyAdminWorkflowWrites, async (req, res) => {
   const { identity } = res.locals;
   if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh mencipta draft');
   const result = paketDraftSchema.safeParse(req.body);
@@ -51,7 +52,7 @@ router.get('/paket/:id', async (req, res) => {
   if (!rows.length) throw new ApiError(404, 'Paket tidak ditemukan atau tidak boleh diakses');
   res.json({ data: rows[0] });
 });
-router.patch('/paket/:id', async (req, res) => {
+router.patch('/paket/:id', denyAdminWorkflowWrites, async (req, res) => {
   const { identity } = res.locals;
   if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh mengubah draft');
   const id = paketIdSchema.safeParse(req.params.id);
@@ -80,7 +81,7 @@ router.get('/paket/:id/checklist-persiapan', async (req, res) => {
   });
   res.json({ data });
 });
-router.patch('/paket/:id/checklist-persiapan', async (req, res) => {
+router.patch('/paket/:id/checklist-persiapan', denyAdminWorkflowWrites, async (req, res) => {
   const { identity } = res.locals;
   if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh mengisi checklist');
   const id = paketIdSchema.safeParse(req.params.id);
@@ -92,7 +93,7 @@ router.patch('/paket/:id/checklist-persiapan', async (req, res) => {
   });
   res.json({ data });
 });
-router.patch('/paket/:id/checklist-persiapan/bukti', async (req, res) => {
+router.patch('/paket/:id/checklist-persiapan/bukti', denyAdminWorkflowWrites, async (req, res) => {
   const { identity } = res.locals;
   if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh mengubah bukti checklist');
   const id = paketIdSchema.safeParse(req.params.id);
@@ -113,7 +114,7 @@ router.get('/paket/:id/pengajuan-persiapan', async (req, res) => {
   res.setHeader('Cache-Control', 'private, no-store');
   res.json({ data });
 });
-router.post('/paket/:id/pengajuan-persiapan', async (req, res) => {
+router.post('/paket/:id/pengajuan-persiapan', denyAdminWorkflowWrites, async (req, res) => {
   const { identity } = res.locals;
   if (!identity.roles.some(role => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh menghantar persiapan');
   const id = paketIdSchema.safeParse(req.params.id);
@@ -126,7 +127,7 @@ router.post('/paket/:id/pengajuan-persiapan', async (req, res) => {
   res.setHeader('Cache-Control', 'private, no-store');
   res.status(201).json({ data });
 });
-router.post('/paket/:id/pengajuan-persiapan/review', async (req, res) => {
+router.post('/paket/:id/pengajuan-persiapan/review', denyAdminWorkflowWrites, async (req, res) => {
   const { identity } = res.locals;
   if (!identity.roles.some(role => role.nama === 'pic_balai')) throw new ApiError(403, 'Hanya PIC Balai boleh menyemak persiapan');
   const id = paketIdSchema.safeParse(req.params.id);

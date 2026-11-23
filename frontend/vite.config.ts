@@ -8,7 +8,8 @@ export default defineConfig(({ mode }) => {
   const port = Number(env.PORT ?? 5173);
   const basePath = env.BASE_PATH ?? '/';
   // Alamat backend saat development. Request ke /api/* diteruskan ke sini.
-  const apiTarget = env.VITE_API_PROXY_TARGET ?? 'http://localhost:5000';
+  // Keep local Admin Sandbox traffic on the backend selected in this mode's env file.
+  const apiTarget = env.VITE_API_PROXY_TARGET ?? 'http://127.0.0.1:5001';
 
   if (Number.isNaN(port) || port <= 0) {
     throw new Error(`Invalid PORT value: "${env.PORT}"`);
