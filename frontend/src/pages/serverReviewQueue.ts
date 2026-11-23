@@ -68,6 +68,11 @@ export function reviewQueueToBalaiItems(rows: ReviewQueueRow[], balaiName: (id: 
   });
 }
 
+/** Server mode never falls back to local projections: until rows arrive, the queue is empty. */
+export function reviewQueueForRender(enabled: boolean, items: BalaiReviewItem[] | undefined): BalaiReviewItem[] | undefined {
+  return enabled ? items ?? [] : undefined;
+}
+
 /** Loads the review queue once per session when enabled (authenticated reviewer roles). */
 export function useServerReviewQueue(enabled: boolean) {
   const [items, setItems] = useState<BalaiReviewItem[] | undefined>(undefined);
@@ -87,5 +92,5 @@ export function useServerReviewQueue(enabled: boolean) {
       .catch(() => { if (!controller.signal.aborted) setItems([]); });
     return () => controller.abort();
   }, [enabled]);
-  return items;
+  return reviewQueueForRender(enabled, items);
 }

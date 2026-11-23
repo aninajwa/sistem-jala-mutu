@@ -119,3 +119,37 @@ Skrip Playwright frontend (`test:browser`, `test:journey`, dan lainnya) tidak di
 - **Tahap 5–6:** belum ada kontrak RPC, aturan peran, maupun lifecycle sama sekali.
 - **Tahap 3B dan Tahap 4 (ajukan/review):** perlu verifikasi RPC di Sandbox sebelum gate dinyalakan.
 - **Proyek Supabase untuk pengembangan:** proyek utama atau Sandbox (lihat bagian 2).
+
+## 7. Pembaruan Fase 2 (2026-11-23, branch `integrasi-ui-dirah`)
+
+- **UI:** branch `dirah-fe` sudah digabung (commit `1001daf`). Tampilan memakai desain Dirah, dan semua sambungan server dipasang ulang.
+- **Backend:**
+  - `GET /api/review-queue` mengembalikan status pengajuan Tahap 0 (persiapan), Tahap 1 (konfirmasi kalibrasi) dan Tahap 2 (uji coba) untuk semua paket yang bisa dibaca pengguna. Paket yang gagal dibaca dilewati dan ditandai `partial: true`.
+  - Amandemen scope dikunci dengan gate `PACKAGE_SCOPE_AMENDMENT_RPCS` (default mati) dan punya endpoint `GET /api/paket/:id/scope-amendment-capabilities`.
+  - `requireAuth` menyimpan identitas per token selama 15 detik (hanya identitas yang diterima) dan menjalankan dua lookup secara paralel.
+  - Timeout klien Supabase naik dari 10 ke 20 detik.
+  - Kegagalan upstream dicatat ke log tanpa token.
+- **Frontend:**
+  - Antrean pemeriksaan PIC/Direktorat/Admin di Beranda, Verifikasi dan Paket diambil dari server.
+  - Rail tahap menandai tahap yang selesai menurut server.
+  - Panel amandemen scope disembunyikan saat gate mati.
+  - Dashboard dan Paket Saya memakai paket server, bukan paket demo.
+- **Pengujian:**
+  - `npm run test:server-journey` adalah alur Playwright baca-saja untuk login Penyedia dan PIC sampai Tahap 0–4. Kredensial hanya dibaca dari env.
+  - Hasil: 3/3 lulus setelah perbaikan di atas.
+
+### Temuan database yang perlu persetujuan
+
+- Beberapa baca kena statement timeout role `authenticated` (8 detik, kode `57014`) saat sekitar 10 request paralel per halaman.
+- RPC terberat:
+
+  | RPC | Rata-rata |
+  |---|---|
+  | `baca_konfirmasi_kalibrasi_tahap1` | ~480 ms |
+  | `baca_pengajuan_persiapan` | ~240 ms |
+  | `baca_checklist_persiapan` | ~225 ms |
+
+  Penyebabnya policy RLS bertingkat per baris.
+- Advisor mencatat 142 foreign key tanpa indeks.
+- Perbaikan yang diusulkan (indeks + penyederhanaan policy) adalah migrasi baru, jadi belum dijalankan.
+- Migrasi kandidat `backend/proposals/migrations/20261118120000_package_survey_scope_amendment.sql` juga belum dipasang.

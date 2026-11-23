@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { parseReviewQueue, reviewQueueToBalaiItems, type ReviewQueueRow } from './serverReviewQueue';
+import { parseReviewQueue, reviewQueueForRender, reviewQueueToBalaiItems, type ReviewQueueRow } from './serverReviewQueue';
 
 const row = (over: Partial<ReviewQueueRow>): ReviewQueueRow => ({
   paket_id: 3, nama_paket: 'Paket Ujian', balai_id: 1, tahap: 'Tahap 0', jenis: 'Review persiapan', status: 'DIAJUKAN', ...over,
@@ -43,4 +43,11 @@ test('parseReviewQueue accepts the server body and rejects malformed ones', () =
   for (const body of [null, {}, { data: {} , partial: false }, { data: [{ paket_id: '3' }], partial: false }, { data: [row({ tahap: 'Tahap 9' as never })], partial: false }, { data: [], partial: 'no' }]) {
     assert.throws(() => parseReviewQueue(body), /Format antrean pemeriksaan tidak sesuai\./);
   }
+});
+
+test('while the server queue loads, reviewer screens get an empty list instead of local fallbacks', () => {
+  assert.deepEqual(reviewQueueForRender(true, undefined), []);
+  const loaded = reviewQueueToBalaiItems([row({})], balaiName);
+  assert.equal(reviewQueueForRender(true, loaded), loaded);
+  assert.equal(reviewQueueForRender(false, undefined), undefined);
 });
