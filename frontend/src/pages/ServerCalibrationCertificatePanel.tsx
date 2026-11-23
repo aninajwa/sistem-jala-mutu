@@ -6,6 +6,7 @@ import {
   validateCalibrationCertificate,
   type ServerCalibration,
 } from './serverCalibration';
+import { uploadStage1Certificate } from './serverStage1Data';
 
 function message(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -58,18 +59,12 @@ export function ServerCalibrationCertificatePanel({
       return;
     }
 
-    const form = new FormData();
-    form.append('expected_version', String(selected.versi));
-    form.append('file', file!);
     setBusy(true);
     try {
-      await apiRequest(
-        `/paket/${encodeURIComponent(packageId)}/kalibrasi-alat/${selected.kalibrasi_id}/sertifikat`,
-        { method: 'POST', body: form },
-      );
+      const confirmed = await uploadStage1Certificate(packageId, selected, file!, apiRequest);
       setFile(null);
       if (inputRef.current) inputRef.current.value = '';
-      setSuccess(`Sijil PDF untuk Kalibrasi #${selected.kalibrasi_id} berjaya disimpan ke server.`);
+      setSuccess(`Sijil Dokumen #${confirmed.dokumen_id} untuk Kalibrasi #${selected.kalibrasi_id} disahkan oleh server.`);
       onUploaded();
     } catch (cause) {
       setError(message(cause));

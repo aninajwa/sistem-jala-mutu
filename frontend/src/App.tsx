@@ -45,6 +45,7 @@ import VerificationPage from './pages/VerificationPage';
 
 import { SubmoduleWorkspace } from './SubmoduleWorkspace';
 import type { PageProps } from './types';
+import { documentsPageUrl } from './pages/serverPicDocumentsData';
 
 import type { WorkflowRole } from './workflow/model';
 import { derivePackageStage } from './workflow/packageStore';
@@ -199,7 +200,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
     if (selection.startsWith('/documents:') && !workflowSubmodules.has(selection)) {
       setSelectedSubmodule('');
       setActiveTab(selection.split(':')[1] || 'Semua');
-      setLocation('/documents?tab='+encodeURIComponent(selection.split(':')[1] || 'Semua')+(isRoleTestMode()?'&testRoles=1':''));
+      setLocation(documentsPageUrl(window.location.href, selection.split(':')[1] || 'Semua'));
       return;
     }
     const url = new URL(window.location.href);
@@ -310,7 +311,13 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
     kind: string,
     context?: {survey?:string;period?:number;auditLevel?:number;returnTo?:string},
   ) => {
-    if (authenticatedRole) { setNotice('Dokumen & BA paket server belum terhubung. Buka paket dari menu Paket.'); return; }
+    if (authenticatedRole) {
+      setSelectedSubmodule('');
+      setActiveTab('Semua');
+      setLocation(`/documents?tab=Semua&paket=${encodeURIComponent(id)}`);
+      setNotice('');
+      return;
+    }
     if (!selectPackage(id)) {
       setNotice('Paket tidak ditemukan.');
       return;
@@ -440,7 +447,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
         />
 
         <main className="main-area">
-          {authenticatedRole && <div className="auth-local-notice">Masuk sebagai {userLabel}. Login, daftar paket, dan identitas paket terhubung ke server. Perhatikan status koneksi di setiap modul; dashboard umum masih pratinjau lokal.</div>}
+          {authenticatedRole && !isPackageWorkspace && <div className="auth-local-notice">Masuk sebagai {userLabel}. Login, daftar paket, dan identitas paket terhubung ke server. Dashboard umum masih pratinjau lokal.</div>}
           <AppTopbar
   isPackageWorkspace={
     isPackageWorkspace &&
@@ -487,7 +494,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
             {location === '/notifications' || selectedSubmodule.startsWith('/notifications:') ? (
               <NotificationsPage {...pageProps} principal={principal} onOpen={openNotificationTarget} />
             ) : selectedSubmodule.startsWith('/documents:') && !workflowSubmodules.has(selectedSubmodule) ? (
-              <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]} />
+              <DocumentsPage {...pageProps} activeTab={selectedSubmodule.split(':')[1]} authenticatedRole={authenticatedRole} packageId={serverPackageId} />
             ) : authenticatedRole && serverPackageId && workflowSubmodules.has(selectedSubmodule) ? (
               <ServerPackageWorkspace
                 key={`${serverPackageId}:${authenticatedRole}`}
@@ -551,6 +558,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 <Route path="/actions">
   <ActionsPage
     {...pageProps}
+    authenticatedRole={authenticatedRole}
     onOpenCorrection={openCorrection}
   />
 </Route>
@@ -564,7 +572,7 @@ function App({ authenticatedRole, userLabel, onSignOut }: { authenticatedRole?: 
                 </Route>
 
                 <Route path="/documents">
-                  <DocumentsPage {...pageProps} />
+                  <DocumentsPage {...pageProps} authenticatedRole={authenticatedRole} packageId={serverPackageId} />
                 </Route>
 
                 <Route path="/notifications">

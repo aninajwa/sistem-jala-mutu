@@ -69,7 +69,7 @@ test('assessment is role-independent read-only while LRS write remains Penyedia-
   const component = await (await import('node:fs/promises')).readFile(new URL('./ServerStage4Workspace.tsx', import.meta.url), 'utf8');
   assert.match(component, /assessStage4Kak2026\(currentValidation\)/);
   assert.match(component, /role !== 'Penyedia Jasa \/ Ketua Tim'/);
-  assert.match(component, /fieldset disabled=\{!capabilities\.write \|\| role !== 'Penyedia Jasa \/ Ketua Tim'/);
+  assert.match(component, /fieldset disabled=\{!capabilities\.write \|\| !packageRoadsReady \|\| !roads\.some/);
   assert.doesNotMatch(component, /role === 'PIC Balai \/ Pengguna Jasa'.*stage4-kak-assessment/);
   assert.match(component, /Penilaian teknis panjang ruas/);
   assert.match(component, /bukan PASS\/FAIL workflow, status VALID SMD, persetujuan PIC, atau kelayakan Tahap 5/);

@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 import { canEditPreparation, type ServerChecklist } from './serverPreparation';
-import { addPreparationDocumentVersion, canUseServerDocumentCategory, documentsForCategory, fetchPreparationDocument, linkPreparationDocument, mapServerDocumentCategory, uploadPreparationDocument } from './serverPreparationDocuments';
+import { addPreparationDocumentVersion, canUseServerDocumentCategory, documentsForCategory, fetchPreparationDocument, linkPreparationDocument, mapServerDocumentCategory, uploadPreparationDocument, verifyPreparationDocumentLinkReadback } from './serverPreparationDocuments';
 
 const checklist: ServerChecklist = {
   paket_id: 9,
@@ -26,6 +26,14 @@ test('server document mapping only accepts the two applied backend type-to-check
   assert.deepEqual(documentsForCategory(docs, 'Laporan Pendahuluan').map(row => row.dokumen_id), [21]);
   assert.deepEqual(documentsForCategory([], 'Laporan Pendahuluan'), []);
   for (const category of ['RMPK', 'RKK', 'RMLLP', 'Bukti Koordinasi']) assert.equal(canUseServerDocumentCategory(category), false);
+});
+
+test('document upload/link reports success only when the exact checklist evidence ID is read back', () => {
+  const linked = { ...checklist, pengisian: { status: 'DRAFT', versi: 5 }, items: checklist.items.map(item => item.kode === 'DOK-01' ? { ...item, bukti_dokumen_id: 24 } : item) };
+  assert.doesNotThrow(() => verifyPreparationDocumentLinkReadback(linked, 'Laporan Pendahuluan', 24));
+  assert.throws(() => verifyPreparationDocumentLinkReadback(checklist, 'Laporan Pendahuluan', 24), /belum disahkan/);
+  assert.throws(() => verifyPreparationDocumentLinkReadback(linked, 'Laporan Pendahuluan', 25), /belum disahkan/);
+  assert.throws(() => verifyPreparationDocumentLinkReadback(linked, 'RMPK', 24), /belum disahkan/);
 });
 
 test('document mutations are role/status guarded and PATCH the exact linked item with expected_version', async () => {
@@ -91,4 +99,17 @@ test('authenticated document panel exposes loading/error/empty server states and
   assert.doesNotMatch(serverPart, /readLocal|writeLocal|attachmentRepository/);
   assert.match(source, /if\(props\.server\)return <ServerDocumentAttachments/);
   assert.match(source, /return <LocalDocumentAttachments/);
+});
+
+test('authenticated Tahap 0 submit and review await GET readback before success notices', async () => {
+  const source = await readFile(new URL('./ServerPackageWorkspace.tsx', import.meta.url), 'utf8');
+  const submit = source.slice(source.indexOf('async function submitPreparation'), source.indexOf('\n  async function reviewPreparation'));
+  const review = source.slice(source.indexOf('async function reviewPreparation()'), source.indexOf('\n  async function reviewPreparationFromDirah'));
+  const dirahReview = source.slice(source.indexOf('async function reviewPreparationFromDirah'), source.indexOf('\n  const back ='));
+  assert.ok(submit.indexOf("method: 'POST'") < submit.indexOf('readPreparationState()'));
+  assert.match(submit, /verifyPreparationTransitionReadback\(refreshed\.checklist, refreshed\.submission, expectedVersion, 'DIAJUKAN'\)/);
+  assert.ok(review.indexOf("method: 'POST'") < review.indexOf('readPreparationState()'));
+  assert.match(review, /verifyPreparationTransitionReadback\(refreshed\.checklist, refreshed\.submission, expectedVersion, reviewDecision, reviewDecision\)/);
+  assert.match(dirahReview, /verifyPreparationTransitionReadback\(refreshed\.checklist, refreshed\.submission, expectedVersion, decision, decision\)/);
+  assert.match(source, /verifyPreparationDocumentLinkReadback\(refreshed\.checklist, category, documentId\)/);
 });

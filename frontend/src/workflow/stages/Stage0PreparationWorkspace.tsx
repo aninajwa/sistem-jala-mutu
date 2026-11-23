@@ -258,7 +258,7 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
         "Survei pendahuluan & persiapan QA/QC",
         "Lengkapi telaah awal, rencana survei, koordinasi, dan dokumen pendahuluan sebelum paket masuk ke kalibrasi dan validasi awal.",
       )}
-      {(prep.reportApproval === "Disetujui" || serverSubmissionStatus === "DISETUJUI") && (
+      {!server && prep.reportApproval === "Disetujui" && (
         <div
           className="wf-callout ok"
           style={{
@@ -319,12 +319,15 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
         ]}
       />
 
-      {server && <div className="wf-note" role={server.error ? 'alert' : 'status'}>
-        {server.error || (server.loading ? 'Memuat status persiapan server…' : `Checklist server ${serverChecklistStatus ?? 'belum tersedia'} · pengajuan ${serverSubmissionStatus ?? 'belum tersedia'} · versi ${server.checklist?.pengisian.versi ?? '—'}.`)}
-        {server.message && <span> {server.message}</span>}
-        {server.error && <button type="button" className="wf-button" onClick={server.onReload}>Coba muat ulang</button>}
-        {server.mappingGaps.length > 0 && <span> Item tanpa mapping: {server.mappingGaps.join(' ')}</span>}
-      </div>}
+      {server && <details className="ui09-server-diagnostics">
+        <summary>Rincian status persiapan</summary>
+        <div role={server.error ? 'alert' : 'status'}>
+          {server.error || (server.loading ? 'Memuat status persiapan…' : `Checklist: ${serverChecklistStatus ?? 'belum tersedia'} · pengajuan: ${serverSubmissionStatus ?? 'belum tersedia'} · versi ${server.checklist?.pengisian.versi ?? '—'}.`)}
+          {server.message && <span> {server.message}</span>}
+          {server.error && <button type="button" className="wf-button" onClick={server.onReload}>Coba muat ulang</button>}
+          {server.mappingGaps.length > 0 && <span> Item belum dipetakan: {server.mappingGaps.join(' ')}</span>}
+        </div>
+      </details>}
 
       {state.role === "Penyedia Jasa / Ketua Tim" ? (
         <div className="workflow-role-block provider">
@@ -441,29 +444,27 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
                 <p style={{ margin: "0 0 10px 0", fontSize: 13, color: "#713f12" }}>
                   Pengajuan persiapan telah dikirim. Untuk melanjutkan alur ke Tahap 1, PIC Balai perlu menyetujui pengajuan ini.
                 </p>
-                <Button
-                  id="button-prep-simulate-approve"
-                  kind="primary"
-                  onClick={() => {
-                    if (server) {
-                      server.onReview?.('DISETUJUI');
-                    } else {
-                      approve("Disetujui");
-                    }
-                    onNavigate("/documents:Kalibrasi & personel");
-                  }}
-                >
-                  <Check size={13} />
-                  Setujui sebagai PIC Balai & Lanjut ke Tahap 1 →
-                </Button>
+                {server
+                  ? <p className="wf-note">Persetujuan hanya dapat dicatat oleh PIC Balai melalui tindakan review resmi. Penyedia tidak dapat menyetujui pengajuannya sendiri.</p>
+                  : <Button
+                      id="button-prep-simulate-approve"
+                      kind="primary"
+                      onClick={() => {
+                        approve("Disetujui");
+                        onNavigate("/documents:Kalibrasi & personel");
+                      }}
+                    >
+                      <Check size={13} />
+                      Simulasikan persetujuan lokal & lanjut (tidak tersimpan di server)
+                    </Button>}
               </div>
             )}
 
             {(server ? serverSubmissionStatus === 'DISETUJUI' : prep.reportApproval === "Disetujui") && (
               <div className="wf-callout ok" style={{ marginTop: 12, display: "flex", justifyContent: "space-between", alignItems: "center", background: "#f0fdf4", border: "1px solid #86efac", padding: "12px 16px", borderRadius: 6 }}>
                 <div>
-                  <strong style={{ color: "#166534", display: "block" }}>✓ Persiapan Telah Disetujui</strong>
-                  <span style={{ fontSize: 13, color: "#15803d" }}>Lanjutkan pekerjaan ke Tahap 1 (Kalibrasi & Personel).</span>
+                  <strong style={{ color: "#166534", display: "block" }}>{server ? '✓ Persiapan disetujui PIC di server' : 'Simulasi lokal: persiapan ditandai disetujui (tidak tersimpan di server)'}</strong>
+                  <span style={{ fontSize: 13, color: "#15803d" }}>Buka Tahap 1 (Kalibrasi & Personel); akses dan perubahan server tetap mengikuti pemeriksaan server.</span>
                 </div>
                 <Button
                   id="button-prep-provider-proceed"

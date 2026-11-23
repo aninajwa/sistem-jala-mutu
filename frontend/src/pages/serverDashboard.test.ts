@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { collectServerPackages, filterServerPackages, loadServerCorrections, normalizeCorrectionResponse, packageFailureState, scopePackagesToIdentity, type PackagePage, type ServerDashboardPackage } from './serverDashboard';
+import { aggregateServerCorrections, collectServerPackages, filterServerPackages, loadServerCorrections, normalizeCorrectionResponse, packageFailureState, scopePackagesToIdentity, serverCorrectionEmptyCopy, type PackagePage, type ServerDashboardPackage } from './serverDashboard';
 
 const page=(number:number,data:PackagePage['data']):PackagePage=>({data,page:number,page_size:50});
 const pkg=(id:number)=>({paket_id:id,nama_paket:`Paket ${id}`,balai_id:id%2?10:20});
@@ -43,6 +43,23 @@ test('package and balai filters only narrow the server-provided package set',()=
  const packages:ServerDashboardPackage[]=[{id:'1',name:'A',balaiId:10},{id:'2',name:'B',balaiId:20}];
  assert.deepEqual(filterServerPackages(packages,'10','Semua paket').map(x=>x.id),['1']);
  assert.deepEqual(filterServerPackages(packages,'Semua Balai','2').map(x=>x.id),['2']);
+});
+
+test('server correction metrics preserve true zeroes and stay inside the supplied package scope',()=>{
+ const packages:ServerDashboardPackage[]=[{id:'1',name:'A',balaiId:10},{id:'2',name:'B',balaiId:20}];
+ const metrics=aggregateServerCorrections([packages[0]],{'1':[],'2':[{id:9,status:'Terbuka'}]});
+ assert.deepEqual(metrics,{byPackage:[{id:'1',name:'A',total:0,open:0,closed:0}],total:0,closed:0,open:0});
+ const nonzero=aggregateServerCorrections(packages,{'1':[{id:2,status:'Terbuka'},{id:3,status:'Ditutup'}],'2':[]});
+ assert.equal(nonzero.total,2);assert.equal(nonzero.open,1);assert.equal(nonzero.closed,1);
+});
+
+test('correction empty copy distinguishes no packages, true zero, and closed-only cases',()=>{
+ assert.deepEqual(serverCorrectionEmptyCopy(0,0,0),{
+   composition:{title:'Tiada paket dalam filter',detail:'Pilih paket dalam cakupan untuk melihat kes koreksi.'},
+   openByPackage:{title:'Tiada koreksi terbuka',detail:'Server mengembalikan sifar kes koreksi untuk paket dan filter ini.'},
+ });
+ assert.equal(serverCorrectionEmptyCopy(1,0,0).composition?.title,'Tiada kes koreksi');
+ assert.equal(serverCorrectionEmptyCopy(1,2,0).openByPackage?.detail,'Semua kes yang diterima server berstatus Ditutup.');
 });
 
 test('assignment scope is enforced before dashboard corrections are fetched',()=>{

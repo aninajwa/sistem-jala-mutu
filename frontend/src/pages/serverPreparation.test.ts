@@ -8,6 +8,7 @@ import {
   buildChecklistPayload,
   buildContractPatch,
   buildPreparationReviewPayload,
+  canEditPackagePreparation,
   canEditPreparation,
   canReviewPreparation,
   canSubmitPreparation,
@@ -16,6 +17,8 @@ import {
   groupChecklistItems,
   mapPreparationChecklist,
   patchChecklistThenRefetch,
+  verifyPreparationTransitionReadback,
+  verifyChecklistReadback,
   validatePreparationPdf,
   type ServerContract,
 } from './serverPreparation';
@@ -108,6 +111,16 @@ test('only provider can edit an open preparation record', () => {
   assert.equal(canEditPreparation('Penyedia Jasa / Ketua Tim', 'AKTIF', 'DRAFT'), false);
 });
 
+test('package and scope editing requires a loaded preparation submission and respects its lock', () => {
+  assert.equal(canEditPackagePreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DRAFT', true), true);
+  assert.equal(canEditPackagePreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'PERLU_REVISI', true), true);
+  assert.equal(canEditPackagePreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DIAJUKAN', true), false);
+  assert.equal(canEditPackagePreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DISETUJUI', true), false);
+  assert.equal(canEditPackagePreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', undefined, false), false);
+  assert.equal(canEditPackagePreparation('PIC Balai / Pengguna Jasa', 'DRAFT', 'DRAFT', true), false);
+  assert.equal(canEditPackagePreparation('Penyedia Jasa / Ketua Tim', 'AKTIF', 'DRAFT', true), false);
+});
+
 test('submission requires provider, open draft and linked preliminary report', () => {
   assert.equal(canSubmitPreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'DRAFT', true), true);
   assert.equal(canSubmitPreparation('Penyedia Jasa / Ketua Tim', 'DRAFT', 'PERLU_REVISI', true), true);
@@ -174,10 +187,37 @@ test('all 25 applied backend preparation codes map to original Dirah labels and 
 
 test('PATCH is followed by authoritative GET; conflicts and validation errors never become success', async () => {
   const sequence: string[] = [];
-  const state = await patchChecklistThenRefetch(async () => { sequence.push('PATCH'); }, async () => { sequence.push('GET'); return { answer: 'Ya' }; });
-  assert.deepEqual(sequence, ['PATCH', 'GET']); assert.deepEqual(state, { answer: 'Ya' });
+  const state = await patchChecklistThenRefetch(async () => { sequence.push('PATCH'); }, async () => { sequence.push('GET'); return { answer: 'Ya' }; }, actual => { sequence.push(`VERIFY:${actual.answer}`); });
+  assert.deepEqual(sequence, ['PATCH', 'GET', 'VERIFY:Ya']); assert.deepEqual(state, { answer: 'Ya' });
   await assert.rejects(() => patchChecklistThenRefetch(async () => { throw Object.assign(new Error('version conflict'), { status: 409 }); }, async () => { throw new Error('must not refetch'); }), error => (error as {status:number}).status === 409);
   await assert.rejects(() => patchChecklistThenRefetch(async () => { throw Object.assign(new Error('validation'), { status: 400 }); }, async () => null), error => (error as {status:number}).status === 400);
+  await assert.rejects(() => patchChecklistThenRefetch(async () => undefined, async () => ({ answer: 'Tidak' }), actual => { if (actual.answer !== 'Ya') throw new Error('readback mismatch'); }), /readback mismatch/);
+});
+
+test('preparation submit and PIC review require matching authoritative status, version and decision', () => {
+  const checklist = { paket_id: 3, pengisian: { status: 'DIAJUKAN', versi: 5 }, ringkasan: { jumlah_item: 1, jumlah_terjawab: 1 }, items: [] };
+  const submission = { paket_id: 3, pengisian_id: 7, status: 'DIAJUKAN', versi: 5, pengajuan: { pengajuan_id: 90, diajukan_oleh: 4, diajukan_pada: '2026-11-09' }, review: null, aturan: { mode: 'SEMAKAN_MANUAL_PIC', validasi_kelengkapan_resmi_aktif: false } };
+  assert.doesNotThrow(() => verifyPreparationTransitionReadback(checklist, submission, 4, 'DIAJUKAN'));
+  const approvedChecklist = { ...checklist, pengisian: { status: 'DISETUJUI', versi: 6 } };
+  const approved = { ...submission, status: 'DISETUJUI', versi: 6, review: { persetujuan_id: 1, pengguna_id: 8, keputusan: 'DISETUJUI', catatan: null, waktu: '2026-11-09', dokumen_id: 21, dok_versi_id: 1 } };
+  assert.doesNotThrow(() => verifyPreparationTransitionReadback(approvedChecklist, approved, 5, 'DISETUJUI', 'DISETUJUI'));
+  assert.throws(() => verifyPreparationTransitionReadback({ ...checklist, pengisian: { status: 'DRAFT', versi: 5 } }, submission, 4, 'DIAJUKAN'), /belum mengesahkan status/);
+  assert.throws(() => verifyPreparationTransitionReadback(checklist, submission, 5, 'DIAJUKAN'), /belum mengesahkan status/);
+  assert.throws(() => verifyPreparationTransitionReadback(approvedChecklist, { ...approved, review: { ...approved.review!, keputusan: 'PERLU_REVISI' } }, 5, 'DISETUJUI', 'DISETUJUI'), /belum disahkan/);
+  assert.throws(() => verifyPreparationTransitionReadback(checklist, { ...submission, pengajuan: null }, 4, 'DIAJUKAN'), /rekod pengajuan/);
+});
+
+test('checklist PATCH success requires a newer GET version and the submitted item answers', () => {
+  const latest = {
+    paket_id: 3,
+    pengisian: { status: 'DRAFT', versi: 5 },
+    ringkasan: { jumlah_item: 1, jumlah_terjawab: 1 },
+    items: [{ item_id: 501, jawaban: 'Tidak' as const }],
+  };
+  verifyChecklistReadback(latest, 4, [{ item_id: 501, jawaban: 'Tidak' }]);
+  assert.throws(() => verifyChecklistReadback({ ...latest, pengisian: { status: 'DRAFT', versi: 4 } }, 4, [{ item_id: 501, jawaban: 'Tidak' }]), /versi checklist/);
+  assert.throws(() => verifyChecklistReadback(latest, 4, [{ item_id: 501, jawaban: 'Ya' }]), /belum sepadan/);
+  assert.throws(() => verifyChecklistReadback(latest, 4, [{ item_id: 999, jawaban: 'Tidak' }]), /belum sepadan/);
 });
 
 test('submit readiness remains disabled when official server gate is inactive', async () => {
@@ -210,4 +250,25 @@ test('authenticated stage keeps Dirah gate and role-card structure, with tri-sta
   assert.match(workspace, /DraftPersistenceBoundary enabled=\{false\}/);
   assert.match(stage, /server \? officialServerReady : complete === allItems\.length/);
   assert.match(stage, /server \? false : complete === allItems\.length/);
+});
+
+test('authenticated Stage 0 checkbox cycles through onChange without cancelling the browser toggle', async () => {
+  const [component, stage, workspace] = await Promise.all([
+    readFile(new URL('../workflow/WorkflowComponents.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../workflow/stages/Stage0PreparationWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('../workflow/OperationalWorkflowWorkspace.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(component, /onChange=\{event=>item\.onAnswer\?cycle\(\):onChange\(event\.target\.checked\)\}/);
+  assert.doesNotMatch(component, /onClick=\{item\.onAnswer\?event=>\{event\.preventDefault\(\)/);
+  assert.match(stage, /server \? !server\.editable \|\| server\.saving/);
+  assert.match(workspace, /inert=\{props\.serverReadOnly&&!serverStage0\}/);
+});
+
+test('failed checklist save rolls the optimistic answers back to the last server snapshot', async () => {
+  const source = await readFile(new URL('./ServerPackageWorkspace.tsx', import.meta.url), 'utf8');
+  const save = source.slice(source.indexOf('async function saveChecklist'), source.indexOf('\n  async function linkReport'));
+  assert.match(save, /expected_version: expectedVersion/);
+  assert.match(save, /verifyChecklistReadback\(state\.checklist, expectedVersion, payload\)/);
+  assert.match(save, /setAnswers\(checklistDraft\(checklist\.items\)\)/);
+  assert.match(save, /setCheckError\(errorMessage\(cause/);
 });

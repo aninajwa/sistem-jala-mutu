@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { getStage4LrsRows, getStage4Roads, saveStage4LrsAndConfirm, stage4LrsErrorMessage, type Stage4LrsInput, type Stage4Request } from './serverStage4LrsData';
+import { getStage4LrsRows, getStage4Roads, saveStage4LrsAndConfirm, stage4LrsErrorMessage, stage4ValidationForPackageRoad, type Stage4LrsInput, type Stage4Request } from './serverStage4LrsData';
 
 const input: Stage4LrsInput = {
   panjang_lapangan_m: 100.25, panjang_acuan_m: 100, jumlah_error_topologi: 0,
@@ -35,6 +35,14 @@ test('Stage 4 road adapter reads only valid package-road rows', async () => {
   assert.equal(roads[0].ruas_id, 7);
   await assert.rejects(() => getStage4Roads('11', async <T>() => ({ data: [{ ruas_id: 0 }] }) as T), /ID yang sah/);
   await assert.rejects(() => getStage4Roads('11', async <T>() => ({ data: {} }) as T), /senarai dijangka/);
+});
+
+test('an LRS observation is eligible only for a road in its package road set', () => {
+  const roads = [{ ruas_id: 6 }];
+  assert.equal(stage4ValidationForPackageRoad([row()], roads, 8, 6)?.validasi_lrs_id, 31);
+  assert.equal(stage4ValidationForPackageRoad([row()], roads, 8, 9), null);
+  assert.equal(stage4ValidationForPackageRoad([row()], [], 8, 6), null);
+  assert.equal(stage4ValidationForPackageRoad([{ ...row(), paket_id: 9 }], roads, 8, 6), null);
 });
 
 test('LRS readback rejects cross-package, malformed and mismatching persisted data', async () => {

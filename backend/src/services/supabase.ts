@@ -27,10 +27,21 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
     if (failure?.code === 'P0002' && path.endsWith('/baca_sesi_survei')) throw new ApiError(404, failure.message ?? 'Sesi survei tidak ditemukan atau tidak boleh diakses');
     if (failure?.code === 'P0002' && path.includes('data_segmen')) throw new ApiError(404, failure.message ?? 'Sesi atau data segmen tidak ditemukan');
     if (failure?.code === 'P0002') throw new ApiError(404, 'Paket tidak ditemukan');
+    if (failure?.code === '40001' && /checklist_kalibrasi_iri/.test(path)) throw new ApiError(409, 'Versi draf checklist IRI berubah. Muat ulang sebelum menggabungkan; perubahan lokal tidak disimpan.');
+    if (failure?.code === '40001' && /konfirmasi_kalibrasi_tahap1/.test(path)) throw new ApiError(409, failure.message ?? 'Versi konfirmasi kalibrasi berubah. Muat ulang sebelum melanjutkan.');
+    if (failure?.code === '40001' && /pindaan_scope_survei/.test(path)) throw new ApiError(409, failure.message ?? 'Pindaan atau skop rasmi telah berubah. Muat semula sebelum melanjutkan.');
     if (failure?.code === '40001' && /kalibrasi/.test(path)) throw new ApiError(409, 'Rekod kalibrasi telah berubah. Baca semula');
+    if (failure?.code === '40001' && /validasi_lrs/.test(path)) throw new ApiError(409, failure.message ?? 'Workflow validasi LRS telah berubah. Muat ulang sebelum melanjutkan.');
     if (failure?.code === '40001' && /koreksi/.test(path)) throw new ApiError(409, failure.message ?? 'Kasus koreksi telah berubah. Baca semula');
+    if (failure?.code === '40001' && /simpan_uji_konsistensi_verval/.test(path)) throw new ApiError(409, 'Versi siklus berubah. Muat ulang siklus sebelum menyimpan.');
+    if (failure?.code === '40001' && /scope_survei_kontrak/.test(path)) throw new ApiError(409, failure.message ?? 'Scope survei telah berubah. Muat ulang sebelum menyimpan; pilihan lokal dipertahankan.');
     if (failure?.code === '40001') throw new ApiError(409, path.endsWith('/tambah_versi_dokumen_persiapan') ? 'Versi dokumen telah berubah. Baca senarai dokumen semula' : 'Checklist telah berubah. Baca semula sebelum menyimpan');
+    if (failure?.code === '55000' && /scope_survei_kontrak/.test(path)) {
+      throw new ApiError(409, failure.message ?? 'Perubahan scope dikunci karena persiapan sedang ditinjau atau sudah disetujui.');
+    }
     if (failure?.code === '55000') throw new ApiError(409, /koreksi/.test(path) ? (failure.message ?? 'Peralihan kasus koreksi tidak sah') : (failure.message ?? 'Rekod bukan berstatus DRAFT'));
+    if (failure?.code === '23505' && /tambah_lokasi_ruas_paket/.test(path)) throw new ApiError(409, failure.message ?? 'Ruas sudah ditetapkan pada lingkup survei dan semester ini');
+    if (failure?.code === '23514' && /scope_survei_kontrak/.test(path)) throw new ApiError(409, failure.message ?? 'Jenis survei tidak dapat dihapus karena sudah digunakan data kerja.');
     if (failure?.code === '23505') throw new ApiError(409, 'Rekod unik sudah digunakan');
     if (failure?.code === '22023') throw new ApiError(400, failure.message ?? 'Data tidak valid');
     if (failure?.code === '42501' || response.status === 403) throw new ApiError(403, 'Akses tidak dibenarkan');

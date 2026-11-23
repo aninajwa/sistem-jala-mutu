@@ -2,14 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw, Wrench } from 'lucide-react';
 
 import { ApiError, apiRequest } from '../auth/client';
-import { usePersistedDraft } from '../hooks/usePersistedDraft';
 import {
-  buildCalibrationPayload,
   serverRows,
   type CalibrationDraft,
   type ServerEquipmentAssignment,
   type ServerSurveyTeam,
 } from './serverCalibration';
+import { createStage1Calibration } from './serverStage1Data';
 
 const EMPTY_DRAFT: CalibrationDraft = {
   alat_id: '',
@@ -39,10 +38,7 @@ export function ServerCalibrationRecordPanel({
 }) {
   const [teamId, setTeamId] = useState('');
   const [assignments, setAssignments] = useState<ServerEquipmentAssignment[]>([]);
-  const [draft, setDraft] = usePersistedDraft<CalibrationDraft>(
-    `server-calibration-draft:${packageId}:${teamId || 'unselected'}`,
-    EMPTY_DRAFT,
-  );
+  const [draft, setDraft] = useState<CalibrationDraft>(EMPTY_DRAFT);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -54,6 +50,8 @@ export function ServerCalibrationRecordPanel({
       ? current
       : teams[0] ? String(teams[0].tim_id) : '');
   }, [teams]);
+
+  useEffect(() => { setDraft(EMPTY_DRAFT); }, [teamId, packageId]);
 
   useEffect(() => {
     if (!teamId) {
@@ -93,21 +91,11 @@ export function ServerCalibrationRecordPanel({
     if (!manageable || busy) return;
     setError('');
     setSuccess('');
-    let payload: ReturnType<typeof buildCalibrationPayload>;
-    try {
-      payload = buildCalibrationPayload(draft);
-    } catch (cause) {
-      setError(message(cause));
-      return;
-    }
     setBusy(true);
     try {
-      await apiRequest(`/paket/${encodeURIComponent(packageId)}/kalibrasi-alat`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const confirmed = await createStage1Calibration(packageId, draft, apiRequest);
       setDraft(current => ({ ...EMPTY_DRAFT, alat_id: current.alat_id }));
-      setSuccess('Rekod kalibrasi berjaya disimpan ke server sebagai DRAFT.');
+      setSuccess(`Rekod kalibrasi #${confirmed.kalibrasi_id} disahkan oleh server sebagai DRAFT.`);
       onCreated();
     } catch (cause) {
       setError(message(cause));

@@ -10,3 +10,11 @@ dist
 *.backup-*
 __pycache__/
 *.pyc
+.env.e2e.local
+e2e
+!e2e/
+e2e/*
+!e2e/tahap0.spec.ts
+!e2e/tahap0-preflight.spec.ts
+!e2e/tahap0-safety.ts
+!e2e/tahap0-safety.test.ts

@@ -1,4 +1,5 @@
 import {useState,useRef,useEffect} from 'react';
+import {CheckCircle2} from 'lucide-react';
 import type {OperationalWorkflowState,SurveyType,WorkflowRole} from './model';
 import {PACKAGE_WORKFLOW_ITEMS} from './roleNavigation';
 import {evaluateStageGate} from './workflowGate';
@@ -8,6 +9,7 @@ import catalog from './sourceChecklistCatalog.json';
 import {SourceDocumentChecklist} from './SourceDocumentChecklist';
 import type {SourceDocument} from './sourceDocumentModel';
 import {periodRange} from './stages/periodSchedule';
+import {serverStageFactFor,stageTilePresentation,type ServerStageFact,type ServerStageFacts} from './serverPackageStatus';
 const P:WorkflowRole='Penyedia Jasa / Ketua Tim',B:WorkflowRole='PIC Balai / Pengguna Jasa',D:WorkflowRole='Direktorat / Pusat';
 export {CHECKLIST_STAGES,checklistAccess} from './checkpoint09ChecklistAccess';
 import {CHECKLIST_STAGES,checklistAccess} from './checkpoint09ChecklistAccess';
@@ -15,11 +17,18 @@ export function packageStageStatus(state:OperationalWorkflowState,stage:typeof P
  const status=getStageDisplayStatus(state,stage);
  return status==='completed'&&!evaluateStageGate(state,stage).readyToComplete?'needs-review':status;
 }
-export function PackageStageNavigator({state,selection,onNavigate,serverReadOnly=false}:{state:OperationalWorkflowState;selection?:string;onNavigate:(s:string)=>void;serverReadOnly?:boolean}){
+export function PackageStageNavigator({state,selection,onNavigate,serverReadOnly=false,serverStageStatuses}:{state:OperationalWorkflowState;selection?:string;onNavigate:(s:string)=>void;serverReadOnly?:boolean;serverStageStatuses?:ServerStageFacts}){
  const rail=useRef<HTMLOListElement>(null);
  useEffect(()=>{const list=rail.current,active=list?.querySelector<HTMLElement>('[aria-current="step"]');if(list&&active)list.scrollLeft=Math.max(0,active.offsetLeft-list.clientWidth/2+active.offsetWidth/2);},[selection]);
- const labels=['Persiapan','Kalibrasi','Produksi','Harian','Berkala','Penyiapan','Audit','Penerimaan'];
-  return <nav className="ui09-stage-nav" aria-label="Tahap 0 sampai 6 paket"><ol ref={rail}>{PACKAGE_WORKFLOW_ITEMS.map((item,index)=>{const status=packageStageStatus(state,item.code),label=serverReadOnly?'Belum terhubung ke server':status==='completed'?'Prasyarat terpenuhi':getStageDisplayLabel(status);return <li key={item.code}><button type="button" aria-current={item.selection===selection?'step':undefined} aria-label={`${item.code} · ${item.shortLabel} · ${label}`} title={`${item.label} · ${label}`} className={`ui09-stage ${serverReadOnly?'server-unavailable':status}`} onClick={()=>onNavigate(item.selection)}><span className="ui09-stage-code">{item.code.replace('Tahap ','')}</span><span>{labels[index]}</span><i aria-hidden="true"/></button></li>;})}</ol><div className="ui09-stage-caption"><span>3A & 3B berjalan paralel</span><span className="ui09-scroll-hint">Geser untuk tahap lainnya →</span></div></nav>;
+ const labels=['Persiapan','Kalibrasi','Validasi Produksi','Survei Harian','Verval Berkala','Penyiapan Data','Audit','Penerimaan'];
+   return <nav className="ui09-stage-nav" aria-label="Tahap 0 sampai 6 paket">
+    <ol ref={rail}>{PACKAGE_WORKFLOW_ITEMS.map((item,index)=>{
+      const localStatus=packageStageStatus(state,item.code);
+      const fact:ServerStageFact=serverReadOnly?serverStageFactFor(item.code,serverStageStatuses):{state:localStatus==='completed'?'complete':localStatus==='needs-review'?'pending':'unknown',label:localStatus==='completed'?'Prasyarat terpenuhi':getStageDisplayLabel(localStatus)};
+      const selected=item.selection===selection;
+      const tile=stageTilePresentation(item.code,labels[index],fact,selected);
+       return <li key={item.code}><button type="button" aria-current={tile.ariaCurrent} aria-label={tile.accessibleLabel} title={`${item.label} · ${fact.label}`} data-stage-state={tile.state} className={`ui09-stage ${serverReadOnly?`server-${tile.state}`:localStatus}`} onClick={()=>onNavigate(item.selection)}><span className="ui09-stage-number-row"><span className="ui09-stage-code">{item.code.replace('Tahap ','')}</span>{tile.showCompletionIcon&&<CheckCircle2 className="ui09-stage-complete-icon" size={14} aria-hidden="true"/>}</span><span className="ui09-stage-label">{labels[index]}</span>{serverReadOnly&&item.code==='Tahap 3A'&&<span className="ui09-stage-progress">{fact.label}</span>}</button></li>;
+   })}</ol><div className="ui09-stage-caption"><span>3A dan 3B berjalan paralel</span><span className="ui09-scroll-hint">Geser untuk tahap lainnya →</span></div></nav>;
 }
 export function StageChecklistIndex({state,selection}:{state:OperationalWorkflowState;selection:string}){
  const stage=PACKAGE_WORKFLOW_ITEMS.find(i=>i.selection===selection)?.code;

@@ -2,9 +2,10 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { Check, RefreshCw, X } from 'lucide-react';
 
 import { ApiError, apiRequest } from '../auth/client';
+import { createServerPackage, type CreatedServerPackage } from './serverPackageCreation';
+import type { SurveyCatalogOption } from '../workflow/declaredPackageSurveyScope';
 
 type Balai = { balai_id: number; nama: string; kode: string };
-type CreatedPackage = { paket_id: number; nama_paket: string; status: string };
 
 function errorText(error: unknown) {
   if (error instanceof ApiError) return error.message;
@@ -16,12 +17,16 @@ export function CreatePackageDialog({
   onCreated,
 }: {
   onClose: () => void;
-  onCreated: (item: CreatedPackage) => void;
+  onCreated: (item: CreatedServerPackage) => void;
 }) {
   const [balais, setBalais] = useState<Balai[]>([]);
   const [balaiLoading, setBalaiLoading] = useState(true);
   const [balaiError, setBalaiError] = useState('');
   const [balaiRevision, setBalaiRevision] = useState(0);
+  const [surveyTypes, setSurveyTypes] = useState<SurveyCatalogOption[]>([]);
+  const [surveyLoading, setSurveyLoading] = useState(true);
+  const [surveyError, setSurveyError] = useState('');
+  const [selectedSurveyIds, setSelectedSurveyIds] = useState<number[]>([]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [form, setForm] = useState({ nama_paket: '', nomor_kontrak: '', tahun_anggaran: String(new Date().getFullYear()), balai_id: '' });
@@ -41,6 +46,22 @@ export function CreatePackageDialog({
     return () => controller.abort();
   }, [balaiRevision]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    apiRequest<{ data: SurveyCatalogOption[] }>('/jenis-survei', { signal: controller.signal })
+      .then(result => {
+        if (controller.signal.aborted) return;
+        if (!Array.isArray(result.data) || result.data.some(item => !Number.isSafeInteger(item.jenis_survei_id))) {
+          throw new Error('Katalog jenis survei dari server tidak sesuai format.');
+        }
+        setSurveyTypes(result.data.filter(item => item.aktif === true)
+          .sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? '') || a.jenis_survei_id - b.jenis_survei_id));
+      })
+      .catch(cause => { if (!controller.signal.aborted) setSurveyError(errorText(cause)); })
+      .finally(() => { if (!controller.signal.aborted) setSurveyLoading(false); });
+    return () => controller.abort();
+  }, []);
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     if (saving) return;
@@ -52,16 +73,21 @@ export function CreatePackageDialog({
     if (!nomorKontrak || nomorKontrak.length > 100) { setError('Nomor kontrak wajib diisi (maksimal 100 karakter).'); return; }
     if (!Number.isInteger(tahunAnggaran) || tahunAnggaran < 2000 || tahunAnggaran > 2100) { setError('Tahun anggaran harus berupa bilangan bulat 2000–2100.'); return; }
     if (!Number.isInteger(balaiId) || !balais.some(item => item.balai_id === balaiId)) { setError('Pilih Balai aktif dari daftar server.'); return; }
+    if (!selectedSurveyIds.length || selectedSurveyIds.some(id => !surveyTypes.some(item => item.jenis_survei_id === id))) {
+      setError('Pilih sedikitnya satu jenis survei aktif dari katalog server.'); return;
+    }
 
     setSaving(true);
     setError('');
     try {
-      const result = await apiRequest<{ data: CreatedPackage }>('/paket', {
-        method: 'POST',
-        body: JSON.stringify({ nama_paket: namaPaket, nomor_kontrak: nomorKontrak, tahun_anggaran: tahunAnggaran, balai_id: balaiId }),
+      const created = await createServerPackage({
+        nama_paket: namaPaket,
+        nomor_kontrak: nomorKontrak,
+        tahun_anggaran: tahunAnggaran,
+        balai_id: balaiId,
+        jenis_survei_ids: selectedSurveyIds,
       });
-      if (!result.data || !Number.isInteger(result.data.paket_id)) throw new Error('Respons pembuatan paket tidak memuat ID paket.');
-      onCreated(result.data);
+      onCreated(created);
     } catch (cause) {
       setError(errorText(cause));
     } finally {
@@ -85,8 +111,24 @@ export function CreatePackageDialog({
           <div className="field"><label htmlFor="create-package-year">Tahun anggaran</label><input id="create-package-year" type="number" min={2000} max={2100} step={1} required value={form.tahun_anggaran} onChange={event => setForm(current => ({ ...current, tahun_anggaran: event.target.value }))} disabled={saving} /></div>
           <div className="field"><label htmlFor="create-package-balai">Balai</label><select id="create-package-balai" required value={form.balai_id} onChange={event => setForm(current => ({ ...current, balai_id: event.target.value }))} disabled={saving || balaiLoading || !!balaiError || !balais.length}><option value="">{balaiLoading ? 'Memuat Balai…' : 'Pilih Balai'}</option>{balais.map(item => <option key={item.balai_id} value={item.balai_id}>{item.nama || item.kode}</option>)}</select></div>
         </div>
+        <fieldset className="survey-selection" disabled={saving || surveyLoading || !!surveyError}>
+          <legend>Jenis survei dalam paket <span aria-hidden="true">*</span></legend>
+          <p className="subtle">Pilih satu atau lebih dari katalog survei aktif.</p>
+          {surveyLoading && <p role="status">Memuat katalog survei…</p>}
+          {surveyError && <p role="alert" className="notice">{surveyError}</p>}
+          {!surveyLoading && !surveyError && !surveyTypes.length && <p role="status">Tidak ada jenis survei aktif pada katalog.</p>}
+          <div className="survey-selection-options">
+            {surveyTypes.map(item => <label key={item.jenis_survei_id} className="survey-selection-option">
+              <input type="checkbox" checked={selectedSurveyIds.includes(item.jenis_survei_id)}
+                onChange={event => setSelectedSurveyIds(current => event.target.checked
+                  ? [...new Set([...current, item.jenis_survei_id])].sort((a, b) => a - b)
+                  : current.filter(id => id !== item.jenis_survei_id))} />
+              <span><strong>{item.kode || `Survei #${item.jenis_survei_id}`}</strong>{item.nama && <small>{item.nama}</small>}</span>
+            </label>)}
+          </div>
+        </fieldset>
         {!balaiLoading && !balaiError && !balais.length && <p role="status">Tidak ada Balai aktif yang dapat dipilih.</p>}
-        <div className="form-actions"><button type="button" className="btn" onClick={onClose} disabled={saving}>Batal</button><button type="submit" className="btn primary" disabled={saving || balaiLoading || !!balaiError || !balais.length}><Check size={13} />{saving ? 'Menyimpan…' : 'Simpan Paket DRAFT'}</button></div>
+        <div className="form-actions"><button type="button" className="btn" onClick={onClose} disabled={saving}>Batal</button><button type="submit" className="btn primary" disabled={saving || balaiLoading || !!balaiError || !balais.length || surveyLoading || !!surveyError || !surveyTypes.length || !selectedSurveyIds.length}><Check size={13} />{saving ? 'Menyimpan…' : 'Simpan Paket DRAFT'}</button></div>
       </form>
     </div>
   </div>;

@@ -63,14 +63,17 @@ export function OperationalWorkflowWorkspace(
   const Screen = dirahScreenForSelection(props.selection);
   if (!Screen) return null;
   const serverStage0 = props.serverReadOnly && props.serverPreparation && props.selection === "/entry:Persiapan & SPMK";
+  const unavailableStage = props.serverReadOnly && (props.selection === "/verification:Audit tingkat 1–3" || props.selection === "/reports:Penerimaan & termin");
   const screen=<div className="wf" data-testid="operational-workflow-workspace">
     {!props.serverReadOnly&&<>
       <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate}/>
       <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection}/>
     </>}
-    {props.serverReadOnly&&<p className="wf-note" role="status">{props.serverStatusNote||'Belum terhubung ke server. Perubahan, pengajuan, persetujuan dan upload dinyahaktifkan.'}</p>}
+    {props.serverReadOnly&&!serverStage0&&<p className="wf-note" role="status">{unavailableStage?'Pratinjau saja — fungsi tahap ini belum tersedia melalui server. Kontrol di bawah dinonaktifkan.':props.serverStatusNote||'Status tahap ini belum tersedia dari server.'}</p>}
     <div inert={props.serverReadOnly&&!serverStage0} aria-disabled={props.serverReadOnly&&!serverStage0||undefined} data-testid={props.serverReadOnly?'server-readonly-dirah-stage':undefined}>
-      <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />
+      {unavailableStage
+        ? <fieldset className="ui09-disabled-preview" disabled><Screen key={`${props.state.project.id}:${props.selection}`} {...props} /></fieldset>
+        : <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />}
     </div>
   </div>;
   return props.serverReadOnly

@@ -582,7 +582,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
             />
 </Panel></RoleWorkSection>
       <div className={`wf-grid ${state.role==="PIC Balai / Pengguna Jasa"?'acceptance-review-first':''}`}>
-        <RoleWorkSection primary={state.role==="Penyedia Jasa / Ketua Tim"} title="Termin dan progres Penyedia"><Panel title="Termin kontrak TA 2027" icon={FileCheck2}>
+        <RoleWorkSection primary={state.role==="Penyedia Jasa / Ketua Tim"} title="Termin dan progres Penyedia"><Panel title={`Termin kontrak ${state.project.semester || 'tahun anggaran belum diisi'}`} icon={FileCheck2}>
           <div className="wf-table">
             <table data-testid="table-acceptance-terms">
               <thead>

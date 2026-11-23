@@ -18,10 +18,14 @@
 import type {
   OperationalWorkflowState,
   ProductionTest,
+  SurveyType,
   WorkflowRole,
 } from '../workflow/model';
 import { SURVEY_TYPES } from '../workflow/model';
 import type { ServerContract } from './serverPreparation';
+import { mapServerSurveyType } from './serverStage1Adapter';
+import type { PackageSurveyScopeRead, PackageSurveyScopeStatus } from '../workflow/packageSurveyScope';
+import type { DeclaredPackageSurveyScope } from '../workflow/declaredPackageSurveyScope';
 
 export type ServerPackageRow = {
   paket_id: number;
@@ -30,6 +34,11 @@ export type ServerPackageRow = {
   tahun_anggaran: number | null;
   balai_id: number | null;
   status: string;
+  /** Observed location associations; never used as the declared package selection. */
+  survey_scope?: PackageSurveyScopeRead;
+  survey_scope_read_status?: PackageSurveyScopeStatus;
+  declared_survey_scope?: DeclaredPackageSurveyScope;
+  declared_survey_scope_read_status?: 'loading' | 'error';
 };
 
 export type ServerBalaiRow = {
@@ -63,6 +72,18 @@ export function balaiLabel(
  */
 export function serverPackageId(paket_id: number): string {
   return String(paket_id);
+}
+
+function declaredScopeState(value: DeclaredPackageSurveyScope | null | undefined): {
+  status: OperationalWorkflowState['project']['surveyScopeStatus'];
+  types: SurveyType[];
+} {
+  if (!value || value.state === 'unset') return { status: 'undefined', types: [] };
+  const mapped = new Set(value.surveys.flatMap(survey => {
+    const type = mapServerSurveyType({ kode: survey.kode ?? '', nama: survey.nama ?? '' });
+    return type ? [type] : [];
+  }));
+  return { status: 'defined', types: SURVEY_TYPES.filter(type => mapped.has(type)) };
 }
 
 /**
@@ -204,6 +225,10 @@ export function serverPackageToDirahState(
     paket.tahun_anggaran !== null
       ? (`TA ${paket.tahun_anggaran}` as OperationalWorkflowState['project']['semester'])
       : 'Tahun anggaran belum diisi' as OperationalWorkflowState['project']['semester'];
+  const surveyScope = declaredScopeState(paket.declared_survey_scope);
+  const declaredSurveys = [...new Map(
+    (paket.declared_survey_scope?.surveys ?? []).map(item => [item.jenis_survei_id, item]),
+  ).values()].sort((a, b) => a.jenis_survei_id - b.jenis_survei_id);
 
   const project: DirahProjectInput & { semester: OperationalWorkflowState['project']['semester'] } = {
     id,
@@ -217,7 +242,14 @@ export function serverPackageToDirahState(
     ppk: '',
     spmkDate: '',
     routes: [],
-    surveyTypes: [],
+    surveyTypes: surveyScope.types,
+    surveyScopeStatus: paket.declared_survey_scope_read_status === 'error'
+      ? 'error'
+      : paket.declared_survey_scope_read_status === 'loading' ? 'loading' : surveyScope.status,
+    surveyScopeSurveys: declaredSurveys,
+    surveyScopeAssociationCount: undefined,
+    surveyScopeUnresolvedAssociationCount: undefined,
+    surveyScopeDeclaredStatus: paket.declared_survey_scope?.state,
     semester,
     preparation: {
       sourceReviews: {},
@@ -243,6 +275,8 @@ export function serverDetailToDirahState(
   contract: ServerContract,
   balais: ServerBalaiRow[],
   role: WorkflowRole,
+  declaredScope?: DeclaredPackageSurveyScope,
+  declaredScopeReadStatus?: 'loading' | 'error',
 ): OperationalWorkflowState {
   const state = serverPackageToDirahState(
     {
@@ -252,6 +286,10 @@ export function serverDetailToDirahState(
       tahun_anggaran: contract.tahun_anggaran,
       balai_id: contract.balai_id,
       status: contract.status,
+      survey_scope: contract.survey_scope,
+      survey_scope_read_status: contract.survey_scope_read_status,
+      declared_survey_scope: declaredScope,
+      declared_survey_scope_read_status: declaredScopeReadStatus,
     },
     balais,
     role,

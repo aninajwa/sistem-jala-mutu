@@ -115,6 +115,17 @@
 
 .ds-ranking-toolbar{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 16px 0}.ds-ranking-toolbar label{display:flex;align-items:center;gap:8px;font-weight:600}.ds-ranking-toolbar select{padding:6px 9px;border:1px solid #cbd5e1;border-radius:7px;background:var(--surface,#fff);color:inherit}.ds-ranking-toolbar small{color:var(--muted,#64748b)}.ds-ranking .ds-bars{max-height:460px;overflow-y:auto}
 
+/* Authenticated dashboard data states */
+.ds-filter-panel{box-shadow:0 2px 9px rgb(20 55 80 / 4%);padding:16px 18px;margin-bottom:16px}
+.ds-filter-title span{max-width:360px}
+.ds-empty-state{min-height:166px;display:flex;align-items:center;justify-content:center;gap:13px;padding:24px!important;background:linear-gradient(145deg,#fbfdff,#f5f9fc)}
+.ds-empty-icon{width:38px;height:38px;display:grid;place-items:center;flex:none;border-radius:50%;color:#168e81;background:#e4f5f0}
+.ds-empty-state strong{display:block;color:#173d58;font-size:13px}
+.ds-empty-state p{max-width:360px;margin:5px 0 0;color:#60788b;font-size:12px;line-height:1.6}
+.ds-partial-warning{display:flex;align-items:center;gap:9px;margin-top:12px;border:1px solid #f1d5a9;border-radius:8px;background:#fff9ee;color:#76521d;font-size:12px;line-height:1.5}
+.ds-partial-warning svg{flex:none;color:#bd7b1c}
+@media(max-width:650px){.ds-filter-panel{padding:13px}.ds-empty-state{min-height:140px;padding:17px!important;justify-content:flex-start}.ds-partial-warning{align-items:flex-start}}
+
 /* Final information architecture: evidence-first compliance and distinct submenu purpose. */
 .ds-inspection{display:grid;gap:18px;padding:18px!important}
 .ds-inspection-intro{display:flex;justify-content:space-between;align-items:start;gap:18px;flex-wrap:wrap}

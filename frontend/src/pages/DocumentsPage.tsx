@@ -15,6 +15,7 @@ import { attachmentLocation, documentRoleFocus, listPackageDocuments } from '../
 import { ATTACHMENT_CHANGED, attachmentRepository, downloadLocalFile } from '../workflow/repository/attachmentRepository';
 import '../workflow/documents/documents.css';
 import './documentsRole.css';
+import { ServerPicDocuments } from './ServerPicDocuments';
 
 type Row = ReturnType<typeof listPackageDocuments>[number] & {packageName:string; balai:string};
 type WorkView = 'tasks' | 'prepare' | 'history' | 'queue' | 'packages' | 'audit' | 'monitor' | 'archive';
@@ -71,7 +72,10 @@ function labelFor(row:Row,role:WorkflowRole){
  return 'Lihat dokumen';
 }
 function statusText(row:Row){return row.stale?'Data sumber berubah · '+row.status:row.status;}
-export default function DocumentsPage(p:PageProps){
+export default function DocumentsPage(p:PageProps & {activeTab?:string;authenticatedRole?:WorkflowRole;packageId?:string|null}){
+ if(p.authenticatedRole==='PIC Balai / Pengguna Jasa'){
+  return <ServerPicDocuments requestedPackageId={p.packageId??null}/>;
+ }
  const role=p.workflow.role;
  const view=desiredView(role,p.activeTab);
  const [query,setQuery]=useState('');

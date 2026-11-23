@@ -3,6 +3,7 @@ import { ApiError, supabaseRequest } from '../services/supabase';
 import { paketIdSchema } from '../schemas/paket';
 import { pemeriksaanHarianAlatPrototypeSchema, sesiSurveiCreateSchema } from '../schemas/survei';
 import { dataSegmenCreateSchema, dataSegmenIdSchema } from '../schemas/data-segmen';
+import { assertStage2PicConfirmation } from '../services/stage1-confirmation-policy';
 
 const router = Router();
 
@@ -31,6 +32,7 @@ router.post('/paket/:id/sesi-survei', async (req, res) => {
     throw new ApiError(403, 'Hanya Penyedia Jasa boleh membuat sesi survei');
   }
   const packageId = parseId(req.params.id, 'ID paket');
+  await assertStage2PicConfirmation(packageId, identity.token);
   const parsed = sesiSurveiCreateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Data sesi survei tidak valid', details: parsed.error.flatten() });
@@ -112,6 +114,7 @@ router.post('/paket/:id/sesi-survei/:sesiId/data-segmen', async (req, res) => {
   }
   const packageId = parseId(req.params.id, 'ID paket');
   const sesiId = parseId(req.params.sesiId, 'ID sesi survei');
+  await assertStage2PicConfirmation(packageId, identity.token);
   const parsed = dataSegmenCreateSchema.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: 'Data segmen tidak valid', details: parsed.error.flatten() });

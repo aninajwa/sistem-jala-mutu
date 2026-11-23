@@ -59,6 +59,7 @@ test('Nama balai memakai /balai, fallback kode, ID, dan null', () => {
 test('Field workflow yang belum tersedia di backend tetap netral, tanpa data demo', () => {
   const state = serverPackageToDirahState(paket, balais, 'PIC Balai / Pengguna Jasa');
   assert.deepEqual(state.project.surveyTypes, []);
+  assert.equal(state.project.surveyScopeStatus, 'undefined');
   assert.deepEqual(state.project.routes, []);
   assert.equal(state.project.contractor, '');
   assert.deepEqual(state.calibrations, []);
@@ -66,6 +67,52 @@ test('Field workflow yang belum tersedia di backend tetap netral, tanpa data dem
   assert.deepEqual(state.corrections, []);
   assert.equal(state.productionApproval, 'Draft');
   assert.equal(isLegacyExample(state), false);
+});
+
+test('package cards/stage state use declared contract IDs, never observed location associations', () => {
+  const scoped = serverPackageToDirahState({
+    ...paket,
+    survey_scope: {
+      paket_id: paket.paket_id, availability: 'available',
+      declared_contract_scope: { availability: 'not_stored', source: 'paket_kontrak', surveys: [] },
+      observed_location_associations: {
+        availability: 'available', source: 'lokasi_pekerjaan', observation_state: 'observed',
+        association_count: 1, unresolved_association_count: 0,
+        surveys: [{ jenis_survei_id: 22, kode: 'PCI', nama: 'Pavement Condition Index', aktif: true }],
+        associations: [],
+      },
+    },
+    declared_survey_scope: {
+      paket_id: paket.paket_id, state: 'defined', version: 3,
+      surveys: [
+        { jenis_survei_id: 21, kode: 'IRI', nama: 'International Roughness Index', aktif: true },
+        { jenis_survei_id: 21, kode: 'IRI', nama: 'International Roughness Index', aktif: true },
+      ],
+    },
+  }, balais, 'PIC Balai / Pengguna Jasa');
+  assert.deepEqual(scoped.project.surveyTypes, ['IRI']);
+  assert.equal(scoped.project.surveyScopeSurveys?.length, 1);
+  assert.equal(scoped.project.surveyScopeStatus, 'defined');
+});
+
+test('unset declared scope stays unset even when observed associations exist; omission is not fabricated as set', () => {
+  const empty = serverPackageToDirahState({
+    ...paket,
+    declared_survey_scope: { paket_id: paket.paket_id, state: 'unset', version: null, surveys: [] },
+    survey_scope: {
+      paket_id: paket.paket_id, availability: 'available',
+      declared_contract_scope: { availability: 'not_stored', source: 'paket_kontrak', surveys: [] },
+      observed_location_associations: { availability: 'available', source: 'lokasi_pekerjaan', observation_state: 'observed', association_count: 1, unresolved_association_count: 0, surveys: [{ jenis_survei_id: 22, kode: 'PCI', nama: 'PCI', aktif: true }], associations: [] },
+    },
+  }, balais, 'Admin');
+  assert.deepEqual(empty.project.surveyTypes, []);
+  assert.equal(empty.project.surveyScopeStatus, 'undefined');
+});
+
+test('a failed declared-scope read is an error, not an empty or fabricated scope', () => {
+  const malformed = serverPackageToDirahState({ ...paket, declared_survey_scope_read_status: 'error' }, balais, 'Admin');
+  assert.deepEqual(malformed.project.surveyTypes, []);
+  assert.equal(malformed.project.surveyScopeStatus, 'error');
 });
 
 test('Struktur teknis netral mengisi semua jenis survei dengan nilai nol (bukan demo)', () => {

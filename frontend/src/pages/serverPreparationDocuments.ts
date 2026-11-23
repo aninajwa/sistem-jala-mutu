@@ -36,6 +36,13 @@ export function checklistItemForDocumentCategory(checklist: ServerChecklist, cat
   return contract ? checklist.items.find(item => item.kode === contract.checklistCode) : undefined;
 }
 
+export function verifyPreparationDocumentLinkReadback(checklist: ServerChecklist, category: string, documentId: number) {
+  const item = checklistItemForDocumentCategory(checklist, category);
+  if (!item || item.bukti_dokumen_id !== documentId) {
+    throw new Error('Pautan dokumen belum disahkan melalui bacaan semula checklist server.');
+  }
+}
+
 export function canUseServerDocumentCategory(category: string): boolean {
   return !!categoryContract[category];
 }
@@ -107,13 +114,20 @@ export async function downloadPreparationDocument(packageId: string, documentId:
   const disposition = response.headers.get('content-disposition') || '';
   const fileName = /filename="?([^";]+)"?/i.exec(disposition)?.[1] || `dokumen-${documentId}.pdf`;
   const url = URL.createObjectURL(blob);
+  const anchor = document.createElement('a');
+  anchor.href = url;
+  anchor.download = fileName;
+  anchor.style.display = 'none';
+  document.body.appendChild(anchor);
   try {
-    const anchor = document.createElement('a');
-    anchor.href = url;
-    anchor.download = fileName;
     anchor.click();
-  } finally {
+    // Let the browser start consuming the object URL before releasing it.
+    window.setTimeout(() => URL.revokeObjectURL(url), 60_000);
+  } catch (cause) {
     URL.revokeObjectURL(url);
+    throw cause;
+  } finally {
+    anchor.remove();
   }
 }
 

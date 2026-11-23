@@ -239,6 +239,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
         "Validasi Produksi Data / Uji Coba",
         "Data hasil uji diperiksa otomatis terhadap ketentuan QA/QC. Penyedia melengkapi bukti yang belum tersedia, kemudian PIC Balai melakukan review.",
       )}
+      <p className="wf-note" role="note">Tampilan ini menggunakan workflow lokal/simulasi. Persetujuan dan status di sini bukan persetujuan persisted server dan tidak membuka gerbang server.</p>
       {state.productionApproval === "Disetujui" && (
         <div
           className="wf-callout ok"
@@ -255,10 +256,10 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
         >
           <div>
             <strong style={{ color: "#15803d", fontSize: 15, display: "block", marginBottom: 2 }}>
-              Tahap 2 Selesai · Validasi Produksi Telah Disetujui
+              Simulasi lokal: validasi produksi ditandai disetujui
             </strong>
             <span style={{ color: "#166534", fontSize: 13 }}>
-              Metode dan kesiapan alat telah disetujui PIC Balai. Lanjutkan pekerjaan ke Tahap 3A (Pelaksanaan Survei).
+              Nilai lokal ini bukan keputusan PIC yang tersimpan di server.
             </span>
           </div>
           <button
@@ -668,7 +669,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                     }}
                   >
                     <Check size={13} />
-                    Setujui sebagai PIC Balai & Lanjut ke Tahap 3A →
+                    Simulasikan persetujuan lokal & lanjut (tidak tersimpan di server) →
                   </Button>
                 </div>
               )}
@@ -678,7 +679,7 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                   <div>
                     <strong style={{ color: "#166534", display: "block" }}>✓ Validasi Produksi Telah Disetujui</strong>
                     <span style={{ fontSize: 13, color: "#15803d" }}>
-                      Metode operasional telah disetujui. Silakan lanjut ke Tahap 3A.
+                      Status lokal disetujui; status server belum berubah. Tahap 3A berikutnya tetap bergantung pada server.
                     </span>
                   </div>
                   <Button

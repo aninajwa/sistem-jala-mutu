@@ -19,11 +19,15 @@ export function mapServerSurveyType(type: Pick<Stage1SurveyType, 'kode' | 'nama'
   return surveyAliases[normalized(type.kode)] ?? surveyAliases[normalized(type.nama)] ?? null;
 }
 
-export function mapStage1ServerData(data: Stage1ServerData, packageId: string): { surveyTypes: SurveyType[]; calibrations: CalibrationRecord[]; assignments: NonNullable<import('../workflow/stages/stageSupport').WorkflowStageProps['serverAssignments']> } {
+export function mapStage1ServerData(data: Stage1ServerData, packageId: string, packageSurveyIds: readonly number[] | null = null): { surveyTypes: SurveyType[]; calibrations: CalibrationRecord[]; assignments: NonNullable<import('../workflow/stages/stageSupport').WorkflowStageProps['serverAssignments']> } {
   const typeById = new Map(data.surveyTypes.map(item => [item.jenis_survei_id, mapServerSurveyType(item)]));
   const scopedTeams = data.teams.filter(team => String(team.paket_id) === packageId);
-  const scopedTypeIds = new Set(scopedTeams.map(team => team.jenis_survei_id));
-  const surveyTypes = SURVEY_TYPES.filter(type => [...scopedTypeIds].some(id => typeById.get(id) === type));
+  // Declared package survey IDs control applicability. Existing team IDs are
+  // also retained for navigation, even if legacy records do not match scope.
+  const recordTypeIds = new Set(scopedTeams.map(team => team.jenis_survei_id));
+  const navigationTypeIds = new Set([...recordTypeIds, ...(packageSurveyIds ?? [])]);
+  const surveyTypes = SURVEY_TYPES.filter(type =>
+    [...navigationTypeIds].some(id => typeById.get(id) === type));
   const assignments = new Map<number, Stage1Assignment[]>();
   for (const assignment of data.assignments) assignments.set(assignment.alat_id, [...(assignments.get(assignment.alat_id) ?? []), assignment]);
   const membersByTeam = new Map<number, Stage1Member[]>();

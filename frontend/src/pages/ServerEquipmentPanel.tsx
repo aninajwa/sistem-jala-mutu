@@ -2,14 +2,13 @@ import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw, Wrench } from 'lucide-react';
 
 import { ApiError, apiRequest } from '../auth/client';
-import { usePersistedDraft } from '../hooks/usePersistedDraft';
 import {
-  buildNewEquipmentPayload,
   serverRows,
   type NewEquipmentDraft,
   type ServerEquipmentAssignment,
   type ServerSurveyTeam,
 } from './serverCalibration';
+import { createStage1Equipment } from './serverStage1Data';
 
 const EMPTY_EQUIPMENT: NewEquipmentDraft = {
   nama_alat: '', nomor_seri: '', kondisi: 'Baik', merek_tipe: '', kelas: '',
@@ -32,10 +31,7 @@ export function ServerEquipmentPanel({
 }) {
   const [teamId, setTeamId] = useState('');
   const [assignments, setAssignments] = useState<ServerEquipmentAssignment[]>([]);
-  const [draft, setDraft] = usePersistedDraft<NewEquipmentDraft>(
-    `server-equipment-draft:${packageId}:${teamId || 'unselected'}`,
-    EMPTY_EQUIPMENT,
-  );
+  const [draft, setDraft] = useState<NewEquipmentDraft>(EMPTY_EQUIPMENT);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -47,6 +43,8 @@ export function ServerEquipmentPanel({
       ? current
       : teams[0] ? String(teams[0].tim_id) : '');
   }, [teams]);
+
+  useEffect(() => { setDraft(EMPTY_EQUIPMENT); }, [teamId, packageId]);
 
   useEffect(() => {
     if (!teamId) {
@@ -77,22 +75,12 @@ export function ServerEquipmentPanel({
     if (!manageable || !teamId || busy) return;
     setError('');
     setSuccess('');
-    let payload: ReturnType<typeof buildNewEquipmentPayload>;
-    try {
-      payload = buildNewEquipmentPayload(draft);
-    } catch (cause) {
-      setError(message(cause));
-      return;
-    }
     setBusy(true);
     try {
-      await apiRequest(`/paket/${encodeURIComponent(packageId)}/tim/${encodeURIComponent(teamId)}/alat`, {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
+      const confirmed = await createStage1Equipment(packageId, Number(teamId), draft, apiRequest);
+      setAssignments(current => current.some(item => item.penugasan_id === confirmed.penugasan_id) ? current : [...current, confirmed]);
       setDraft(EMPTY_EQUIPMENT);
-      setSuccess('Alat baharu berjaya didaftarkan dan ditugaskan kepada tim.');
-      setRevision(value => value + 1);
+      setSuccess(`Alat #${confirmed.alat_id} dan penugasan #${confirmed.penugasan_id} disahkan melalui bacaan semula server.`);
     } catch (cause) {
       setError(message(cause));
     } finally {
@@ -100,7 +88,7 @@ export function ServerEquipmentPanel({
     }
   }
 
-  return <section className="wf-panel">
+  return <section className="wf-panel" data-testid="stage1-equipment-panel">
     <div className="wf-panel-head">
       <h3><Wrench size={14} /> Alat tim survei</h3>
       <button type="button" className="wf-button" disabled={!teamId || loading} onClick={() => setRevision(value => value + 1)}>

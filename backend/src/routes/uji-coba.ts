@@ -9,6 +9,8 @@ import {
     ujiCobaReviewSchema,
     ujiCobaSubmitSchema,
 } from '../schemas/uji-coba';
+import { assertStage2PicConfirmation } from '../services/stage1-confirmation-policy';
+import { readStage2PackageCompletion } from '../services/stage2-package-completion';
 
 const router = Router();
 
@@ -28,6 +30,7 @@ router.post('/paket/:id/uji-coba', async (req, res) => {
 
     // Semak ID paket.
     const packageId = routeId(req.params.id, 'ID paket');
+    await assertStage2PicConfirmation(packageId, identity.token);
 
     // Semak data yang dihantar.
     const parsed = ujiCobaCreateSchema.safeParse(req.body);
@@ -76,6 +79,7 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi', async (req, res) => {
     // Validasi ID paket
     const packageId = routeId(req.params.id, 'ID paket');
     const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
+    await assertStage2PicConfirmation(packageId, identity.token);
 
     // Validasi body
     const parsed = ujiCobaSeksiCreateSchema.safeParse(req.body);
@@ -127,6 +131,7 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran', async (r
     const packageId = routeId(req.params.id, 'ID paket');
     const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
     const seksiId = routeId(req.params.seksiId, 'ID seksi');
+    await assertStage2PicConfirmation(packageId, identity.token);
 
     // Validasi data pengukuran
     const parsed = ujiCobaPengukuranCreateSchema.safeParse(req.body);
@@ -250,11 +255,13 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/evaluasi', async (req, res) => {
 
     const packageId = routeId(req.params.id, 'ID paket');
     const ujiCobaId = routeId(req.params.ujiCobaId, 'ID uji coba');
+    await assertStage2PicConfirmation(packageId, identity.token);
     const parsed = ujiCobaEvaluationSchema.safeParse(req.body);
     if (!parsed.success) {
         res.status(400).json({ error: 'Evaluasi uji coba tidak valid', details: parsed.error.flatten() });
         return;
     }
+    await assertStage2PicConfirmation(packageId, identity.token);
 
     const data = await supabaseRequest(
         '/rest/v1/rpc/simpan_evaluasi_uji_coba',
@@ -285,6 +292,7 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/pengajuan', async (req, res) => {
         res.status(400).json({ error: 'Pengajuan uji coba tidak valid', details: parsed.error.flatten() });
         return;
     }
+    await assertStage2PicConfirmation(packageId, identity.token);
     const data = await supabaseRequest(
         '/rest/v1/rpc/ajukan_uji_coba',
         identity.token,
@@ -313,6 +321,7 @@ router.post('/paket/:id/uji-coba/:ujiCobaId/pengajuan/review', async (req, res) 
         res.status(400).json({ error: 'Keputusan uji coba tidak valid', details: parsed.error.flatten() });
         return;
     }
+    await assertStage2PicConfirmation(packageId, identity.token);
     const data = await supabaseRequest(
         '/rest/v1/rpc/review_uji_coba',
         identity.token,
@@ -355,6 +364,13 @@ router.get('/paket/:id/uji-coba', async (req, res, next) => {
     } catch (error) {
         next(error);
     }
+});
+
+router.get('/paket/:id/tahap2-status', async (req, res) => {
+    const packageId = routeId(req.params.id, 'ID paket');
+    const data = await readStage2PackageCompletion(packageId, res.locals.identity.token);
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data });
 });
 
 export default router;

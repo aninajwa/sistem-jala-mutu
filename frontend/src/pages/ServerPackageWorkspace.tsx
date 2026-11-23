@@ -29,21 +29,27 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 import type { WorkflowRole } from '../workflow/model';
+import {preparationStageFact, stage1ConfirmationFact, stage2PackageFact, type ServerStageFacts} from '../workflow/serverPackageStatus';
+import { getStage2PackageCompletion, type Stage2PackageCompletion } from './serverStage2Data';
+import { getPackageSurveyProgress, packageSurveyProgressLabel, type PackageSurveyProgress } from './serverStage3Data';
 import { PACKAGE_WORKFLOW_ITEMS } from '../workflow/roleNavigation';
+import { parsePackageSurveyScopeBatch } from '../workflow/packageSurveyScope';
+import { parseDeclaredPackageSurveyScope, type DeclaredPackageSurveyScope, type SurveyCatalogOption } from '../workflow/declaredPackageSurveyScope';
+import { saveDeclaredPackageSurveyScope } from '../workflow/declaredPackageSurveyScope';
 import { ChecklistPanel } from '../workflow/WorkflowComponents';
 import { ServerCalibrationWorkspace } from './ServerCalibrationWorkspace';
 import { ServerStage1DirahWorkspace } from './ServerStage1DirahWorkspace';
 import { ServerStage2Workspace } from './ServerStage2Workspace';
-import { Stage3DailyWorkspacePrototypePanel } from '../workflow/stages/Stage3DailyWorkspace';
 import { SERVER_STAGE3A, SERVER_STAGE3B } from './serverPackageStageRouting';
 import { ServerStage3DailyWorkspace } from './ServerStage3DailyWorkspace';
 import { ServerVervalWorkspace } from './ServerVervalWorkspace';
 import { ServerStage4Workspace } from './ServerStage4Workspace';
+import { PackageRoadMembershipPanel } from './PackageRoadMembershipPanel';
 import {
   buildChecklistPayload,
   buildContractPatch,
   buildPreparationReviewPayload,
-  canEditPreparation,
+  canEditPackagePreparation,
   canReviewPreparation,
   canSubmitPreparation,
   checklistDraft,
@@ -51,6 +57,8 @@ import {
   groupChecklistItems,
   mapPreparationChecklist,
   patchChecklistThenRefetch,
+  verifyChecklistReadback,
+  verifyPreparationTransitionReadback,
   type ChecklistDraft,
   type ContractDraft,
   type ServerChecklist,
@@ -60,12 +68,14 @@ import {
   type PreparationReviewDecision,
   validatePreparationPdf,
 } from './serverPreparation';
-import { linkPreparationDocument, uploadPreparationDocument } from './serverPreparationDocuments';
+import { linkPreparationDocument, uploadPreparationDocument, verifyPreparationDocumentLinkReadback } from './serverPreparationDocuments';
 import '../workflow/workflow.css';
 import '../workflow/ui09.css';
 import { PackageContextHeader, PackageOverview } from '../workflow/PackageHub';
 import { OperationalWorkflowWorkspace } from '../workflow/OperationalWorkflowWorkspace';
 import { serverDetailToDirahState, type ServerBalaiRow } from './serverPackageView';
+import { getStage1Confirmation, type Stage1Confirmation } from './stage1ConfirmationData';
+import { PackageScopeAmendmentPanel } from './PackageScopeAmendmentPanel';
 
 const OVERVIEW = '/packages:Ringkasan Paket';
 const PREPARATION = '/entry:Persiapan & SPMK';
@@ -125,6 +135,12 @@ export function ServerPackageWorkspace({
   const [contractBusy, setContractBusy] = useState(false);
   const [contractMessage, setContractMessage] = useState('');
   const [contractError, setContractError] = useState('');
+  const [declaredSurveyScope, setDeclaredSurveyScope] = useState<DeclaredPackageSurveyScope | null>(null);
+  const [scopeCatalog, setScopeCatalog] = useState<SurveyCatalogOption[]>([]);
+  const [scopeDraftIds, setScopeDraftIds] = useState<number[]>([]);
+  const [scopeBusy, setScopeBusy] = useState(false);
+  const [scopeError, setScopeError] = useState('');
+  const [scopeMessage, setScopeMessage] = useState('');
   const [balaiNames, setBalaiNames] = useState<Record<string, string>>({});
   const [balaiRows, setBalaiRows] = useState<ServerBalaiRow[]>([]);
   const [loading, setLoading] = useState(true);
@@ -157,8 +173,18 @@ export function ServerPackageWorkspace({
   const [reviewDecision, setReviewDecision] = useState<PreparationReviewDecision | null>(null);
   const [reviewNote, setReviewNote] = useState('');
   const [reviewBusy, setReviewBusy] = useState(false);
+  const [stage1Confirmation, setStage1Confirmation] = useState<Stage1Confirmation | null>(null);
+  const [stage1ConfirmationLoading, setStage1ConfirmationLoading] = useState(false);
+  const [stage1ConfirmationError, setStage1ConfirmationError] = useState(false);
+  const [stage2Completion, setStage2Completion] = useState<Stage2PackageCompletion | null>(null);
+  const [stage2CompletionLoading, setStage2CompletionLoading] = useState(false);
+  const [stage2CompletionError, setStage2CompletionError] = useState(false);
+  const [serverStageFactsRevision, setServerStageFactsRevision] = useState(0);
+  const [stage3aProgress, setStage3aProgress] = useState<PackageSurveyProgress | null>(null);
+  const [stage3aProgressLoading, setStage3aProgressLoading] = useState(true);
+  const [stage3aProgressError, setStage3aProgressError] = useState(false);
 
-  async function refetchPreparationState() {
+  async function readPreparationState() {
     const [checkResult, submissionResult] = await Promise.all([
       apiRequest<{ data: ServerChecklist }>(`/paket/${encodeURIComponent(packageId)}/checklist-persiapan`),
       apiRequest<{ data: ServerPreparationSubmission }>(`/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan`),
@@ -166,15 +192,24 @@ export function ServerPackageWorkspace({
     if (String(checkResult.data?.paket_id) !== packageId || String(submissionResult.data?.paket_id) !== packageId || !Array.isArray(checkResult.data.items)) {
       throw new Error('Refetch persiapan tidak sepadan dengan paket aktif.');
     }
-    setChecklist(checkResult.data);
-    setAnswers(checklistDraft(checkResult.data.items));
-    setSubmission(submissionResult.data);
     return { checklist: checkResult.data, submission: submissionResult.data };
+  }
+
+  async function refetchPreparationState() {
+    const state = await readPreparationState();
+    const { checklist: latestChecklist, submission: latestSubmission } = state;
+    setChecklist(latestChecklist);
+    setAnswers(checklistDraft(latestChecklist.items));
+    setSubmission(latestSubmission);
+    return state;
   }
 
   useEffect(() => {
     const controller = new AbortController();
     setContract(null);
+    setSubmission(null);
+    setSubmissionLoading(true);
+    setSubmissionError('');
     setLoading(true);
     setError('');
     apiRequest<{ data: ServerContract }>(`/paket/${encodeURIComponent(packageId)}`, {
@@ -187,6 +222,23 @@ export function ServerPackageWorkspace({
         }
         setContract(result.data);
         setContractForm(contractDraft(result.data));
+        apiRequest<{ data: unknown }>(
+          `/paket/survey-scope?paket_ids=${encodeURIComponent(packageId)}`,
+          { signal: controller.signal },
+        ).then(scopeResult => {
+          if (controller.signal.aborted) return;
+          const scope = parsePackageSurveyScopeBatch(scopeResult.data, [Number(packageId)]).get(Number(packageId));
+          if (!scope) throw new Error('Respons scope survei paket tidak lengkap.');
+          setContract(current => current && current.paket_id === result.data.paket_id
+            ? { ...current, survey_scope: scope, survey_scope_read_status: 'defined' }
+            : current);
+        }).catch(() => {
+          if (!controller.signal.aborted) {
+            setContract(current => current && current.paket_id === result.data.paket_id
+              ? { ...current, survey_scope: undefined, survey_scope_read_status: 'error' }
+              : current);
+          }
+        });
       })
       .catch(cause => {
         if (!controller.signal.aborted) setError(errorMessage(cause, 'Gagal memuat paket.'));
@@ -194,6 +246,28 @@ export function ServerPackageWorkspace({
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
+    return () => controller.abort();
+  }, [packageId]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setDeclaredSurveyScope(null);
+    setScopeCatalog([]);
+    setScopeError('');
+    Promise.all([
+      apiRequest<{ data: unknown }>(`/paket/${encodeURIComponent(packageId)}/declared-survey-scope`, { signal: controller.signal, cache: 'no-store' }),
+      apiRequest<{ data: SurveyCatalogOption[] }>('/jenis-survei', { signal: controller.signal }),
+    ]).then(([scopeResponse, catalogResponse]) => {
+      if (controller.signal.aborted) return;
+      const scope = parseDeclaredPackageSurveyScope(scopeResponse.data, Number(packageId));
+      if (!Array.isArray(catalogResponse.data)) throw new Error('Katalog jenis survei tidak sesuai format.');
+      setDeclaredSurveyScope(scope);
+      setScopeDraftIds(scope.surveys.map(survey => survey.jenis_survei_id));
+      setScopeCatalog(catalogResponse.data.filter(survey => survey.aktif === true)
+        .sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? '') || a.jenis_survei_id - b.jenis_survei_id));
+    }).catch(cause => {
+      if (!controller.signal.aborted) setScopeError(errorMessage(cause, 'Gagal membaca scope kontrak.'));
+    });
     return () => controller.abort();
   }, [packageId, revision]);
 
@@ -310,8 +384,67 @@ export function ServerPackageWorkspace({
     return () => window.removeEventListener('jalamutu:navigate', handler);
   }, [onNavigate]);
 
+  useEffect(() => {
+    const controller = new AbortController();
+    setStage1Confirmation(null);
+    setStage1ConfirmationLoading(true);
+    setStage1ConfirmationError(false);
+    getStage1Confirmation(packageId, apiRequest, controller.signal)
+      .then(value => { if (!controller.signal.aborted) setStage1Confirmation(value); })
+      .catch(() => { if (!controller.signal.aborted) setStage1ConfirmationError(true); })
+      .finally(() => { if (!controller.signal.aborted) setStage1ConfirmationLoading(false); });
+    return () => controller.abort();
+  }, [packageId, serverStageFactsRevision]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStage3aProgress(null);
+    setStage3aProgressLoading(true);
+    setStage3aProgressError(false);
+    getPackageSurveyProgress(packageId, apiRequest, controller.signal)
+      .then(progress => {
+        if (!controller.signal.aborted) setStage3aProgress(progress);
+      })
+      .catch(() => {
+        if (!controller.signal.aborted) setStage3aProgressError(true);
+      })
+      .finally(() => {
+        if (!controller.signal.aborted) setStage3aProgressLoading(false);
+      });
+    return () => controller.abort();
+  }, [packageId, serverStageFactsRevision]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setStage2Completion(null);
+    setStage2CompletionLoading(true);
+    setStage2CompletionError(false);
+    getStage2PackageCompletion(packageId, apiRequest, controller.signal).then(result => {
+      if (!controller.signal.aborted) setStage2Completion(result);
+    }).catch(() => {
+      if (!controller.signal.aborted) setStage2CompletionError(true);
+    }).finally(() => {
+      if (!controller.signal.aborted) setStage2CompletionLoading(false);
+    });
+    return () => controller.abort();
+  }, [packageId, serverStageFactsRevision]);
+
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<{ packageId?: string }>).detail;
+      if (detail?.packageId === packageId) setServerStageFactsRevision(value => value + 1);
+    };
+    window.addEventListener('jalamutu:package-stage-facts-refresh', handler);
+    return () => window.removeEventListener('jalamutu:package-stage-facts-refresh', handler);
+  }, [packageId]);
+
   const editable = contract
-    ? canEditPreparation(role, contract.status, checklist?.pengisian.status)
+    ? canEditPackagePreparation(
+      role,
+      contract.status,
+      submission?.status,
+      !!submission && !submissionLoading && !submissionError,
+    )
     : false;
   const preparationMapping = checklist ? mapPreparationChecklist(checklist.items) : { mapped: [], gaps: [] };
 
@@ -347,21 +480,56 @@ export function ServerPackageWorkspace({
     }
   }
 
+  async function saveSurveyScope() {
+    if (!declaredSurveyScope || !editable || scopeBusy) return;
+    setScopeError('');
+    setScopeMessage('');
+    if (!scopeDraftIds.length) {
+      setScopeError('Pilih sedikitnya satu jenis survei. Pilihan yang belum disimpan tetap tersedia.');
+      return;
+    }
+    setScopeBusy(true);
+    try {
+      const saved = await saveDeclaredPackageSurveyScope(
+        Number(packageId),
+        declaredSurveyScope.version ?? 0,
+        scopeDraftIds,
+        apiRequest,
+      );
+      setDeclaredSurveyScope(saved);
+      setScopeDraftIds(saved.surveys.map(survey => survey.jenis_survei_id));
+      setScopeMessage(`Scope kontrak tersimpan dan dibaca ulang (versi ${saved.version}).`);
+      setEditingContract(false);
+    } catch (cause) {
+      // Preserve checked state after conflicts, dependency refusal, and readback failures.
+      setScopeError(errorMessage(cause, 'Gagal menyimpan scope kontrak.'));
+    } finally {
+      setScopeBusy(false);
+    }
+  }
+
   async function saveChecklist() {
     if (!checklist || !editable || checkBusy) return;
     setCheckError('');
     setCheckMessage('');
     setCheckBusy(true);
     try {
-      await patchChecklistThenRefetch(
+      const expectedVersion = checklist.pengisian.versi;
+      const payload = buildChecklistPayload(checklist.items, answers);
+      const refreshed = await patchChecklistThenRefetch(
         () => apiRequest(`/paket/${encodeURIComponent(packageId)}/checklist-persiapan`, {
           method: 'PATCH',
-          body: JSON.stringify({ expected_version: checklist.pengisian.versi, jawaban: buildChecklistPayload(checklist.items, answers) }),
+          body: JSON.stringify({ expected_version: expectedVersion, jawaban: payload }),
         }),
-        refetchPreparationState,
+        readPreparationState,
+        state => verifyChecklistReadback(state.checklist, expectedVersion, payload),
       );
+      setChecklist(refreshed.checklist);
+      setAnswers(checklistDraft(refreshed.checklist.items));
+      setSubmission(refreshed.submission);
       setCheckMessage('Checklist persiapan berjaya disimpan ke server.');
     } catch (cause) {
+      setAnswers(checklistDraft(checklist.items));
       setCheckError(errorMessage(cause, 'Gagal menyimpan checklist persiapan.'));
     } finally {
       setCheckBusy(false);
@@ -460,22 +628,28 @@ export function ServerPackageWorkspace({
     setSubmissionBusy(true);
     setSubmissionError('');
     setSubmissionMessage('');
+    const expectedVersion = checklist.pengisian.versi;
     try {
-      const result = await apiRequest<{ data: ServerPreparationSubmission }>(
+      await apiRequest<{ data: ServerPreparationSubmission }>(
         `/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan`,
         {
           method: 'POST',
-          body: JSON.stringify({ expected_version: checklist.pengisian.versi }),
+          body: JSON.stringify({ expected_version: expectedVersion }),
         },
       );
-      setSubmission(result.data);
-      setSubmissionMessage(`Persiapan berjaya diajukan kepada PIC Balai. Status sekarang ${result.data.status} · Versi ${result.data.versi}.`);
+      const refreshed = await readPreparationState();
+      verifyPreparationTransitionReadback(refreshed.checklist, refreshed.submission, expectedVersion, 'DIAJUKAN');
+      setChecklist(refreshed.checklist);
+      setAnswers(checklistDraft(refreshed.checklist.items));
+      setSubmission(refreshed.submission);
+      setSubmissionMessage(`Persiapan berjaya diajukan kepada PIC Balai. Status disahkan ${refreshed.submission.status} · Versi ${refreshed.submission.versi}.`);
       setSubmissionDialogOpen(false);
       setCheckRevision(value => value + 1);
       setSubmissionRevision(value => value + 1);
     } catch (cause) {
-      setSubmissionError(errorMessage(cause, 'Gagal mengajukan persiapan kepada PIC Balai.'));
+      setSubmissionError(errorMessage(cause, 'Pengajuan gagal atau belum dapat disahkan. Muat ulang status server.'));
       setSubmissionDialogOpen(false);
+      try { await refetchPreparationState(); } catch { /* retain the operation/readback error */ }
       setCheckRevision(value => value + 1);
       setSubmissionRevision(value => value + 1);
     } finally {
@@ -501,22 +675,28 @@ export function ServerPackageWorkspace({
     setReviewBusy(true);
     setSubmissionError('');
     setSubmissionMessage('');
+    const expectedVersion = submission.versi;
     try {
-      const result = await apiRequest<{ data: ServerPreparationSubmission }>(
+      await apiRequest<{ data: ServerPreparationSubmission }>(
         `/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan/review`,
         { method: 'POST', body: JSON.stringify(payload) },
       );
-      setSubmission(result.data);
-      setSubmissionMessage(result.data.status === 'DISETUJUI'
-        ? `Persiapan berjaya disetujui. Versi semasa ${result.data.versi}.`
-        : `Persiapan dikembalikan kepada Penyedia Jasa untuk revisi. Versi semasa ${result.data.versi}.`);
+      const refreshed = await readPreparationState();
+      verifyPreparationTransitionReadback(refreshed.checklist, refreshed.submission, expectedVersion, reviewDecision, reviewDecision);
+      setChecklist(refreshed.checklist);
+      setAnswers(checklistDraft(refreshed.checklist.items));
+      setSubmission(refreshed.submission);
+      setSubmissionMessage(reviewDecision === 'DISETUJUI'
+        ? `Persiapan berjaya disetujui. Keputusan disahkan server · Versi ${refreshed.submission.versi}.`
+        : `Persiapan dikembalikan kepada Penyedia Jasa. Keputusan revisi disahkan server · Versi ${refreshed.submission.versi}.`);
       setReviewDecision(null);
       setReviewNote('');
       setCheckRevision(value => value + 1);
       setSubmissionRevision(value => value + 1);
     } catch (cause) {
-      setSubmissionError(errorMessage(cause, 'Gagal menyimpan keputusan PIC Balai.'));
+      setSubmissionError(errorMessage(cause, 'Keputusan PIC gagal atau belum dapat disahkan. Muat ulang status server.'));
       setReviewDecision(null);
+      try { await refetchPreparationState(); } catch { /* retain the operation/readback error */ }
       setCheckRevision(value => value + 1);
       setSubmissionRevision(value => value + 1);
     } finally {
@@ -528,14 +708,16 @@ export function ServerPackageWorkspace({
     if (!submission || !contract || reviewBusy || !canReviewPreparation(role, contract.status, submission.status)) return;
     setReviewBusy(true); setSubmissionError(''); setSubmissionMessage('');
     try {
+      const expectedVersion = submission.versi;
       const payload = buildPreparationReviewPayload(submission.versi, decision, reviewNote);
       await apiRequest(`/paket/${encodeURIComponent(packageId)}/pengajuan-persiapan/review`, {
         method: 'POST', body: JSON.stringify(payload),
       });
       const refreshed = await refetchPreparationState();
-      setSubmissionMessage(refreshed.submission.status === 'DISETUJUI'
-        ? `Persiapan berjaya disetujui · status disahkan semula (${refreshed.submission.status}).`
-        : `Persiapan dikembalikan untuk revisi · status disahkan semula (${refreshed.submission.status}).`);
+      verifyPreparationTransitionReadback(refreshed.checklist, refreshed.submission, expectedVersion, decision, decision);
+      setSubmissionMessage(decision === 'DISETUJUI'
+        ? `Persiapan berjaya disetujui · keputusan disahkan semula (${refreshed.submission.status}).`
+        : `Persiapan dikembalikan untuk revisi · keputusan disahkan semula (${refreshed.submission.status}).`);
     } catch (cause) {
       setSubmissionError(errorMessage(cause, 'Keputusan PIC gagal atau belum dapat disahkan. Muat ulang status.'));
       try { await refetchPreparationState(); } catch { /* retain original operation/refetch error */ }
@@ -589,15 +771,49 @@ export function ServerPackageWorkspace({
     Boolean(reportItem?.bukti_dokumen_id),
   );
   const canReview = canReviewPreparation(role, contract.status, submission?.status);
+  const serverStageStatuses: ServerStageFacts = {
+    'Tahap 0': preparationStageFact({
+      submissionStatus: submission?.status,
+      checklistStatus: checklist?.pengisian.status,
+      loading: checkLoading || submissionLoading,
+      error: Boolean(checkError || submissionError),
+    }),
+    'Tahap 1': stage1ConfirmationFact({
+      active: stage1Confirmation?.aktif,
+      status: stage1Confirmation?.status,
+      snapshotMatches: stage1Confirmation?.snapshot_sesuai,
+      stage2Allowed: stage1Confirmation?.stage2_allowed,
+      loading: stage1ConfirmationLoading,
+      error: stage1ConfirmationError,
+    }),
+    'Tahap 2': stage2PackageFact({
+      completion: stage2Completion,
+      loading: stage2CompletionLoading,
+      error: stage2CompletionError,
+    }),
+    'Tahap 3A': {
+      state: stage3aProgressLoading || stage3aProgressError || !stage3aProgress
+        ? 'unknown'
+        : stage3aProgress.sessionCount > 0 ? 'pending' : 'unknown',
+      label: packageSurveyProgressLabel(stage3aProgress, stage3aProgressLoading, stage3aProgressError),
+    },
+  };
   const stageStatus = (code: string) => code === 'Tahap 0'
     ? checklist
       ? `${checklist.pengisian.status} · ${checklist.ringkasan.jumlah_terjawab}/${checklist.ringkasan.jumlah_item} terjawab`
       : checkLoading ? 'Memuat checklist' : 'Checklist belum tersedia'
     : code === 'Tahap 1'
-      ? 'Bacaan data server tersedia'
+      ? serverStageStatuses['Tahap 1']?.label ?? 'Belum diverifikasi'
       : code === 'Tahap 2'
-        ? 'Uji Coba menggunakan data server'
+        ? serverStageStatuses['Tahap 2']?.label ?? 'Status selesai Tahap 2 belum tersedia'
         : 'Data tahap belum terhubung';
+  const dirahPackageState = serverDetailToDirahState(
+    contract,
+    balaiRows,
+    role,
+    declaredSurveyScope ?? undefined,
+    declaredSurveyScope ? undefined : scopeError ? 'error' : 'loading',
+  );
   const info: Array<[string, string]> = [
     ['Nomor kontrak', display(contract.nomor_kontrak)],
     ['Balai', balai],
@@ -612,21 +828,36 @@ export function ServerPackageWorkspace({
         : display(contract.nilai_kontrak)],
     ['Batas laporan pendahuluan', date(contract.batas_lap_pendahuluan)],
     ['ID penyedia', display(contract.penyedia_id)],
+    ['Jenis survei kontrak', declaredSurveyScope?.state === 'defined'
+      ? declaredSurveyScope.surveys.map(survey => survey.kode || survey.nama || `Survei #${survey.jenis_survei_id}`).join(', ')
+      : declaredSurveyScope?.state === 'unset' ? 'Belum ditetapkan' : scopeError ? 'Tidak dapat dibaca' : 'Memuat'],
   ];
+  const scopeOptions = [...new Map([
+    ...scopeCatalog,
+    ...(declaredSurveyScope?.surveys ?? []),
+  ].map(item => [item.jenis_survei_id, item])).values()]
+    .sort((a, b) => (a.kode ?? '').localeCompare(b.kode ?? '') || a.jenis_survei_id - b.jenis_survei_id);
   const contractPanel = (
     <section className="wf-panel">
       <div className="wf-panel-head">
         <h3><FileText size={14} /> Informasi paket dan kontrak</h3>
-        {editable && !editingContract && <button type="button" className="wf-button" onClick={() => { setContractError(''); setContractMessage(''); setEditingContract(true); }}><Pencil size={13} /> Edit kontrak</button>}
+        {editable && !editingContract && <button type="button" className="wf-button" onClick={() => { setContractError(''); setContractMessage(''); setScopeError(''); setScopeMessage(''); setScopeDraftIds(declaredSurveyScope?.surveys.map(survey => survey.jenis_survei_id) ?? []); setEditingContract(true); }}><Pencil size={13} /> Edit kontrak & scope survei</button>}
       </div>
       <div className="wf-body package-context-grid">
         {info.map(([label, value]) => <div key={label} style={{ minWidth: 0, overflowWrap: 'anywhere' }}><small>{label}</small><strong>{value}</strong></div>)}
       </div>
+      {scopeMessage && <p role="status" className="wf-callout">{scopeMessage}</p>}
+      <PackageScopeAmendmentPanel
+        packageId={packageId}
+        role={role}
+        preparationStatus={submission?.status}
+        catalog={scopeCatalog}
+      />
     </section>
   );
   const contractEditor = editingContract && contractForm && (
     <section className="wf-panel">
-      <div className="wf-panel-head"><h3><Pencil size={14} /> Edit identitas kontrak</h3><span className="wf-note">Hanya field yang disokong backend</span></div>
+      <div className="wf-panel-head"><h3><Pencil size={14} /> Edit paket dan jenis survei kontrak</h3><span className="wf-note">Pilihan scope terpisah dari lokasi dan tim</span></div>
       <form className="wf-body" onSubmit={saveContract}>
         <div className="wf-fields">
           <div className="wf-field full"><label htmlFor="server-package-name">Nama paket</label><input id="server-package-name" required maxLength={255} value={contractForm.nama_paket} onChange={event => setContractForm({ ...contractForm, nama_paket: event.target.value })} /></div>
@@ -638,8 +869,30 @@ export function ServerPackageWorkspace({
         {contractError && <p role="alert" className="wf-callout danger">{contractError}</p>}
         <div className="wf-toolbar" style={{ marginTop: 12 }}>
           <button type="submit" className="wf-button primary" disabled={contractBusy}><Save size={13} /> {contractBusy ? 'Menyimpan…' : 'Simpan kontrak'}</button>
-          <button type="button" className="wf-button" disabled={contractBusy} onClick={() => { setContractForm(contractDraft(contract)); setEditingContract(false); setContractError(''); }}>Batal</button>
+          <button type="button" className="wf-button" disabled={contractBusy || scopeBusy} onClick={() => { setContractForm(contractDraft(contract)); setScopeDraftIds(declaredSurveyScope?.surveys.map(survey => survey.jenis_survei_id) ?? []); setEditingContract(false); setContractError(''); setScopeError(''); }}>Batal</button>
         </div>
+        <fieldset className="scope-editor">
+          <legend>Jenis survei dalam paket</legend>
+          <p className="wf-note">Jenis survei yang dinyatakan dalam kontrak. Tidak disimpulkan dari ruas, lokasi, tim, atau kalibrasi.</p>
+          {scopeError && <p role="alert" className="wf-callout danger">{scopeError}</p>}
+          {declaredSurveyScope && <div className="survey-selection-options">
+            {scopeOptions.map(item => <label key={item.jenis_survei_id} className="survey-selection-option">
+              <input type="checkbox" checked={scopeDraftIds.includes(item.jenis_survei_id)}
+                disabled={scopeBusy || (item.aktif === false && !scopeDraftIds.includes(item.jenis_survei_id))}
+                onChange={event => setScopeDraftIds(current => event.target.checked
+                  ? [...new Set([...current, item.jenis_survei_id])].sort((a, b) => a - b)
+                  : current.filter(id => id !== item.jenis_survei_id))} />
+              <span><strong>{item.kode || `Survei #${item.jenis_survei_id}`}</strong>{item.nama && <small>{item.nama}{item.aktif === false ? ' · nonaktif (pilihan lama)' : ''}</small>}</span>
+            </label>)}
+          </div>}
+          {!declaredSurveyScope && <p role="status">{scopeError || 'Memuat scope kontrak dari server…'}</p>}
+          {declaredSurveyScope?.state === 'unset' && <p className="wf-note">Scope lama belum ditetapkan. Pilihan baru hanya disimpan setelah Anda memilih dan menekan Simpan scope.</p>}
+          <div className="wf-toolbar" style={{ marginTop: 10 }}>
+            <button type="button" className="wf-button primary" disabled={!editable || scopeBusy || !declaredSurveyScope || !scopeDraftIds.length || !scopeOptions.length} onClick={() => void saveSurveyScope()}>
+              <Save size={13} /> {scopeBusy ? 'Menyimpan dan membaca ulang…' : 'Simpan scope'}
+            </button>
+          </div>
+        </fieldset>
       </form>
     </section>
   );
@@ -695,13 +948,25 @@ export function ServerPackageWorkspace({
     </>
   );
 
+  const preparationNextAction = submissionLoading
+    ? { title: 'Memeriksa status persiapan', detail: 'Status terbaru sedang dibaca dari server.', label: 'Buka persiapan', selection: PREPARATION }
+    : submissionError
+    ? { title: 'Status persiapan belum dapat dimuat', detail: 'Buka persiapan untuk memuat ulang status dan melihat detail.', label: 'Buka persiapan', selection: PREPARATION }
+      : submission?.status === 'DISETUJUI'
+        ? { title: 'Persiapan disetujui', detail: 'Lanjutkan ke data personel, peralatan dan kalibrasi.', label: 'Lanjut ke Tahap 1', selection: CALIBRATION }
+        : submission?.status === 'DIAJUKAN'
+          ? { title: 'Menunggu pemeriksaan PIC Balai', detail: 'Pemeriksaan sedang berjalan. Buka pengajuan untuk melihat status dan keputusan.', label: 'Lihat pengajuan', selection: PREPARATION }
+          : submission?.status === 'PERLU_REVISI'
+            ? { title: 'Persiapan perlu diperbaiki', detail: 'Buka checklist, perbaiki catatan yang diminta, lalu ajukan kembali.', label: 'Buka revisi', selection: PREPARATION }
+            : { title: 'Lengkapi persiapan paket', detail: 'Isi dan simpan checklist persiapan pada server.', label: 'Buka persiapan', selection: PREPARATION };
+
   const content = (
     <>
     {!dirahShell && selection !== STAGE2 && selection !== CALIBRATION && <div className="wf-callout">Tahap 0 dan bacaan data Tahap 1 menggunakan server. Borang pengurusan Tahap 1 serta tahap berikutnya akan disambungkan secara bertahap.</div>}
     {contractMessage && <p role="status" className="wf-callout">{contractMessage}</p>}
 
     {selection === OVERVIEW ? <div className="package-overview">
-      <section className="package-next-action"><div className="package-next-icon"><ArrowRight size={18} /></div><div className="package-next-copy"><small>WORKSPACE PAKET</small><strong>Lengkapi persiapan paket</strong><span>Isi dan simpan checklist persiapan pada server.</span></div><button className="wf-button primary" onClick={() => onNavigate(PREPARATION)}>Buka persiapan <ArrowRight size={13} /></button></section>
+      <section className="package-next-action"><div className="package-next-icon"><ArrowRight size={18} /></div><div className="package-next-copy"><small>WORKSPACE PAKET</small><strong>{preparationNextAction.title}</strong><span>{preparationNextAction.detail}</span></div><button type="button" className="wf-button primary" disabled={submissionLoading} onClick={() => onNavigate(preparationNextAction.selection)}>{preparationNextAction.label} <ArrowRight size={13} /></button></section>
       <div className="wf-kpis">{[
         ['Status paket', contract.status],
         ['Checklist terjawab', checklist ? `${checklist.ringkasan.jumlah_terjawab}/${checklist.ringkasan.jumlah_item}` : checkLoading ? 'Memuat…' : 'Belum tersedia'],
@@ -709,8 +974,9 @@ export function ServerPackageWorkspace({
         ['Progres keseluruhan', 'Belum terhubung'],
       ].map(([label, value]) => <div className="wf-kpi" key={label}><div className="wf-kpi-label">{label}</div><div className="wf-kpi-value" style={{ fontSize: 16 }}>{value}</div></div>)}</div>
       <section className="wf-panel"><div className="wf-panel-head"><h3><ClipboardList size={14} /> Progres QA/QC Paket</h3></div><div className="wf-body"><div className="package-flow-list">{PACKAGE_WORKFLOW_ITEMS.map(item => <button type="button" className="package-flow-row" key={item.code} aria-label={item.label} onClick={() => onNavigate(item.selection)}><div className="package-flow-icon"><span>{item.code.replace('Tahap ', '')}</span></div><div className="package-flow-copy"><small>{item.code}</small><strong>{item.label}</strong><span>{item.actorHint}</span></div><div className="package-flow-status">{stageStatus(item.code)}</div></button>)}</div></div></section>
-      {contractPanel}
-      {contractEditor}
+       {contractPanel}
+       <PackageRoadMembershipPanel packageId={packageId} role={role} />
+       {contractEditor}
     </div> : selection === PREPARATION ? <div className="wf" data-testid="server-preparation-workspace">
       <div className="wf-title"><h2>Survei Pendahuluan & Persiapan QA/QC</h2><p>Identitas kontrak dan checklist persiapan paket.</p></div>
       {contractPanel}
@@ -848,10 +1114,10 @@ export function ServerPackageWorkspace({
     </div> : selection === CALIBRATION ? <ServerStage1DirahWorkspace
       packageId={packageId}
       role={role}
-      state={serverDetailToDirahState(contract, balaiRows, role)}
+      state={dirahPackageState}
       onNavigate={onNavigate}
       preparationStatus={submission?.status ?? null}
-    /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /><Stage3DailyWorkspacePrototypePanel /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} onNavigate={onNavigate} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
+      /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
     </>
   );
@@ -859,14 +1125,14 @@ export function ServerPackageWorkspace({
   // Shell Dirah: kerangka dan ringkasan memakai komponen asli Dirah.
   // Panel tahap tetap sumber integrasi server yang sudah berjalan (task 7).
   if (dirahShell) {
-    const dirahState = serverDetailToDirahState(contract, balaiRows, role);
+    const dirahState = dirahPackageState;
     const onCorrections = () => onNavigate('/actions:Koreksi berbukti');
     const stageOne = selection === CALIBRATION || selection === STAGE2 || selection === SERVER_STAGE3A || selection === SERVER_STAGE3B;
     const preparationStatus = checklist
       ? `Tahap 0 menggunakan jawaban checklist server (${checklist.pengisian.status}, versi ${checklist.pengisian.versi}).`
       : checkLoading ? 'Memuat status checklist persiapan dari server…' : 'Status checklist server belum tersedia.';
     const readOnlyNote = selection === PREPARATION
-      ? `${preparationStatus} Borang workflow Dirah dipaparkan tanpa menyimpan perubahan.`
+      ? `${preparationStatus} Jawapan disimpan melalui API server oleh Penyedia apabila paket dan checklist masih terbuka.`
       : 'Belum terhubung ke server. Data/status tahap belum dimuat; nilai neutral yang dipaparkan bukan rekod server. Paparan baca sahaja; simpan, submit, approve dan upload dinyahaktifkan.';
     return (
       <div className="package-detail-page ui09-workspace" data-testid="dirah-server-package-detail" data-presentation="dirah">
@@ -877,6 +1143,7 @@ export function ServerPackageWorkspace({
           onNavigate={onNavigate}
           onCorrections={onCorrections}
           serverReadOnly
+          serverStageStatuses={serverStageStatuses}
         />
         {selection === OVERVIEW ? (
           <>
@@ -885,29 +1152,14 @@ export function ServerPackageWorkspace({
               onNavigate={onNavigate}
               onCorrections={onCorrections}
               serverReadOnly
+              serverStageStatuses={serverStageStatuses}
             />
             {contractPanel}
+            <PackageRoadMembershipPanel packageId={packageId} role={role} />
             {contractEditor}
           </>
         ) : stageOne || selection === '/entry:Gerbang RNI/LRS' ? content : (
           <>
-            {selection === PREPARATION && submission?.status === 'DISETUJUI' && (
-              <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #86efac', background: '#f0fdf4' }}>
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: 12 }}>
-                  <div>
-                    <strong style={{ display: 'block', color: '#166534' }}>✓ Tahap 0 Selesai · Persiapan Telah Disetujui</strong>
-                    <span className="wf-note" style={{ color: '#15803d' }}>Checklist dan Laporan Pendahuluan telah disetujui PIC Balai. Anda dapat melanjutkan ke Tahap 1 (Kalibrasi & Personel).</span>
-                  </div>
-                  <button
-                    type="button"
-                    className="wf-button primary"
-                    onClick={() => onNavigate(CALIBRATION)}
-                  >
-                    Lanjut ke Tahap 1 (Kalibrasi) →
-                  </button>
-                </div>
-              </div>
-            )}
             {selection === PREPARATION && canSubmit && (
               <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #bfdbfe', background: '#eff6ff' }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 16px', gap: 12 }}>
@@ -962,9 +1214,10 @@ export function ServerPackageWorkspace({
                   if (!checklist || !editable || documentBusy) throw new Error('Upload hanya tersedia untuk Penyedia pada persiapan yang masih terbuka.');
                   setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
                   try {
-                    await uploadPreparationDocument(packageId, checklist, category, file);
+                    const documentId = await uploadPreparationDocument(packageId, checklist, category, file);
+                    const refreshed = await refetchPreparationState();
+                    verifyPreparationDocumentLinkReadback(refreshed.checklist, category, documentId);
                     setDocumentMessage('Dokumen berjaya diunggah, ditautkan dan disahkan melalui server.');
-                    await refetchPreparationState();
                   } catch (cause) {
                     setDocumentRevision(value => value + 1);
                     try { await refetchPreparationState(); } catch { /* retain upload/link error */ }
@@ -976,7 +1229,8 @@ export function ServerPackageWorkspace({
                   setDocumentBusy(true); setDocumentError(''); setDocumentMessage('');
                   try {
                     await linkPreparationDocument(packageId, checklist, documentId, category);
-                    await refetchPreparationState();
+                    const refreshed = await refetchPreparationState();
+                    verifyPreparationDocumentLinkReadback(refreshed.checklist, category, documentId);
                     setDocumentMessage('Dokumen tersimpan berjaya ditautkan dan disahkan melalui server.');
                   } finally { setDocumentBusy(false); }
                 },

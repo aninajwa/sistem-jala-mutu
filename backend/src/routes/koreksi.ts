@@ -13,6 +13,17 @@ import {
 } from '../schemas/koreksi';
 
 const router = Router();
+const productionRpcEnabled = () => process.env.CORRECTION_PRODUCTION_RPCS === 'true';
+
+router.get('/paket/:id/koreksi-capabilities', (_req, res) => {
+    const enabled = productionRpcEnabled();
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.json({ data: { read: enabled, write: enabled, reason: enabled ? null : 'Kontrak RPC Correction belum disetujui, dipasang, dan diverifikasi di QA.' } });
+});
+
+function requireProductionRpcs() {
+    if (!productionRpcEnabled()) throw new ApiError(503, 'Workflow Correction server dinonaktifkan sampai kontrak RPC dipasang dan diverifikasi di QA.');
+}
 
 function routeId(value: unknown, label: string) {
     const parsed = paketIdSchema.safeParse(value);
@@ -29,6 +40,7 @@ function invalidBody(res: { status: (code: number) => { json: (body: unknown) =>
 }
 
 router.get('/paket/:id/koreksi', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     const packageId = routeId(req.params.id, 'ID paket');
     const data = await supabaseRequest('/rest/v1/rpc/baca_senarai_koreksi', identity.token, {
@@ -40,6 +52,7 @@ router.get('/paket/:id/koreksi', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(identity, ['penyedia_jasa'], 'Hanya Penyedia Jasa boleh membuka kasus koreksi');
     const packageId = routeId(req.params.id, 'ID paket');
@@ -55,6 +68,7 @@ router.post('/paket/:id/koreksi', async (req, res) => {
 });
 
 router.get('/paket/:id/koreksi/:koreksiId', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     const packageId = routeId(req.params.id, 'ID paket');
     const koreksiId = routeId(req.params.koreksiId, 'ID koreksi');
@@ -67,6 +81,7 @@ router.get('/paket/:id/koreksi/:koreksiId', async (req, res) => {
 });
 
 router.patch('/paket/:id/koreksi/:koreksiId', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(identity, ['penyedia_jasa'], 'Hanya Penyedia Jasa boleh mengubah usulan koreksi');
     const packageId = routeId(req.params.id, 'ID paket');
@@ -89,6 +104,7 @@ router.patch('/paket/:id/koreksi/:koreksiId', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi/:koreksiId/verifikasi', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(
         identity,
@@ -115,6 +131,7 @@ router.post('/paket/:id/koreksi/:koreksiId/verifikasi', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi/:koreksiId/ajukan', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(identity, ['penyedia_jasa'], 'Hanya Penyedia Jasa boleh mengajukan tindakan koreksi');
     const packageId = routeId(req.params.id, 'ID paket');
@@ -135,6 +152,7 @@ router.post('/paket/:id/koreksi/:koreksiId/ajukan', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi/:koreksiId/review', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(identity, ['pic_balai'], 'Hanya PIC Balai boleh menyemak tindakan koreksi');
     const packageId = routeId(req.params.id, 'ID paket');
@@ -157,6 +175,7 @@ router.post('/paket/:id/koreksi/:koreksiId/review', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi/:koreksiId/laksana', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(identity, ['penyedia_jasa'], 'Hanya Penyedia Jasa boleh mencatat pelaksanaan tindakan');
     const packageId = routeId(req.params.id, 'ID paket');
@@ -178,6 +197,7 @@ router.post('/paket/:id/koreksi/:koreksiId/laksana', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi/:koreksiId/uji-ulang', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(
         identity,
@@ -204,6 +224,7 @@ router.post('/paket/:id/koreksi/:koreksiId/uji-ulang', async (req, res) => {
 });
 
 router.post('/paket/:id/koreksi/:koreksiId/tutup', async (req, res) => {
+    requireProductionRpcs();
     const { identity } = res.locals;
     requireRole(
         identity,

@@ -12,6 +12,48 @@ test('Dirah screen registry covers every package stage route', async () => {
   }
 });
 
+test('stage rail selection is navigation only and never marks a stage complete', async () => {
+  const source = await readFile(new URL('../workflow/Checkpoint09Package.tsx', import.meta.url), 'utf8');
+  assert.match(source, /const selected=item\.selection===selection/);
+  assert.match(source, /const tile=stageTilePresentation\(item\.code,labels\[index\],fact,selected\)/);
+  assert.match(source, /aria-current=\{tile\.ariaCurrent\}/);
+  assert.match(source, /onClick=\{\(\)=>onNavigate\(item\.selection\)\}/);
+  assert.match(source, /serverStageFactFor\(item\.code,serverStageStatuses\)/);
+});
+
+test('stage rail renders centered number/name only and keeps completion accessible', async () => {
+  const source = await readFile(new URL('../workflow/Checkpoint09Package.tsx', import.meta.url), 'utf8');
+  const styles = await readFile(new URL('../workflow/ui09.css', import.meta.url), 'utf8');
+  assert.match(source, /ui09-stage-number-row/);
+  assert.match(source, /ui09-stage-label/);
+  assert.match(source, /tile\.showCompletionIcon&&<CheckCircle2/);
+  assert.match(source, /aria-label=\{tile\.accessibleLabel\}/);
+  assert.doesNotMatch(source, /ui09-stage-fact|tile\.visibleFact/);
+  assert.match(styles, /\.ui09-workspace \.ui09-stage\{align-items:center;text-align:center/);
+  assert.match(styles, /\.ui09-workspace \.ui09-stage-number-row\{display:grid/);
+  assert.match(styles, /\.ui09-workspace \.ui09-stage-label\{[^}]*text-wrap:balance/);
+  assert.match(styles, /\.ui09-workspace \.ui09-stage:focus-visible\{outline:3px solid/);
+});
+
+test('server stage facts reload for every package page and after review without replacing the active page', async () => {
+  const [workspace, stage1Panel, stage2Panel] = await Promise.all([
+    readFile(new URL('./ServerPackageWorkspace.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('./Stage1PicConfirmationPanel.tsx', import.meta.url), 'utf8'),
+    readFile(new URL('./ServerStage2Workspace.tsx', import.meta.url), 'utf8'),
+  ]);
+  assert.match(workspace, /getStage1Confirmation\(packageId, apiRequest, controller\.signal\)/);
+  assert.match(workspace, /\}, \[packageId, serverStageFactsRevision\]\)/);
+  assert.doesNotMatch(workspace, /if \(selection !== OVERVIEW\) return;/);
+  assert.match(workspace, /getStage1Confirmation\(packageId, apiRequest, controller\.signal\)/);
+  assert.match(workspace, /getStage2PackageCompletion\(packageId, apiRequest, controller\.signal\)/);
+  assert.match(workspace, /stage2PackageFact\(\{[\s\S]*?completion: stage2Completion/);
+  assert.match(stage1Panel, /jalamutu:package-stage-facts-refresh/);
+  assert.match(stage2Panel, /jalamutu:package-stage-facts-refresh/);
+  assert.match(stage2Panel, /stage2-package-completion/);
+  assert.match(stage2Panel, /packageCompletion\?\.label/);
+  assert.match(workspace, /serverStageStatuses=\{serverStageStatuses\}/);
+});
+
 test('authenticated server package workspace renders Dirah stage presentation read-only', async () => {
   const source = await readFile(new URL('./ServerPackageWorkspace.tsx', import.meta.url), 'utf8');
   const stage = await readFile(new URL('../workflow/stages/Stage0PreparationWorkspace.tsx', import.meta.url), 'utf8');

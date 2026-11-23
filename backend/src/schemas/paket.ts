@@ -1,9 +1,20 @@
 import { z } from 'zod';
+
+export const surveySelectionSchema = z.array(
+  z.number().int().positive().max(2147483647),
+).min(1).max(50).transform(ids => [...new Set(ids)].sort((a, b) => a - b));
+
 export const paketDraftSchema = z.object({
   nama_paket: z.string().trim().min(1).max(255),
   nomor_kontrak: z.string().trim().min(1).max(100),
   tahun_anggaran: z.number().int().min(2000).max(2100),
   balai_id: z.number().int().positive(),
+  jenis_survei_ids: surveySelectionSchema,
+}).strict();
+
+export const paketSurveyScopePatchSchema = z.object({
+  expected_version: z.number().int().min(0).max(2147483647),
+  jenis_survei_ids: surveySelectionSchema,
 }).strict();
 
 const validDate = z.string().regex(/^\d{4}-\d{2}-\d{2}$/).refine(value => {

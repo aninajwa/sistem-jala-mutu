@@ -103,6 +103,14 @@ export function mapStage4LrsRows(raw: unknown, packageId: number): Stage4LrsRow[
   });
 }
 
+/** Return an observation only when its package and road are both in the confirmed package scope. */
+export function stage4ValidationForPackageRoad(
+  rows: Stage4LrsRow[], roads: Stage4Road[], packageId: number, roadId: number | null,
+): Stage4LrsRow | null {
+  if (roadId === null || !roads.some(road => road.ruas_id === roadId)) return null;
+  return rows.find(row => row.paket_id === packageId && row.ruas_id === roadId) ?? null;
+}
+
 export async function getStage4LrsCapabilities(packageId: string, request: Stage4Request, signal?: AbortSignal) {
   const response = await request<Envelope<unknown>>(`/paket/${encodeURIComponent(packageId)}/validasi-lrs-capabilities`, { signal });
   return mapStage4LrsCapabilities(response?.data);

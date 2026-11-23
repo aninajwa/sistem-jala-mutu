@@ -12,6 +12,8 @@ import { useState } from "react";
 import { EvidenceAttachment } from "../EvidenceAttachment";
 import { CalibrationRecord, daysBetween, SurveyType } from "../model";
 import { SourceAlignmentChecklist } from "../SourceAlignmentChecklist";
+import { Stage1IriDraftChecklist } from "../../pages/Stage1IriDraftChecklist";
+import { mapServerSurveyType } from "../../pages/serverStage1Adapter";
 
 import type { WorkflowStageProps } from "./stageSupport";
 import {
@@ -34,7 +36,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   const [newCalibration, setNewCalibration] = usePersistedDraft<Partial<CalibrationRecord>>(`jala-ui-draft:${state.project.id}:${state.role}:newCalibration`,{},localDraftsEnabled);
   const [calEditId, setCalEditId] = useState("");
   const [calibrationSurvey, setCalibrationSurvey] = useState<SurveyType>(
-    state.project.surveyTypes[0] || "IRI",
+    serverReadOnly ? "IRI" : state.project.surveyTypes[0] || "IRI",
   );
   const [calFormOpen, setCalFormOpen] = useState(false);
   const [calFormRecordId, setCalFormRecordId] = useState("");
@@ -52,10 +54,18 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   const canEditCalibration = state.role === "Penyedia Jasa / Ketua Tim";
 
   const scopedSurveyTypes = state.project.surveyTypes;
+  // IRI's server-backed saved draft is an existing record, not evidence of
+  // declared contract scope. Keep its read path reachable independently.
+  const availableSurveyTypes = serverReadOnly && !scopedSurveyTypes.includes('IRI')
+    ? [...scopedSurveyTypes, 'IRI' as SurveyType]
+    : scopedSurveyTypes;
+  const observedSurveyTypes = new Set((state.project.surveyScopeSurveys ?? [])
+    .map(survey => mapServerSurveyType({ kode: survey.kode ?? '', nama: survey.nama ?? '' }))
+    .filter((type): type is SurveyType => type !== null));
 
-  const activeSurvey = scopedSurveyTypes.includes(calibrationSurvey)
+  const activeSurvey = availableSurveyTypes.includes(calibrationSurvey)
     ? calibrationSurvey
-    : scopedSurveyTypes[0] || "IRI";
+    : availableSurveyTypes[0] || "IRI";
 
   const equipmentForSurvey = dailyEquipment[activeSurvey] || [];
 
@@ -71,6 +81,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
 
   const [sourceCompletion,setSourceCompletion]=useState<Record<string,boolean>>({});
   const isSurveyReady = (type: SurveyType) => {
+    if (serverReadOnly) return false;
     const records = state.calibrations.filter(
       (record) => record.surveyType === type,
     );
@@ -85,6 +96,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
   const readySurveyCount = scopedSurveyTypes.filter(isSurveyReady).length;
 
   const allSurveyReady =
+    !serverReadOnly &&
     scopedSurveyTypes.length > 0 &&
     readySurveyCount === scopedSurveyTypes.length;
 
@@ -265,8 +277,13 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             ================================================ */}
 
       <Panel title="Jenis Survei" icon={ClipboardCheck}>
+        {serverReadOnly && (
+          <p className="wf-note" style={{ marginTop: 0 }}>
+            Tab menavigasi scope asosiasi yang tersedia atau rekod kerja Tahap 1 yang sudah ada; rekod tim/kalibrasi bukan deklarasi scope kontrak.
+          </p>
+        )}
         <div className="calibration-survey-tabs">
-          {scopedSurveyTypes.map((type) => (
+          {availableSurveyTypes.map((type) => (
             <button
               type="button"
               key={type}
@@ -282,6 +299,11 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
               >
                 {isSurveyReady(type) ? "Siap" : "Belum siap"}
               </span>
+              {serverReadOnly && (
+                <small style={{ display: 'block', marginTop: 4, fontWeight: 500 }}>
+                  {observedSurveyTypes.has(type) ? 'Asosiasi lokasi teramati' : type === 'IRI' ? 'Akses checklist IRI' : 'Navigasi rekod kerja'}
+                </small>
+              )}
             </button>
           ))}
         </div>
@@ -715,7 +737,14 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             CHECKLIST DRAFT PP
             ================================================ */}
 
-      <RoleWorkSection primary={canEditCalibration} title="Formulir kalibrasi Penyedia"><SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
+      <RoleWorkSection primary={canEditCalibration} title="Formulir kalibrasi Penyedia" open={serverReadOnly}>{serverReadOnly
+        ? <>
+          <div hidden={activeSurvey !== 'IRI'}>
+            <Stage1IriDraftChecklist packageId={state.project.id} enabled={state.role === "Penyedia Jasa / Ketua Tim"} />
+          </div>
+          {activeSurvey !== 'IRI' && <p className="wf-note">Draf checklist server pada slice ini hanya mendukung jenis survei IRI.</p>}
+        </>
+        : <SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
         projectInfo={state.project}
         packageId={state.project.id}
         phase="calibration"
@@ -728,7 +757,7 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
         useLocalPersistence={localDraftsEnabled}
         onCompletionChange={(survey,complete)=>setSourceCompletion(old=>old[survey]===complete?old:{...old,[survey]:complete})}
         onAnswersChanged={()=>{if(state.calibrationChecklist[activeSurvey])setTypeCheck(activeSurvey,false);}}
-      /></RoleWorkSection>
+      />}</RoleWorkSection>
 
       {/* ================================================
             STATUS OTOMATIS
@@ -743,9 +772,9 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
             );
 
             const recordsReady =
-              records.length > 0 && records.every(isCalibrationRecordReady);
+              !serverReadOnly && records.length > 0 && records.every(isCalibrationRecordReady);
 
-            const checklistReady = !!state.calibrationChecklist[type];
+            const checklistReady = !serverReadOnly && !!state.calibrationChecklist[type];
 
             const ready = recordsReady && checklistReady;
 
@@ -760,10 +789,10 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
                       display: "block",
                     }}
                   >
-                    {!records.length
-                      ? serverReadOnly && serverAssignments.some(item => item.surveyType === type)
-                        ? "Penugasan server tersedia; rekod kalibrasi/readiness belum lengkap."
-                        : "Belum ada penugasan alat/personel."
+                    {serverReadOnly
+                      ? "Status kesiapan per jenis survei belum disediakan oleh server; belum dinilai."
+                      : !records.length
+                      ? "Belum ada penugasan alat/personel."
                       : !recordsReady
                         ? "Kesiapan alat/personel belum terpenuhi."
                         : !checklistReady
@@ -772,8 +801,8 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
                   </span>
                 </div>
 
-                <Badge tone={ready ? "good" : "warn"}>
-                  {ready ? "Siap" : "Belum siap"}
+                <Badge tone={serverReadOnly ? "info" : ready ? "good" : "warn"}>
+                  {serverReadOnly ? "Belum dinilai" : ready ? "Siap" : "Belum siap"}
                 </Badge>
               </div>
             );
@@ -789,14 +818,17 @@ export function Stage1CalibrationWorkspace(props: WorkflowStageProps) {
         <div className="stage-next-action">
           <div>
             <strong>
-              {allSurveyReady
+              {serverReadOnly
+                ? "Status kesiapan belum tersedia dari server"
+                : allSurveyReady
                 ? "Kalibrasi & Validasi Awal siap"
                 : `${readySurveyCount} dari ${scopedSurveyTypes.length} jenis survei siap`}
             </strong>
 
             <span>
-              Tahap Validasi Produksi terbuka setelah seluruh jenis survei dalam
-              lingkup memenuhi kesiapan.
+              {serverReadOnly
+                ? "Tahap Validasi Produksi tetap tertutup sampai server menyediakan status kesiapan dan penghalang yang otoritatif."
+                : "Tahap Validasi Produksi terbuka setelah seluruh jenis survei dalam lingkup memenuhi kesiapan."}
             </span>
           </div>
 

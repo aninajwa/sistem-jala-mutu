@@ -10,6 +10,7 @@ const fixture: Stage1ServerData = {
   surveyTypes: [
     { jenis_survei_id: 21, kode: 'IRI', nama: 'International Roughness Index' },
     { jenis_survei_id: 22, kode: 'LALU_LINTAS', nama: 'Lalu Lintas' },
+    { jenis_survei_id: 23, kode: 'PCI', nama: 'Pavement Condition Index' },
     { jenis_survei_id: 99, kode: 'UNKNOWN', nama: 'Unknown survey' },
   ],
   teams: [
@@ -24,7 +25,7 @@ const fixture: Stage1ServerData = {
 };
 
 test('maps server calibration data while preserving server IDs and package relationships', () => {
-  const mapped = mapStage1ServerData(fixture, '8', '2026-06-01');
+  const mapped = mapStage1ServerData(fixture, '8', [21, 22]);
   assert.deepEqual(mapped.surveyTypes, ['IRI', 'Lalu Lintas']);
   assert.equal(mapped.calibrations.length, 1);
   assert.equal(mapped.calibrations[0].id, 'server-calibration-1101');
@@ -39,7 +40,7 @@ test('maps server calibration data while preserving server IDs and package relat
 });
 
 test('server identifiers never become demo/local IDs and unknown survey values are excluded', () => {
-  const mapped = mapStage1ServerData(fixture, '8');
+  const mapped = mapStage1ServerData(fixture, '8', [21, 22]);
   assert.ok(!mapped.calibrations.some(item => item.id.startsWith('CAL-')));
   assert.deepEqual(mapped.surveyTypes, ['IRI', 'Lalu Lintas']);
   assert.equal(mapServerSurveyType({ kode: 'LENDUTAN', nama: 'Deflection' }), 'Lendutan');
@@ -51,17 +52,39 @@ test('unimplemented authenticated stage actions remain disabled and do not claim
     calibrationWrite: false, checklistWrite: false, readinessNavigation: false,
     approval: false, localPersistence: false,
   });
-  const [record] = mapStage1ServerData(fixture, '8').calibrations;
+  const [record] = mapStage1ServerData(fixture, '8', [21, 22]).calibrations;
   assert.equal(record.qualificationValid, false);
   assert.equal(record.trainingVerified, false);
   const state = structuredClone(INITIAL_WORKFLOW);
-  const mapped = mapStage1ServerData(fixture, '8');
+  const mapped = mapStage1ServerData(fixture, '8', [21, 22]);
   state.project.surveyTypes = mapped.surveyTypes;
   state.calibrations = mapped.calibrations;
   state.calibrationChecklist = Object.fromEntries(mapped.surveyTypes.map(type => [type, false])) as typeof state.calibrationChecklist;
   state.productionApproval = 'Draft';
   assert.equal(evaluateStageGate(state, 'Tahap 1').readyToComplete, false);
   assert.notEqual(state.productionApproval, 'Disetujui');
+});
+
+test('team membership exposes existing-work navigation only when authoritative scope is absent', () => {
+  assert.deepEqual(mapStage1ServerData(fixture, '8').surveyTypes, ['IRI', 'Lalu Lintas']);
+});
+
+test('declared package survey IDs deduplicate by ID and use stable catalog ordering', () => {
+  assert.deepEqual(mapStage1ServerData(fixture, '8', [22, 21, 22]).surveyTypes, ['IRI', 'Lalu Lintas']);
+});
+
+test('declared scope drives tabs while existing-work teams remain separately navigable', () => {
+  assert.deepEqual(mapStage1ServerData(fixture, '8', [23]).surveyTypes, ['IRI', 'PCI', 'Lalu Lintas']);
+  assert.deepEqual(mapStage1ServerData(fixture, '8', [22]).surveyTypes, ['IRI', 'Lalu Lintas']);
+  assert.deepEqual(mapStage1ServerData({ ...fixture, teams: [] }, '8', []).surveyTypes, []);
+});
+
+test('existing team records remain navigable when declared package scope is unset', () => {
+  assert.deepEqual(mapStage1ServerData(fixture, '8', []).surveyTypes, ['IRI', 'Lalu Lintas']);
+});
+
+test('multi-survey declared scope adds PCI tab even without a PCI team', () => {
+  assert.deepEqual(mapStage1ServerData(fixture, '8', [23, 21, 23]).surveyTypes, ['IRI', 'PCI', 'Lalu Lintas']);
 });
 
 test('authenticated draft mode does not call localStorage persistence', () => {

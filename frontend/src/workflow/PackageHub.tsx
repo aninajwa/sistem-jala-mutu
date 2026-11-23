@@ -1,5 +1,7 @@
 import {PackageStageNavigator} from './Checkpoint09Package';
+import {serverStageFactFor, UNKNOWN_AGGREGATE_STATUS, type ServerStageFacts} from './serverPackageStatus';
 import {packageStageStatus} from './Checkpoint09Package';
+import {declaredPackageSurveyScopeMessage} from './declaredPackageSurveyScope';
 import './checkpoint09.css';
 import {useWorkflowReconciliation} from '../hooks/useWorkflowReconciliation';
 import {workflowFormIssues} from './repository/workflowReconciliation';
@@ -219,14 +221,6 @@ export function PackagesPage({
                   </span>
                 </div>
 
-                <div className="package-scope">
-                  {(state.project.surveyTypes?.length
-                    ? state.project.surveyTypes
-                    : (['IRI', 'PCI', 'Jembatan', 'Drainase', 'RNI'] as const)
-                  ).map(type => (
-                    <span key={type}>{type}</span>
-                  ))}
-                </div>
               </div>
 
               <div className="package-card-status">
@@ -271,12 +265,13 @@ export function PackagesPage({
    HEADER DETAIL PAKET
    ===================================================== */
 
-export function PackageContextHeader({state,selection,onBack,onNavigate,onCorrections,serverReadOnly=false}:{state:OperationalWorkflowState;selection?:string;onBack:()=>void;onNavigate:(selection:string)=>void;onCorrections:()=>void;serverReadOnly?:boolean}){
+export function PackageContextHeader({state,selection,onBack,onNavigate,onCorrections,serverReadOnly=false,serverStageStatuses}:{state:OperationalWorkflowState;selection?:string;onBack:()=>void;onNavigate:(selection:string)=>void;onCorrections:()=>void;serverReadOnly?:boolean;serverStageStatuses?:ServerStageFacts}){
  const issues=useWorkflowReconciliation(state);
+ const stageName=PACKAGE_WORKFLOW_ITEMS.find(item=>item.selection===selection)?.shortLabel;
  return <header className="package-context ui09-package-header">
-  <div className="ui09-package-title"><button type="button" className="wf-button" onClick={onBack}><ArrowLeft size={15}/> Daftar paket</button><div><span className="ui09-meta">{state.project.contractNumber||state.project.id}</span><h1>{state.project.packageName}</h1></div><span className="wf-status info">{serverReadOnly?'Status workflow belum terhubung':issues.length?'Perlu pemeriksaan':packageStatus(state)}</span></div>
-  <div className="ui09-package-tools"><details className="ui09-package-info"><summary>Identitas & status paket</summary><div className="package-context-grid">{[['Balai',state.project.balai],['Penyedia',state.project.contractor],['Satker',state.project.satker],['PPK',state.project.ppk],['Ruas',state.project.routes.join(', ')],['Jenis survei',state.project.surveyTypes.join(', ')],['Jadwal',`${state.project.surveyStartDate||'Belum diisi'} — ${state.project.surveyEndDate||'Belum diisi'}`]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value||'Belum diisi'}</strong></div>)}</div>{issues.length>0&&<details className="ui09-source-issues"><summary>{issues.length} kelengkapan perlu ditinjau</summary><ul>{issues.map((issue,index)=><li key={index}>{issue.stage} · {issue.message}</li>)}</ul></details>}</details><div className="package-context-actions"><button type="button" className="wf-button" aria-current={selection==='/packages:Ringkasan Paket'?'page':undefined} onClick={()=>onNavigate('/packages:Ringkasan Paket')}>Ringkasan</button><button type="button" className="wf-button" onClick={()=>onNavigate('/documents:Semua')}><FileText size={14}/> Dokumen & BA</button><button type="button" className="wf-button" onClick={onCorrections}><ShieldCheck size={14}/> Tindak lanjut</button></div></div>
-  <PackageStageNavigator state={state} selection={selection} onNavigate={onNavigate} serverReadOnly={serverReadOnly}/>
+  <div className="ui09-package-title"><button type="button" className="wf-button" onClick={onBack}><ArrowLeft size={15}/> Daftar paket</button><div><span className="ui09-meta">{state.project.contractNumber||state.project.id} · {state.role}</span><h1>{state.project.packageName}</h1>{stageName&&<span className="ui09-current-stage">{stageName}</span>}</div></div>
+  <div className="ui09-package-tools"><details className="ui09-package-info"><summary>Detail paket</summary><div className="package-context-grid">{[['Balai',state.project.balai],['Penyedia',state.project.contractor],['Satker',state.project.satker],['PPK',state.project.ppk],['Tahun anggaran',state.project.semester],['Ruas',state.project.routes.join(', ')],['Jenis survei',state.project.surveyTypes.join(', ')],['Jadwal',`${state.project.surveyStartDate||'Belum diisi'} — ${state.project.surveyEndDate||'Belum diisi'}`]].map(([label,value])=><div key={label}><small>{label}</small><strong>{value||'Belum diisi'}</strong></div>)}</div>{serverReadOnly&&<p className="ui09-aggregate-detail" role="note">{UNKNOWN_AGGREGATE_STATUS}. Status dan persetujuan per tahap hanya ditampilkan jika tersedia dari sumber server.</p>}{issues.length>0&&!serverReadOnly&&<details className="ui09-source-issues"><summary>{issues.length} kelengkapan perlu ditinjau</summary><ul>{issues.map((issue,index)=><li key={index}>{issue.stage} · {issue.message}</li>)}</ul></details>}</details><div className="package-context-actions" aria-label="Navigasi paket"><button type="button" className="wf-button" aria-current={selection==='/packages:Ringkasan Paket'?'page':undefined} onClick={()=>onNavigate('/packages:Ringkasan Paket')}>Ringkasan</button><button type="button" className="wf-button" onClick={()=>onNavigate('/documents:Semua')}><FileText size={14}/> Dokumen & BA</button><button type="button" className="wf-button" onClick={onCorrections}><ShieldCheck size={14}/> Tindak lanjut</button></div></div>
+  <PackageStageNavigator state={state} selection={selection} onNavigate={onNavigate} serverReadOnly={serverReadOnly} serverStageStatuses={serverStageStatuses}/>
  </header>;
 }
 
@@ -289,19 +284,53 @@ export function PackageOverview({
   onNavigate,
   onCorrections,
   serverReadOnly = false,
+  serverStageStatuses,
 }: {
   state: OperationalWorkflowState;
   onNavigate: (selection: string) => void;
   onCorrections: () => void;
   serverReadOnly?: boolean;
+  serverStageStatuses?: ServerStageFacts;
 }) {
   const stage = derivePackageStage(state);
   const sourceIssues=useWorkflowReconciliation(state);
-  const action = serverReadOnly
-    ? { label:'Workflow belum terhubung ke server', detail:'Ringkasan tahap, temuan dan tindakan berikutnya hanya akan dipaparkan setelah data server dipetakan.', button:'Buka Tahap 0', selection:'/entry:Persiapan & SPMK', passive:true }
-    : nextAction(state);
+  if (serverReadOnly) {
+    const preparation = serverStageFactFor('Tahap 0', serverStageStatuses);
+    const approved = preparation.state === 'complete';
+    return <div className="package-overview ui09-server-overview">
+      <section className="wf-panel" data-testid="package-survey-scope">
+        <div className="wf-panel-head"><h3>Jenis survei dalam paket</h3></div>
+        <div className="wf-body package-scope">
+          {(state.project.surveyScopeSurveys ?? []).length
+            ? state.project.surveyScopeSurveys!.map(type => <span key={type.jenis_survei_id}>{type.nama || type.kode || `Survei #${type.jenis_survei_id}`}{type.aktif === false ? ' · nonaktif' : ''}</span>)
+            : <span className="package-scope-unavailable">{declaredPackageSurveyScopeMessage(
+              state.project.surveyScopeDeclaredStatus,
+              state.project.surveyScopeStatus === 'loading' || state.project.surveyScopeStatus === 'error'
+                ? state.project.surveyScopeStatus
+                : undefined,
+            )}</span>}
+          {state.project.surveyScopeStatus !== 'loading' && state.project.surveyScopeStatus !== 'error' && (
+            <p className="wf-note">Asosiasi lokasi adalah pengamatan paket di lokasi_pekerjaan; tabel kontrak tidak menyimpan deklarasi scope survei. Tim/kalibrasi adalah rekod kerja terpisah.</p>
+          )}
+        </div>
+      </section>
+      <section className="package-next-action" aria-label="Status server paket">
+        <div className="package-next-copy">
+          <small>FAKTA TAHAP DARI SERVER</small>
+          <strong>{preparation.label}</strong>
+          <span>{approved
+            ? 'Persetujuan persiapan tercatat. Buka tahap berikutnya untuk melihat data dan persyaratannya; memilih halaman tidak mengubah status workflow.'
+            : 'Ringkasan status keseluruhan belum tersedia. Periksa persiapan untuk melihat status dan tindakan yang memang diizinkan.'}</span>
+        </div>
+        <button type="button" className="wf-button primary" onClick={() => onNavigate(approved ? '/documents:Kalibrasi & personel' : '/entry:Persiapan & SPMK')}>
+          {approved ? 'Lihat Tahap 1' : 'Lihat Persiapan'} <ArrowRight size={13}/>
+        </button>
+      </section>
+    </div>;
+  }
+  const action = nextAction(state);
 
-  const openFindings = serverReadOnly ? [] : state.corrections.filter(
+  const openFindings = state.corrections.filter(
     item => item.status !== 'Ditutup',
   );
 
@@ -338,7 +367,7 @@ export function PackageOverview({
             Posisi saat ini
           </div>
           <div className="wf-kpi-value">
-            {serverReadOnly?'Belum terhubung ke server':stage}
+            {stage}
           </div>
         </div>
 
@@ -350,7 +379,7 @@ export function PackageOverview({
             className="wf-kpi-value"
             style={{ fontSize: 14 }}
           >
-            {serverReadOnly?'Belum terhubung ke server':workflowFormIssues(state).length?'Perlu pemeriksaan formulir':packageStatus(state)}
+            {workflowFormIssues(state).length?'Perlu pemeriksaan formulir':packageStatus(state)}
           </div>
         </div>
 
@@ -362,7 +391,7 @@ export function PackageOverview({
             className="wf-kpi-value"
             style={{ fontSize: 14 }}
           >
-            {serverReadOnly?'Belum terhubung ke server':packageWaitingFor(state)}
+            {packageWaitingFor(state)}
           </div>
         </div>
 
@@ -371,7 +400,7 @@ export function PackageOverview({
             Temuan aktif
           </div>
           <div className="wf-kpi-value">
-            {serverReadOnly?'—':openFindings.length}
+            {openFindings.length}
           </div>
         </div>
       </div>

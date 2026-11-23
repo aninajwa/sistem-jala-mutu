@@ -154,6 +154,34 @@ export function filterServerPackages(
   );
 }
 
+/** Aggregate only the caller's already authorized and currently filtered package set. */
+export function aggregateServerCorrections(
+  packages: ServerDashboardPackage[],
+  corrections: Record<string, ServerCorrection[]>,
+) {
+  const byPackage = packages.map(pkg => {
+    const cases = corrections[pkg.id] ?? [];
+    const closed = cases.filter(item => item.status === 'Ditutup').length;
+    return { id: pkg.id, name: pkg.name, total: cases.length, open: cases.length - closed, closed };
+  });
+  const total = byPackage.reduce((sum, item) => sum + item.total, 0);
+  const closed = byPackage.reduce((sum, item) => sum + item.closed, 0);
+  return { byPackage, total, closed, open: total - closed };
+}
+
+export function serverCorrectionEmptyCopy(packageCount: number, caseCount: number, openCount: number) {
+  return {
+    composition: packageCount === 0
+      ? { title: 'Tiada paket dalam filter', detail: 'Pilih paket dalam cakupan untuk melihat kes koreksi.' }
+      : caseCount === 0
+        ? { title: 'Tiada kes koreksi', detail: 'Server mengembalikan sifar kes koreksi untuk paket dan filter ini.' }
+        : null,
+    openByPackage: openCount === 0
+      ? { title: 'Tiada koreksi terbuka', detail: caseCount ? 'Semua kes yang diterima server berstatus Ditutup.' : 'Server mengembalikan sifar kes koreksi untuk paket dan filter ini.' }
+      : null,
+  };
+}
+
 export function isForbidden(error: unknown): boolean {
   return !!error && typeof error === 'object' && 'status' in error &&
     ((error as { status?: unknown }).status === 401 || (error as { status?: unknown }).status === 403);

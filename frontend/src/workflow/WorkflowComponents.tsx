@@ -25,7 +25,7 @@ export function ChecklistItem({item,onChange}:{item:ChecklistItemModel;onChange:
   useEffect(()=>{if(inputRef.current)inputRef.current.indeterminate=item.onAnswer!==undefined&&item.answer==='Tidak';},[item.answer,item.onAnswer]);
   const cycle=()=>item.onAnswer?.(nextChecklistAnswer(item.answer ?? null));
   return <label className="wf-row wf-check" data-testid={`row-${item.id}`}>
-    <input ref={inputRef} type="checkbox" data-testid={`check-${item.id}`} checked={item.onAnswer?item.answer==='Ya':item.checked} aria-checked={item.onAnswer&&item.answer==='Tidak'?'mixed':item.answer==='Ya'} data-answer={item.onAnswer?(item.answer??'Belum dijawab'):undefined} aria-label={item.onAnswer?`${item.label}: ${item.answer??'Belum dijawab'}`:undefined} disabled={item.disabled} onClick={item.onAnswer?event=>{event.preventDefault();cycle();}:undefined} onChange={item.onAnswer?undefined:event=>onChange(event.target.checked)}/>
+    <input ref={inputRef} type="checkbox" data-testid={`check-${item.id}`} checked={item.onAnswer?item.answer==='Ya':item.checked} aria-checked={item.onAnswer&&item.answer==='Tidak'?'mixed':item.answer==='Ya'} data-answer={item.onAnswer?(item.answer??'Belum dijawab'):undefined} aria-label={item.onAnswer?`${item.label}: ${item.answer??'Belum dijawab'}`:undefined} disabled={item.disabled} onChange={event=>item.onAnswer?cycle():onChange(event.target.checked)}/>
     <span><strong>{item.label}</strong>{item.note&&<small className="wf-note" style={{display:'block'}}>{item.note}</small>}</span>
   </label>;
 }

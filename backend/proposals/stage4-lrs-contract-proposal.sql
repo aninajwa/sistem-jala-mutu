@@ -1,0 +1,46 @@
+-- ARCHIVED REVIEW-ONLY NOTES. EVERY LINE IS A COMMENT; NOT EXECUTABLE SQL.
+-- Stage 4 save/read RPCs are now installed remotely; see
+-- stage4-lrs-installed-migration-record.md. This earlier proposal is historical.
+-- Read-only inspection of the configured database confirmed public.validasi_lrs
+-- columns: validasi_lrs_id integer PK, paket_id integer, ruas_id integer,
+-- panjang_lapangan_m numeric, panjang_acuan_m numeric, deviasi_m numeric,
+-- jumlah_error_topologi integer, format_sesuai_glossary boolean,
+-- sta_konsisten_iri_pci_ldt boolean, status varchar, tgl_valid date.
+-- It confirmed FKs paket_id -> paket_kontrak and ruas_id -> ruas_jalan; no unique
+-- key, version column, actor/audit column, or Stage 4 RPC was found in the
+-- original inspection (before migration 20261111080955 was installed).
+-- No policies were returned for validasi_lrs, upload_sistem, hasil_parameter,
+-- audit, or berita_acara. Do not expose direct client table access.
+--
+-- Historical public catalog at proposal time: no Stage 4/LRS/submit/review
+-- function. Existing
+-- baca_senarai_sesi_survei(integer) and baca_senarai_data_segmen(integer,integer)
+-- are authenticated Stage 3A READ contracts. simpan_data_segmen(integer,integer,jsonb)
+-- is an installed Stage 3A INSERT contract only; it is not a Stage 4 validation
+-- save and must not be repurposed as one.
+--
+-- The following were candidate contracts at proposal time (signatures were proposals,
+-- not confirmed database-compatible deployed functions):
+-- public.baca_validasi_lrs(p_paket_id integer) returns jsonb
+-- public.simpan_validasi_lrs(p_paket_id integer,p_ruas_id integer,p_data jsonb)
+--   returns jsonb; p_data allowed keys drawn only from the confirmed columns
+--   above, excluding IDs/derived fields unless explicitly approved.
+-- public.ajukan_validasi_tahap4(p_paket_id integer,p_expected_version integer)
+--   returns jsonb, and public.review_validasi_tahap4(p_paket_id integer,
+--   p_expected_version integer,p_keputusan text,p_catatan text) returns jsonb
+--   are candidates only if submit/review are part of approved Stage 4 lifecycle.
+--
+-- Business decisions still open for later submit/review/derived-result work:
+-- decide whether status/tgl_valid are server-
+-- generated; whether deviasi_m is computed from lengths and how tolerance is set;
+-- what qualifies valid LRS and permitted status values; whether one validation
+-- per package/road or multiple attempts are allowed; choose version/concurrency
+-- strategy (no version exists in the inspected table); identify authenticated
+-- provider and assigned PIC scopes; audit behavior; and whether systems upload
+-- belongs to Stage 4, including file storage metadata and external-system result
+-- semantics. Do not infer thresholds, PASS, external upload success, or approval.
+--
+-- Any eventual SECURITY DEFINER RPC must enforce auth.uid(), unlocked profile,
+-- package ownership/scope, road-to-package Balai relationship, fixed search_path,
+-- explicit PUBLIC/anon revoke and authenticated-only grant, and atomic audit.
+-- Validate on disposable QA after contract approval; never apply this file.

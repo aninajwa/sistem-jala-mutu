@@ -1,4 +1,5 @@
 import type { WorkflowRole } from '../workflow/model';
+import type { PackageSurveyScopeRead, PackageSurveyScopeStatus } from '../workflow/packageSurveyScope';
 
 export type ServerContract = {
   paket_id: number;
@@ -13,6 +14,8 @@ export type ServerContract = {
   tgl_selesai: string | null;
   nilai_kontrak: number | string | null;
   batas_lap_pendahuluan: string | null;
+  survey_scope?: PackageSurveyScopeRead;
+  survey_scope_read_status?: PackageSurveyScopeStatus;
 };
 
 export type ServerChecklistItem = {
@@ -123,6 +126,30 @@ export type ServerPreparationSubmission = {
   };
 };
 
+/** A submit/review is successful in the UI only when both fresh reads agree. */
+export function verifyPreparationTransitionReadback(
+  checklist: ServerChecklist,
+  submission: ServerPreparationSubmission,
+  expectedVersion: number,
+  expectedStatus: 'DIAJUKAN' | 'PERLU_REVISI' | 'DISETUJUI',
+  expectedDecision?: 'PERLU_REVISI' | 'DISETUJUI',
+) {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || expectedVersion >= 2147483647) {
+    throw new Error('Versi persiapan tidak valid. Muat semula status server.');
+  }
+  const nextVersion = expectedVersion + 1;
+  if (submission.status !== expectedStatus || submission.versi !== nextVersion ||
+      checklist.pengisian.status !== expectedStatus || checklist.pengisian.versi !== nextVersion) {
+    throw new Error(`Server belum mengesahkan status ${expectedStatus} dan versi persiapan yang baharu.`);
+  }
+  if (!submission.pengajuan?.pengajuan_id) {
+    throw new Error('Server belum mengesahkan rekod pengajuan persiapan.');
+  }
+  if (expectedDecision && submission.review?.keputusan !== expectedDecision) {
+    throw new Error(`Keputusan ${expectedDecision} belum disahkan oleh bacaan semula server.`);
+  }
+}
+
 export type ContractDraft = {
   nama_paket: string;
   nomor_kontrak: string;
@@ -223,15 +250,43 @@ export function buildChecklistPayload(items: ServerChecklistItem[], draft: Check
 export async function patchChecklistThenRefetch<T>(
   patch: () => Promise<unknown>,
   refetch: () => Promise<T>,
+  verify?: (state: T) => void,
 ): Promise<T> {
   await patch();
-  return refetch();
+  const state = await refetch();
+  verify?.(state);
+  return state;
+}
+
+export function verifyChecklistReadback(
+  checklist: ServerChecklist,
+  expectedVersion: number,
+  expectedAnswers: Array<{ item_id: number; jawaban: 'Ya' | 'Tidak' | null }>,
+) {
+  if (!Number.isSafeInteger(expectedVersion) || checklist.pengisian.versi <= expectedVersion) {
+    throw new Error('Server belum mengesahkan versi checklist yang baharu. Muat semula sebelum menyimpan lagi.');
+  }
+  const saved = new Map(checklist.items.map(item => [item.item_id, item.jawaban]));
+  if (expectedAnswers.some(answer => !saved.has(answer.item_id) || saved.get(answer.item_id) !== answer.jawaban)) {
+    throw new Error('Jawapan checklist pada server belum sepadan dengan perubahan. Muat semula dan cuba lagi.');
+  }
 }
 
 export function canEditPreparation(role: WorkflowRole, contractStatus: string, checklistStatus?: string) {
   return role === 'Penyedia Jasa / Ketua Tim'
     && contractStatus === 'DRAFT'
     && (!checklistStatus || checklistStatus === 'DRAFT' || checklistStatus === 'PERLU_REVISI');
+}
+
+export function canEditPackagePreparation(
+  role: WorkflowRole,
+  contractStatus: string,
+  preparationStatus: string | undefined,
+  preparationStatusLoaded: boolean,
+) {
+  return preparationStatusLoaded
+    && preparationStatus !== undefined
+    && canEditPreparation(role, contractStatus, preparationStatus);
 }
 
 export function canSubmitPreparation(

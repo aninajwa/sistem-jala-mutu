@@ -345,6 +345,12 @@ export type OperationalWorkflowState = {
     ppk: string;
     routes: string[];
     surveyTypes: SurveyType[];
+    /** Server package survey scope is separate from an empty label list. */
+    surveyScopeStatus?: 'loading' | 'error' | 'undefined' | 'defined';
+    surveyScopeSurveys?: Array<{ jenis_survei_id: number; kode: string | null; nama: string | null; aktif: boolean | null }>;
+    surveyScopeAssociationCount?: number;
+    surveyScopeUnresolvedAssociationCount?: number;
+    surveyScopeDeclaredStatus?: 'not_stored' | 'unset' | 'defined';
     semester: 'Semester I' | 'Semester II';
     preparation: PreparationState;
   };

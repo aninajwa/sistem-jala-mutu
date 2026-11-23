@@ -3,7 +3,7 @@ import { RefreshCw, Save, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-rea
 import { apiRequest } from '../auth/client';
 import type { WorkflowRole } from '../workflow/model';
 import { getSurveySegments, getSurveySessions, type SurveySegment, type SurveySession } from './serverStage3Data';
-import { getStage4LrsCapabilities, getStage4LrsRows, getStage4Roads, getStage4WorkflowCapabilities, getStage4WorkflowStatus, mutateStage4Workflow, saveStage4LrsAndConfirm, stage4LrsErrorMessage, type Stage4LrsCapabilities, type Stage4LrsRow, type Stage4Road, type Stage4WorkflowCapabilities, type Stage4WorkflowStatus } from './serverStage4LrsData';
+import { getStage4LrsCapabilities, getStage4LrsRows, getStage4Roads, getStage4WorkflowCapabilities, getStage4WorkflowStatus, mutateStage4Workflow, saveStage4LrsAndConfirm, stage4LrsErrorMessage, stage4ValidationForPackageRoad, type Stage4LrsCapabilities, type Stage4LrsRow, type Stage4Road, type Stage4WorkflowCapabilities, type Stage4WorkflowStatus } from './serverStage4LrsData';
 import { assessStage4Kak2026 } from './stage4KakAssessment';
 
 function value(item: unknown) {
@@ -100,8 +100,15 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
   }, [packageId, selected, segmentRevision]);
 
   const session = sessions.find(row => row.sesi_id === selected);
-  const currentValidation = validations.find(row => row.ruas_id === selectedRoad) ?? null;
+  const packageRoadsUndefined = (workflowStatus?.blockers.some(item => item.code === 'PACKAGE_ROADS_UNDEFINED') ?? false) ||
+    (!loading && !error && roads.length === 0);
+  const packageRoadsReady = workflowStatus !== null && !workflowError && !packageRoadsUndefined;
+  const currentValidation = packageRoadsReady ? stage4ValidationForPackageRoad(validations, roads, Number(packageId), selectedRoad) : null;
   const technicalAssessment = currentValidation ? assessStage4Kak2026(currentValidation) : null;
+  const stage5Allowed = workflowCapabilities?.status === true &&
+    workflowStatus?.state === 'DISETUJUI' &&
+    workflowStatus.gate === 'PASS' &&
+    workflowStatus.progression_allowed === true;
 
   useEffect(() => {
     if (!selectedRoad) return;
@@ -117,7 +124,7 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
 
   async function saveLrs(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    if (!capabilities?.write || role !== 'Penyedia Jasa / Ketua Tim' || selectedRoad === null || saveBusy) return;
+    if (!capabilities?.write || !packageRoadsReady || !roads.some(road => road.ruas_id === selectedRoad) || role !== 'Penyedia Jasa / Ketua Tim' || selectedRoad === null || saveBusy) return;
     setSaveError(''); setSaveMessage('');
     const fieldLength = Number(lrsDraft.panjang_lapangan_m);
     const referenceLength = Number(lrsDraft.panjang_acuan_m);
@@ -163,12 +170,15 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
       {segmentLoading && <p role="status">Memuat record data segmen tersimpan…</p>}
       {segmentError && <div role="alert" className="wf-callout danger">{segmentError}</div>}
       {!segmentLoading && !segmentError && session && <section aria-label="Data segmen persisted"><h4>Data survei tersimpan ({segments.length})</h4>{segments.length ? <div className="table-scroll"><table><thead><tr><th>ID data</th><th>STA</th><th>Lajur</th><th>Nilai utama</th><th>Status QC</th><th>Versi aktif</th></tr></thead><tbody>{segments.map(row => <tr key={row.data_id}><td>{row.data_id}</td><td>{value(row.sta_awal)} – {value(row.sta_akhir)}</td><td>{value(row.lajur)}</td><td>{value(row.nilai_utama)}</td><td>{value(row.status_qc)}</td><td>{value(row.versi_aktif)}</td></tr>)}</tbody></table></div> : <p className="wf-note">Belum ada record segmen tersimpan untuk sesi ini.</p>}</section>}
-      {capabilities?.read && <section className="wf-panel" aria-label="Validasi RNI/LRS tersimpan"><div className="wf-panel-head"><h4>Validasi RNI/LRS tersimpan</h4><span>{lrsLoading ? 'Memuat…' : `${validations.length} ruas`}</span></div><div className="wf-body">
-        {lrsError && <div role="alert" className="wf-callout danger">{lrsError}</div>}
-        {!lrsLoading && !lrsError && roads.length === 0 && <p className="wf-note">Belum ada ruas tersedia dalam paket.</p>}
-        {roads.length > 0 && <label className="wf-field"><span>Ruas validasi</span><select value={selectedRoad ?? ''} onChange={event => setSelectedRoad(Number(event.target.value))}>{roads.map(road => <option key={road.ruas_id} value={road.ruas_id}>{road.nomor_ruas || `Ruas #${road.ruas_id}`} · {road.nama_ruas || 'Nama belum tersedia'}</option>)}</select></label>}
+       {capabilities?.read && <section className="wf-panel" aria-label="Validasi RNI/LRS tersimpan"><div className="wf-panel-head"><h4>Validasi RNI/LRS tersimpan</h4><span>{lrsLoading ? 'Memuat…' : packageRoadsUndefined ? `${validations.length} observasi belum terikat` : `${validations.length} ruas`}</span></div><div className="wf-body">
+         {lrsError && <div role="alert" className="wf-callout danger">{lrsError}</div>}
+         {!workflowStatus && !workflowError && <p role="status" className="wf-note">Menunggu konfirmasi server atas daftar ruas yang terdaftar pada paket…</p>}
+          {packageRoadsUndefined && <div className="wf-callout danger" role="alert" data-testid="stage4-package-roads-missing"><strong>Ruas paket belum ditetapkan</strong><p>Daftar ruas resmi paket kosong; belum ada ruas pada lokasi pekerjaan paket. Minta PIC Balai/Admin menetapkan ruas paket melalui proses administrasi yang berwenang. Jangan memilih ruas Balai umum atau membuat asosiasi dari layar Stage 4.</p>{validations.length > 0 && <small>{validations.length} catatan LRS tersimpan belum dapat dipastikan terkait dengan ruas paket dan tidak ditampilkan sebagai penilaian paket.</small>}</div>}
+         {workflowError && <p role="alert" className="wf-note">Daftar ruas paket belum dapat diverifikasi; pemilihan ruas dan penyimpanan ditahan.</p>}
+         {packageRoadsReady && !lrsLoading && !lrsError && roads.length === 0 && <p role="alert" className="wf-note">Status server menunjukkan ruas paket telah ditetapkan, tetapi layanan daftar ruas tidak mengembalikan data. Muat ulang atau hubungi administrator.</p>}
+         {packageRoadsReady && roads.length > 0 && <label className="wf-field"><span>Ruas validasi</span><select value={selectedRoad ?? ''} onChange={event => setSelectedRoad(Number(event.target.value))}>{roads.map(road => <option key={road.ruas_id} value={road.ruas_id}>{road.nomor_ruas || `Ruas #${road.ruas_id}`} · {road.nama_ruas || 'Nama belum tersedia'}</option>)}</select></label>}
         {currentValidation && <div className="wf-callout"><strong>Versi tersimpan: {currentValidation.versi}</strong><div>Deviasi tersimpan: {value(currentValidation.deviasi_m)} · Status tersimpan: {value(currentValidation.status)} · Tanggal validasi: {value(currentValidation.tgl_valid)}</div><small>Temuan teknis di bawah dihitung baca-saja dari observasi; kolom resmi di atas tidak ditulis atau ditafsirkan.</small></div>}
-        <section className="wf-callout" aria-label="Penilaian teknis KAK 2026 (baca-saja)" data-testid="stage4-kak-assessment">
+        {packageRoadsReady && <section className="wf-callout" aria-label="Penilaian teknis KAK 2026 (baca-saja)" data-testid="stage4-kak-assessment">
           <strong>Penilaian teknis panjang ruas · KAK 2026 §11.9.2 / §11.9.7</strong>
           {!technicalAssessment ? <p role="status">INCOMPLETE · Belum ada observasi LRS tersimpan untuk ruas ini.</p> : <>
             <div className="package-context-grid" aria-label="Nilai sumber penilaian panjang">
@@ -184,15 +194,15 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
           </>}
           <p><strong>Ini penilaian teknis baca-saja, bukan PASS/FAIL workflow, status VALID SMD, persetujuan PIC, atau kelayakan Tahap 5.</strong> Perbandingan mengasumsikan kedua panjang adalah ruas yang sama dan bersatuan meter. Tidak mengoreksi data mentah atau menerapkan faktor skala. Jika selisih melebihi toleransi, ukur ulang ruas; bila pengukuran ulang mengesahkan hasil awal, maklumkan Pengguna Jasa.</p>
           {packageId === '11' && <small>TEST/QA synthetic record — bukan data survei rasmi.</small>}
-        </section>
-        <form onSubmit={saveLrs} aria-label="Simpan validasi RNI LRS"><fieldset disabled={!capabilities.write || role !== 'Penyedia Jasa / Ketua Tim' || saveBusy || selectedRoad === null}>
+        </section>}
+        {packageRoadsReady && <form onSubmit={saveLrs} aria-label="Simpan validasi RNI LRS"><fieldset disabled={!capabilities.write || !packageRoadsReady || !roads.some(road => road.ruas_id === selectedRoad) || role !== 'Penyedia Jasa / Ketua Tim' || saveBusy || selectedRoad === null}>
           <legend>Catat data observasi LRS {currentValidation ? `(versi ${currentValidation.versi})` : '(baru, versi 0)'}</legend>
           <label className="wf-field"><span>Panjang lapangan (m)</span><input required type="number" min="0" step="any" value={lrsDraft.panjang_lapangan_m} onChange={event => setLrsDraft(value => ({ ...value, panjang_lapangan_m: event.target.value }))} /></label>
           <label className="wf-field"><span>Panjang acuan (m)</span><input required type="number" min="0" step="any" value={lrsDraft.panjang_acuan_m} onChange={event => setLrsDraft(value => ({ ...value, panjang_acuan_m: event.target.value }))} /></label>
           <label className="wf-field"><span>Jumlah error topologi</span><input required type="number" min="0" step="1" value={lrsDraft.jumlah_error_topologi} onChange={event => setLrsDraft(value => ({ ...value, jumlah_error_topologi: event.target.value }))} /></label>
           {([['format_sesuai_glossary','Format sesuai glossary'],['sta_konsisten_iri_pci_ldt','STA konsisten IRI/PCI/LDT']] as const).map(([key,label]) => <label className="wf-field" key={key}><span>{label}</span><select required value={lrsDraft[key]} onChange={event => setLrsDraft(value => ({ ...value, [key]: event.target.value }))}><option value="">Pilih hasil pemeriksaan</option><option value="true">Ya</option><option value="false">Tidak</option></select></label>)}
           <button type="submit" className="wf-button primary" disabled={!capabilities.write || role !== 'Penyedia Jasa / Ketua Tim' || saveBusy || selectedRoad === null}><Save size={13} /> {saveBusy ? 'Menyimpan…' : 'Simpan validasi LRS'}</button>
-        </fieldset></form>
+        </fieldset></form>}
         {role !== 'Penyedia Jasa / Ketua Tim' && <p className="wf-note">Hanya Penyedia Jasa dapat menyimpan data observasi. Aksi submit/review belum termasuk kontrak ini.</p>}
         {saveError && <div role="alert" className="wf-callout danger">{saveError}</div>}
         {saveMessage && <div role="status" className="wf-callout">{saveMessage}</div>}
@@ -203,11 +213,17 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
           {workflowError && <div role="alert" className="wf-callout danger">{workflowError}</div>}
           {!workflowStatus && !workflowError && <p role="status">Membaca status workflow dari server…</p>}
           {workflowStatus && <>
-            <div className="wf-callout" role="status"><strong>Gerbang teknis: {workflowStatus.gate === 'PENDING' ? 'Menunggu aturan terkonfirmasi' : workflowStatus.gate}</strong>
+            <div className={`wf-callout ${workflowStatus.progression_allowed && workflowStatus.gate === 'PASS' ? 'ok' : 'warn'}`} role="status"><strong>Gerbang teknis: {workflowStatus.gate === 'PENDING' ? 'Menunggu aturan terkonfirmasi' : workflowStatus.gate}</strong>
               <p>{workflowStatus.progression_allowed ? 'Status server mengizinkan tahap berikutnya.' : 'Tahap 5 tetap terkunci; tidak ada hasil PASS/FAIL yang dihitung atau diasumsikan.'}</p>
               {workflowStatus.blockers.map(item => <div key={item.code} data-testid={`stage4-blocker-${item.code}`}>• {item.message}</div>)}
             </div>
-            {workflowCapabilities?.reason && <p className="wf-note">{workflowCapabilities.reason}</p>}
+            {workflowCapabilities?.reason && <>
+              <p className="wf-note">Pengajuan belum dapat dilakukan. Penuhi persyaratan di atas dan tunggu alur pemeriksaan tersedia.</p>
+              <details className="ui09-server-diagnostics">
+                <summary>Rincian ketersediaan</summary>
+                <p className="wf-note">{workflowCapabilities.reason}</p>
+              </details>
+            </>}
             <div className="wf-toolbar">
               <button type="button" className="wf-button primary" onClick={() => void runWorkflow('submit')} disabled={!workflowCapabilities?.submit || role !== 'Penyedia Jasa / Ketua Tim' || workflowStatus.gate !== 'PASS' || workflowBusy || !['PENDING_RULES','DRAFT','PERLU_REVISI'].includes(workflowStatus.state)}>{workflowBusy ? 'Memproses…' : workflowStatus.state === 'PERLU_REVISI' ? 'Ajukan ulang ke pemeriksa' : 'Ajukan ke pemeriksa'}</button>
               {role === 'PIC Balai / Pengguna Jasa' && workflowStatus.state === 'DIAJUKAN' && <>
@@ -216,7 +232,7 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
                 <button type="button" className="wf-button primary" onClick={() => void runWorkflow('review','DISETUJUI')} disabled={!workflowCapabilities?.review || workflowBusy || workflowStatus.gate !== 'PASS'}>Setujui pengajuan</button>
               </>}
             </div>
-            {workflowStatus.state === 'DISETUJUI' && (
+            {workflowStatus.state === 'DISETUJUI' && stage5Allowed && (
               <div className="wf-callout ok" style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: '#f0fdf4', border: '1px solid #86efac', padding: '12px 16px', borderRadius: 6 }}>
                 <div>
                   <strong style={{ color: '#166534', display: 'block' }}>✓ Tahap 4 Disetujui PIC Balai</strong>
@@ -231,7 +247,11 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
                 </button>
               </div>
             )}
-            <p className="wf-note">Versi workflow: {workflowStatus.workflow_version}. Submit hanya untuk Penyedia; keputusan hanya untuk PIC Balai. Persetujuan dan Tahap 5 tetap diblokir selama blocker di atas ada. Status persisted `status`/`tgl_valid` tidak ditafsirkan sebagai kelulusan; review PIC bukan Berita Acara Penerimaan.</p>
+            <details className="ui09-server-diagnostics">
+              <summary>Rincian workflow</summary>
+              <p className="wf-note">Versi workflow: {workflowStatus.workflow_version}. Submit hanya untuk Penyedia; keputusan hanya untuk PIC Balai. Persetujuan dan Tahap 5 tetap diblokir selama blocker di atas ada. Status tersimpan tidak ditafsirkan sebagai kelulusan; review PIC bukan Berita Acara Penerimaan.</p>
+              <p className="wf-note">Kontrak submit/review Stage 4 belum dipasang dan aturan bisnis belum disahkan.</p>
+            </details>
           </>}
         </div>
       </section>
@@ -247,7 +267,8 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
         <button
           type="button"
           className="wf-button primary"
-          onClick={() => window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: '/verification:Audit tingkat 1–3' }))}
+          disabled={!stage5Allowed}
+          onClick={() => { if (stage5Allowed) window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: '/verification:Audit tingkat 1–3' })); }}
         >
           Lanjut ke Tahap 5 (Audit Data) <ArrowRight size={13} />
         </button>

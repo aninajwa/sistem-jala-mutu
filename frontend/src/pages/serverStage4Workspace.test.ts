@@ -23,3 +23,22 @@ test('Stage 4 write is capability-gated; submit/review remain visibly disabled a
   assert.match(component, /role="alert" className="wf-callout danger"/);
   assert.match(component, /role="status"/);
 });
+
+test('missing authoritative package roads hides orphan assessment and blocks Stage 4 write', () => {
+  assert.match(component, /stage4-package-roads-missing/);
+  assert.match(component, /PACKAGE_ROADS_UNDEFINED/);
+  assert.match(component, /!loading && !error && roads\.length === 0/);
+  assert.match(component, /const packageRoadsReady = workflowStatus !== null && !workflowError && !packageRoadsUndefined/);
+  assert.match(component, /stage4ValidationForPackageRoad\(validations, roads, Number\(packageId\), selectedRoad\)/);
+  assert.match(component, /!packageRoadsReady \|\| !roads\.some\(road => road\.ruas_id === selectedRoad\)/);
+  assert.match(component, /jangan memilih ruas Balai umum/i);
+});
+
+test('Tahap 5 navigation requires readable capability, approved state, PASS gate and server progression', () => {
+  assert.match(component, /workflowCapabilities\?\.status === true/);
+  assert.match(component, /workflowStatus\?\.state === 'DISETUJUI'/);
+  assert.match(component, /workflowStatus\.gate === 'PASS'/);
+  assert.match(component, /workflowStatus\.progression_allowed === true/);
+  assert.match(component, /workflowStatus\.state === 'DISETUJUI' && stage5Allowed/);
+  assert.match(component, /if \(stage5Allowed\) window\.dispatchEvent/);
+});

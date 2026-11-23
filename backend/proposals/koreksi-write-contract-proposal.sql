@@ -1,0 +1,54 @@
+-- REVIEW-ONLY CONTRACT SKETCH. NOT EXECUTABLE SQL; DO NOT APPLY.
+-- Existing relation evidence: see koreksi-baca-rpc.sql. It verifies FK paths,
+-- not all write columns, uniqueness, status fields, actor/audit columns, or version.
+-- Therefore this proposal deliberately contains signatures and invariants only.
+-- No DDL, RLS/grant changes, table creation, or synthetic data are proposed.
+--
+-- REQUIRED RPC SIGNATURES (match backend/src/routes/koreksi.ts exactly):
+-- public.buat_koreksi(p_paket_id integer, p_data jsonb) returns jsonb
+-- public.ubah_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer, p_data jsonb) returns jsonb
+-- public.verifikasi_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer, p_tahap text, p_nilai boolean) returns jsonb
+-- public.ajukan_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer) returns jsonb
+-- public.review_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer, p_keputusan text, p_catatan text) returns jsonb
+-- public.laksana_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer, p_execution_reference text) returns jsonb
+-- public.uji_ulang_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer, p_hasil text, p_retest_reference text) returns jsonb
+-- public.tutup_koreksi(p_paket_id integer, p_koreksi_id integer,
+--   p_expected_version integer) returns jsonb
+-- READ prerequisites (separate, still proposed and not installed):
+-- public.baca_senarai_koreksi(p_paket_id integer) returns jsonb
+-- public.baca_koreksi(p_paket_id integer,p_koreksi_id integer) returns jsonb
+--
+-- Contract invariants for implementation after schema/owner confirmation:
+-- 1. Resolve auth.uid() to an unlocked pengguna; ignore caller-supplied actors.
+-- 2. Lock the kasus_temuan row FOR UPDATE; verify paket_id and authorized role,
+--    package ownership/assignment before any mutation. Provider ownership is
+--    creator-scoped; PIC is Balai/package scoped. Direktorat/Admin permissions
+--    must remain stage-specific and not become blanket write authorization.
+-- 3. Every mutation compares p_expected_version with a confirmed version source;
+--    return SQLSTATE 40001 on stale state. Do not implement a version column or
+--    table until owner approves its location and lifecycle.
+-- 4. Insert/update the main record, child record(s), status history and audit
+--    record atomically. Roll back all writes on any validation failure.
+-- 5. Creation must verify optional data_id belongs to the same package and case
+--    context. Prevent duplicate active findings using an owner-approved key.
+-- 6. Transitions: provider proposal and surveyor/team-leader verification;
+--    provider submit; assigned PIC review; provider execute; authorized retest;
+--    close only after passing retest and required verification. Exact status
+--    values, reset behavior, and audit fields require owner approval.
+-- 7. Preserve route enums and field names in schemas/koreksi.ts. Do not infer
+--    table-column mapping from these API names.
+-- 8. SECURITY DEFINER functions require fixed search_path, explicit authorization,
+--    PUBLIC/anon execute revoke and authenticated-only grant; no service-role path.
+--
+-- Blocking catalog facts: confirm exact columns/types/nullability/defaults for
+-- kasus_temuan, tindakan_perbaikan, koreksi_data, uji_ulang, verifikasi_koreksi,
+-- riwayat_status_kasus, data_segmen and paket_kontrak; all FK/unique/check/index
+-- constraints; RLS/policies/grants/triggers; version and audit sources; relation
+-- cardinalities; and all status enum values. The existing write sketch lists
+-- these as unresolved, so this file makes no schema claims beyond verified FKs.

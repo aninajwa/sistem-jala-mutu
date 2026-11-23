@@ -12,6 +12,15 @@ export const stage4LrsCapabilities = (enabled: boolean) => ({
 export const stage4WorkflowRpcEnabled = (value = process.env.STAGE4_WORKFLOW_RPCS) => value === 'true';
 // The read-only status RPC is installed independently from lifecycle mutations.
 export const stage4StatusRpcEnabled = () => true;
+export function stage4PackageRoadWriteBlocker(status: unknown): string | null {
+  if (!status || typeof status !== 'object' || Array.isArray(status) || !Array.isArray((status as Record<string, unknown>).blockers) ||
+    !(status as { blockers: unknown[] }).blockers.every(item => item && typeof item === 'object' && !Array.isArray(item) && typeof (item as Record<string, unknown>).code === 'string')) {
+    throw new ApiError(502, 'Status ruas paket dari database tidak sesuai kontrak; penyimpanan LRS ditahan.');
+  }
+  return (status as { blockers: Array<{ code: string }> }).blockers.some(item => item.code === 'PACKAGE_ROADS_UNDEFINED')
+    ? 'Paket belum memiliki ruas pada lokasi_pekerjaan. Catatan LRS tidak dapat dikaitkan sampai ruas paket ditetapkan oleh petugas berwenang.'
+    : null;
+}
 
 function parseId(value: unknown, label: string) {
   const parsed = stage4LrsIdSchema.safeParse(value);
@@ -48,6 +57,11 @@ router.put('/paket/:id/validasi-lrs/:ruasId', async (req, res) => {
   const roadId = parseId(req.params.ruasId, 'ID ruas');
   const parsed = stage4LrsSaveSchema.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: 'Data validasi LRS tidak valid', details: parsed.error.flatten() }); return; }
+  const status = await supabaseRequest<unknown>('/rest/v1/rpc/baca_status_validasi_lrs', identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: packageId }),
+  });
+  const roadBlocker = stage4PackageRoadWriteBlocker(status);
+  if (roadBlocker) throw new ApiError(409, roadBlocker);
   const { expected_version, ...data } = parsed.data;
   const saved = await supabaseRequest('/rest/v1/rpc/simpan_validasi_lrs', identity.token, {
     method: 'POST',
