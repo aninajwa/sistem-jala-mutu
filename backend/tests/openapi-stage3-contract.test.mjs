@@ -48,14 +48,14 @@ test('OpenAPI YAML parses and declares the implemented Stage 3A/3B operations', 
   assert.match(packageRoute, /router\.use\(siklusVervalRouter\)/);
 });
 
-test('all documented authenticated operations inherit Bearer JWT and consistency has no POST', () => {
+test('all documented authenticated operations inherit Bearer JWT and consistency POST is documented', () => {
   assert.deepEqual(spec.security, [{ bearerAuth: [] }]);
   assert.equal(spec.components.securitySchemes.bearerAuth.scheme, 'bearer');
   for (const [path, method] of declared) {
     assert.notDeepEqual(spec.paths[path][method].security, []);
   }
-  assert.equal(spec.paths['/paket/{id}/siklus-verval/{siklusId}/uji-konsistensi'].post, undefined);
-  assert.match(spec.paths['/paket/{id}/siklus-verval/{siklusId}/uji-konsistensi'].get.description, /READ sahaja/i);
+  assert.equal(spec.paths['/paket/{id}/siklus-verval/{siklusId}/uji-konsistensi'].post.operationId, 'createVervalConsistency');
+  assert.ok(spec.paths['/paket/{id}/siklus-verval/{siklusId}/uji-konsistensi'].get);
 });
 
 test('request schemas match validator keys and mark both prototype surfaces TEST/QA', () => {
@@ -70,12 +70,13 @@ test('request schemas match validator keys and mark both prototype surfaces TEST
   assert.match(sessionSchema, /sesiSurveiCreateSchema/);
   assert.match(segmentSchema, /dataSegmenCreateSchema/);
   assert.match(prototypeSchema, /pemeriksaanHarianAlatPrototypeSchema/);
-  assert.match(cycleSchema, /siklusVervalCreateBodySchema\s*=\s*z\.object\(\{\}\)\.strict\(\)/);
+  assert.match(cycleSchema, /siklusVervalCreateBodySchema\s*=\s*z\.object\(\{\s*request_id:\s*z\.string\(\)\.uuid\(\)\s*\}\)\.strict\(\)/);
   assert.match(spec.paths['/paket/{id}/pemeriksaan-harian-alat'].get.summary, /TEST\/QA/);
   assert.match(spec.paths['/paket/{id}/pemeriksaan-harian-alat'].post.description, /TEST\/QA/);
-  assert.match(spec.paths['/paket/{id}/siklus-verval'].post.description, /TEST\/QA allowlist/);
+  assert.match(spec.paths['/paket/{id}/siklus-verval'].post.description, /STAGE3B_PRODUCTION_RPCS=true/);
   assert.equal(spec.components.schemas.EmptyObject.additionalProperties, false);
-  assert.equal(spec.paths['/paket/{id}/siklus-verval'].post.requestBody.required, false);
+  assert.equal(spec.paths['/paket/{id}/siklus-verval'].post.requestBody.required, true);
+  assert.deepEqual(spec.paths['/paket/{id}/siklus-verval'].post.requestBody.content['application/json'].schema.required, ['request_id']);
 });
 
 test('OpenAPI documents implemented success and common error status codes', () => {

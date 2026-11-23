@@ -9,7 +9,7 @@ const sql = readFileSync(resolve(base, 'proposals/admin-role-management-v1-insta
 const contract = readFileSync(resolve(base, 'proposals/admin-role-mutation-contract.md'), 'utf8');
 
 test('single local package contains read and all three PIC assignment RPCs', () => {
-  assert.match(sql, /COHERENT V1 INSTALLATION CANDIDATE ONLY\. DO NOT EXECUTE/);
+  assert.match(sql, /CANDIDATE ONLY; execute in the disposable PostgreSQL 17 test service, never in shared databases/);
   for (const rpc of ['admin_daftar_penugasan_peran', 'admin_tambah_penugasan_peran', 'admin_ubah_penugasan_peran', 'admin_cabut_penugasan_peran'])
     assert.match(sql, new RegExp(`create or replace function public\\.${rpc}`));
   assert.match(sql, /mutation_version text/);

@@ -36,7 +36,7 @@ test('least-privilege ACL changes only function EXECUTE and leaves RLS/table gra
   assert.match(sql, /grant execute on function public\.admin_daftar_penugasan_peran\(integer\)[\s\S]*to authenticated/);
   assert.doesNotMatch(sql, /grant\s+(?:select|insert|update|delete|all)\s+on\s+(?:table\s+)?public\./i);
   assert.doesNotMatch(sql, /create\s+policy|alter\s+policy|enable\s+row\s+level\s+security/i);
-  assert.match(sql, /COHERENT V1 INSTALLATION CANDIDATE ONLY\. DO NOT EXECUTE/);
+  assert.match(sql, /CANDIDATE ONLY; execute in the disposable PostgreSQL 17 test service, never in shared databases/);
 });
 
 test('OpenAPI defines implemented but disabled GET response and route is registered behind flag', () => {

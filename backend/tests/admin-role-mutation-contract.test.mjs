@@ -15,7 +15,7 @@ test('contract defines add, scope-change, and revoke RPC signatures without enab
   assert.match(sql, /p_peran_id integer/);
   assert.match(sql, /p_expected_version bigint/);
   assert.match(contract, /changes scope only/i);
-  assert.match(sql, /DO NOT EXECUTE/);
+  assert.match(sql, /never in shared databases/);
   assert.match(sql, /No endpoint is registered by this SQL/i);
   assert.match(contract, /ADMIN_ROLE_MANAGEMENT_ENABLED=true/);
   assert.match(contract, /Routes fail-closed by default/i);

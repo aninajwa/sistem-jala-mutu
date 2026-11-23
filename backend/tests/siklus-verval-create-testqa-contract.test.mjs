@@ -41,9 +41,13 @@ test('TEST/QA allowlist has explicit FK, active marker and purpose, with no auth
   assert.match(allowlist, /Tidak memasukkan Paket #9 atau paket lain/i);
 });
 
-test('CREATE HTTP route accepts only package ID and delegates to the TEST/QA RPC', () => {
+// The HTTP route moved from the TEST/QA RPC to the gated production contract;
+// the TEST/QA SQL above remains the installed reference for first-cycle rules.
+test('CREATE HTTP route is gated and delegates to the production RPC with only an idempotency key', () => {
   assert.match(route, /router\.post\('\/paket\/:id\/siklus-verval'/);
-  assert.match(route, /\/rest\/v1\/rpc\/buat_siklus_verval_testqa/);
-  assert.match(route, /p_paket_id:\s*packageId/);
-  assert.match(schema, /siklusVervalCreateBodySchema\s*=\s*z\.object\(\{\}\)\.strict\(\)/);
+  assert.match(route, /process\.env\.STAGE3B_PRODUCTION_RPCS === 'true'/);
+  assert.match(route, /\/rest\/v1\/rpc\/buat_siklus_verval'/);
+  assert.doesNotMatch(route, /buat_siklus_verval_testqa/);
+  assert.match(route, /p_paket_id:\s*packageId,\s*p_request_id:\s*parsed\.data\.request_id/);
+  assert.match(schema, /siklusVervalCreateBodySchema\s*=\s*z\.object\(\{\s*request_id:\s*z\.string\(\)\.uuid\(\)\s*\}\)\.strict\(\)/);
 });

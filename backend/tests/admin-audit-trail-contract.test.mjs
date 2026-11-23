@@ -2,7 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
 
-const sql = await readFile(new URL('../proposals/admin-audit-trail-read-rpc.sql', import.meta.url), 'utf8');
+// Normalize CRLF (Windows checkouts) so multi-line markers match on every platform.
+const sql = (await readFile(new URL('../proposals/admin-audit-trail-read-rpc.sql', import.meta.url), 'utf8')).replace(/\r\n/g, '\n');
 const deploymentSql = await readFile(new URL('../proposals/admin-audit-role-labels-deploy.sql', import.meta.url), 'utf8');
 const definition = sql.slice(sql.indexOf('create or replace function'), sql.indexOf('$function$;'));
 

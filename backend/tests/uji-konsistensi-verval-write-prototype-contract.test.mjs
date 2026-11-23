@@ -73,7 +73,11 @@ test('contract scenarios specify validation and errors without calling Supabase'
   for (const [scenario, expectation] of scenarios) {
     assert.match(proposal, expectation, `missing expected response for ${scenario}`);
   }
-  assert.doesNotMatch(route, /simpan_uji_konsistensi|tambah_uji_konsistensi/);
+  // Writes are now wired, but only behind the production gate and for Penyedia Jasa.
+  assert.match(route, /\/rest\/v1\/rpc\/simpan_uji_konsistensi_verval/);
+  assert.doesNotMatch(route, /tambah_uji_konsistensi/);
+  assert.match(route, /router\.post\('\/paket\/:id\/siklus-verval\/:siklusId\/uji-konsistensi', async \(req, res\) => \{\s*if \(!productionRpcEnabled\(\)\)/);
+  assert.match(route, /Hanya Penyedia Jasa boleh mencatat uji konsistensi/);
   assert.match(route, /\/rest\/v1\/rpc\/baca_uji_konsistensi_verval/);
 });
 

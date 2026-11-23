@@ -104,6 +104,12 @@ before(async () => {
       if (lastRpc.p_search === 'NO_MATCH') return send([]);
       return send([{ trail_id: '9007199254740993', waktu: '2026-11-13T09:30:00', pengguna_id: 7, tabel: 'paket_kontrak', aksi: 'UPDATE_DRAFT', ringkasan: 'Aksi UPDATE_DRAFT pada paket_kontrak', record_id: 'sensitive-id', nilai_lama: { token: 'never-return' } }]);
     }
+    if (url.pathname === '/rest/v1/rpc/baca_konfirmasi_kalibrasi_tahap1') {
+      // Stage 2/3A routes require an approved Stage 1 PIC confirmation; do not touch lastRpc.
+      let raw = ''; for await (const chunk of req) raw += chunk;
+      const { p_paket_id } = JSON.parse(raw);
+      return send({ paket_id: p_paket_id, status: 'DISETUJUI', versi: 1, snapshot_saat_ini: {}, pengajuan: { versi: 1, snapshot: {} }, review: { keputusan: 'DISETUJUI', catatan: null }, snapshot_sesuai: true, stage2_allowed: true });
+    }
     if (url.pathname === '/rest/v1/balai') return send([{ balai_id: 1, nama: 'Balai Ujian', aktif: true }]);
     if (url.pathname === '/rest/v1/rpc/baca_ruas_paket') {
       let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
@@ -134,7 +140,7 @@ before(async () => {
         ],
       }]);
     }
-    if (url.pathname === '/rest/v1/rpc/buat_siklus_verval_testqa') {
+    if (url.pathname === '/rest/v1/rpc/buat_siklus_verval') {
       let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (token === 'foreign-reviewer' || lastRpc.p_paket_id !== 9 || ['inactive-testqa','no-testqa-allowlist','blank-testqa-purpose'].includes(token)) return send({ code: '42501', message: 'Paket tidak terdaftar aktif untuk pengujian Verval TEST/QA' }, 403);
       if (isReviewer) return send({ code: '42501', message: 'Hanya Penyedia Jasa aktif boleh membuat siklus Verval' }, 403);
@@ -585,7 +591,7 @@ before(async () => {
       if (lastRpc.p_patch.nomor_kontrak === 'DUPLICATE') return send({ code: '23505' }, 409);
       return send({ paket_id: lastRpc.p_paket_id, status: 'DRAFT', created_by: 3, ...lastRpc.p_patch });
     }
-    if (url.pathname === '/rest/v1/rpc/buat_paket_draft') {
+    if (url.pathname === '/rest/v1/rpc/buat_paket_draft_dengan_scope') {
       let raw = ''; for await (const chunk of req) raw += chunk;
       lastRpc = JSON.parse(raw);
       if (lastRpc.p_nomor_kontrak === 'DUPLICATE') return send({ code: '23505' }, 409);
@@ -703,13 +709,13 @@ before(async () => {
   const probe = http.createServer(); await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
   const port = probe.address().port; await new Promise(resolve => probe.close(resolve));
   base = `http://127.0.0.1:${port}/api`;
-  child = spawn(process.execPath, ['dist/index.mjs'], { env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${mock.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key', ADMIN_ROLE_MANAGEMENT_ENABLED: 'false', ADMIN_ROLE_READS_ENABLED: 'true', LOG_LEVEL: 'silent', NODE_ENV: 'production' }, stdio: 'ignore' });
+  child = spawn(process.execPath, ['dist/index.mjs'], { env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${mock.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key', ADMIN_ROLE_MANAGEMENT_ENABLED: 'false', ADMIN_ROLE_READS_ENABLED: 'true', CORRECTION_PRODUCTION_RPCS: 'true', STAGE3B_PRODUCTION_RPCS: 'true', STAGE1_PIC_CONFIRMATION_ENABLED: 'true', STAGE1_PIC_CONFIRMATION_APPROVED: 'true', STAGE1_PIC_CONFIRMATION_AUTHORIZATION_INSTALLED: 'true', LOG_LEVEL: 'silent', NODE_ENV: 'production' }, stdio: 'ignore' });
   let ready = false;
   for (let i = 0; i < 60; i++) { try { if ((await fetch(base + '/healthz')).ok) { ready = true; break; } } catch {} await delay(50); }
   assert.ok(ready, 'server starts');
 });
 after(async () => { child?.kill(); if (mock) await new Promise(resolve => mock.close(resolve)); });
-const draft = { nama_paket: ' Paket Ujian ', nomor_kontrak: 'K-001', tahun_anggaran: 2026, balai_id: 1 };
+const draft = { nama_paket: ' Paket Ujian ', nomor_kontrak: 'K-001', tahun_anggaran: 2026, balai_id: 1, jenis_survei_ids: [2, 1, 2] };
 test('health remains public', async () => assert.equal((await request('/healthz')).status, 200));
 test('login required', async () => assert.equal((await request('/me')).status, 401));
 test('expired token rejected', async () => assert.equal((await request('/me', 'expired')).status, 401));
@@ -874,7 +880,7 @@ test('Balai and package list available', async () => { assert.equal((await reque
 test('invalid pagination rejected', async () => assert.equal((await request('/paket?page=-1', 'provider')).status, 400));
 test('PIC cannot create', async () => assert.equal((await request('/paket', 'reviewer', draft)).status, 403));
 test('status and creator spoofing rejected', async () => { for (const fields of [{ status: 'DISETUJUI' }, { created_by: 1 }, { nama_paket: ' ' }]) assert.equal((await request('/paket', 'provider', { ...draft, ...fields })).status, 400); });
-test('valid draft uses caller token and validated fields', async () => { const r = await request('/paket', 'provider', draft); assert.equal(r.status, 201); assert.equal(r.body.data.status, 'DRAFT'); assert.deepEqual(lastRpc, { p_nama_paket: 'Paket Ujian', p_nomor_kontrak: 'K-001', p_tahun_anggaran: 2026, p_balai_id: 1 }); });
+test('valid draft uses caller token and validated fields', async () => { const r = await request('/paket', 'provider', draft); assert.equal(r.status, 201); assert.equal(r.body.data.status, 'DRAFT'); assert.deepEqual(lastRpc, { p_nama_paket: 'Paket Ujian', p_nomor_kontrak: 'K-001', p_tahun_anggaran: 2026, p_balai_id: 1, p_jenis_survei_ids: [1, 2] }); });
 test('duplicate contract maps to 409', async () => assert.equal((await request('/paket', 'provider', { ...draft, nomor_kontrak: 'DUPLICATE' })).status, 409));
 
 test('detail endpoint reads one package', async () => { const r = await request('/paket/3', 'provider'); assert.equal(r.status, 200); assert.equal(r.body.data.paket_id, 3); });
@@ -1874,24 +1880,25 @@ test('Verval consistency READ rejects malformed package and cycle IDs', async ()
   }
 });
 
-test('TEST/QA Verval CREATE is authenticated, provider-only, package-limited and input-minimal', async () => {
+test('Verval CREATE is authenticated, provider-only, package-limited and requires only request_id', async () => {
   const path = '/paket/9/siklus-verval';
-  assert.equal((await request(path, null, {})).status, 401);
-  assert.equal((await request(path, 'reviewer', {})).status, 403);
-  assert.equal((await request(path, 'inactive-testqa', {})).status, 403);
-  assert.equal((await request(path, 'no-testqa-allowlist', {})).status, 403);
-  assert.equal((await request(path, 'blank-testqa-purpose', {})).status, 403);
-  assert.equal((await request('/paket/10/siklus-verval', 'provider', {})).status, 403);
-  assert.equal((await request(path, 'provider', { periode_mulai: '2026-11-05', siklus_ke: 1, status: 'SELESAI' })).status, 400);
-  assert.equal((await request(path, 'no-first-session', {})).status, 409);
+  const body = { request_id: '7f1c8e2a-5b3d-4c6e-9a1f-2b3c4d5e6f70' };
+  assert.equal((await request(path, null, body)).status, 401);
+  assert.equal((await request(path, 'reviewer', body)).status, 403);
+  assert.equal((await request(path, 'inactive-testqa', body)).status, 403);
+  assert.equal((await request('/paket/10/siklus-verval', 'provider', body)).status, 403);
+  assert.equal((await request(path, 'provider', {})).status, 400);
+  assert.equal((await request(path, 'provider', { ...body, periode_mulai: '2026-11-05', siklus_ke: 1, status: 'SELESAI' })).status, 400);
+  assert.equal((await request(path, 'provider', { request_id: 'bukan-uuid' })).status, 400);
+  assert.equal((await request(path, 'no-first-session', body)).status, 409);
 
-  const created = await request(path, 'provider', {});
+  const created = await request(path, 'provider', body);
   assert.equal(created.status, 201);
-  assert.deepEqual(lastRpc, { p_paket_id: 9 });
+  assert.deepEqual(lastRpc, { p_paket_id: 9, p_request_id: body.request_id });
   assert.deepEqual(created.body.data, {
     siklus_id: 950, paket_id: 9, siklus_ke: 1,
     periode_mulai: '2026-11-05', periode_selesai: '2026-11-18',
     jatuh_tempo: null, panjang_periode_km: null, status: null,
   });
-  assert.equal((await request(path, 'provider', {})).status, 409);
+  assert.equal((await request(path, 'provider', body)).status, 409);
 });
