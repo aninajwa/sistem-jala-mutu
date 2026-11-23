@@ -19,14 +19,41 @@ interface SelfIdentityRecord {
 
 declare global { namespace Express { interface Locals { identity: Identity; } } }
 
+/**
+ * Short-lived per-token identity cache. One page load fires ~10 parallel API calls;
+ * resolving identity for each cost two Supabase round trips and made pages slow.
+ * Only accepted identities are cached, so a rejected token is re-checked every time.
+ * Role or lock changes therefore take effect within IDENTITY_CACHE_MS.
+ */
+const IDENTITY_CACHE_MS = 15_000;
+const IDENTITY_CACHE_MAX = 500;
+const identityCache = new Map<string, { identity: Identity; expiresAt: number }>();
+
+function cachedIdentity(token: string): Identity | undefined {
+  const entry = identityCache.get(token);
+  if (!entry) return undefined;
+  if (entry.expiresAt <= Date.now()) { identityCache.delete(token); return undefined; }
+  return entry.identity;
+}
+
+function rememberIdentity(identity: Identity) {
+  if (identityCache.size >= IDENTITY_CACHE_MAX) identityCache.delete(identityCache.keys().next().value!);
+  identityCache.set(identity.token, { identity, expiresAt: Date.now() + IDENTITY_CACHE_MS });
+}
+
 export const requireAuth: RequestHandler = async (req, res, next) => {
   try {
     const match = /^Bearer ([^\s]+)$/i.exec(req.headers.authorization ?? '');
     if (!match) throw new ApiError(401, 'Login diperlukan');
     const token = match[1];
-    const user = await supabaseRequest<{ id: string; email?: string | null }>('/auth/v1/user', token);
-    const records = await supabaseRequest<SelfIdentityRecord[]>(
-      '/rest/v1/rpc/authenticated_identity_self', token, { method: 'POST', body: '{}' });
+    const cached = cachedIdentity(token);
+    if (cached) { res.locals.identity = cached; next(); return; }
+    // Both lookups only need the token; run them together.
+    const [user, records] = await Promise.all([
+      supabaseRequest<{ id: string; email?: string | null }>('/auth/v1/user', token),
+      supabaseRequest<SelfIdentityRecord[]>(
+        '/rest/v1/rpc/authenticated_identity_self', token, { method: 'POST', body: '{}' }),
+    ]);
     const record = Array.isArray(records) ? records[0] : undefined;
     if (!record || record.terkunci || record.auth_user_id !== user.id) throw new ApiError(403, 'Profil belum ditautkan atau akaun terkunci');
     const profile: Identity['profile'] = {
@@ -42,6 +69,7 @@ export const requireAuth: RequestHandler = async (req, res, next) => {
     const roles = Array.isArray(record.peran) ? record.peran : [];
     if (!assignments.length || !roles.length) throw new ApiError(403, 'Peran belum ditetapkan');
     res.locals.identity = { token, profile, assignments, roles };
+    rememberIdentity(res.locals.identity);
     next();
   } catch (error) { next(error); }
 };

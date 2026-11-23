@@ -735,11 +735,12 @@ test('profile email comes from Supabase Auth, not public.pengguna', async () => 
 });
 test('identity RPC is called with the validated caller token and returns only its role assignment', async () => {
   const before = identityRpcCalls.length;
-  const r = await request('/me', 'reviewer');
+  // A token not used elsewhere, so the per-token identity cache cannot hide the RPC call.
+  const r = await request('/me', 'reviewer-identity-probe');
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.data.peran.map(role => role.nama), ['pic_balai']);
   assert.equal(identityRpcCalls.length, before + 1);
-  assert.equal(identityRpcCalls.at(-1), 'reviewer');
+  assert.equal(identityRpcCalls.at(-1), 'reviewer-identity-probe');
   assert.equal((await request('/me', 'pic-qa')).body.data.penugasan[0].scope_balai_id, 101);
 });
 test('identity retains Admin plus operational roles for server-side workflow denial', async () => {
@@ -1951,4 +1952,17 @@ test('scope amendment reports disabled capabilities and fails closed while its g
     assert.equal(r.body.error, 'Penambahan jenis survei belum diaktifkan; migrasi pindaan scope belum dipasang.');
   }
   assert.equal((await request('/paket/3/scope-amendment-capabilities')).status, 401);
+});
+
+test('identity is resolved once per token within the cache window', async () => {
+  const before = identityRpcCalls.length;
+  for (let i = 0; i < 3; i += 1) assert.equal((await request('/me', 'reviewer-cache-probe')).status, 200);
+  assert.equal(identityRpcCalls.filter(token => token === 'reviewer-cache-probe').length, 1);
+  assert.equal(identityRpcCalls.length, before + 1);
+});
+
+test('rejected identities are never cached', async () => {
+  const before = identityRpcCalls.filter(token => token === 'locked').length;
+  for (let i = 0; i < 2; i += 1) assert.equal((await request('/me', 'locked')).status, 403);
+  assert.equal(identityRpcCalls.filter(token => token === 'locked').length, before + 2);
 });

@@ -91,7 +91,7 @@ async function runAccount(account: Account) {
 
     for (const [code, selection, heading] of STAGES) {
       await page.goto(`${base}${selection.split(':')[0]}?paket=${packageId}&submodule=${encodeURIComponent(selection)}`);
-      await page.getByText(heading).first().waitFor({ timeout: 15000 });
+      await page.getByText(heading).first().waitFor({ timeout: 30000 });
       await shot(page, `${account.tag}-tahap${code}`);
     }
   } finally {

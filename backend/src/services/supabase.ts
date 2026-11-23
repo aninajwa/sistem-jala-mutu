@@ -1,8 +1,9 @@
+import { logger } from '../lib/logger';
 export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 
-export async function supabaseFetch(path: string, token: string, init: RequestInit = {}, timeout = 10000): Promise<Response> {
+export async function supabaseFetch(path: string, token: string, init: RequestInit = {}, timeout = 20000): Promise<Response> {
   const url = process.env.SUPABASE_URL;
   const key = process.env.SUPABASE_PUBLISHABLE_KEY;
   if (!url || !key) throw new ApiError(503, 'Konfigurasi Supabase belum lengkap');
@@ -13,7 +14,10 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
   let response: Response;
   try {
     response = await fetch(`${url.replace(/\/$/, '')}${path}`, { ...init, headers, signal: AbortSignal.timeout(timeout) });
-  } catch { throw new ApiError(503, 'Supabase tidak dapat dihubungi'); }
+  } catch (error) {
+    logger.warn({ path: path.split('?')[0], reason: error instanceof Error ? error.name : 'unknown' }, 'Supabase unreachable');
+    throw new ApiError(503, 'Supabase tidak dapat dihubungi');
+  }
   if (!response.ok) {
     const failure = await response.json().catch(() => null) as { code?: string; message?: string; error?: string } | null;
     if (path.startsWith('/rest/v1/rpc/admin_') && /(?:daftar_peran_dapat_ditugaskan|daftar_penugasan_peran|tambah_penugasan_peran|ubah_penugasan_peran|cabut_penugasan_peran)$/.test(path)) {
@@ -60,6 +64,8 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
       if (response.status === 413) throw new ApiError(413, 'Fail melebihi had saiz Storage');
       if (response.status === 400) throw new ApiError(400, 'Storage menolak fail atau akses upload');
     }
+    // Unmapped upstream failure: record status/code (never the token) for diagnosis.
+    logger.warn({ upstreamStatus: response.status, code: failure?.code, path: path.split('?')[0] }, 'Supabase request failed');
     throw new ApiError(502, 'Permintaan Supabase gagal');
   }
   return response;
