@@ -87,6 +87,7 @@ Gate di bawah ini fail-closed: kalau nilainya tidak `true`, endpoint terkait men
 | `STAGE4_LRS_RPCS` | Baca/simpan validasi LRS Tahap 4 |
 | `STAGE4_WORKFLOW_RPCS` | Ajukan/review Tahap 4 |
 | `CORRECTION_PRODUCTION_RPCS` | Semua endpoint Koreksi |
+| `PACKAGE_SCOPE_AMENDMENT_RPCS` | Penambahan jenis survei (pindaan scope). Butuh migrasi `20261118120000`. Saat mati, panel disembunyikan |
 | `ADMIN_ROLE_READS_ENABLED`, `ADMIN_ROLE_MANAGEMENT_ENABLED` | Baca/ubah penugasan peran oleh Admin |
 
 Di frontend, `VITE_ADMIN_ROLE_MUTATIONS_ENABLED` menampilkan aksi ubah peran.

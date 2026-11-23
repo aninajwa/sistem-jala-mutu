@@ -14,13 +14,28 @@ import {
 
 const router = Router();
 
+// Fail closed until migration 20261118120000_package_survey_scope_amendment is installed.
+const scopeAmendmentEnabled = () => process.env.PACKAGE_SCOPE_AMENDMENT_RPCS === 'true';
+function assertScopeAmendmentEnabled() {
+  if (!scopeAmendmentEnabled()) {
+    throw new ApiError(503, 'Penambahan jenis survei belum diaktifkan; migrasi pindaan scope belum dipasang.');
+  }
+}
+
 function parsePackageId(value: unknown) {
   const parsed = paketIdSchema.safeParse(value);
   if (!parsed.success) throw new ApiError(400, 'ID paket tidak valid');
   return parsed.data;
 }
 
+router.get('/paket/:id/scope-amendment-capabilities', (req, res) => {
+  parsePackageId(req.params.id);
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data: { enabled: scopeAmendmentEnabled() } });
+});
+
 router.get('/paket/:id/scope-amendment', async (req, res) => {
+  assertScopeAmendmentEnabled();
   const packageId = parsePackageId(req.params.id);
   const data = await readPackageScopeAmendmentState(packageId, res.locals.identity.token);
   res.setHeader('Cache-Control', 'private, no-store');
@@ -28,6 +43,7 @@ router.get('/paket/:id/scope-amendment', async (req, res) => {
 });
 
 router.post('/paket/:id/scope-amendment', async (req, res) => {
+  assertScopeAmendmentEnabled();
   const { identity } = res.locals;
   if (!identity.roles.some((role: { nama: string }) => role.nama === 'penyedia_jasa')) {
     throw new ApiError(403, 'Hanya Penyedia Jasa boleh mengajukan penambahan jenis survei.');
@@ -44,6 +60,7 @@ router.post('/paket/:id/scope-amendment', async (req, res) => {
 });
 
 router.post('/paket/:id/scope-amendment/:amendmentId/review', async (req, res) => {
+  assertScopeAmendmentEnabled();
   const { identity } = res.locals;
   if (!identity.roles.some((role: { nama: string }) => role.nama === 'pic_balai')) {
     throw new ApiError(403, 'Hanya PIC Balai boleh memutuskan pindaan scope survei.');

@@ -103,6 +103,17 @@ export function parsePackageScopeAmendmentState(value: unknown, packageId: numbe
   };
 }
 
+/** Server gate for scope amendments; the panel stays hidden while the migration is not installed. */
+export async function getScopeAmendmentCapabilities(packageId: string, request: Request): Promise<{ enabled: boolean }> {
+  const response = await request<unknown>(
+    `/paket/${encodeURIComponent(packageId)}/scope-amendment-capabilities`,
+    { cache: 'no-store' },
+  );
+  const data = (response as { data?: unknown } | null)?.data as { enabled?: unknown } | undefined;
+  if (!data || typeof data.enabled !== 'boolean') throw new Error('Format kapabilitas penambahan jenis survei tidak sesuai.');
+  return { enabled: data.enabled };
+}
+
 export async function getPackageScopeAmendmentState(
   packageId: string,
   request: Request,

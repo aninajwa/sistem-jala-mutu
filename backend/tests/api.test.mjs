@@ -1940,3 +1940,15 @@ test('review queue for a caller with no packages is an empty list', async () => 
   assert.equal(r.status, 200);
   assert.deepEqual(r.body, { data: [], partial: false });
 });
+
+test('scope amendment reports disabled capabilities and fails closed while its gate is off', async () => {
+  const caps = await request('/paket/3/scope-amendment-capabilities', 'provider');
+  assert.equal(caps.status, 200);
+  assert.deepEqual(caps.body, { data: { enabled: false } });
+  for (const [path, body] of [['/paket/3/scope-amendment', undefined], ['/paket/3/scope-amendment', { expected_scope_version: 1, jenis_survei_ids: [2] }], ['/paket/3/scope-amendment/1/review', { keputusan: 'DISETUJUI' }]]) {
+    const r = await request(path, body ? 'provider' : 'provider', body);
+    assert.equal(r.status, 503, path);
+    assert.equal(r.body.error, 'Penambahan jenis survei belum diaktifkan; migrasi pindaan scope belum dipasang.');
+  }
+  assert.equal((await request('/paket/3/scope-amendment-capabilities')).status, 401);
+});

@@ -5,3 +5,6 @@ FRONTEND_ORIGIN=http://localhost:5173
 SUPABASE_URL=https://vnvknmwcidberkjwtqjx.supabase.co
 SUPABASE_PUBLISHABLE_KEY=
 # DATABASE_URL only needed for old Drizzle tools; do not run db:push with an empty schema.
+
+# Pindaan scope survei (Penyedia -> PIC). Aktifkan hanya setelah migrasi 20261118120000 dipasang.
+PACKAGE_SCOPE_AMENDMENT_RPCS=false

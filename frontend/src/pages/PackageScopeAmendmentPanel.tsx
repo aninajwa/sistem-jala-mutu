@@ -5,6 +5,7 @@ import type { WorkflowRole } from '../workflow/model';
 import type { SurveyCatalogOption } from '../workflow/declaredPackageSurveyScope';
 import {
   getPackageScopeAmendmentState,
+  getScopeAmendmentCapabilities,
   reviewPackageScopeAmendment,
   submitPackageScopeAmendment,
   type PackageScopeAmendment,
@@ -27,7 +28,27 @@ function statusLabel(status: PackageScopeAmendment['status']) {
   return 'Menunggu keputusan PIC';
 }
 
-export function PackageScopeAmendmentPanel({
+type PanelProps = {
+  packageId: string;
+  role: WorkflowRole;
+  preparationStatus: string | undefined;
+  catalog: SurveyCatalogOption[];
+};
+
+/** Renders nothing until the server reports the scope-amendment feature as enabled. */
+export function PackageScopeAmendmentPanel(props: PanelProps) {
+  const [enabled, setEnabled] = useState(false);
+  useEffect(() => {
+    let active = true;
+    getScopeAmendmentCapabilities(props.packageId, apiRequest)
+      .then(value => { if (active) setEnabled(value.enabled); })
+      .catch(() => { if (active) setEnabled(false); });
+    return () => { active = false; };
+  }, [props.packageId]);
+  return enabled ? <ScopeAmendmentPanelBody {...props} /> : null;
+}
+
+function ScopeAmendmentPanelBody({
   packageId,
   role,
   preparationStatus,

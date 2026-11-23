@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 import { ApiError } from '../auth/client';
 import {
+  getScopeAmendmentCapabilities,
   parsePackageScopeAmendmentState,
   reviewPackageScopeAmendment,
   submitPackageScopeAmendment,
@@ -112,4 +113,15 @@ test('Provider submits IRI to IRI plus PCI and bridge in one request and verifie
   assert.deepEqual(result.scope_efektif.surveys.map(survey => survey.kode), ['IRI']);
   assert.equal(result.pindaan[0].status, 'DIAJUKAN');
   assert.equal(paths.length, 2);
+});
+
+test('scope amendment capabilities parse the server gate and reject malformed bodies', async () => {
+  const paths: string[] = [];
+  const reply = (body: unknown) => (async <T,>(path: string) => { paths.push(path); return body as T; }) as never;
+  assert.deepEqual(await getScopeAmendmentCapabilities('53', reply({ data: { enabled: false } })), { enabled: false });
+  assert.deepEqual(await getScopeAmendmentCapabilities('53', reply({ data: { enabled: true } })), { enabled: true });
+  assert.equal(paths[0], '/paket/53/scope-amendment-capabilities');
+  for (const body of [{}, { data: {} }, { data: { enabled: 'true' } }, null]) {
+    await assert.rejects(getScopeAmendmentCapabilities('53', reply(body)), /Format kapabilitas penambahan jenis survei tidak sesuai/);
+  }
 });
