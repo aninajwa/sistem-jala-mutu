@@ -1,8 +1,10 @@
 import { Router } from 'express';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { ApiError, supabaseRequest } from '../services/supabase';
 import { siklusVervalConsistencyBodySchema, siklusVervalCreateBodySchema, siklusVervalIdSchema } from '../schemas/siklus-verval';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 const productionRpcEnabled = () => process.env.STAGE3B_PRODUCTION_RPCS === 'true';
 
 router.get('/paket/:id/siklus-verval/capabilities', (_req, res) => {

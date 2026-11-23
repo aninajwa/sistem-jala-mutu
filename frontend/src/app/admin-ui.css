@@ -1,0 +1,215 @@
+/* Admin-only presentation layer. Shared workflow components retain their original
+   styling for Penyedia and PIC because these rules require the Admin shell. */
+.admin-shell {
+  --admin-text: #364b5f;
+  --admin-heading: #173453;
+  --admin-muted: #60758a;
+  --admin-border: #dce5ed;
+  --admin-control-height: 37px;
+}
+
+.admin-shell .sidebar {
+  width: 252px;
+}
+
+.admin-shell .nav-link {
+  min-height: 40px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.admin-shell .nav-child {
+  min-height: 32px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-shell .side-foot {
+  font-size: 11px;
+}
+
+.admin-shell .page-title {
+  font-size: 20px;
+  line-height: 1.25;
+}
+
+.admin-shell .crumb {
+  font-size: 12px;
+}
+
+.admin-shell .module-title {
+  font-size: 20px;
+  line-height: 1.35;
+}
+
+.admin-shell .subtle {
+  color: var(--admin-muted);
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-shell .panel-head {
+  min-height: 40px;
+  padding: 9px 12px;
+}
+
+.admin-shell .panel-head h3 {
+  font-size: 15px;
+  line-height: 1.35;
+}
+
+.admin-shell .panel-body {
+  padding: 12px;
+}
+
+.admin-shell .table-wrap {
+  min-width: 0;
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.admin-shell table {
+  width: 100%;
+  min-width: 550px;
+}
+
+.admin-shell th,
+.admin-shell td {
+  padding: 8px 10px;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.admin-shell th {
+  color: #425b72;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-shell td {
+  color: var(--admin-text);
+  font-size: 13px;
+}
+
+.admin-shell td strong {
+  font-weight: 600;
+}
+
+.admin-shell .status {
+  padding: 4px 8px;
+  font-size: 12px;
+  line-height: 1.35;
+}
+
+.admin-shell .kpi-label {
+  font-size: 12px;
+}
+
+.admin-shell .kpi-note {
+  color: var(--admin-muted);
+  font-size: 11px;
+  line-height: 1.4;
+}
+
+.admin-shell .legend,
+.admin-shell .quality-check {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.admin-shell .empty,
+.admin-shell .notice {
+  font-size: 13px;
+  line-height: 1.5;
+}
+
+.admin-shell .filter-wrap label,
+.admin-shell .field label {
+  color: #425b72;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-shell .filter-wrap select,
+.admin-shell .field select,
+.admin-shell .field input,
+.admin-shell .field textarea,
+.admin-shell .search-box input,
+.admin-shell .content input:not([type='checkbox']):not([type='radio']),
+.admin-shell .content select,
+.admin-shell .content textarea {
+  box-sizing: border-box;
+  min-height: var(--admin-control-height);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+}
+
+.admin-shell .content textarea {
+  min-height: 96px;
+}
+
+.admin-shell .content button:not(.nav-module-button):not(.nav-child):not(.mobile-toggle) {
+  min-height: var(--admin-control-height);
+  padding-top: 6px;
+  padding-bottom: 6px;
+  font-size: 13px;
+  line-height: 1.35;
+}
+
+.admin-shell .btn {
+  min-height: var(--admin-control-height);
+  padding: 6px 10px;
+  font-size: 13px;
+}
+
+.admin-shell .btn.sm {
+  min-height: 32px;
+  padding: 5px 8px;
+  font-size: 12px;
+}
+
+.admin-shell .form-grid {
+  gap: 12px;
+}
+
+.admin-shell .form-actions,
+.admin-shell .toolbar {
+  gap: 8px;
+}
+
+@media (max-width: 1100px) {
+  .admin-shell .sidebar {
+    width: 252px;
+  }
+}
+
+@media (max-width: 780px) {
+  .admin-shell .sidebar {
+    width: min(280px, 86vw);
+  }
+
+  .admin-shell .page-title {
+    font-size: 20px;
+  }
+
+  .admin-shell .content {
+    min-width: 0;
+  }
+
+  .admin-shell .module-row {
+    gap: 8px;
+  }
+}
+
+@media (max-width: 420px) {
+  .admin-shell .page-title {
+    font-size: 19px;
+  }
+
+  .admin-shell .panel-head {
+    padding-inline: 11px;
+  }
+}

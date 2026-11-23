@@ -1,0 +1,54 @@
+name: Admin role management PostgreSQL 17
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - .github/workflows/admin-role-management-postgres17.yml
+      - backend/proposals/admin-role-management-v1-install.sql
+      - backend/tests/admin-role-management-fixture.sql
+      - backend/tests/admin-role-management-runtime.pg.mjs
+
+permissions:
+  contents: read
+
+jobs:
+  role-management-runtime:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_USER: postgres
+          POSTGRES_PASSWORD: postgres
+          POSTGRES_DB: role_management_test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres -d role_management_test"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        run: npm ci
+        working-directory: backend
+
+      - name: Run real PostgreSQL 17 role mutation tests
+        run: node --test tests/admin-role-management-runtime.pg.mjs
+        working-directory: backend
+        env:
+          ROLE_TEST_DATABASE_URL: postgres://postgres:postgres@127.0.0.1:5432/role_management_test

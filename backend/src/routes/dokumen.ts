@@ -1,9 +1,11 @@
 import { Router, type RequestHandler } from 'express';
 import { z } from 'zod';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { upload, storeAndRegister, readPdfBytes } from '../services/pdf-storage';
 import { paketIdSchema } from '../schemas/paket';
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 const BUCKET = 'dokumen-persiapan';
 const formSchema = z.object({ judul: z.string().trim().min(1).max(255), jenis_dokumen: z.enum(['LAPORAN_PENDAHULUAN', 'PROGRAM_MUTU']) }).strict();
 const versionFormSchema = z.object({ expected_version: z.string().regex(/^[1-9]\d*$/).transform(Number).refine(value => Number.isSafeInteger(value) && value <= 2147483646) }).strict();

@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { paketIdSchema } from '../schemas/paket';
 import {
     koreksiCloseSchema,
@@ -13,6 +14,7 @@ import {
 } from '../schemas/koreksi';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 const productionRpcEnabled = () => process.env.CORRECTION_PRODUCTION_RPCS === 'true';
 
 router.get('/paket/:id/koreksi-capabilities', (_req, res) => {
@@ -24,6 +26,7 @@ router.get('/paket/:id/koreksi-capabilities', (_req, res) => {
 function requireProductionRpcs() {
     if (!productionRpcEnabled()) throw new ApiError(503, 'Workflow Correction server dinonaktifkan sampai kontrak RPC dipasang dan diverifikasi di QA.');
 }
+
 
 function routeId(value: unknown, label: string) {
     const parsed = paketIdSchema.safeParse(value);

@@ -1,9 +1,11 @@
 import { Router, type RequestHandler } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { upload, storeAndRegister, readPdfBytes, type StoredPdf } from '../services/pdf-storage';
 import { paketIdSchema } from '../schemas/paket';
 import { calibrationCreateSchema, calibrationPatchSchema, certificateUploadSchema } from '../schemas/kalibrasi';
 const router=Router();
+router.use(denyAdminWorkflowWrites);
 const BUCKET='dokumen-kalibrasi';
 const columns='kalibrasi_id,paket_id,alat_id,jenis,standar,komponen,tgl_kalibrasi,berlaku_sd,pelaksana,dokumen_id,status,created_by,versi,updated_at,dokumen(dokumen_id,judul,versi_aktif)';
 interface Calibration { kalibrasi_id:number; paket_id:number; dokumen_id:number|null; versi:number; status:string }

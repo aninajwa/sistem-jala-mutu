@@ -2,6 +2,7 @@ import { ujiCobaPengukuranCreateSchema } from '../schemas/uji-coba-pengukuran';
 import { ujiCobaSeksiCreateSchema } from '../schemas/uji-coba-seksi';
 import { Router } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { paketIdSchema } from '../schemas/paket';
 import {
     ujiCobaCreateSchema,
@@ -13,6 +14,7 @@ import { assertStage2PicConfirmation } from '../services/stage1-confirmation-pol
 import { readStage2PackageCompletion } from '../services/stage2-package-completion';
 
 const router = Router();
+router.use(denyAdminWorkflowWrites);
 
 function routeId(value: unknown, label: string) {
     const parsed = paketIdSchema.safeParse(value);

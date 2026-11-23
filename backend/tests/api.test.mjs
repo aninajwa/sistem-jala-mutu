@@ -5,7 +5,11 @@ import { createHash } from 'node:crypto';
 import { spawn } from 'node:child_process';
 import { setTimeout as delay } from 'node:timers/promises';
 let mock, child, base, lastRpc;
-const roleQueries = [];
+let adminRoleRpcCalls = 0;
+let adminRoleMutationRpcCalls = 0;
+const identityRpcCalls = [];
+let workflowMutationRpcCalls = 0;
+let storageWriteCalls = 0;
 const storageFiles = new Map();
 let registeredDocument;
 let cleanupCalls = 0;
@@ -48,20 +52,57 @@ before(async () => {
     res.setHeader('Content-Type', 'application/json');
     const url = new URL(req.url, 'http://localhost');
     const send = (data, code = 200) => { res.statusCode = code; res.end(JSON.stringify(data)); };
+    const isAdmin = ['admin', 'admin-no-list-rpc', 'locked-admin', 'admin-provider', 'admin-pic'].includes(token);
     const isDirector = token === 'director';
-    const isReviewer = Boolean(token?.includes('reviewer'));
-    const authId = isDirector ? 'director-id' : isReviewer ? 'reviewer-id' : 'provider-id';
-    if (url.pathname === '/auth/v1/user') return token === 'expired' ? send({ error: 'expired' }, 401) : send({ id: authId });
-    if (url.pathname === '/rest/v1/pengguna') return send(token === 'unlinked' ? [] : [{ ...profile, pengguna_id: isDirector ? 4 : profile.pengguna_id, auth_user_id: authId, username: isDirector ? 'direktorat' : profile.username, terkunci: token === 'locked' }]);
-    if (url.pathname === '/rest/v1/pengguna_peran') {
-      roleQueries.push(url.search);
-      const scope = token === 'balai1-reviewer' ? 1 : token === 'balai999-reviewer' ? 999 : null;
-      return send([{ peran_id: isDirector ? 4 : isReviewer ? 1 : 3, scope_balai_id: scope, scope_paket_id: null }]);
+    const isReviewer = Boolean(token?.includes('reviewer')) || ['pic-qa', 'admin-pic'].includes(token);
+    const authId = isAdmin ? 'admin-id' : token === 'unassigned-admin' ? 'unassigned-admin-id' : isDirector ? 'director-id' : isReviewer ? 'reviewer-id' : 'provider-id';
+    if (url.pathname.startsWith('/rest/v1/rpc/') && url.pathname !== '/rest/v1/rpc/authenticated_identity_self') workflowMutationRpcCalls++;
+    if (url.pathname.startsWith('/storage/v1/object/') && ['POST', 'DELETE'].includes(req.method)) storageWriteCalls++;
+    if (url.pathname === '/auth/v1/user') return token === 'expired' ? send({ error: 'expired' }, 401) : send({ id: authId, email: profile.email });
+    if (url.pathname === '/rest/v1/rpc/authenticated_identity_self') {
+      assert.equal(req.method, 'POST');
+      assert.equal(req.headers.authorization, `Bearer ${token}`);
+      let raw = ''; for await (const chunk of req) raw += chunk;
+      assert.equal(raw, '{}');
+      identityRpcCalls.push(token);
+      if (token === 'unlinked') return send([]);
+      const roleId = isAdmin ? 2 : isDirector ? 4 : isReviewer ? 1 : 3;
+      const scope = token === 'balai1-reviewer' ? 1 : token === 'balai999-reviewer' ? 999 : token === 'pic-qa' ? 101 : null;
+      const assignedRoles = token === 'admin-provider'
+        ? [{ peran_id: 2, nama: 'admin' }, { peran_id: 3, nama: 'penyedia_jasa' }]
+        : token === 'admin-pic'
+          ? [{ peran_id: 2, nama: 'admin' }, { peran_id: 1, nama: 'pic_balai' }]
+          : [{ peran_id: roleId, nama: isAdmin ? 'admin' : isDirector ? 'direktorat' : isReviewer ? 'pic_balai' : 'penyedia_jasa' }];
+      const assignments = ['unassigned-admin', 'no-assignment'].includes(token) ? [] : assignedRoles.map(role => ({ peran_id: role.peran_id, scope_balai_id: scope, scope_paket_id: null }));
+      const roles = ['unassigned-admin', 'no-role'].includes(token) ? [] : assignedRoles;
+      return send([{
+        pengguna_id: isAdmin ? 5 : isDirector ? 4 : profile.pengguna_id,
+        auth_user_id: authId,
+        username: isAdmin ? 'admin' : isDirector ? 'direktorat' : profile.username,
+        terkunci: ['locked', 'locked-admin'].includes(token),
+        penugasan: assignments,
+        peran: roles,
+      }]);
     }
-    if (url.pathname === '/rest/v1/peran') {
-      roleQueries.push(url.search);
-      // The real catalog is readable by every authenticated user.
-      return send([{ peran_id: 1, nama: 'pic_balai' }, { peran_id: 2, nama: 'admin' }, { peran_id: 3, nama: 'penyedia_jasa' }, { peran_id: 4, nama: 'direktorat' }]);
+    if (url.pathname === '/rest/v1/rpc/admin_daftar_pengguna') {
+      let raw = ''; for await (const chunk of req) raw += chunk;
+      lastRpc = JSON.parse(raw);
+      if (!isAdmin) return send({ code: '42501' }, 403);
+      if (token === 'admin-no-list-rpc') return send({ code: 'PGRST202', message: 'function missing' }, 404);
+      const users = [{ pengguna_id: 5, username: 'admin', terkunci: false, peran: [{ nama: 'admin', scope_balai_id: null, scope_paket_id: null }] }];
+      return send(users);
+    }
+     if (url.pathname === '/rest/v1/rpc/admin_daftar_peran_dapat_ditugaskan') { adminRoleRpcCalls++; let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw); return isAdmin ? send([{ peran_id: 1, nama_peran: 'pic_balai' }]) : send({ code: '42501' }, 403); }
+     if (url.pathname === '/rest/v1/rpc/admin_daftar_penugasan_peran') { adminRoleRpcCalls++; let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw); return isAdmin ? send([{ pp_id: 17, pengguna_id: lastRpc.p_pengguna_id, peran_id: 1, nama_peran: 'pic_balai', scope_balai_id: 1, scope_paket_id: null, mutation_version: '3' }]) : send({ code: '42501' }, 403); }
+     if (url.pathname.startsWith('/rest/v1/rpc/admin_') && /(?:tambah_penugasan_peran|ubah_penugasan_peran|cabut_penugasan_peran)$/.test(url.pathname)) { adminRoleRpcCalls++; adminRoleMutationRpcCalls++; return send({ code: 'XX000', message: 'private detail' }, 500); }
+    if (url.pathname === '/rest/v1/rpc/admin_daftar_jejak_aktivitas') {
+      let raw = ''; for await (const chunk of req) raw += chunk;
+      lastRpc = JSON.parse(raw);
+      if (!isAdmin) return send({ code: '42501' }, 403);
+      if (lastRpc.p_search === 'RPC_401') return send({ code: 'PGRST301' }, 401);
+      if (lastRpc.p_search === 'RPC_ERROR') return send({ code: 'XX000', message: 'sensitive database detail' }, 500);
+      if (lastRpc.p_search === 'NO_MATCH') return send([]);
+      return send([{ trail_id: '9007199254740993', waktu: '2026-11-13T09:30:00', pengguna_id: 7, tabel: 'paket_kontrak', aksi: 'UPDATE_DRAFT', ringkasan: 'Aksi UPDATE_DRAFT pada paket_kontrak', record_id: 'sensitive-id', nilai_lama: { token: 'never-return' } }]);
     }
     if (url.pathname === '/rest/v1/balai') return send([{ balai_id: 1, nama: 'Balai Ujian', aktif: true }]);
     if (url.pathname === '/rest/v1/rpc/baca_ruas_paket') {
@@ -662,7 +703,7 @@ before(async () => {
   const probe = http.createServer(); await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
   const port = probe.address().port; await new Promise(resolve => probe.close(resolve));
   base = `http://127.0.0.1:${port}/api`;
-  child = spawn(process.execPath, ['dist/index.mjs'], { env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${mock.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key', LOG_LEVEL: 'silent', NODE_ENV: 'production' }, stdio: 'ignore' });
+  child = spawn(process.execPath, ['dist/index.mjs'], { env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${mock.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key', ADMIN_ROLE_MANAGEMENT_ENABLED: 'false', ADMIN_ROLE_READS_ENABLED: 'true', LOG_LEVEL: 'silent', NODE_ENV: 'production' }, stdio: 'ignore' });
   let ready = false;
   for (let i = 0; i < 60; i++) { try { if ((await fetch(base + '/healthz')).ok) { ready = true; break; } } catch {} await delay(50); }
   assert.ok(ready, 'server starts');
@@ -673,13 +714,156 @@ test('health remains public', async () => assert.equal((await request('/healthz'
 test('login required', async () => assert.equal((await request('/me')).status, 401));
 test('expired token rejected', async () => assert.equal((await request('/me', 'expired')).status, 401));
 test('unlinked and locked profiles rejected', async () => { for (const token of ['unlinked', 'locked']) assert.equal((await request('/me', token)).status, 403); });
+test('identity RPC results without assignments or roles are rejected', async () => {
+  for (const token of ['unassigned-admin', 'no-assignment', 'no-role']) assert.equal((await request('/me', token)).status, 403);
+});
 test('own profile and roles returned', async () => { const r = await request('/me', 'provider'); assert.equal(r.status, 200); assert.equal(r.body.data.peran[0].nama, 'penyedia_jasa'); });
-test('assigned roles are filtered per caller and intersected with the catalog', async () => {
+test('profile email comes from Supabase Auth, not public.pengguna', async () => {
+  const r = await request('/me', 'provider');
+  assert.equal(r.status, 200);
+  assert.equal(r.body.data.email, 'provider@example.test');
+});
+test('identity RPC is called with the validated caller token and returns only its role assignment', async () => {
+  const before = identityRpcCalls.length;
   const r = await request('/me', 'reviewer');
   assert.equal(r.status, 200);
   assert.deepEqual(r.body.data.peran.map(role => role.nama), ['pic_balai']);
-  assert.ok(roleQueries.some(q => /[?&]pengguna_id=eq\.\d+/.test(q)), 'penugasan mesti ditapis ikut pengguna_id');
-  assert.ok(roleQueries.some(q => /[?&]peran_id=in\.\(\d+\)/.test(q)), 'katalog peran mesti ditapis ikut peran_id');
+  assert.equal(identityRpcCalls.length, before + 1);
+  assert.equal(identityRpcCalls.at(-1), 'reviewer');
+  assert.equal((await request('/me', 'pic-qa')).body.data.penugasan[0].scope_balai_id, 101);
+});
+test('identity retains Admin plus operational roles for server-side workflow denial', async () => {
+  const admin = await request('/me', 'admin');
+  const adminProvider = await request('/me', 'admin-provider');
+  const adminPic = await request('/me', 'admin-pic');
+  const provider = await request('/me', 'provider');
+  const pic = await request('/me', 'pic-qa');
+  assert.deepEqual(admin.body.data.peran.map(role => role.nama), ['admin']);
+  assert.deepEqual(adminProvider.body.data.peran.map(role => role.nama), ['admin', 'penyedia_jasa']);
+  assert.deepEqual(adminPic.body.data.peran.map(role => role.nama), ['admin', 'pic_balai']);
+  assert.deepEqual(provider.body.data.peran.map(role => role.nama), ['penyedia_jasa']);
+  assert.deepEqual(pic.body.data.peran.map(role => role.nama), ['pic_balai']);
+});
+test('Admin and Admin multi-role are denied before workflow RPC or Storage on all mutation route groups', async () => {
+  const writes = [
+    ['POST', '/paket'], ['PATCH', '/paket/3'],
+    ['PATCH', '/paket/3/checklist-persiapan'], ['PATCH', '/paket/3/checklist-persiapan/bukti'],
+    ['POST', '/paket/3/pengajuan-persiapan'], ['POST', '/paket/3/pengajuan-persiapan/review'],
+    ['POST', '/paket/3/dokumen'], ['POST', '/paket/3/dokumen/51/versi'],
+    ['POST', '/penyedia'], ['POST', '/paket/3/tim'], ['POST', '/paket/3/tim/1/alat'],
+    ['POST', '/paket/3/kalibrasi-alat'], ['PATCH', '/paket/3/kalibrasi-alat/17'], ['POST', '/paket/3/kalibrasi-alat/17/sertifikat'],
+    ['POST', '/paket/3/tim/1/personel'], ['POST', '/paket/3/tim/1/personel/2/kualifikasi'],
+    ['POST', '/paket/3/tim/1/personel/2/kualifikasi/8/bukti'],
+    ['POST', '/paket/3/uji-coba'], ['POST', '/paket/3/uji-coba/41/seksi'],
+    ['POST', '/paket/3/uji-coba/41/seksi/51/pengukuran'], ['POST', '/paket/3/uji-coba/41/evaluasi'],
+    ['POST', '/paket/3/uji-coba/41/pengajuan'], ['POST', '/paket/3/uji-coba/41/pengajuan/review'],
+    ['POST', '/paket/3/sesi-survei'], ['POST', '/paket/3/pemeriksaan-harian-alat'],
+    ['POST', '/paket/3/sesi-survei/1/data-segmen'], ['POST', '/paket/3/siklus-verval'],
+    ['PUT', '/paket/3/validasi-lrs/1'], ['POST', '/paket/3/validasi-lrs/submit'], ['POST', '/paket/3/validasi-lrs/review'],
+    ['POST', '/paket/3/koreksi'], ['PATCH', '/paket/3/koreksi/1'],
+    ['POST', '/paket/3/koreksi/1/verifikasi'], ['POST', '/paket/3/koreksi/1/ajukan'],
+    ['POST', '/paket/3/koreksi/1/review'], ['POST', '/paket/3/koreksi/1/laksana'],
+    ['POST', '/paket/3/koreksi/1/uji-ulang'], ['POST', '/paket/3/koreksi/1/tutup'],
+  ];
+  for (const token of ['admin', 'admin-provider', 'admin-pic']) {
+    for (const [method, path] of writes) {
+      const rpcBefore = workflowMutationRpcCalls;
+      const storageBefore = storageWriteCalls;
+      const result = await request(path, token, {}, method);
+      assert.equal(result.status, 403, `${token} ${method} ${path}: ${JSON.stringify(result.body)}`);
+      assert.equal(workflowMutationRpcCalls, rpcBefore, `${token} ${method} ${path} must not reach an RPC`);
+      assert.equal(storageWriteCalls, storageBefore, `${token} ${method} ${path} must not reach Storage`);
+    }
+  }
+});
+test('Admin-only listing uses authenticated read-only RPC and bounded pagination', async () => {
+  const identity = await request('/me', 'admin');
+  assert.equal(identity.status, 200);
+  assert.equal(identity.body.data.peran[0].nama, 'admin');
+  const result = await request('/admin/users?page=1&page_size=25&q=admin', 'admin');
+  assert.equal(result.status, 200);
+  assert.equal(result.body.data[0].username, 'admin');
+  assert.deepEqual(lastRpc, { p_page: 1, p_page_size: 25, p_username_search: 'admin' });
+  assert.equal(JSON.stringify(result.body).includes('provider@example.test'), false);
+  assert.equal((await request('/admin/users?page=1000001', 'admin')).status, 400);
+  assert.equal((await request('/admin/users?page=0', 'admin')).status, 400);
+  assert.equal((await request('/admin/users?page_size=101', 'admin')).status, 400);
+  assert.equal((await request('/admin/users?q=' + 'x'.repeat(101), 'admin')).status, 400);
+});
+test('missing admin listing RPC reports a setup gap without attempting a fallback table scan', async () => {
+  const result = await request('/admin/users', 'admin-no-list-rpc');
+  assert.equal(result.status, 503);
+  assert.match(result.body.error, /admin_daftar_pengguna belum tersedia/);
+});
+test('Penyedia and PIC cannot access Admin user listing', async () => {
+  assert.equal((await request('/admin/users', 'provider')).status, 403);
+  assert.equal((await request('/admin/users', 'reviewer')).status, 403);
+  const pic = await request('/me', 'pic-qa');
+  assert.equal(pic.status, 200);
+  assert.equal(pic.body.data.peran[0].nama, 'pic_balai');
+  assert.deepEqual(pic.body.data.penugasan[0], { peran_id: 1, scope_balai_id: 101, scope_paket_id: null });
+  assert.equal((await request('/admin/users', 'pic-qa')).status, 403);
+});
+test('test-only read gate permits authenticated catalog and assignment-list reads only', async () => {
+  const beforeWrites = adminRoleMutationRpcCalls;
+  const catalog = await request('/admin/roles', 'admin');
+  assert.equal(catalog.status, 200);
+  assert.deepEqual(catalog.body.data, [{ peran_id: 1, nama_peran: 'pic_balai' }]);
+  assert.deepEqual(lastRpc, {});
+  const assignments = await request('/admin/users/12/roles', 'admin');
+  assert.equal(assignments.status, 200);
+  assert.deepEqual(lastRpc, { p_pengguna_id: 12 });
+  assert.equal(assignments.body.data[0].mutation_version, '3');
+  assert.equal((await request('/admin/roles', 'provider')).status, 403);
+  assert.equal((await request('/admin/users/12/roles', 'provider')).status, 403);
+  assert.equal(adminRoleMutationRpcCalls, beforeWrites);
+});
+test('shared write flag remains off and mutations make no role RPC calls', async () => {
+  const before = adminRoleRpcCalls;
+  for (const [path, method, body, extra] of [
+    ['/admin/users/12/roles', 'POST', { scope_balai_id: 1, scope_paket_id: null }],
+    ['/admin/users/12/roles/7', 'PATCH', { scope_balai_id: 1, scope_paket_id: null }, { 'If-Match': '"1"' }],
+    ['/admin/users/12/roles/7', 'DELETE', undefined, { 'If-Match': '"1"' }],
+  ]) {
+    const response = await fetch(base + path, { method, headers: { Authorization: 'Bearer admin', ...(body ? { 'Content-Type': 'application/json' } : {}), ...extra }, ...(body ? { body: JSON.stringify(body) } : {}) });
+    assert.equal(response.status, 503);
+    assert.equal(response.headers.get('cache-control'), 'private, no-store');
+    assert.equal((await response.json()).code, 'ADMIN_ROLE_MANAGEMENT_DISABLED');
+  }
+  assert.equal(adminRoleRpcCalls, before);
+  assert.equal(adminRoleMutationRpcCalls, 0);
+});
+test('anonymous, locked Admin, missing Admin assignment, and client role spoofing are denied', async () => {
+  assert.equal((await request('/admin/users')).status, 401);
+  assert.equal((await request('/admin/users', 'locked-admin')).status, 403);
+  assert.equal((await request('/admin/users', 'unassigned-admin')).status, 403);
+  assert.equal((await request('/admin/users?role=admin&user_id=5', 'provider')).status, 403);
+  const adminCannotImpersonateAnotherRole = await request('/admin/users?role=pic_balai&user_id=3', 'admin');
+  assert.equal(adminCannotImpersonateAnotherRole.status, 200);
+});
+test('Admin audit listing calls the safe RPC with caller session and whitelists response fields', async () => {
+  const result = await request('/admin/audit-trail?page=1&page_size=25&q=UPDATE', 'admin');
+  assert.equal(result.status, 200);
+  assert.deepEqual(lastRpc, { p_page: 1, p_page_size: 25, p_search: 'UPDATE' });
+  assert.deepEqual(result.body.data, [{ trail_id: '9007199254740993', waktu: '2026-11-13T09:30:00', pengguna_id: 7, tabel: 'paket_kontrak', aksi: 'UPDATE_DRAFT', ringkasan: 'Aksi UPDATE_DRAFT pada paket_kontrak' }]);
+  assert.equal(JSON.stringify(result.body).includes('sensitive-id'), false);
+  assert.equal(JSON.stringify(result.body).includes('never-return'), false);
+  assert.equal((await request('/admin/audit-trail', 'admin')).status, 200);
+  assert.deepEqual(lastRpc, { p_page: 1, p_page_size: 25, p_search: null });
+  const empty = await request('/admin/audit-trail?q=NO_MATCH', 'admin');
+  assert.equal(empty.status, 200);
+  assert.deepEqual(empty.body.data, []);
+  const failure = await request('/admin/audit-trail?q=RPC_ERROR', 'admin');
+  assert.equal(failure.status, 502);
+  assert.equal(JSON.stringify(failure.body).includes('sensitive database detail'), false);
+  assert.equal((await request('/admin/audit-trail?q=RPC_401', 'admin')).status, 401);
+  assert.equal((await request('/admin/audit-trail?page=0', 'admin')).status, 400);
+  assert.equal((await request('/admin/audit-trail?page_size=101', 'admin')).status, 400);
+  assert.equal((await request('/admin/audit-trail?q=' + 'x'.repeat(101), 'admin')).status, 400);
+  assert.equal((await request('/admin/audit-trail?q=' + 'x'.repeat(101), 'provider')).status, 403);
+  assert.equal((await request('/admin/audit-trail', 'pic-qa')).status, 403);
+  assert.equal((await request('/admin/audit-trail', 'reviewer')).status, 403);
+  assert.equal((await request('/admin/audit-trail')).status, 401);
 });
 test('catalog roles that are not assigned cannot authorize provider-only actions', async () => {
   const body = { nama_paket: 'Paket Ujian', nomor_kontrak: 'K-1', tahun_anggaran: 2026, balai_id: 1 };

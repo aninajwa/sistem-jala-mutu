@@ -1,0 +1,72 @@
+-- LOCAL CANDIDATE SPECIFICATION ONLY. DO NOT EXECUTE.
+-- Repository fixtures do not establish the deployed keys, constraints, table
+-- ownership, or audit-column nullability. Convert this gated specification to
+-- executable DDL only after the installation blockers in the companion contract
+-- are verified against the actual project.
+--
+-- Candidate concurrency column (after checking for an existing equivalent):
+--   ALTER TABLE public.pengguna_peran
+--     ADD COLUMN mutation_version bigint NOT NULL DEFAULT 1;
+-- Ensure every UPDATE advances version, preferably with a reviewed BEFORE UPDATE
+-- trigger. A value changed only by these RPCs is insufficient if any other writer
+-- can update assignments.
+--
+-- RPCs required for safe Admin controls (all proposal-only):
+--
+--   public.admin_daftar_katalog_peran()
+--     RETURNS TABLE(peran_id integer, nama text, scope_mode text)
+--
+--   public.admin_daftar_penugasan_peran(p_pengguna_id integer)
+--     RETURNS TABLE(pp_id integer, pengguna_id integer, peran_id integer,
+--       nama_peran text, scope_balai_id integer, scope_paket_id integer,
+--       version bigint)
+--
+--   public.admin_tambah_penugasan_peran(
+--     p_pengguna_id integer, p_peran_id integer,
+--     p_scope_balai_id integer, p_scope_paket_id integer)
+--     RETURNS TABLE(pp_id integer, pengguna_id integer, peran_id integer,
+--       nama_peran text, scope_balai_id integer, scope_paket_id integer,
+--       version bigint)
+--
+--   public.admin_ubah_penugasan_peran(
+--     p_pengguna_id integer, p_pp_id integer, p_expected_version bigint,
+--     p_scope_balai_id integer, p_scope_paket_id integer)
+--     RETURNS same assignment projection; this operation changes scope only.
+--
+--   public.admin_cabut_penugasan_peran(
+--     p_pengguna_id integer, p_pp_id integer, p_expected_version bigint)
+--     RETURNS TABLE(pp_id integer, revoked boolean)
+--
+-- Required authorization/transaction rules for each function:
+--   * SECURITY DEFINER, SET search_path = '', trusted reviewed owner. Resolve the
+--     actor only from auth.uid() -> public.pengguna.auth_user_id, require unlocked
+--     profile and assigned public.peran.nama='admin'. Never accept actor IDs,
+--     role flags, or service-role credentials from a caller.
+--   * Catalog and assignment reads enforce the same Admin check. Catalog contains
+--     only approved existing role IDs. Assignment read returns pp_id and version.
+--   * Every write takes the same reviewed pg_advisory_xact_lock, then locks target
+--     and assignment rows FOR UPDATE. Compare expected version before PATCH/DELETE;
+--     stale version raises SQLSTATE 40001. Add rejects duplicate assignment.
+--   * Resolve p_peran_id from public.peran.peran_id. V1 catalog exposes only
+--     approved roles (initially pic_balai; approve more scope policies first).
+--     V1 does not add/change Admin assignments; revoking another user's Admin row
+--     is allowed subject to the final-Admin guard. Never mutate caller's Admin row.
+--   * Before revoking an active Admin row, count distinct unlocked Admin users
+--     under the shared advisory lock. Refuse the change with 40001 if it would
+--     remove the final active/unlocked Admin.
+--   * All non-pic_balai roles require NULL scopes. pic_balai requires an existing
+--     active public.balai.balai_id; optional package scope must resolve in
+--     public.paket_kontrak and match that package's balai_id. Validate inside SQL.
+--   * Add/scope-change for locked targets raises 40001; revoke remains allowed.
+--   * In the same transaction, insert audit_trail with tabel='pengguna_peran',
+--     record_id=pp_id::text, action ASSIGN_ROLE/CHANGE_ROLE_SCOPE/REVOKE_ROLE,
+--     actor pengguna_id from auth.uid(), localtimestamp, and snapshots containing
+--     only target ID, peran_id/name and nullable scope IDs. Never include email,
+--     auth UUID, credentials, IP, or raw user rows. Audit failure rolls back change.
+--   * Map SQLSTATE 28000->401, 42501->403, 22023->400, P0002->404,
+--     23505/40001->409. Do not return raw database messages.
+--
+-- Future ACL after review (not applied here): REVOKE EXECUTE from PUBLIC, anon,
+-- authenticated, then GRANT EXECUTE to authenticated for these exact RPCs. Do not
+-- grant direct table access, change RLS, or use service_role. This file contains
+-- no executable SQL by design and is not an installable migration.

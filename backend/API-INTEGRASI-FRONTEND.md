@@ -17,15 +17,29 @@ CORS backend menggunakan `FRONTEND_ORIGIN` dengan default `http://localhost:5173
 
 **Komputer berbeza:** `localhost` merujuk kepada komputer masing-masing. Jika Dirah menjalankan frontend pada komputernya, backend perlu dijalankan pada komputer Dirah juga, atau gunakan alamat backend yang boleh dicapai melalui rangkaian/deployment. URL `localhost:5000` di komputer Dirah **tidak** mengakses backend di komputer Afeeq.
 
-Contoh environment variable yang *dicadangkan* untuk Vite (belum disahkan wujud dalam projek frontend):
+Contoh environment variable frontend untuk pengujian Admin menggunakan project Sandbox:
 
 ```env
-VITE_API_URL=http://localhost:5000/api
-VITE_SUPABASE_URL=https://vnvknmwcidberkjwtqjx.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+VITE_API_BASE_URL=/api
+VITE_SUPABASE_URL=https://yehwlrlbtcxtlogenahw.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<sandbox-publishable-key>
 ```
 
-Nama `VITE_*` perlu dipadankan dengan kod frontend sebenar. **Jangan masukkan Supabase secret key/service role key ke frontend atau commit fail `.env` yang mengandungi rahsia.**
+**Pengujian Admin wajib menggunakan Jala-Mutu-Admin-Sandbox (`yehwlrlbtcxtlogenahw`), bukan project Supabase utama.** Jangan masukkan Supabase secret key/service role key ke frontend atau commit fail `.env` yang mengandungi rahsia.
+
+### Pengasingan backend untuk QA Admin
+
+Jalankan backend QA dengan konfigurasi berikut (isi publishable key Sandbox secara lokal; jangan menampilkan atau mencatat nilainya):
+
+```env
+ADMIN_SANDBOX_QA=true
+SUPABASE_URL=https://yehwlrlbtcxtlogenahw.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<sandbox-publishable-key>
+ADMIN_ROLE_MANAGEMENT_ENABLED=false
+ADMIN_ROLE_READS_ENABLED=false
+```
+
+Saat `ADMIN_SANDBOX_QA=true`, backend memvalidasi URL secara tepat sebelum membuka port HTTP dan gagal startup jika project ref, protokol, path, atau komponen URL lain tidak sesuai. Jangan jalankan pengujian Admin dengan URL project utama. Mode ini hanya opt-in untuk QA; deployment produksi terpisah tetap dapat memakai `SUPABASE_URL` miliknya tanpa mengaktifkan flag QA. Validasi ini tidak mengaktifkan gate baca atau mutasi.
 
 ## 2. Authentication
 

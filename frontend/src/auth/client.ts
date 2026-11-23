@@ -1,12 +1,10 @@
 import { createClient } from '@supabase/supabase-js';
+import { apiConfigurationIssue, authConfigurationIssue } from './config';
 
 const env = (typeof import.meta !== 'undefined' && import.meta.env) || {} as Record<string, string | undefined>;
 const url = env.VITE_SUPABASE_URL?.trim();
 const key = env.VITE_SUPABASE_PUBLISHABLE_KEY?.trim();
-export const authConfigurationError = !url || !key
-  ? 'Konfigurasi login belum lengkap. Isi VITE_SUPABASE_URL dan VITE_SUPABASE_PUBLISHABLE_KEY pada frontend/.env, lalu jalankan ulang frontend.'
-  : !/^https?:\/\//.test(url) || key.startsWith('sb_secret_')
-    ? 'Konfigurasi login tidak valid. Gunakan URL proyek dan publishable key, bukan secret key.' : '';
+export const authConfigurationError = authConfigurationIssue(url, key) || apiConfigurationIssue(env.VITE_API_BASE_URL);
 export const supabase = authConfigurationError ? null : createClient(url!, key!, {
   auth: { persistSession: true, autoRefreshToken: true, detectSessionInUrl: false },
 });
@@ -15,6 +13,7 @@ export class ApiError extends Error {
   constructor(public status: number, message: string) { super(message); }
 }
 export async function apiRequest<T>(path: string, init: RequestInit = {}, token?: string): Promise<T> {
+  if (authConfigurationError) throw new Error(authConfigurationError);
   if (!token) {
     if (!supabase) throw new Error(authConfigurationError);
     const { data, error } = await supabase.auth.getSession();

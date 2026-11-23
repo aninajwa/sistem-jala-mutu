@@ -1,8 +1,10 @@
 import { Router, type RequestHandler } from 'express';
 import { ApiError, supabaseRequest } from '../services/supabase';
+import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { paketIdSchema } from '../schemas/paket';
 import { personnelSchema, qualificationSchema } from '../schemas/personel';
 const router = Router(); // Mounted under requireAuth in paket.ts.
+router.use(denyAdminWorkflowWrites);
 function id(value: unknown) {
   const parsed = paketIdSchema.safeParse(value);
   if (!parsed.success) throw new ApiError(400, 'ID tidak valid');
