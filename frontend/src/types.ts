@@ -30,4 +30,6 @@ export type PageProps = {
   updateStatus: (t: StatusRecordType, id: string, status: string) => void;
   record: (a: string, o: string) => void;
   setNotice: (s: string) => void;
+  /** Authenticated reviewer roles: queue rows from GET /api/review-queue instead of local projections. */
+  serverReviewQueue?: import('./workflow/balaiReviewQueue').BalaiReviewItem[];
 };

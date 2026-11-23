@@ -43,6 +43,7 @@ type Props = {
   /** Server mode: show the create action and server package statuses instead of local derivations. */
   onCreatePackage?: () => void;
   serverPackageStatuses?: Record<string, string>;
+  serverReviewQueue?: import("../workflow/balaiReviewQueue").BalaiReviewItem[];
 };
 function LocalPackagesPage({
   packages,
@@ -51,6 +52,7 @@ function LocalPackagesPage({
   onOpenReview,
   onCreatePackage,
   serverPackageStatuses,
+  serverReviewQueue,
 }: Props) {
   const stageOf = (s: OperationalWorkflowState) =>
     serverPackageStatuses ? serverPackageStatusLabel(serverPackageStatuses[s.project.id]) : derivePackageStage(s);
@@ -66,8 +68,8 @@ function LocalPackagesPage({
   const [showLegacy, setShowLegacy] = useState(() => import.meta.env.DEV);
   const reviewItems = useMemo(
     () =>
-      role === "PIC Balai / Pengguna Jasa" ? balaiReviewQueue(packages) : [],
-    [packages, role],
+      role === "PIC Balai / Pengguna Jasa" ? serverReviewQueue ?? balaiReviewQueue(packages) : [],
+    [packages, role, serverReviewQueue],
   );
   const all = Object.values(packages),
     legacy = all.filter(isLegacyExample);
@@ -308,7 +310,7 @@ function LocalPackagesPage({
 }
 
 export default function PackagesPage(props: Props) {
-    return isRoleTestMode() ? <LocalPackagesPage {...props} /> : <ServerPackagesPage role={props.role} onOpen={props.onOpen} />;
+    return isRoleTestMode() ? <LocalPackagesPage {...props} /> : <ServerPackagesPage role={props.role} onOpen={props.onOpen} onOpenReview={props.onOpenReview} serverReviewQueue={props.serverReviewQueue} />;
 }
 
 type Balai = ServerBalaiRow;
@@ -324,7 +326,7 @@ function serverPackageStatusLabel(status: string | undefined): string {
     return labels[status] ?? status;
 }
 
-function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id: string) => void }) {
+function ServerPackagesPage({ role, onOpen, onOpenReview, serverReviewQueue }: Pick<Props, 'role' | 'onOpen' | 'onOpenReview' | 'serverReviewQueue'>) {
     const [packages, setPackages] = useState<ServerPackageRow[]>([]);
     const [balais, setBalais] = useState<Balai[]>([]);
     const [page, setPage] = useState(1);
@@ -416,6 +418,8 @@ function ServerPackagesPage({ role, onOpen }: { role: WorkflowRole; onOpen: (id:
           packages={dirahPackages}
           role={role}
           onOpen={onOpen}
+          onOpenReview={onOpenReview}
+          serverReviewQueue={serverReviewQueue}
           serverPackageStatuses={serverPackageStatuses}
           onCreatePackage={canCreate ? () => { setNotice(''); setCreatePackageOpen(true); } : undefined}
         />

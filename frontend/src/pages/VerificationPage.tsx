@@ -56,8 +56,8 @@ export default function VerificationPage(p: PageProps) {
     setSelected(null);
   }, [view]);
   const rows = useMemo(
-    () => balaiReviewQueue(p.packages),
-    [p.packages, formRevision],
+    () => p.serverReviewQueue ?? balaiReviewQueue(p.packages),
+    [p.packages, p.serverReviewQueue, formRevision],
   );
   const historyRows = useMemo(
     () =>

@@ -782,7 +782,7 @@ function DashboardPageContent(p: DashboardProps) {
       period,
     ),
     queue = dashboardWorkQueue(packages, role),
-    reviews = balaiReviewQueue(packages),
+    reviews = p.serverReviewQueue ?? balaiReviewQueue(packages),
     audits = directorateAuditRows(packages);
   const entries = Object.values(packages),
     all = Object.values(p.packages),

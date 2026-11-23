@@ -56,6 +56,7 @@ import AdminWorkflowMonitoringPage from "./pages/AdminWorkflowMonitoringPage";
 import { SubmoduleWorkspace } from "./SubmoduleWorkspace";
 import type { PageProps } from "./types";
 import { documentsPageUrl } from "./pages/serverPicDocumentsData";
+import { useServerReviewQueue } from "./pages/serverReviewQueue";
 
 import type { WorkflowRole } from "./workflow/model";
 import { derivePackageStage } from "./workflow/packageStore";
@@ -117,6 +118,10 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
     authenticatedRole && requestedPackageId && /^[1-9]\d*$/.test(requestedPackageId)
       ? requestedPackageId
       : null;
+  // Reviewer roles read the queue from the server; providers never see the Balai queue UI.
+  const serverReviewQueue = useServerReviewQueue(
+    !!authenticatedRole && authenticatedRole !== "Penyedia Jasa / Ketua Tim",
+  );
 
   const [balai, setBalai] = useState("Semua Balai");
   const [periode, setPeriode] = useState("Semester I 2027");
@@ -486,6 +491,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
     updateStatus,
     record,
     setNotice,
+    serverReviewQueue,
   };
 
   const roleVerificationPage =
@@ -511,6 +517,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
       role={packageStore.activeRole}
       onOpen={openPackage}
       onOpenReview={openPackageReview}
+      serverReviewQueue={serverReviewQueue}
     />
   );
 
