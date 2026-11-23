@@ -5090,3 +5090,7 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* Completed stages on the package stage rail. */
+.jm-stage-stepper button.is-done > span { background: #0f766e; border-color: #0f766e; color: #fff; }
+.jm-stage-stepper button .jm-stage-done { color: #0f766e; margin-top: 2px; }

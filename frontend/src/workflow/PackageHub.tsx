@@ -341,6 +341,7 @@ export function PackageContextHeader({
         selection={selection}
         process={process}
         onNavigate={onNavigate}
+        completedStages={serverReadOnly ? serverCompletedStages(serverStageStatuses) : undefined}
       />
       <div className="ui09-package-compact">
         <span className="ui09-package-position">
@@ -537,6 +538,11 @@ export function PackageOverview({
       )}
     </div>
   );
+}
+
+/** Stages the server reports complete; drives the done marks on the stage rail. */
+function serverCompletedStages(facts?: ServerStageFacts): ReadonlySet<string> {
+  return new Set(PACKAGE_WORKFLOW_ITEMS.filter(item => serverStageFactFor(item.code, facts).state === "complete").map(item => item.code));
 }
 
 /** First workflow stage that the server has not reported complete. */
