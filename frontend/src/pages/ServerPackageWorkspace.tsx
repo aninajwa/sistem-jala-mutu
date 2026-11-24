@@ -29,7 +29,8 @@ import {
   AlertDialogTitle,
 } from '../components/ui/alert-dialog';
 import type { WorkflowRole } from '../workflow/model';
-import {preparationStageFact, stage1ConfirmationFact, stage2PackageFact, type ServerStageFacts} from '../workflow/serverPackageStatus';
+import {finalStagesFacts, preparationStageFact, stage1ConfirmationFact, stage2PackageFact, type FinalStagesProgress, type ServerStageFacts} from '../workflow/serverPackageStatus';
+import { getFinalStagesProgress } from './audit/serverAuditData';
 import { getStage2PackageCompletion, type Stage2PackageCompletion } from './serverStage2Data';
 import { getPackageSurveyProgress, packageSurveyProgressLabel, type PackageSurveyProgress } from './serverStage3Data';
 import { PACKAGE_WORKFLOW_ITEMS } from '../workflow/roleNavigation';
@@ -186,6 +187,7 @@ export function ServerPackageWorkspace({
   const [stage2CompletionLoading, setStage2CompletionLoading] = useState(false);
   const [stage2CompletionError, setStage2CompletionError] = useState(false);
   const [serverStageFactsRevision, setServerStageFactsRevision] = useState(0);
+  const [finalProgress, setFinalProgress] = useState<{ value: FinalStagesProgress | null; loading: boolean; error: boolean }>({ value: null, loading: true, error: false });
   const [stage3aProgress, setStage3aProgress] = useState<PackageSurveyProgress | null>(null);
   const [stage3aProgressLoading, setStage3aProgressLoading] = useState(true);
   const [stage3aProgressError, setStage3aProgressError] = useState(false);
@@ -432,6 +434,15 @@ export function ServerPackageWorkspace({
     }).finally(() => {
       if (!controller.signal.aborted) setStage2CompletionLoading(false);
     });
+    return () => controller.abort();
+  }, [packageId, serverStageFactsRevision]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    setFinalProgress(current => ({ ...current, loading: current.value === null, error: false }));
+    getFinalStagesProgress(packageId, controller.signal)
+      .then(value => { if (!controller.signal.aborted) setFinalProgress({ value, loading: false, error: false }); })
+      .catch(() => { if (!controller.signal.aborted) setFinalProgress({ value: null, loading: false, error: true }); });
     return () => controller.abort();
   }, [packageId, serverStageFactsRevision]);
 
@@ -777,7 +788,9 @@ export function ServerPackageWorkspace({
     Boolean(reportItem?.bukti_dokumen_id),
   );
   const canReview = canReviewPreparation(role, contract.status, submission?.status);
+  const packageStatus = finalProgress.value?.status_paket ?? contract.status;
   const serverStageStatuses: ServerStageFacts = {
+    ...finalStagesFacts(finalProgress.value, finalProgress.loading, finalProgress.error),
     'Tahap 0': preparationStageFact({
       submissionStatus: submission?.status,
       checklistStatus: checklist?.pengisian.status,
@@ -905,7 +918,7 @@ export function ServerPackageWorkspace({
 
   const shell = (
     <section className="package-context compact-context">
-      <div className="package-context-top">{back}<span className="wf-status info">{contract.status}</span><span className="wf-note">{role} · Paket #{contract.paket_id}</span></div>
+      <div className="package-context-top">{back}<span className={`wf-status ${packageStatus === 'SELESAI' ? 'ok' : 'info'}`}>{packageStatus}</span><span className="wf-note">{role} · Paket #{contract.paket_id}</span></div>
       <div className="package-identity"><div style={{ minWidth: 0, overflowWrap: 'anywhere' }}><div className="eyebrow">{contract.nomor_kontrak || `Paket #${contract.paket_id}`}</div><h1>{contract.nama_paket}</h1><p>{balai} · Tahun {display(contract.tahun_anggaran)} · SPMK {date(contract.tgl_spmk)}</p></div>
         <div className="package-context-actions"><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Ringkasan</button><button className="wf-button" onClick={() => onNavigate('/documents:BA & dokumen workflow')}><FileText size={14} /> Dokumen & BA</button><button className="wf-button" onClick={() => onNavigate('/actions:Koreksi berbukti')}><ShieldCheck size={14} /> Tindak lanjut</button></div>
       </div>
@@ -974,7 +987,7 @@ export function ServerPackageWorkspace({
     {selection === OVERVIEW ? <div className="package-overview">
       <section className="package-next-action"><div className="package-next-icon"><ArrowRight size={18} /></div><div className="package-next-copy"><small>WORKSPACE PAKET</small><strong>{preparationNextAction.title}</strong><span>{preparationNextAction.detail}</span></div><button type="button" className="wf-button primary" disabled={submissionLoading} onClick={() => onNavigate(preparationNextAction.selection)}>{preparationNextAction.label} <ArrowRight size={13} /></button></section>
       <div className="wf-kpis">{[
-        ['Status paket', contract.status],
+        ['Status paket', packageStatus],
         ['Checklist terjawab', checklist ? `${checklist.ringkasan.jumlah_terjawab}/${checklist.ringkasan.jumlah_item}` : checkLoading ? 'Memuat…' : 'Belum tersedia'],
         ['Keterisian checklist', checklist?.ringkasan.persen_terisi === undefined ? 'Belum tersedia' : `${checklist.ringkasan.persen_terisi}%`],
         ['Progres keseluruhan', 'Belum terhubung'],

@@ -333,8 +333,8 @@ export function PackageContextHeader({
           </span>
           <h1>{state.project.packageName}</h1>
         </div>
-        <span className="wf-status info">
-          {serverReadOnly ? serverStageFactFor(process as PackageWorkflowItem["code"], serverStageStatuses).label : issues.length ? "Perlu pemeriksaan" : packageStatus(state)}
+        <span className={`wf-status ${serverReadOnly && serverStageStatuses?.["Tahap 6"]?.state === "complete" ? "ok" : "info"}`} data-testid="package-header-status">
+          {serverReadOnly && serverStageStatuses?.["Tahap 6"]?.state === "complete" ? "Paket SELESAI" : serverReadOnly ? serverStageFactFor(process as PackageWorkflowItem["code"], serverStageStatuses).label : issues.length ? "Perlu pemeriksaan" : packageStatus(state)}
         </span>
       </div>
       <StageNavigator

@@ -602,7 +602,7 @@ before(async () => {
       return send({ paket_id: 1, nama_paket: lastRpc.p_nama_paket, status: 'DRAFT', created_by: 3 });
     }
     const auditRpc = url.pathname.split('/').pop();
-    if (url.pathname.startsWith('/rest/v1/rpc/') && ['daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
+    if (url.pathname.startsWith('/rest/v1/rpc/') && ['baca_progres_tahap_akhir','daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
       if (lastRpc.p_expected_version === 99) return send({ code: 'PT409', message: 'Audit telah berubah' }, 409);
@@ -1976,7 +1976,7 @@ test('rejected identities are never cached', async () => {
 });
 
 test('audit and acceptance reads are open to package roles and call the read RPCs', async () => {
-  for (const [path, rpc] of [['/paket/3/upload-sistem', 'daftar_upload_sistem'], ['/paket/3/audit', 'baca_audit'], ['/paket/3/penerimaan', 'baca_penerimaan']]) {
+  for (const [path, rpc] of [['/paket/3/progres-akhir', 'baca_progres_tahap_akhir'], ['/paket/3/upload-sistem', 'daftar_upload_sistem'], ['/paket/3/audit', 'baca_audit'], ['/paket/3/penerimaan', 'baca_penerimaan']]) {
     for (const token of ['provider', 'reviewer', 'director']) {
       const r = await request(path, token);
       assert.equal(r.status, 200, path + ' ' + token);

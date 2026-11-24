@@ -9,6 +9,11 @@ export const PROVIDER: WorkflowRole = 'Penyedia Jasa / Ketua Tim';
 export const PIC: WorkflowRole = 'PIC Balai / Pengguna Jasa';
 export const DIRECTORATE: WorkflowRole = 'Direktorat / Pusat';
 
+/** Cheap read-only Tahap 4-6 summary for the stage rail and package status. */
+export async function getFinalStagesProgress(packageId: string, signal?: AbortSignal) {
+  return (await apiRequest<Envelope<import('../../workflow/serverPackageStatus').FinalStagesProgress>>(`${base(packageId)}/progres-akhir`, { signal })).data;
+}
+
 // ---------- upload ----------
 export type UploadMessage = { pesan_id?: number; sta: number | null; kode_error: string | null; pesan: string };
 export type UploadRow = { upload_id: number; jenis_survei_id: number; sistem_id: number; semester: number; waktu_upload: string; jumlah_record: number | null; status: 'VALID' | 'ERROR'; pesan: UploadMessage[] };

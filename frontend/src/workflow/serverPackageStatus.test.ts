@@ -6,8 +6,7 @@ import {
   stage2PackageFact,
   serverStageFactFor,
   stageTilePresentation,
-  UNKNOWN_AGGREGATE_STATUS,
-} from './serverPackageStatus';
+  UNKNOWN_AGGREGATE_STATUS, finalStagesFacts } from './serverPackageStatus';
 
 test('server-backed preparation approval remains visible when aggregate status is unknown', () => {
   const preparation = preparationStageFact({ submissionStatus: 'DISETUJUI' });
@@ -107,4 +106,15 @@ test('pending and correction status remain available to assistive technology wit
     assert.equal(tile.showCompletionIcon, false);
     assert.match(tile.accessibleLabel, new RegExp(label));
   }
+});
+
+test('Tahap 4-6 rail facts turn complete only from server progress', () => {
+  const base = { status_paket: 'DRAFT', tahap4: 'DRAFT' as const, audit: {}, koreksi_audit_terbuka: 0, termin_selesai: 0, termin_total: 4, penerimaan_akhir: false };
+  assert.equal(finalStagesFacts(base)['Tahap 4']?.state, 'unknown');
+  const done = finalStagesFacts({ ...base, status_paket: 'SELESAI', tahap4: 'DISETUJUI', audit: { 1: 'Lulus', 2: 'Lulus', 3: 'Lulus' }, termin_selesai: 4, penerimaan_akhir: true });
+  assert.deepEqual([done['Tahap 4']?.state, done['Tahap 5']?.state, done['Tahap 6']?.state], ['complete', 'complete', 'complete']);
+  const midway = finalStagesFacts({ ...base, tahap4: 'DISETUJUI', audit: { 1: 'Lulus', 2: 'Ditolak' }, koreksi_audit_terbuka: 1, termin_selesai: 2 });
+  assert.equal(midway['Tahap 5']?.state, 'blocked');
+  assert.equal(midway['Tahap 6']?.label, '2/4 termin diterima');
+  assert.equal(finalStagesFacts(null, false, true)['Tahap 6']?.state, 'error');
 });

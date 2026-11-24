@@ -58,7 +58,7 @@ export function ServerAcceptanceWorkspace({ packageId, role, onNavigate }: { pac
     return () => controller.abort();
   }, [packageId]);
 
-  const update = (next: PenerimaanState) => { setState(next); window.dispatchEvent(new Event('jalamutu:package-stage-facts-refresh')); };
+  const update = (next: PenerimaanState) => { setState(next); window.dispatchEvent(new CustomEvent('jalamutu:package-stage-facts-refresh', { detail: { packageId } })); };
   const percent = state ? acceptedPercent(state) : 0;
   const finished = state?.penerimaan.some(item => item.jenis === 'AKHIR') ?? false;
 

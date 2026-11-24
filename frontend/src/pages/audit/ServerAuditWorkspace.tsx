@@ -104,7 +104,7 @@ export function ServerAuditWorkspace({ packageId, role, onNavigate }: { packageI
     return () => controller.abort();
   }, [packageId, revision]);
 
-  const update = (next: AuditState) => { setState(next); window.dispatchEvent(new Event('jalamutu:package-stage-facts-refresh')); };
+  const update = (next: AuditState) => { setState(next); window.dispatchEvent(new CustomEvent('jalamutu:package-stage-facts-refresh', { detail: { packageId } })); };
   const passed = state?.tingkat.filter(row => row.status === 'Lulus').length ?? 0;
 
   return <section className="wf" data-testid="server-audit-workspace" aria-label="Audit berjenjang Tahap 5">

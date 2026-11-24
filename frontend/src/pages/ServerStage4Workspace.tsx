@@ -152,6 +152,7 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
     try {
       await mutateStage4Workflow(packageId, workflowStatus.workflow_version, apiRequest, action, decision, reviewNote);
       setLrsRevision(value => value + 1);
+      window.dispatchEvent(new CustomEvent('jalamutu:package-stage-facts-refresh', { detail: { packageId } }));
     } catch (reason) { setWorkflowError(stage4LrsErrorMessage(reason)); }
     finally { setWorkflowBusy(false); }
   }

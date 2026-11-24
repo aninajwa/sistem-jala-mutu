@@ -42,6 +42,11 @@ router.get('/paket/:id/audit-penerimaan-capabilities', (_req, res) => {
   res.json({ data: { enabled: enabled(), reason: enabled() ? null : 'RPC audit dan penerimaan belum diaktifkan di server.' } });
 });
 
+router.get('/paket/:id/progres-akhir', async (req, res) => {
+  requireEnabled();
+  await rpc(res, 'baca_progres_tahap_akhir', { p_paket_id: parse(paketIdSchema, req.params.id, 'ID paket') });
+});
+
 router.get('/paket/:id/upload-sistem', async (req, res) => {
   requireEnabled();
   await rpc(res, 'daftar_upload_sistem', { p_paket_id: parse(paketIdSchema, req.params.id, 'ID paket') });

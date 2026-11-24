@@ -85,6 +85,42 @@ export function stage2PackageFact(input: {
   return { state: 'unknown', label: input.completion.label };
 }
 
+export type FinalStagesProgress = {
+  status_paket: string | null;
+  tahap4: 'DRAFT' | 'DIAJUKAN' | 'PERLU_REVISI' | 'DISETUJUI';
+  audit: Partial<Record<'1' | '2' | '3', string>>;
+  koreksi_audit_terbuka: number;
+  termin_selesai: number;
+  termin_total: number;
+  penerimaan_akhir: boolean;
+};
+
+/** Tahap 4-6 rail facts from baca_progres_tahap_akhir; only server states mark a stage complete. */
+export function finalStagesFacts(progress: FinalStagesProgress | null, loading = false, error = false): ServerStageFacts {
+  if (error) {
+    const failed: ServerStageFact = { state: 'error', label: 'Gagal memuat status' };
+    return { 'Tahap 4': failed, 'Tahap 5': failed, 'Tahap 6': failed };
+  }
+  if (loading || !progress) {
+    const pending: ServerStageFact = { state: loading ? 'loading' : 'unknown', label: loading ? 'Memuat status' : 'Belum diverifikasi' };
+    return { 'Tahap 4': pending, 'Tahap 5': pending, 'Tahap 6': pending };
+  }
+  const tahap4: ServerStageFact = progress.tahap4 === 'DISETUJUI' ? { state: 'complete', label: 'Disetujui PIC Balai' }
+    : progress.tahap4 === 'DIAJUKAN' ? { state: 'pending', label: 'Menunggu review PIC' }
+      : progress.tahap4 === 'PERLU_REVISI' ? { state: 'blocked', label: 'Perlu revisi' }
+        : { state: 'unknown', label: 'Belum diajukan' };
+  const passed = (['1', '2', '3'] as const).filter(level => progress.audit[level] === 'Lulus').length;
+  const rejected = (['1', '2', '3'] as const).some(level => progress.audit[level] === 'Ditolak');
+  const tahap5: ServerStageFact = passed === 3 ? { state: 'complete', label: 'Audit tingkat 1–3 Lulus' }
+    : rejected || progress.koreksi_audit_terbuka > 0 ? { state: 'blocked', label: 'Audit ditolak · koreksi berjalan' }
+      : passed > 0 || Object.values(progress.audit).includes('Dalam Review') ? { state: 'pending', label: `${passed}/3 tingkat Lulus` }
+        : { state: 'unknown', label: 'Audit belum dimulai' };
+  const tahap6: ServerStageFact = progress.penerimaan_akhir ? { state: 'complete', label: 'Penerimaan akhir · paket SELESAI' }
+    : progress.termin_selesai > 0 ? { state: 'pending', label: `${progress.termin_selesai}/${progress.termin_total} termin diterima` }
+      : { state: 'unknown', label: 'Belum ada penerimaan' };
+  return { 'Tahap 4': tahap4, 'Tahap 5': tahap5, 'Tahap 6': tahap6 };
+}
+
 /** Selection is navigation only; it never implies a stage passed. */
 export function serverStageFactFor(
   code: PackageWorkflowItem['code'],
