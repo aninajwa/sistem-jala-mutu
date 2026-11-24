@@ -44,6 +44,8 @@ import { SERVER_STAGE3A, SERVER_STAGE3B } from './serverPackageStageRouting';
 import { ServerStage3DailyWorkspace } from './ServerStage3DailyWorkspace';
 import { ServerVervalWorkspace } from './ServerVervalWorkspace';
 import { ServerStage4Workspace } from './ServerStage4Workspace';
+import { ServerAuditWorkspace } from './audit/ServerAuditWorkspace';
+import { ServerAcceptanceWorkspace } from './audit/ServerAcceptanceWorkspace';
 import { ServerCorrectionWorkspace } from './corrections/ServerCorrectionWorkspace';
 import { PackageRoadMembershipPanel } from './PackageRoadMembershipPanel';
 import {
@@ -83,6 +85,8 @@ const PREPARATION = '/entry:Persiapan & SPMK';
 const CALIBRATION = '/documents:Kalibrasi & personel';
 const STAGE2 = '/entry:Validasi produksi';
 const CORRECTIONS = '/actions:Koreksi berbukti';
+const AUDIT = '/verification:Audit tingkat 1–3';
+const ACCEPTANCE = '/reports:Penerimaan & termin';
 
 function display(value: unknown): string {
   return value === null || value === undefined || value === '' ? 'Belum diisi' : String(value);
@@ -1119,7 +1123,7 @@ export function ServerPackageWorkspace({
       state={dirahPackageState}
       onNavigate={onNavigate}
       preparationStatus={submission?.status ?? null}
-      /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : selection === CORRECTIONS ? <ServerCorrectionWorkspace packageId={packageId} role={role} correctionId={new URLSearchParams(window.location.search).get('koreksi')} onBack={() => window.location.assign('/actions')} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
+      /> : selection === STAGE2 ? <ServerStage2Workspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === SERVER_STAGE3A ? <section aria-label="Pelaksanaan Survei Tahap 3A" data-testid="server-stage3a-workspace"><ServerStage3DailyWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /></section> : selection === SERVER_STAGE3B ? <ServerVervalWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === '/entry:Gerbang RNI/LRS' ? <ServerStage4Workspace packageId={packageId} role={role} /> : selection === AUDIT ? <ServerAuditWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === ACCEPTANCE ? <ServerAcceptanceWorkspace packageId={packageId} role={role} onNavigate={onNavigate} /> : selection === CORRECTIONS ? <ServerCorrectionWorkspace packageId={packageId} role={role} correctionId={new URLSearchParams(window.location.search).get('koreksi')} onBack={() => window.location.assign('/actions')} /> : <section className="wf-panel"><div className="wf-panel-head"><h3>{stageItem?.label || selection.split(':')[1] || 'Workspace paket'}</h3></div><div className="wf-body"><p>{stageItem?.actorHint}</p><p>Data dan formulir bagian ini belum terhubung ke server. Status dan isian paket belum dapat ditampilkan di sini.</p><button className="wf-button" onClick={() => onNavigate(OVERVIEW)}>Kembali ke ringkasan</button></div></section>}
     {connected && checkError && !checklist && <div role="alert" className="wf-callout"><p>Checklist persiapan: {checkError}</p><button className="wf-button" onClick={() => setCheckRevision(value => value + 1)}>Coba muat checklist lagi</button></div>}
     </>
   );
@@ -1160,7 +1164,7 @@ export function ServerPackageWorkspace({
             <PackageRoadMembershipPanel packageId={packageId} role={role} />
             {contractEditor}
           </>
-        ) : stageOne || selection === '/entry:Gerbang RNI/LRS' || selection === CORRECTIONS ? content : (
+        ) : stageOne || selection === '/entry:Gerbang RNI/LRS' || selection === CORRECTIONS || selection === AUDIT || selection === ACCEPTANCE ? content : (
           <>
             {selection === PREPARATION && canSubmit && (
               <div className="wf-panel" style={{ marginBottom: 16, border: '1px solid #bfdbfe', background: '#eff6ff' }}>

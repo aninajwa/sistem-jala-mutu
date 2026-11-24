@@ -8,3 +8,7 @@ SUPABASE_PUBLISHABLE_KEY=
 
 # Pindaan scope survei (Penyedia -> PIC). Aktifkan hanya setelah migrasi 20261118120000 dipasang.
 PACKAGE_SCOPE_AMENDMENT_RPCS=false
+# Tahap 4 submit/review (migration 20261124020000)
+STAGE4_WORKFLOW_RPCS=false
+# Tahap 4 upload log, Tahap 5 audit, Tahap 6 penerimaan (migration 20261124020000)
+AUDIT_ACCEPTANCE_RPCS=false

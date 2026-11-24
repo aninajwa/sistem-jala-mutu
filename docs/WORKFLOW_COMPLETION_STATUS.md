@@ -166,3 +166,47 @@ Skrip Playwright frontend (`test:browser`, `test:journey`, dan lainnya) tidak di
   - Kesimpulannya, penyebab utama adalah kapasitas compute instance Supabase di bawah beban paralel, bukan rencana query.
   - Opsi lanjutan: naikkan compute Supabase, atau kurangi request paralel per halaman (misalnya endpoint ringkasan paket gabungan dan cache antrean).
   - Backend sudah toleran: timeout 20 detik dan cache identitas. Journey 3/3 lulus.
+
+## 8. Fase 3–4: Koreksi, Tahap 4 (pengajuan), Tahap 5–6 (2026-11-24)
+
+### Koreksi (Fase 3)
+- Migrasi `koreksi_lifecycle` dan `koreksi_stale_version_pt409`.
+- Gate `CORRECTION_PRODUCTION_RPCS`.
+- UI: dashboard Tindakan Perbaikan Dirah dan workspace kasus (`/actions:Koreksi berbukti`).
+- Uji (menulis data, `JM_ALLOW_WRITES=1`): `test:correction-lifecycle` (API) dan `test:correction-ui` (browser).
+
+### Tahap 4–6 (Fase 4)
+Migrasi `20261124020000_tahap4_6_audit_penerimaan` (salinan applied ada di `backend/db-reference/`). Gate:
+- `STAGE4_WORKFLOW_RPCS`: ajukan/review Tahap 4.
+- `AUDIT_ACCEPTANCE_RPCS`: upload, audit, penerimaan.
+
+Aturan yang disetujui pemilik proyek (2026-11-24):
+1. **Sampel audit.** Auditor mengisi sampel secara manual (STA, nilai asli, nilai verifikasi). Sistem menghitung selisih %.
+   - Batas sampel: PIC maksimal 5%, Direktorat minimal 1%.
+2. **Audit tingkat 1 (Penyedia).** Checklist audit internal ditambah nomor BA Audit Internal, tanpa sampling.
+3. **Penolakan audit tingkat 2 atau 3.** Sistem otomatis membuka kasus Koreksi dengan tahap tertahan `Audit tingkat N`.
+   - Audit tingkat itu baru bisa diulang setelah kasus koreksinya ditutup.
+4. **Termin T1–T4 (30/30/20/20).** Dibuat otomatis per paket.
+   - PIC mencatat BA Penerimaan secara berurutan.
+   - Termin 3–4 dan penerimaan akhir memerlukan Audit tingkat 3 Lulus.
+5. **Upload ke SMD Jalan / INVI-J / InSlope / InDrain.** Dicatat manual oleh Penyedia, karena API SMD belum tersedia.
+
+Syarat pengajuan Tahap 4:
+- Kriteria LRS terpenuhi untuk setiap ruas paket: deviasi ≤ 30 m, topologi nol, format sesuai glossary, dan STA konsisten.
+- Upload terakhir setiap jenis survei berstatus VALID.
+
+Selama Tahap 4 sedang ditinjau atau sudah disetujui, catatan upload dikunci.
+
+Alur peran:
+1. Penyedia: LRS, upload, lalu ajukan Tahap 4.
+2. PIC: setujui Tahap 4.
+3. Penyedia: Audit tingkat 1.
+4. PIC: Audit tingkat 2.
+5. Direktorat: Audit tingkat 3.
+6. PIC: termin T1–T4. Penerimaan akhir menandai paket SELESAI.
+
+UI:
+- Panel upload di Tahap 4.
+- `/verification:Audit tingkat 1–3` dan `/reports:Penerimaan & termin` di workspace paket.
+
+Uji (menulis data): `test:audit-acceptance-ui`. Butuh kredensial `JM_PROVIDER_*`, `JM_PIC_*` dan `JM_DIRECTOR_*` di env.

@@ -51,6 +51,7 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
     if (failure?.code === '40001' && /koreksi/.test(path)) throw new ApiError(409, failure.message ?? 'Kasus koreksi telah berubah. Baca semula');
     if (failure?.code === '40001' && /simpan_uji_konsistensi_verval/.test(path)) throw new ApiError(409, 'Versi siklus berubah. Muat ulang siklus sebelum menyimpan.');
     if (failure?.code === '40001' && /scope_survei_kontrak/.test(path)) throw new ApiError(409, failure.message ?? 'Scope survei telah berubah. Muat ulang sebelum menyimpan; pilihan lokal dipertahankan.');
+    if (failure?.code === '40001' && /(audit|penerimaan|upload_sistem)/.test(path)) throw new ApiError(409, failure.message ?? 'Data audit atau penerimaan telah berubah. Muat ulang sebelum melanjutkan.');
     if (failure?.code === '40001') throw new ApiError(409, path.endsWith('/tambah_versi_dokumen_persiapan') ? 'Versi dokumen telah berubah. Baca senarai dokumen semula' : 'Checklist telah berubah. Baca semula sebelum menyimpan');
     if (failure?.code === '55000' && /scope_survei_kontrak/.test(path)) {
       throw new ApiError(409, failure.message ?? 'Perubahan scope dikunci karena persiapan sedang ditinjau atau sudah disetujui.');

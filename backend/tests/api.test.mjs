@@ -601,6 +601,13 @@ before(async () => {
       if (lastRpc.p_nomor_kontrak === 'DUPLICATE') return send({ code: '23505' }, 409);
       return send({ paket_id: 1, nama_paket: lastRpc.p_nama_paket, status: 'DRAFT', created_by: 3 });
     }
+    const auditRpc = url.pathname.split('/').pop();
+    if (url.pathname.startsWith('/rest/v1/rpc/') && ['daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
+      let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
+      if (lastRpc.p_expected_version === 99) return send({ code: 'PT409', message: 'Audit telah berubah' }, 409);
+      return send({ rpc: auditRpc, paket_id: lastRpc.p_paket_id });
+    }
     if (url.pathname.startsWith('/rest/v1/rpc/') && url.pathname.split('/').pop()?.includes('koreksi')) {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (token === 'missing-correction-rpc') return send({ code: 'PGRST202', message: 'Could not find the function public.baca_senarai_koreksi' }, 404);
@@ -714,7 +721,7 @@ before(async () => {
   const probe = http.createServer(); await new Promise(resolve => probe.listen(0, '127.0.0.1', resolve));
   const port = probe.address().port; await new Promise(resolve => probe.close(resolve));
   base = `http://127.0.0.1:${port}/api`;
-  child = spawn(process.execPath, ['dist/index.mjs'], { env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${mock.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key', ADMIN_ROLE_MANAGEMENT_ENABLED: 'false', ADMIN_ROLE_READS_ENABLED: 'true', CORRECTION_PRODUCTION_RPCS: 'true', STAGE3B_PRODUCTION_RPCS: 'true', STAGE1_PIC_CONFIRMATION_ENABLED: 'true', STAGE1_PIC_CONFIRMATION_APPROVED: 'true', STAGE1_PIC_CONFIRMATION_AUTHORIZATION_INSTALLED: 'true', LOG_LEVEL: 'silent', NODE_ENV: 'production' }, stdio: 'ignore' });
+  child = spawn(process.execPath, ['dist/index.mjs'], { env: { ...process.env, PORT: String(port), SUPABASE_URL: `http://127.0.0.1:${mock.address().port}`, SUPABASE_PUBLISHABLE_KEY: 'test-publishable-key', ADMIN_ROLE_MANAGEMENT_ENABLED: 'false', ADMIN_ROLE_READS_ENABLED: 'true', CORRECTION_PRODUCTION_RPCS: 'true', AUDIT_ACCEPTANCE_RPCS: 'true', STAGE3B_PRODUCTION_RPCS: 'true', STAGE1_PIC_CONFIRMATION_ENABLED: 'true', STAGE1_PIC_CONFIRMATION_APPROVED: 'true', STAGE1_PIC_CONFIRMATION_AUTHORIZATION_INSTALLED: 'true', LOG_LEVEL: 'silent', NODE_ENV: 'production' }, stdio: 'ignore' });
   let ready = false;
   for (let i = 0; i < 60; i++) { try { if ((await fetch(base + '/healthz')).ok) { ready = true; break; } } catch {} await delay(50); }
   assert.ok(ready, 'server starts');
@@ -1966,4 +1973,66 @@ test('rejected identities are never cached', async () => {
   const before = identityRpcCalls.filter(token => token === 'locked').length;
   for (let i = 0; i < 2; i += 1) assert.equal((await request('/me', 'locked')).status, 403);
   assert.equal(identityRpcCalls.filter(token => token === 'locked').length, before + 2);
+});
+
+test('audit and acceptance reads are open to package roles and call the read RPCs', async () => {
+  for (const [path, rpc] of [['/paket/3/upload-sistem', 'daftar_upload_sistem'], ['/paket/3/audit', 'baca_audit'], ['/paket/3/penerimaan', 'baca_penerimaan']]) {
+    for (const token of ['provider', 'reviewer', 'director']) {
+      const r = await request(path, token);
+      assert.equal(r.status, 200, path + ' ' + token);
+      assert.equal(r.body.data.rpc, rpc);
+    }
+  }
+  assert.equal((await request('/paket/999/audit', 'provider')).status, 404);
+  const caps = await request('/paket/3/audit-penerimaan-capabilities', 'provider');
+  assert.deepEqual(caps.body.data, { enabled: true, reason: null });
+});
+
+test('only the Penyedia records a system upload, with a validated body', async () => {
+  const body = { jenis_survei_id: 1, sistem_id: 1, status: 'VALID', jumlah_record: 120, pesan: [] };
+  assert.equal((await request('/paket/3/upload-sistem', 'reviewer', body)).status, 403);
+  assert.equal((await request('/paket/3/upload-sistem', 'director', body)).status, 403);
+  for (const bad of [{ ...body, status: 'OK' }, { ...body, jenis_survei_id: 0 }, { ...body, extra: 1 }]) assert.equal((await request('/paket/3/upload-sistem', 'provider', bad)).status, 400);
+  const r = await request('/paket/3/upload-sistem', 'provider', body);
+  assert.equal(r.status, 201);
+  assert.deepEqual(lastRpc, { p_paket_id: 3, p_data: body });
+});
+
+test('each audit level is written only by its owner role', async () => {
+  const save = { expected_version: 0, ba_number: 'BA-1', checklist: { format: true } };
+  assert.equal((await request('/paket/3/audit/1', 'reviewer', save, 'PUT')).status, 403);
+  assert.equal((await request('/paket/3/audit/2', 'provider', save, 'PUT')).status, 403);
+  assert.equal((await request('/paket/3/audit/3', 'reviewer', save, 'PUT')).status, 403);
+  assert.equal((await request('/paket/3/audit/4', 'director', save, 'PUT')).status, 400);
+  const r = await request('/paket/3/audit/3', 'director', { ...save, persen_sampel_realisasi: 1.5, sampel: [{ sta_awal: 0, sta_akhir: 100, nilai_asli: 3.2, nilai_verifikasi: 3.3, status: 'Sesuai' }] }, 'PUT');
+  assert.equal(r.status, 200);
+  assert.equal(lastRpc.p_tingkat, 3);
+  assert.equal(lastRpc.p_expected_version, 0);
+  assert.equal(lastRpc.p_data.sampel.length, 1);
+  const stale = await request('/paket/3/audit/2', 'reviewer', { ...save, expected_version: 99 }, 'PUT');
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.error, 'Audit telah berubah');
+});
+
+test('audit decisions require a reason when rejecting', async () => {
+  assert.equal((await request('/paket/3/audit/2/keputusan', 'reviewer', { expected_version: 1, keputusan: 'Ditolak', catatan: ' ' })).status, 400);
+  assert.equal((await request('/paket/3/audit/2/keputusan', 'provider', { expected_version: 1, keputusan: 'Lulus', catatan: '' })).status, 403);
+  const r = await request('/paket/3/audit/2/keputusan', 'reviewer', { expected_version: 1, keputusan: 'Ditolak', catatan: 'Selisih IRI > 10%' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(lastRpc, { p_paket_id: 3, p_tingkat: 2, p_expected_version: 1, p_keputusan: 'Ditolak', p_catatan: 'Selisih IRI > 10%' });
+});
+
+test('only the PIC records a term acceptance with a BA number', async () => {
+  const body = { expected_version: 0, jenis: 'PARSIAL', nomor_ba: 'BA-T1' };
+  assert.equal((await request('/paket/3/penerimaan/1', 'provider', body)).status, 403);
+  assert.equal((await request('/paket/3/penerimaan/1', 'reviewer', { ...body, nomor_ba: '' })).status, 400);
+  assert.equal((await request('/paket/3/penerimaan/5', 'reviewer', body)).status, 400);
+  const r = await request('/paket/3/penerimaan/1', 'reviewer', body);
+  assert.equal(r.status, 201);
+  assert.deepEqual(lastRpc, { p_paket_id: 3, p_termin: 1, p_expected_version: 0, p_data: { jenis: 'PARSIAL', nomor_ba: 'BA-T1' } });
+});
+
+test('Admin cannot write audit or acceptance data', async () => {
+  assert.equal((await request('/paket/3/audit/1', 'admin', { expected_version: 0 }, 'PUT')).status, 403);
+  assert.equal((await request('/paket/3/penerimaan/1', 'admin', { expected_version: 0, jenis: 'PARSIAL', nomor_ba: 'X' })).status, 403);
 });

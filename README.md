@@ -85,7 +85,8 @@ Gate di bawah ini fail-closed: kalau nilainya tidak `true`, endpoint terkait men
 | `PACKAGE_ROAD_ASSIGNMENT_ENABLED`, `_APPROVED`, `_AUTHORIZATION_INSTALLED` | Penetapan ruas jalan ke paket |
 | `STAGE3B_PRODUCTION_RPCS` | Siklus Verval 14 hari (Tahap 3B) |
 | `STAGE4_LRS_RPCS` | Baca/simpan validasi LRS Tahap 4 |
-| `STAGE4_WORKFLOW_RPCS` | Ajukan/review Tahap 4 |
+| `STAGE4_WORKFLOW_RPCS` | Ajukan/review Tahap 4. Butuh migrasi `20261124020000` |
+| `AUDIT_ACCEPTANCE_RPCS` | Catatan upload ke SMD/INVI-J/InSlope/InDrain, Audit berjenjang (Tahap 5), Termin dan penerimaan (Tahap 6). Butuh migrasi `20261124020000` |
 | `CORRECTION_PRODUCTION_RPCS` | Semua endpoint Koreksi |
 | `PACKAGE_SCOPE_AMENDMENT_RPCS` | Penambahan jenis survei (pindaan scope). Butuh migrasi `20261118120000`. Saat mati, panel disembunyikan |
 | `ADMIN_ROLE_READS_ENABLED`, `ADMIN_ROLE_MANAGEMENT_ENABLED` | Baca/ubah penugasan peran oleh Admin |

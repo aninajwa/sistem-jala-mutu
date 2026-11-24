@@ -1,3 +1,4 @@
+import { ServerUploadPanel } from './audit/ServerUploadPanel';
 import { useEffect, useState, type FormEvent } from 'react';
 import { RefreshCw, Save, ArrowLeft, ArrowRight, CheckCircle2 } from 'lucide-react';
 import { apiRequest } from '../auth/client';
@@ -203,10 +204,11 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
           {([['format_sesuai_glossary','Format sesuai glossary'],['sta_konsisten_iri_pci_ldt','STA konsisten IRI/PCI/LDT']] as const).map(([key,label]) => <label className="wf-field" key={key}><span>{label}</span><select required value={lrsDraft[key]} onChange={event => setLrsDraft(value => ({ ...value, [key]: event.target.value }))}><option value="">Pilih hasil pemeriksaan</option><option value="true">Ya</option><option value="false">Tidak</option></select></label>)}
           <button type="submit" className="wf-button primary" disabled={!capabilities.write || role !== 'Penyedia Jasa / Ketua Tim' || saveBusy || selectedRoad === null}><Save size={13} /> {saveBusy ? 'Menyimpan…' : 'Simpan validasi LRS'}</button>
         </fieldset></form>}
-        {role !== 'Penyedia Jasa / Ketua Tim' && <p className="wf-note">Hanya Penyedia Jasa dapat menyimpan data observasi. Aksi submit/review belum termasuk kontrak ini.</p>}
+        {role !== 'Penyedia Jasa / Ketua Tim' && <p className="wf-note">Hanya Penyedia Jasa dapat menyimpan data observasi.</p>}
         {saveError && <div role="alert" className="wf-callout danger">{saveError}</div>}
         {saveMessage && <div role="status" className="wf-callout">{saveMessage}</div>}
       </div></section>}
+      <ServerUploadPanel packageId={packageId} role={role} locked={workflowStatus?.state === 'DIAJUKAN' || workflowStatus?.state === 'DISETUJUI'} onChanged={() => setLrsRevision(value => value + 1)} />
       <section className="wf-panel" aria-label="Status submit dan review Stage 4" data-testid="stage4-workflow">
         <div className="wf-panel-head"><h4>Status validasi, submit &amp; review PIC</h4><span>{workflowStatus?.state ?? 'Memuat status'}</span></div>
         <div className="wf-body">
@@ -250,7 +252,7 @@ export function ServerStage4Workspace({ packageId, role }: { packageId: string; 
             <details className="ui09-server-diagnostics">
               <summary>Rincian workflow</summary>
               <p className="wf-note">Versi workflow: {workflowStatus.workflow_version}. Submit hanya untuk Penyedia; keputusan hanya untuk PIC Balai. Persetujuan dan Tahap 5 tetap diblokir selama blocker di atas ada. Status tersimpan tidak ditafsirkan sebagai kelulusan; review PIC bukan Berita Acara Penerimaan.</p>
-              <p className="wf-note">Kontrak submit/review Stage 4 belum dipasang dan aturan bisnis belum disahkan.</p>
+              <p className="wf-note">Syarat pengajuan: kriteria LRS terpenuhi untuk setiap ruas paket dan upload terakhir setiap jenis survei berstatus VALID.</p>
             </details>
           </>}
         </div>
