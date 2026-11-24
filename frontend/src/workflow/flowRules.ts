@@ -4,7 +4,7 @@ import { DEFAULT_SEMESTER_TWO, INITIAL_WORKFLOW, evaluateProductionTest, type Op
 export const AUDIT_REVIEW_CHECKS: Record<number,string[]> = {
   1:['Format, kelengkapan, ketelitian dan kewajaran seluruh data','Tanggal, ruas, arah, cuaca, alat dan personel diperiksa','Gambar/video dan foto PCI memenuhi spesifikasi'],
   2:['Dokumen, kalibrasi dan proses verval diperiksa','Penilaian ulang acak tanpa melihat data awal','Cek acak gambar/video: ruas, arah dan kualitas','Seluruh ketidaksesuaian diklarifikasi dan diterima'],
-  3:['Format, kelengkapan, ketelitian dan kewajaran data sistem diperiksa','Penilaian ulang acak minimum 1% selesai'],
+  3:['Format, kelengkapan, ketelitian dan kewajaran data sistem diperiksa','Penilaian ulang acak sesuai cakupan audit selesai (jembatan minimum 1%)'],
 };
 
 export function fieldReadiness(state:OperationalWorkflowState): string[] {

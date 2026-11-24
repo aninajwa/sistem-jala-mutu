@@ -1,0 +1,62 @@
+/* JALA MUTU — Tahap 0–6 header consistency. Presentation only. */
+.wf :is(.wf-eyebrow, .stage5-kicker, .stage3a-title > span) {
+  display: block;
+  color: #087d83;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .065em;
+  line-height: 1.4;
+  text-transform: none;
+  margin: 0 0 4px;
+}
+.wf :is(.wf-title, .stage5-header h2, .stage3a-title h1) {
+  color: #17384e;
+  font-family: inherit;
+  font-size: 20px;
+  font-weight: 750;
+  letter-spacing: -.015em;
+  line-height: 1.35;
+  margin: 0;
+}
+.wf :is(.wf-head, .stage3a-title, .stage3b-header, .stage4-header, .stage5-header) {
+  margin-top: 0;
+}
+.wf .stage-readiness-compact {
+  padding: 10px 12px;
+  margin: 0 0 12px;
+  background: #f8faf9;
+  border: 1px solid #dce7e4;
+  border-radius: 8px;
+  border-left: 1px solid #dce7e4;
+  gap: 4px 14px;
+  align-items: center;
+}
+.wf .stage-readiness-compact .stage-task-summary {
+  flex: 1 1 270px;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 6px 12px;
+}
+.wf .stage-readiness-compact .stage-task-summary strong {font-size: 12px; color: #244653;}
+.wf .stage-readiness-compact .stage-task-blockers {flex: 0 1 auto; min-width: 130px;}
+.wf .stage-readiness-compact .stage-task-blockers summary {font-size: 11px; color: #45616e;}
+.wf .stage-readiness-compact .stage-task-blockers[open] {flex: 1 1 100%;}
+.wf .stage-readiness-compact .stage-task-blockers ul {margin: 7px 0 0; max-height: 180px; overflow: auto; font-size: 12px;}
+.wf .v2-stage-toolbar {justify-content: flex-end; padding: 0 0 8px; margin-top: 12px;}
+.wf .v2-stage-toolbar label {font-size: 11px;}
+@media (max-width: 700px) {
+  .wf .stage-readiness-compact .stage-task-summary {display: flex; align-items: flex-start;}
+  .wf .stage-readiness-compact .stage-task-blockers {flex: 1 1 100%;}
+}
+
+/* Finishing: status strip without decorative vertical accent. */
+.wf .stage-readiness-compact,
+.wf .stage-readiness-compact.rc2-task-line {
+  border-left: 1px solid #dce7e4;
+}
+/* Avoid an empty top gutter left by the removed section jump control. */
+.wf .v2-stage-scene,
+.wf .v2-stage-body { min-width: 0; }

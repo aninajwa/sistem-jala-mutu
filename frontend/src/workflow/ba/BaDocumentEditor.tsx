@@ -161,6 +161,7 @@ export function BaDocumentEditor({
     preview.current?.replaceChildren();
   }, [fingerprint, valuesSignature]);
   function update(id: string, value: string) {
+    if (!editable) return;
     try {
       saveDocumentDraft(context, identity, { ...draft, [id]: value });
       setDraft((old) => ({ ...old, [id]: value }));
@@ -170,6 +171,7 @@ export function BaDocumentEditor({
     }
   }
   function save() {
+    if (!editable) return;
     try {
       saveDraftVersion(
         context,
@@ -185,6 +187,7 @@ export function BaDocumentEditor({
     }
   }
   function act(action: DocumentAction) {
+    if (!canAct(action) || state.role === "Admin") return;
     try {
       transitionDocument(
         context,
@@ -249,7 +252,7 @@ export function BaDocumentEditor({
     reopen: "Buka revisi baru",
   };
   const canAct = (action: DocumentAction) =>
-    !identityErrors.length &&
+    state.role !== "Admin" && !identityErrors.length &&
     (action === "submit" &&
     (identity.kind === "duaMingguan" || identity.kind === "bertahap")
       ? state.role === "Penyedia Jasa / Ketua Tim"

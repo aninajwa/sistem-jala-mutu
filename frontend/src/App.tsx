@@ -599,6 +599,9 @@ function App() {
                 workflowSubmodules.has(selectedSubmodule) ? (
                   activePackageId && activePackage ? (
                     <PackageDetailPage
+                      // Every stage/role transition owns a fresh view tree. Prevent stale note toolbars
+                      // from carrying over into another stage while preserving persisted audit state.
+                      key={`${activePackageId}:${selectedSubmodule}:${activePackage.role}`}
                       packageId={activePackageId}
                       workflow={activePackage}
                       principal={principal}

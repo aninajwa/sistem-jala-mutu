@@ -1,0 +1,81 @@
+/* Tahap 5: audit berjenjang, satu pekerjaan aktif; seirama Tahap 3B–4. */
+.wf .stage5-header { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; margin:0; padding:16px 0 12px; }
+.wf .stage5-kicker { color:#007c83; font-size:11px; font-weight:750; letter-spacing:.07em; margin-bottom:4px; }
+.wf .stage5-header h2 { font-size:20px; font-weight:750; color:#17384e; line-height:1.35; margin:0; }
+.wf .stage5-levels { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:8px; margin:0 0 12px; }
+.wf .stage5-level { border:1px solid #d6e3e6; background:#fff; border-radius:9px; display:flex; align-items:center; justify-content:space-between; gap:6px 14px; flex-wrap:wrap; padding:12px 14px; cursor:pointer; text-align:left; color:#375761; }
+.wf .stage5-level strong { font-size:13px; color:#1b3d50; }
+.wf .stage5-level span,.wf .stage5-level small { font-size:12px; }
+.wf .stage5-level small { color:#697e87; }
+.wf .stage5-level.active { border-color:#39b8b3; background:#e8f7f5; }
+.wf .stage5-tabs { display:flex; flex-wrap:wrap; gap:7px; border-bottom:1px solid #dce7ea; padding:0 0 12px; margin-bottom:14px; }
+.wf .stage5-tab { appearance:none; border:1px solid #d6e3e6; background:#fff; border-radius:8px; font-size:13px; font-weight:650; color:#375761; padding:9px 13px; cursor:pointer; }
+.wf .stage5-tab.active { border-color:#51b9b6; background:#e5f6f4; color:#00686b; }
+.wf .stage5-tab:focus-visible,.wf .stage5-level:focus-visible { outline:3px solid #9bdfdc; outline-offset:2px; }
+.wf .stage5-layout { display:block; width:100%; min-width:0; }
+.wf .stage5-flow-group { display:contents; }
+.wf .stage5-section { display:block; width:100%; min-width:0; margin:0 0 14px; }
+.wf .stage5-section .wf-panel { max-width:none; width:100%; box-sizing:border-box; margin:0 0 12px; }
+.wf .stage5-section table { width:100%; }
+.wf .stage5-section .wf-table-wrap { max-width:100%; overflow-x:auto; }
+.wf .stage5-summary-line { display:flex; justify-content:space-between; gap:12px; border-bottom:1px solid #e5eef0; padding:11px 0; font-size:13px; }
+.wf .stage5-summary-line:last-child { border-bottom:0; }
+.wf .stage5-summary-line strong { text-align:right; overflow-wrap:anywhere; }
+@media(max-width:760px) { .wf .stage5-levels { grid-template-columns:1fr; } .wf .stage5-tabs { display:grid; grid-template-columns:repeat(2,minmax(0,1fr)); } .wf .stage5-tab { padding:10px 7px; } }
+
+/* Hierarki kewenangan: audit sendiri jelas, audit lain tetap dapat dibaca. */
+.wf .stage5-level { align-items:center; padding:11px 13px; gap:10px; }
+.wf .stage5-level-main { display:flex; flex-direction:column; align-items:flex-start; gap:4px; min-width:0; }
+.wf .stage5-level-main strong { font-size:12px; }
+.wf .stage5-level-main small { font-size:11px; color:#667e86; }
+.wf .stage5-level.own { border-left:3px solid #078d90; }
+.wf .stage5-level.readonly:not(.active) { background:#f8fafb; }
+.wf .stage5-level-status { font-size:11px; color:#4a636b; margin-left:auto; white-space:normal; text-align:right; }
+.wf .stage5-scope { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px; padding:7px 11px; background:#eef5f6; color:#244b57; border:1px solid #d8e8e9; border-radius:7px; margin-bottom:12px; font-size:12px; }
+.wf .stage5-scope strong { color:#0a7379; }
+.wf .stage5-return { border:0; background:transparent; text-decoration:underline; cursor:pointer; font:inherit; color:#006e78; font-weight:650; }
+.wf .stage5-next-work { display:flex; justify-content:flex-end; margin-top:13px; }
+.wf .stage5-source-rules { border:1px solid #d7e6e9; border-radius:7px; margin-bottom:12px; overflow:hidden; }
+.wf .stage5-source-rules summary { cursor:pointer; padding:12px; background:#f2f7f8; color:#244e5b; font-size:12px; font-weight:650; }
+.wf .stage5-source-rules .wf-table { padding:8px; }
+@media(max-width:760px) { .wf .stage5-level-main strong { font-size:12px; } .wf .stage5-levels { gap:5px; } }
+/* Direktorat: penetapan cakupan berbasis jumlah unit, bukan persentase umum. */
+.wf .stage5-directorate-scope { display:grid; gap:9px; padding:14px; margin:10px 0; border:1px solid #cfe4e6; border-radius:9px; background:#f8fbfb; font-size:13px; }
+.wf .stage5-directorate-scope > strong { color:#164653; }
+.wf .stage5-directorate-scope > p { margin:0; color:#526a72; }
+.wf .stage5-directorate-scope label { font-weight:650; color:#315865; }
+.wf .stage5-directorate-scope input { border:1px solid #c8dadd; border-radius:7px; padding:9px 10px; background:#fff; min-width:0; max-width:100%; }
+.wf .stage5-directorate-scope-row { display:grid; grid-template-columns:minmax(0,1fr) minmax(110px,180px); align-items:center; gap:12px; }
+@media(max-width:600px) { .wf .stage5-directorate-scope-row { grid-template-columns:1fr; gap:5px; } }
+
+/* Tahap 5 final visual pass: remove decorative left rails only. */
+.wf .stage5-level.own {
+  border-left: 1px solid #d6e3e6;
+}
+.wf .stage5-level.own.active {
+  border-color: #39b8b3;
+}
+.wf .stage5-level:focus-visible,
+.wf .stage5-tab:focus-visible { outline-offset: 2px; }
+/* Warnings and readiness have a soft background without an orange stroke. */
+.wf:has(.stage5-header) .wf-callout.warn,
+.wf:has(.stage5-header) .wf-callout.danger,
+.wf:has(.stage5-header) .stage-readonly-note,
+.wf:has(.stage5-header) [data-testid="gate-summary"] {
+  border-left: 0;
+  border-radius: 7px;
+  padding: 12px 14px;
+}
+.wf:has(.stage5-header) .stage5-section .wf-panel {
+  box-shadow: none;
+  border-color: #dbe5e8;
+  border-radius: 9px;
+}
+.wf:has(.stage5-header) .stage5-section .wf-panel-head {
+  background: #f5f9fa;
+}
+.wf:has(.stage5-header) .stage5-scope {
+  border-color: #dfebec;
+  background: #f3f8f9;
+}
+/* Keep form field borders and table separators: they carry information. */

@@ -1,10 +1,10 @@
 import { PACKAGE_WORKFLOW_ITEMS } from "./roleNavigation";
 import { StageScene } from "../design/b/StageScene";
-import { StageChecklistIndex } from "./Checkpoint09Package";
 import "./checkpoint09.css";
 import { StageActionContext } from "./StageActionContext";
 import type { ComponentType } from "react";
 import "./workflow.css";
+import "./stageHeaderHarmony.css";
 import type { WorkflowStageProps } from "./stages/stageSupport";
 import { Stage0PreparationWorkspace } from "./stages/Stage0PreparationWorkspace";
 import { Stage1CalibrationWorkspace } from "./stages/Stage1CalibrationWorkspace";
@@ -66,25 +66,13 @@ export function OperationalWorkflowWorkspace(
       ? DocumentsWorkspace
       : screens[props.selection];
   if (!Screen) return null;
-  if (props.selection === "/verification:Verval 14 hari") {
-    return <div className="wf" data-testid="operational-workflow-workspace">
-      <Screen key={`${props.state.project.id}:${props.state.role}`} {...props} />
-    </div>;
-  }
   return (
     <div className="wf" data-testid="operational-workflow-workspace">
-      {!(["/entry:Survei harian", "/entry:Gerbang RNI/LRS"].includes(props.selection)) && <StageActionContext
+      <StageActionContext
         state={props.state}
         selection={props.selection}
         onNavigate={props.onNavigate}
-      />}
-      {!(["/entry:Persiapan & SPMK", "/documents:Kalibrasi & personel", "/entry:Survei harian", "/entry:Gerbang RNI/LRS"].includes(props.selection)) && (
-        <StageChecklistIndex
-          key={`${props.selection}:${props.state.role}`}
-          state={props.state}
-          selection={props.selection}
-        />
-      )}
+      />
       <StageScene
         key={`${props.state.project.id}:${props.selection}`}
         role={props.state.role}

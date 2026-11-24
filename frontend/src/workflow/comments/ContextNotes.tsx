@@ -3,6 +3,7 @@ import { MessageSquare } from "lucide-react";
 import { readLocal, writeLocal } from "../repository/localPersistence";
 import type { Principal } from "../repository/contracts";
 import type { OperationalWorkflowState } from "../model";
+import { noteAuthoringPolicy, type NoteContext } from "./noteAuthoringPolicy";
 
 type Note = {
   id: string;
@@ -12,6 +13,7 @@ type Note = {
   recordedAt: string;
   text: string;
   objectRef?: string;
+  notePhase?: "awal" | "hasil";
   readAt?: string;
   editedAt?: string;
   withdrawnAt?: string;
@@ -23,7 +25,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
   state: OperationalWorkflowState;
   principal: Principal;
   recipient: Principal;
-  context?: "audit2" | "stage0" | "stage1" | "stage3a" | "stage3a-field" | "stage3b" | "stage4";
+  context?: NoteContext;
 }) {
   const [notes, setNotes] = useState<Note[]>([]);
   const [draft, setDraft] = useState("");
@@ -61,9 +63,13 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
     : context === "stage3b" ? state.cycle.periodCompleted
     : context === "stage4" ? Boolean(state.submission.rawFileName.trim() || state.submission.cleanedFileName.trim() || state.submission.rniValidatedDate || state.submission.geometryFormat || Object.values(state.submission.stagedReviews ?? {}).some(review => review?.decision !== "Belum Diperiksa"))
     : ["Lulus", "Ditolak", "Klarifikasi"].includes(state.audits[1].status);
+  const authoring = noteAuthoringPolicy({
+    context, role: principal.role, eligible, hasResult,
+    recipientEligible: recipient.source === "local-test" && recipient.packageIds.includes(state.project.id),
+    hasDailyRecord: state.dailyRecords.length > 0,
+  });
   const authorAllowed = context === "stage3a-field" ? balai : directorate;
-  const canWrite = eligible && authorAllowed && hasResult
-    && recipient.source === "local-test" && recipient.packageIds.includes(state.project.id);
+  const { canWrite } = authoring;
 
   useEffect(() => {
     if (!eligible) return;
@@ -140,7 +146,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
     event.preventDefault();
     const value = draft.trim();
     if (!canWrite || !value || value.length > 2000 ||
-      ((context === "stage3a" || context === "stage3a-field") && !state.dailyRecords.some(r => r.id === selectedRef))) return;
+      (authoring.needsRecord && !state.dailyRecords.some(r => r.id === selectedRef))) return;
     if (persist((current) => [...current, {
       id: crypto.randomUUID(),
       authorId: principal.id,
@@ -148,7 +154,8 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
       recipientId: recipient.id,
       recordedAt: new Date().toISOString(),
       text: value,
-      ...(context === "stage0" || context === "stage1" || context === "stage3a" || context === "stage3a-field" ? { objectRef: selectedRef } : {}),
+      notePhase: authoring.preliminary ? "awal" : "hasil",
+      ...(context === "stage0" || context === "stage1" || context === "stage3a" || context === "stage3a-field" ? { objectRef: selectedRef || (context === "stage3a" ? "Catatan awal tahap 3A" : "") } : {}),
     }])) setDraft("");
   }
 
@@ -173,6 +180,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
         )}
 
         {error && <p role="alert">{error}</p>}
+        {authoring.preliminary && <p className="v2-note-empty">Catatan pengawasan awal. Belum ada hasil tahap yang dapat dinilai; catatan ini bukan pemeriksaan atau persetujuan.</p>}
         {visible.length === 0 && <p className="v2-note-empty">Belum ada catatan tambahan pada tahap ini.</p>}
         {!canWrite && directorate && (context === "stage0" || context === "stage1" || context === "stage3b" || context === "stage4") && (
           <p className="v2-note-empty">{hasResult ? "Catatan belum dapat dikirim untuk paket ini." : "Catatan dapat diberikan setelah hasil tahap tersedia."}</p>
@@ -180,7 +188,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
         {visible.length > 0 && <ul>
           {visible.map((note) => (
             <li key={note.id}>
-              <strong>{note.authorLabel}</strong>{" · "}
+              <strong>{note.authorLabel}</strong>{note.notePhase === "awal" ? " · Catatan awal" : ""}{" · "}
               <time dateTime={note.recordedAt}>{new Date(note.recordedAt).toLocaleString("id-ID")}</time>
               {note.objectRef && <small>Objek: {note.objectRef}</small>}
               {note.withdrawnAt ? <p>Catatan ditarik oleh penulis.</p> : editingId === note.id ? (
@@ -210,7 +218,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
           ))}
         </ul>}
         {canWrite && <form onSubmit={submit}>
-          {(context === "stage0" || context === "stage1" || context === "stage3a" || context === "stage3a-field") && <label>{context === "stage3a" || context === "stage3a-field" ? "Kegiatan yang dikomentari" : "Bagian yang dikomentari"}
+          {(context === "stage0" || context === "stage1" || ((context === "stage3a" || context === "stage3a-field") && state.dailyRecords.length > 0)) && <label>{context === "stage3a" || context === "stage3a-field" ? "Kegiatan yang dikomentari" : "Bagian yang dikomentari"}
             <select value={selectedRef} onChange={(event) => setObjectRef(event.target.value)}>
               {context === "stage3a" || context === "stage3a-field" ? state.dailyRecords.map(record =>
                 <option key={record.id} value={record.id}>{record.date} · {record.surveyType} · {record.road}</option>
@@ -225,7 +233,7 @@ export function ContextNotes({ state, principal, recipient, context = "audit2" }
               </>}
             </select>
           </label>}
-          <label htmlFor={textId}>{context === "stage3a-field" ? "Hasil pengawasan (bukan keputusan formal)" : "Catatan untuk Penyedia"}</label>
+          <label htmlFor={textId}>{context === "stage3a-field" ? "Hasil pengawasan (bukan keputusan formal)" : authoring.preliminary ? "Catatan pengawasan awal untuk Penyedia" : "Catatan untuk Penyedia"}</label>
           <textarea id={textId} required rows={4} maxLength={2000} value={draft} onChange={(event) => setDraft(event.target.value)} />
           <button type="submit" className="wf-button primary" disabled={!draft.trim()}>Simpan catatan</button>
         </form>}

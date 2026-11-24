@@ -88,7 +88,7 @@ let completed = false,
   browser: Awaited<ReturnType<typeof chromium.launch>> | undefined;
 const server = await createServer({
   configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
-  server: { host: "127.0.0.1", port: 5178, strictPort: true },
+  server: { host: "127.0.0.1", port: 5178, strictPort: true, watch: { ignored: ["**/test-artifacts/**"] } },
 });
 try {
   await server.listen();

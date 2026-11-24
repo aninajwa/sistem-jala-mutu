@@ -175,7 +175,7 @@ function auditsPassed(state:OperationalWorkflowState,until:1|2|3){
     decisionNote: level<=until?`Audit Tingkat ${level} paket demo dinyatakan lulus.`:'',
     baNumber: level<=until?`BA-AUDIT-T${level}-DEMO-001`:'',
     bridgeTrustScore:level===3&&level<=until?92:0,
-    reviewChecks: level<=until?{'Format, kelengkapan, ketelitian dan kewajaran seluruh data':true,'Tanggal, ruas, arah, cuaca, alat dan personel diperiksa':true,'Gambar/video dan foto PCI memenuhi spesifikasi':true,'Dokumen, kalibrasi dan proses verval diperiksa':true,'Penilaian ulang acak tanpa melihat data awal':true,'Cek acak gambar/video: ruas, arah dan kualitas':true,'Seluruh ketidaksesuaian diklarifikasi dan diterima':true,'Format, kelengkapan, ketelitian dan kewajaran data sistem diperiksa':true,'Penilaian ulang acak minimum 1% selesai':true}:{},
+    reviewChecks: level<=until?{'Format, kelengkapan, ketelitian dan kewajaran seluruh data':true,'Tanggal, ruas, arah, cuaca, alat dan personel diperiksa':true,'Gambar/video dan foto PCI memenuhi spesifikasi':true,'Dokumen, kalibrasi dan proses verval diperiksa':true,'Penilaian ulang acak tanpa melihat data awal':true,'Cek acak gambar/video: ruas, arah dan kualitas':true,'Seluruh ketidaksesuaian diklarifikasi dan diterima':true,'Format, kelengkapan, ketelitian dan kewajaran data sistem diperiksa':true,'Penilaian ulang acak sesuai cakupan audit selesai (jembatan minimum 1%)':true}:{},
   })) as OperationalWorkflowState['audits'];
 }
 

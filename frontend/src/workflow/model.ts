@@ -216,6 +216,8 @@ export type SubmissionState = {
   validationMessage: string;
   /** Konfirmasi kesiapan lokal saja; tidak sama dengan VALID dari sistem sumber. */
   localReadinessConfirmed?: boolean;
+  /** Referensi serah berkas kepada pemeriksa; hanya pencatatan lokal, bukan validasi SMD. */
+  reviewHandoverReference?: string;
   /** V&V bertahap generik hanya untuk jenis survei yang tidak memiliki checklist staged khusus pada sumber. */
   stagedReviews?: Partial<Record<SurveyType,{decision:'Belum Diperiksa'|'Sesuai'|'Temuan';note:string;reviewedAt:string}>>;
   coordinatesBoundToLrs?: boolean;
@@ -258,6 +260,8 @@ export type AuditLevel = {
   sampleUnits?: AuditSampleUnit[];
   /** Denominator populasi yang dipakai saat sampel dibuat. Opsional agar histori RC2 lama tetap dapat dibaca. */
   samplingCoverage?: Partial<Record<SurveyType, AuditSamplingCoverage>>;
+  /** Rujukan kebutuhan/cakupan audit Direktorat non-Jembatan; bukan penetapan persentase KAK. */
+  samplingBasisReference?: string;
   decisionNote: string;
   baNumber: string;
   bridgeTrustScore: number;
@@ -1609,7 +1613,9 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
 export function samplingRule(type: SurveyType, level: 1 | 2 | 3) {
   if (type === 'Lendutan' && level === 2) return {label:'Sampling Pengguna Jasa · formulir Lendutan T31',rate:5,unit:'5% titik menurut formulir; KAK 11.10.5 maksimum 10%'};
   if (level === 1) return { label: 'Audit Penyedia Jasa', rate: 100, unit: 'seluruh data' };
-  if (level === 3) return { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% data' };
+  if (level === 3) return type === 'Jembatan'
+    ? { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% jembatan atau sesuai kebutuhan tingkat kepercayaan' }
+    : { label: 'Audit Direktorat', rate: 0, unit: 'cakupan penilaian ulang ditetapkan sesuai pemeriksaan; tidak ada persentase otomatis' };
   if (type === 'Jembatan' || type === 'Lereng' || type === 'Lendutan') {
     return { label: 'Sampling Pengguna Jasa', rate: 10, unit: type === 'Lendutan' ? 'titik lendutan' : 'data/lokasi' };
   }

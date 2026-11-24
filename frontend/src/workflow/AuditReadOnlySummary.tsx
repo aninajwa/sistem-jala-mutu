@@ -1,3 +1,4 @@
+import { auditStatusForDisplay } from './auditChecklistPolicy';
 import type { AuditLevel, WorkflowRole } from './model';
 
 type Props = {
@@ -6,9 +7,10 @@ type Props = {
   activeRole: WorkflowRole;
   audit: AuditLevel;
   checks: string[];
+  showBridgeTrust?: boolean;
 };
 
-export function AuditReadOnlySummary({ level, actor, activeRole, audit, checks }: Props) {
+export function AuditReadOnlySummary({ level, actor, activeRole, audit, checks, showBridgeTrust = true }: Props) {
   const completed = checks.filter((key) => audit.reviewChecks?.[key]).length;
   return (
     <div data-testid={`audit-readonly-summary-${level}`}>
@@ -18,12 +20,12 @@ export function AuditReadOnlySummary({ level, actor, activeRole, audit, checks }
           Audit Tingkat {level} dikerjakan oleh <strong>{actor}</strong>. Peran aktif hanya melihat hasil, catatan, dan status yang sudah tercatat.
         </div>
       </div>
-      <div className="wf-row"><span>Status</span><strong>{audit.status}</strong></div>
+      <div className="wf-row"><span>Status</span><strong>{auditStatusForDisplay(audit)}</strong></div>
       <div className="wf-row"><span>Cakupan / sampel</span><strong>{audit.sampleUnits?.length ?? audit.sampleIds.length} unit</strong></div>
       <div className="wf-row"><span>Checklist pemeriksaan</span><strong>{completed}/{checks.length}</strong></div>
       <div className="wf-row"><span>Referensi / BA</span><strong>{audit.baNumber || 'Belum dicatat'}</strong></div>
       <div className="wf-row"><span>Catatan keputusan</span><strong>{audit.decisionNote || 'Belum ada catatan'}</strong></div>
-      {level === 3 && (
+      {level === 3 && showBridgeTrust && (
         <>
           <div className="wf-row"><span>Referensi kepercayaan jembatan</span><strong>{audit.bridgeTrustReference || 'Belum dicatat'}</strong></div>
           <div className="wf-row"><span>Skor kepercayaan jembatan</span><strong>{Number.isFinite(audit.bridgeTrustScore) ? audit.bridgeTrustScore : 'Belum dicatat'}</strong></div>

@@ -414,6 +414,16 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
               <Button id="button-go-audit-one" disabled={!preAuditReady} onClick={()=>onNavigate('/verification:Audit tingkat 1–3')}><ClipboardCheck size={13}/>Buka Audit Tingkat 1 (Tahap 5)</Button>
               <Button id="button-submission-validate" kind="primary" disabled={!readyToSubmit || state.submission.localReadinessConfirmed === true} onClick={validate}><Check size={13}/>{state.submission.localReadinessConfirmed ? "Kesiapan lokal tercatat" : "Catat kesiapan lokal"}</Button>
             </div>
+            {state.audits[0].status === 'Lulus' && !state.audits[0].requiresReview && (
+              <div className="wf-fields stage4-form-spaced">
+                <Field label="Referensi penyerahan untuk pemeriksaan Balai" full>
+                  <input data-testid="input-stage4-review-handover" value={state.submission.reviewHandoverReference ?? ''}
+                    placeholder="Nomor surat, berita acara, atau tanda terima"
+                    onChange={e => updateSubmission({reviewHandoverReference:e.target.value},'Catat referensi penyerahan pemeriksaan')} />
+                </Field>
+                <p className="stage4-feedback">Catatan lokal serah untuk pemeriksaan; bukan unggahan atau status VALID SMD.</p>
+              </div>
+            )}
           </Panel>
         </>}
         {isBalaiReview && tab==='hasil' && <>

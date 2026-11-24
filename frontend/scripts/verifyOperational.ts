@@ -26,7 +26,7 @@ const port = Number(process.env.OPERATIONAL_PORT || 5173),
   baseUrl = `http://127.0.0.1:${port}`;
 const server = await createServer({
   configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
-  server: { host: "127.0.0.1", port, strictPort: true },
+  server: { host: "127.0.0.1", port, strictPort: true, watch: { ignored: ["**/test-artifacts/**"] } },
 });
 await server.listen();
 const executablePath = process.env.CHROMIUM_EXECUTABLE;
@@ -189,6 +189,18 @@ async function openFirstBaTextareaSection(page: any) {
 
   throw new Error("Tidak ditemukan isian teks BA pada seluruh bagian formulir.");
 }
+
+/** Expand only document accordions needed by browser fixtures; no production DOM changes. */
+async function revealSourceSections(page: import("playwright").Page) {
+  await page.locator(".source-exact-checklist").first().evaluate(element => {
+    for (let parent = element.parentElement; parent; parent = parent.parentElement) {
+      if (parent instanceof HTMLDetailsElement) parent.open = true;
+    }
+    for (const detail of element.querySelectorAll("details")) {
+      if (detail instanceof HTMLDetailsElement) detail.open = true;
+    }
+  });
+}
 const selectedScenario = process.env.OPERATIONAL_SCENARIO;
 async function scenario(name: string, run: () => Promise<void>) {
   if (selectedScenario && name !== selectedScenario) return;
@@ -273,7 +285,7 @@ try {
         await page
           .locator('[data-testid="operational-workflow-workspace"]')
           .waitFor();
-        await page.locator(".wf-title, .stage3a-title h1").first().waitFor();
+        await page.locator('[data-testid="operational-workflow-workspace"]').first().waitFor({ state: "visible" });
         assert.equal(
           await page.locator('[data-testid="select-global-balai"]').count(),
           0,
@@ -337,7 +349,7 @@ try {
           `${baseUrl}${selections[i].split(":")[0]}?testRoles=1&submodule=${encodeURIComponent(selections[i])}`,
         );
         await openFilterPanels(page);
-        await page.locator(".wf-title, .stage3a-title h1").first().waitFor();
+        await page.locator('[data-testid="operational-workflow-workspace"]').first().waitFor({ state: "visible" });
         await page.screenshot({
           animations: "disabled",
           path: `${output}/screenshots/mobile-role-${r}-stage-${i}.png`,
@@ -516,11 +528,12 @@ try {
     );
     await openFilterPanels(page);
     await page.getByTestId("button-audit-level-2").click();
+    await page.getByTestId("stage5-tab-keputusan").click();
+    await page.getByTestId("select-audit-status-2").selectOption("Ditolak");
     await page.getByTestId("select-audit-rejection-type-2").selectOption("PCI");
     await page
       .getByTestId("input-audit-rejection-2")
       .fill("Bukti pembanding belum sesuai");
-    await page.getByTestId("select-audit-status-2").selectOption("Ditolak");
     await page
       .getByRole("button", { name: "Simpan keputusan / BA", exact: true })
       .click();
@@ -843,6 +856,7 @@ try {
       encodeURIComponent(selections[6]);
     await page.goto(url);
     await openFilterPanels(page);
+    await page.getByTestId("stage5-tab-keputusan").click();
     await page.getByTestId("select-audit-status-1").selectOption("Lulus");
     assert.equal(
       await page.evaluate(
@@ -854,6 +868,7 @@ try {
       "Dalam Review",
       "Blank source checklist must block Lulus",
     );
+    await page.getByTestId("stage5-tab-formulir").click();
     let interacted = 0;
     for (const type of fixture.project.surveyTypes) {
       await page
@@ -865,17 +880,21 @@ try {
         .count();
     }
     await page.reload();
+    await page.getByTestId("stage5-tab-keputusan").click();
     await page.getByTestId("select-audit-status-1").selectOption("Lulus");
+    // The status selector edits a local draft; a decision is not persisted until Save.
+    await page.getByTestId("button-save-audit-1").click();
+    const savedAudit = await page.evaluate(
+      (key) => JSON.parse(localStorage.getItem(key)!).packages["PAKET-DEMO-001"].audits[0],
+      PACKAGE_STORE_KEY,
+    );
     assert.equal(
-      await page.evaluate(
-        (key) =>
-          JSON.parse(localStorage.getItem(key)!).packages["PAKET-DEMO-001"]
-            .audits[0].status,
-        PACKAGE_STORE_KEY,
-      ),
+      savedAudit.status,
       "Lulus",
+      `Audit 1 has a seeded BA and must persist after valid source review and explicit Save; actual status=${savedAudit.status}. Inspect remaining gates.`,
     );
     await page.getByTestId("button-audit-level-2").click();
+    await page.getByTestId("stage5-tab-formulir").click();
     assert.equal(
       await page
         .locator(".source-exact-checklist input[type=radio]:checked")
@@ -963,6 +982,7 @@ try {
         .getByRole("button", { name: new RegExp("^" + type + "(?:\\s|$)") })
         .first()
         .click();
+      await revealSourceSections(page);
       for (const section of await page
         .locator(".source-exact-checklist .structured-checklist-section")
         .all())
@@ -977,6 +997,7 @@ try {
       surveys.push(type);
     }
     await page.reload();
+    await revealSourceSections(page);
     for (const section of await page
       .locator(".source-exact-checklist .structured-checklist-section")
       .all())
@@ -1053,6 +1074,7 @@ try {
     await form
       .getByLabel("Jenis survei checklist sumber", { exact: true })
       .selectOption("PCI");
+    await revealSourceSections(page);
     for (const details of await form
       .locator(".structured-checklist-section")
       .all())
@@ -1095,6 +1117,7 @@ try {
       .first()
       .click();
     const form = page.locator(".source-exact-checklist");
+    await revealSourceSections(page);
     assert.equal(
       await form
         .locator("summary")

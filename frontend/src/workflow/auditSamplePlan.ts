@@ -9,6 +9,11 @@ function stable<T extends {id:string}>(records:readonly T[],seed:string):T[]{ret
 const lengthBased=(type:SurveyType,level:1|2|3)=>level===2&&samplingRule(type,level).unit.includes('panjang jalan');
 
 export function buildAuditSamplePlan(input:AuditSampleInput):AuditSamplePlan {
+ // KAK 2026 Bab 11.10.5: minimum 1% refers to bridges, not every survey.
+ // Reject unsupported automatic Level-3 scope even when called outside the UI.
+ if (input.auditLevel === 3 && input.surveyTypes.some(type => type !== 'Jembatan')) {
+  return {sampleIds:[],sampleUnits:[],issues:['Audit Direktorat: sampling otomatis non-Jembatan belum memiliki ketentuan persentase dari KAK; cakupan harus ditetapkan berdasarkan kebutuhan audit dan bukti sumber.'],coverage:{}};
+ }
  const selected:AuditSampleUnit[]=[],issues:string[]=[];const coverage:AuditSamplePlan['coverage']={};
  const population=buildAuditPopulation(input.records,input.surveyTypes,input.routes);issues.push(...population.issues);
  for(const type of input.surveyTypes){
@@ -33,4 +38,40 @@ export function buildAuditSamplePlan(input:AuditSampleInput):AuditSamplePlan {
  }
  if(!input.surveyTypes.length)issues.push('Lingkup survei paket belum ditetapkan.');
  const unique=[...new Map(selected.map(unit=>[unit.id,unit])).values()];return {sampleUnits:unique,sampleIds:[...new Set(unique.map(unit=>unit.sourceRecordId))],issues:[...new Set(issues)],coverage};
+}
+
+/**
+ * Direktorat: jumlah unit non-Jembatan ditentukan dari kebutuhan audit dan
+ * referensi penetapan, bukan dari persentase yang tidak disebut KAK.
+ * Pemilihan unit deterministik memakai seed paket/jenis sebagai pencatatan
+ * pemilihan acak yang dapat ditelusuri. Jembatan tetap minimal 1% objek.
+ */
+export function buildDirectorateScopePlan(input:Omit<AuditSampleInput,'auditLevel'> & {
+  counts:Partial<Record<SurveyType,number>>;
+  basisReference:string;
+}):AuditSamplePlan {
+ const issues:string[]=[];
+ const nonBridge=input.surveyTypes.filter(type=>type!=='Jembatan');
+ if(nonBridge.length && !input.basisReference.trim())issues.push('Referensi dasar penetapan cakupan audit Direktorat wajib dicatat.');
+ const population=buildAuditPopulation(input.records,input.surveyTypes,input.routes);
+ issues.push(...population.issues);
+ const units:AuditSampleUnit[]=[],coverage:AuditSamplePlan['coverage']={};
+ for(const type of input.surveyTypes){
+  const candidates=population.units.filter(unit=>unit.surveyType===type);
+  const sourceCount=input.records.filter(r=>r.surveyType===type&&input.routes.includes(r.road)&&r.state==='Tercatat').length;
+  const amount=type==='Jembatan'?Math.max(1,Math.ceil(candidates.length*0.01)):input.counts[type];
+  if(!candidates.length){issues.push(`${type}: tidak ada unit data sumber yang layak disampel.`);continue;}
+  if(typeof amount!=='number'||!Number.isSafeInteger(amount)||amount<1||amount>candidates.length){
+   issues.push(`${type}: jumlah unit harus bilangan bulat antara 1 dan ${candidates.length}.`);continue;
+  }
+  const chosen=stable(candidates,`${input.packageId}:3:${type}`).slice(0,amount);
+  units.push(...chosen);
+  coverage[type]={sourceCount,sampleCount:new Set(chosen.map(unit=>unit.sourceRecordId)).size,
+    sourceKm:candidates.reduce((sum,unit)=>sum+(unit.lengthKm??0),0),
+    sampleKm:chosen.reduce((sum,unit)=>sum+(unit.lengthKm??0),0),
+    sourceUnits:candidates.length,sampleUnits:chosen.length};
+ }
+ if(!input.surveyTypes.length)issues.push('Lingkup survei paket belum ditetapkan.');
+ if(issues.length)return {sampleIds:[],sampleUnits:[],coverage:{},issues:[...new Set(issues)]};
+ return {sampleUnits:units,sampleIds:[...new Set(units.map(unit=>unit.sourceRecordId))],coverage,issues:[]};
 }

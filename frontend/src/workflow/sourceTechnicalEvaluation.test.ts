@@ -91,4 +91,52 @@ test('Tahap 4: keputusan V&V Balai membatalkan kesiapan lokal tanpa mengambil iz
  assert.equal(workflowMutationError(before,after,'/entry:Gerbang RNI/LRS'),undefined);
  const unauthorized={...after,submission:{...after.submission,rawFileName:'ubah oleh Balai'}};
  assert.ok(workflowMutationError(before,unauthorized,'/entry:Gerbang RNI/LRS'));
+  // A real pre-existing handover reference may be cleared by an authorized Balai review.
+  const withHandover={...before,submission:{...before.submission,reviewHandoverReference:'BA-SERAH-012'}};
+  const reviewed=applySubmissionEdit(withHandover,{stagedReviews:{Lendutan:{decision:'Temuan',note:'Periksa ulang',reviewedAt:before.simulationDate}}});
+  assert.equal(reviewed.submission.reviewHandoverReference,'');
+  assert.equal(workflowMutationError(withHandover,reviewed,'/entry:Gerbang RNI/LRS'),undefined);
+});
+
+import {auditReviewEligibility} from './auditReviewEligibility';
+test('Tahap 5: audit Balai dapat dimulai dengan referensi penyerahan lokal tanpa mengarang status VALID',()=>{
+ const state=createDemoWorkflow('start');
+ state.submission.validationStatus='Draft';
+ state.audits[0].status='Lulus';
+ assert.equal(auditReviewEligibility(state,2,true).canStart,false);
+ const handed=applySubmissionEdit(state,{reviewHandoverReference:'BA-SERAH-012'});
+ assert.equal(handed.submission.validationStatus,'Draft');
+ assert.equal(handed.audits[0].status,'Lulus');
+ assert.equal(auditReviewEligibility(handed,2,true).canStart,true);
+ assert.equal(auditReviewEligibility(handed,3,true).canStart,false);
+ handed.audits[1].status='Lulus';
+ assert.equal(auditReviewEligibility(handed,3,true).canStart,true);
+ assert.equal(auditReviewEligibility(handed,3,false).canStart,false);
+});
+test('Tahap 5: perubahan referensi penyerahan menandai audit pemeriksa perlu ditinjau ulang',()=>{
+ const state=createDemoWorkflow('start');
+ state.submission.reviewHandoverReference='BA-1';
+ state.audits[0].status='Lulus';
+ state.audits[1].status='Lulus';
+ state.audits[2].status='Lulus';
+ const next=applySubmissionEdit(state,{reviewHandoverReference:'BA-2'});
+ assert.equal(next.audits[0].status,'Lulus');
+ assert.equal(next.audits[1].requiresReview,true);
+ assert.equal(next.audits[2].requiresReview,true);
+ assert.equal(next.submission.validationStatus,state.submission.validationStatus);
+ const changed=applySubmissionEdit(next,{rawFileName:'REVISI-SUMBER'});
+ assert.equal(changed.submission.reviewHandoverReference,'');
+});
+
+test('Tahap 4: revisi V&V bertahap membatalkan referensi serah lokal dan meninjau audit lanjut',()=>{
+ const state=createDemoWorkflow('start');
+ state.submission.reviewHandoverReference='BA-SERAH-001';
+ state.audits[0].status='Lulus';
+ state.audits[1].status='Lulus';
+ const next=applySubmissionEdit(state,{stagedReviews:{Lendutan:{decision:'Temuan',note:'Pemeriksaan ulang',reviewedAt:state.simulationDate}}});
+ assert.equal(next.submission.reviewHandoverReference,'');
+ assert.equal(next.audits[0].status,'Lulus');
+ assert.equal(next.audits[1].requiresReview,true);
+ const actor={...state,role:'PIC Balai / Pengguna Jasa' as const};
+ assert.equal(workflowMutationError(actor,{...next,role:actor.role},'/entry:Gerbang RNI/LRS'),undefined);
 });

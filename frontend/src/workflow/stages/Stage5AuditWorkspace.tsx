@@ -1,9 +1,8 @@
-import {RoleWorkSection} from '../RoleWorkSection';
+import "./stage5-redesign.css";
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import {
   Activity,
-  BadgeCheck,
   ClipboardList,
   FileCheck2,
   FileText,
@@ -16,10 +15,14 @@ import { useCorrectionSelection } from "./useCorrectionSelection";
 
 import { AuditReadOnlySummary } from "../AuditReadOnlySummary";
 import { auditSampleIntegrity } from "../auditSampleIntegrity";
+import { reviseAuditSampleUnit } from "../auditSampleRevisions";
+import { auditReviewEligibility } from "../auditReviewEligibility";
 import { resolveAuditRejectionRecords, hasOpenAuditRejectionCase } from "../auditRejectionCases";
-import { buildAuditSamplePlan } from "../auditSamplePlan";
+import { buildAuditSamplePlan, buildDirectorateScopePlan } from "../auditSamplePlan";
+import {buildAuditPopulation} from "../auditSampleUnits";
 import { EvidenceAttachment } from "../EvidenceAttachment";
-import { AUDIT_REVIEW_CHECKS, fieldReadiness } from "../flowRules";
+import { fieldReadiness } from "../flowRules";
+import { auditChecksForScope, auditStatusForDisplay } from "../auditChecklistPolicy";
 import {
   AuditLevel,
   AuditSampleUnit,
@@ -32,10 +35,7 @@ import {
 } from "../model";
 import { SourceAlignmentChecklist } from "../SourceAlignmentChecklist";
 import { GateSummary } from "../WorkflowComponents";
-import {
-  AUDIT_LEVEL_PRESENTATION,
-  STAGE5_ROLE_GUIDANCE,
-} from "../workflowConfig";
+import { AUDIT_LEVEL_PRESENTATION } from "../workflowConfig";
 
 import type { WorkflowStageProps } from "./stageSupport";
 import {
@@ -51,10 +51,12 @@ import {
 import { useWorkflowStage } from "./useWorkflowStage";
 
 export function Stage5AuditWorkspace(props: WorkflowStageProps) {
-  const { selection, state, onUpdate, setNotice, onNavigate } = props;
-  const { baAccess, commit, heading } = useWorkflowStage(props);
+  const { state, setNotice, onNavigate } = props;
+  const { baAccess, commit } = useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage5AuditWorkspace`,{});
-  const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
+  const [, setCaseId] = useCorrectionSelection(state.project.id);
+  type Stage5Tab = "ringkasan" | "sampel" | "formulir" | "keputusan" | "dokumen";
+  const [activeTab, setActiveTab] = useState<Stage5Tab>("ringkasan");
   const [auditLevel, setAuditLevel] = useState<1 | 2 | 3>(()=>{const key=`jala-notification-audit:${state.project.id}`,level=Number(sessionStorage.getItem(key));sessionStorage.removeItem(key);return [1,2,3].includes(level)?level as 1|2|3:state.role==='PIC Balai / Pengguna Jasa'?2:state.role==='Direktorat / Pusat'?3:1;});
   const lrs = evaluateLrsGate(state.submission, state.simulationDate);
   const saveText = (key: string, value: string) =>
@@ -64,8 +66,13 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
   const presentation = AUDIT_LEVEL_PRESENTATION[auditLevel];
   const requiredRole = presentation.actor as WorkflowRole;
   const canEditAudit = state.role === requiredRole;
+  const ownAuditLevel = state.role === 'PIC Balai / Pengguna Jasa' ? 2 : state.role === 'Direktorat / Pusat' ? 3 : state.role === 'Penyedia Jasa / Ketua Tim' ? 1 : null;
+  const isAdmin = state.role === 'Admin';
+  const selectedLevelIsOwn = ownAuditLevel === auditLevel;
+  const levelThreeScopeUnresolved = auditLevel === 3 && state.project.surveyTypes.some(type => type !== 'Jembatan');
+  const directoratePopulation = levelThreeScopeUnresolved ? buildAuditPopulation(state.dailyRecords,state.project.surveyTypes,state.project.routes) : null;
   const scopedTypes = state.project.surveyTypes;
-  const auditChecks = AUDIT_REVIEW_CHECKS[auditLevel];
+  const auditChecks = auditChecksForScope(auditLevel, scopedTypes);
   const sampleIssues = auditSampleIntegrity({
     audit,
     records: state.dailyRecords,
@@ -81,14 +88,10 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
     ) &&
     !!state.submission.rawFileName.trim() &&
     !!state.submission.cleanedFileName.trim();
-  const previousAuditPassed =
-    auditLevel === 1 ||
-    (state.audits[auditLevel - 2].status === "Lulus" &&
-      !state.audits[auditLevel - 2].requiresReview);
-  const uploadReady =
-    auditLevel === 1 || state.submission.validationStatus === "VALID";
-  const canStart =
-    auditLevel === 1 ? stage4Ready : previousAuditPassed && uploadReady;
+  const eligibility = auditReviewEligibility(state, auditLevel, stage4Ready);
+  const previousAuditPassed = eligibility.previous;
+  const uploadReady = eligibility.handover;
+  const canStart = eligibility.canStart;
   const startGateItems = [
     {
       label:
@@ -108,22 +111,20 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
     ...(auditLevel > 1
       ? [
           {
-            label: "Status paket/upload siap",
+            label: "Referensi serah berkas untuk pemeriksaan",
             ready: uploadReady,
             detail:
               state.submission.validationStatus === "VALID"
-                ? "VALID"
-                : "Belum VALID",
+                ? "VALID dari sistem sumber"
+                : state.submission.reviewHandoverReference?.trim() ? "Referensi penyerahan tercatat (lokal)" : "Belum tercatat",
           },
         ]
       : []),
-    {
-      label: "Actor audit sesuai",
-      ready: canEditAudit,
-      detail: canEditAudit
-        ? "Peran aktif dapat melakukan aksi"
-        : `Aksi dilakukan oleh ${requiredRole}`,
-    },
+    ...(canEditAudit ? [{
+      label: "Kewenangan pemeriksaan",
+      ready: true,
+      detail: requiredRole,
+    }] : []),
   ];
   const makeSamples = () => {
     if (!canEditAudit) {
@@ -136,17 +137,26 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       setNotice(
         auditLevel === 1
           ? "Audit Tingkat 1 menunggu Tahap 4 lengkap dan gerbang RNI/LRS lulus."
-          : "Audit tingkat ini menunggu status paket VALID dan audit sebelumnya lulus.",
+          : "Audit memerlukan audit sebelumnya lulus, paket siap, dan referensi penyerahan pemeriksaan atau status VALID dari sistem sumber.",
       );
       return;
     }
-    const result = buildAuditSamplePlan({
-      packageId: state.project.id,
-      auditLevel,
-      surveyTypes: scopedTypes,
-      routes: state.project.routes,
-      records: state.dailyRecords,
-    });
+    const result = levelThreeScopeUnresolved
+      ? buildDirectorateScopePlan({
+          packageId:state.project.id,
+          surveyTypes:scopedTypes,
+          routes:state.project.routes,
+          records:state.dailyRecords,
+          basisReference:(draft['directorate-scope-reference']??audit.samplingBasisReference??'').trim(),
+          counts:Object.fromEntries(scopedTypes.filter(t=>t!=='Jembatan').map(t=>[t, Number(draft[`directorate-scope-count-${t}`]??audit.samplingCoverage?.[t]?.sampledUnits??'')])) as Partial<Record<typeof scopedTypes[number],number>>,
+        })
+      : buildAuditSamplePlan({
+          packageId: state.project.id,
+          auditLevel,
+          surveyTypes: scopedTypes,
+          routes: state.project.routes,
+          records: state.dailyRecords,
+        });
     if (result.issues.length) {
       setNotice(result.issues.join(" "));
       return;
@@ -159,6 +169,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       status: "Dalam Review",
       sampleIds: [...new Set(samples)],
       sampleUnits: result.sampleUnits,
+      samplingBasisReference:levelThreeScopeUnresolved ? (draft['directorate-scope-reference']??audit.samplingBasisReference??'').trim() : audit.samplingBasisReference,
       samplingCoverage: Object.fromEntries(
         Object.entries(result.coverage).map(([type, item]) => [
           type,
@@ -206,10 +217,9 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
   };
   const patchSampleUnit = (unitId:string, patch:Partial<AuditSampleUnit>) => {
     if (!canEditAudit) {setNotice(`Peran ${requiredRole} diperlukan untuk memeriksa sampel audit tingkat ${auditLevel}.`);return;}
-    commit('Periksa unit sampel audit', unitId, (current)=>({
-      ...current,
-      audits: current.audits.map(item=>item.level===auditLevel?{...item,status:item.status==='Belum Dimulai'?'Dalam Review':item.status,sampleUnits:(item.sampleUnits??[]).map(unit=>unit.id===unitId?{...unit,...patch}:unit)}:item) as OperationalWorkflowState['audits'],
-    }), 'Pemeriksaan unit sampel tersimpan.');
+    commit('Periksa unit sampel audit', unitId,
+      current => reviseAuditSampleUnit(current, auditLevel, unitId, patch),
+      'Pemeriksaan unit sampel tersimpan.');
   };
   const patchAudit = (patch: Partial<AuditLevel>, activity: string) => {
     if (!canEditAudit) {
@@ -223,6 +233,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
     }
     if (patch.status === 'Klarifikasi') patch={...patch,decisionNote:draft[`audit-note-${auditLevel}`]??audit.decisionNote};
     if (patch.status === "Lulus") {
+      if(auditLevel===3 && scopedTypes.some(type=>type!=='Jembatan') && !audit.samplingBasisReference?.trim()) {setNotice('Referensi penetapan cakupan audit Direktorat wajib tersedia sebelum keputusan lulus.');return;}
       const inspections=scopedTypes.map(type=>sourceInspectionStatus(`${state.project.id}::audit-${auditLevel}`,type,'audit',state.productionTests.PCI.pciManual!==false,state.project));
       const incomplete=inspections.filter(item=>!item.complete);
       if(incomplete.length){setNotice(incomplete.map(item=>item.reason).join(' '));return;}
@@ -409,32 +420,43 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
     auditLevel === 1 ? "Referensi audit internal / BA" : "Nomor berita acara";
   return (
     <>
-      {heading(
-        "Tahap 5 · audit berjenjang",
-        "Audit tingkat 1–3",
-        "Pemeriksaan dilakukan berurutan. Tingkat 1 mencatat bukti kesiapan internal Penyedia; assurance formal berikutnya dilakukan PIC Balai dan Direktorat sesuai kewenangan.",
-      )}
-      <p className="wf-note" data-testid="stage5-process-guide">
-        Audit 1 · Penyedia. Audit 2 · Balai. Audit 3 · Direktorat.
-      </p>
-      <RoleWorkSection primary={canEditAudit} title={`Hasil Audit Tingkat ${auditLevel}`}><SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
-        projectInfo={state.project}
-        key={`${state.project.id}:audit-${auditLevel}`}
-        packageId={`${state.project.id}::audit-${auditLevel}`}
-        phase="audit"
-        additionalAttachmentCategories={[`Bukti Audit Tingkat ${auditLevel}`,auditLevel===1?'Dokumen audit internal':`Berita Acara Audit Tingkat ${auditLevel}`]}
-        legacyEvidenceIds={[`stage5-audit-${auditLevel}-evidence`,`stage5-audit-${auditLevel}-ba`]}
-        surveyTypes={state.project.surveyTypes}
-        role={state.role}
-        editableRoles={[
-          AUDIT_LEVEL_PRESENTATION[auditLevel].actor as WorkflowRole,
-        ]}
-        title={`Checklist ${AUDIT_LEVEL_PRESENTATION[auditLevel].label}`}
-        onAnswersChanged={()=>{
-          if(!canEditAudit||audit.status!=='Lulus')return;
-          commit('Ubah jawaban sumber audit',`Audit ${auditLevel}`,current=>({...current,audits:current.audits.map(item=>item.level===auditLevel?{...item,requiresReview:true,reviewReason:'Jawaban checklist sumber audit berubah; periksa kembali.'}:item) as OperationalWorkflowState['audits']}));
-        }}
-      /></RoleWorkSection>
+      <header className="stage5-header">
+        <div>
+          <div className="stage5-kicker">Tahap 5 · Audit Mutu</div>
+          <h2>Audit Mutu Data</h2>
+        </div>
+        <Badge tone={!audit.requiresReview && audit.status === "Lulus" ? "good" : audit.status === "Ditolak" ? "bad" : "warn"}>
+          {auditStatusForDisplay(audit)}
+        </Badge>
+      </header>
+      <div className="stage5-levels" aria-label="Tingkat audit">
+        {([1, 2, 3] as const).map(level => (
+          <button key={level} type="button" data-testid={`button-audit-level-${level}`}
+            className={`stage5-level ${auditLevel === level ? "active" : ""} ${ownAuditLevel === level ? "own" : "readonly"}`}
+            aria-pressed={auditLevel === level}
+            aria-label={`Audit tingkat ${level}, ${level === 1 ? "Penyedia" : level === 2 ? "Balai" : "Direktorat"}, ${ownAuditLevel === level ? 'pekerjaan saya' : 'lihat saja'}`}
+            onClick={() => {setAuditLevel(level);setActiveTab("ringkasan");}}>
+            <span className="stage5-level-main"><strong>Tingkat {level} · {level === 1 ? "Penyedia" : level === 2 ? "Balai" : "Direktorat"}</strong><small>{ownAuditLevel === level ? "Pekerjaan saya" : isAdmin ? "Pemantauan" : "Lihat saja"}</small></span>
+            <span className="stage5-level-status">{auditStatusForDisplay(state.audits[level - 1])}</span>
+          </button>
+        ))}
+      </div>
+      <div className="stage5-scope" data-testid="stage5-role-scope">
+        <span><strong>{isAdmin ? 'Pemantauan administratif' : selectedLevelIsOwn ? 'Pekerjaan saya' : 'Mode lihat saja'}</strong> · Audit Tingkat {auditLevel}</span>
+        {!isAdmin && !selectedLevelIsOwn && ownAuditLevel && (
+          <button type="button" className="stage5-return" onClick={() => {setAuditLevel(ownAuditLevel);setActiveTab('ringkasan');}}>Kembali ke audit saya</button>
+        )}
+      </div>
+      <div className="stage5-tabs" role="group" aria-label="Bagian pekerjaan audit">
+        {([
+          ["ringkasan", isAdmin ? "Status Audit" : "Ringkasan"],
+          ...(!isAdmin ? [["sampel", auditLevel === 1 ? "Cakupan Data" : "Sampel"], ["formulir", "Formulir Audit"], ["keputusan", canEditAudit ? "Keputusan & Temuan" : "Hasil Audit"]] : []),
+          ["dokumen", "BA & Dokumen"],
+        ] as [Stage5Tab, string][]).map(([tab, label]) => (
+          <button key={tab} type="button" data-testid={`stage5-tab-${tab}`} className={`stage5-tab ${activeTab === tab ? "active" : ""}`}
+            aria-pressed={activeTab === tab} onClick={() => setActiveTab(tab)}>{label}</button>
+        ))}
+      </div>
       {state.corrections.some(
         (item) =>
           item.blockedStage === `Audit tingkat ${auditLevel}` &&
@@ -458,103 +480,95 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           meninjau revisi.
         </div>
       )}
-      <Panel title="Pilih tingkat pemeriksaan" icon={ShieldCheck}>
-        <div className="wf-toolbar">
-          {([1, 2, 3] as const).map((n) => (
-            <button
-              key={n}
-              data-testid={`button-audit-level-${n}`}
-              className={`wf-button ${auditLevel === n ? "primary" : ""}`}
-              onClick={() => setAuditLevel(n)}
-            >
-              {levelLabels[n - 1]}
-            </button>
-          ))}
-        </div>
-        <div className="wf-callout" style={{ marginTop: 10 }}>
-          <strong>{presentation.label}</strong>
-          <div className="wf-note" style={{ marginTop: 4 }}>
-            {presentation.purpose}
-          </div>
-        </div>
-        <GateSummary
-          title={`Kesiapan Audit Tingkat ${auditLevel}`}
-          items={startGateItems}
-        />
-
-        <div className="stage-audit-role">
-          <div>
-            <small>Pelaksana</small>
-            <strong>{requiredRole}</strong>
-          </div>
-
-          <div>
-            <small>Peran aktif</small>
-            <strong>{state.role}</strong>
-          </div>
-
-          <div>
-            <small>Akses</small>
-            <strong>
-              {canEditAudit ? "Pemeriksaan dan keputusan" : "Hasil pemeriksaan"}
-            </strong>
-          </div>
-        </div>
-
-      </Panel>
-
+      {activeTab === "formulir" && (
+        <section className="stage5-section" aria-label={`Formulir audit tingkat ${auditLevel}`}>
+      <SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
+        projectInfo={state.project}
+        key={`${state.project.id}:audit-${auditLevel}`}
+        packageId={`${state.project.id}::audit-${auditLevel}`}
+        phase="audit"
+        additionalAttachmentCategories={[`Bukti Audit Tingkat ${auditLevel}`,auditLevel===1?'Dokumen audit internal':`Berita Acara Audit Tingkat ${auditLevel}`]}
+        legacyEvidenceIds={[`stage5-audit-${auditLevel}-evidence`,`stage5-audit-${auditLevel}-ba`]}
+        surveyTypes={state.project.surveyTypes}
+        role={state.role}
+        editableRoles={[
+          AUDIT_LEVEL_PRESENTATION[auditLevel].actor as WorkflowRole,
+        ]}
+        title={`Checklist ${AUDIT_LEVEL_PRESENTATION[auditLevel].label}`}
+        onAnswersChanged={()=>{
+          if(!canEditAudit||audit.status!=='Lulus')return;
+          commit('Ubah jawaban sumber audit',`Audit ${auditLevel}`,current=>({...current,audits:current.audits.map(item=>item.level===auditLevel?{...item,requiresReview:true,reviewReason:'Jawaban checklist sumber audit berubah; periksa kembali.'}:item) as OperationalWorkflowState['audits']}));
+        }}
+      />
+        </section>
+      )}
+      {activeTab === "ringkasan" && (
+        <section className="stage5-section">
+          {!isAdmin && <Panel title={`Status Audit Tingkat ${auditLevel}`} icon={ShieldCheck}>
+            <div className="stage5-summary-line"><span>Pelaksana</span><strong>{requiredRole}</strong></div>
+            <div className="stage5-summary-line"><span>Status</span><strong>{auditStatusForDisplay(audit)}</strong></div>
+            <div className="stage5-summary-line"><span>Sampel</span><strong>{sampleCount} unit</strong></div>
+            <div className="stage5-summary-line"><span>BA / Referensi</span><strong>{audit.baNumber || "Belum tercatat"}</strong></div>
+            {canEditAudit && <div className="stage5-next-work">
+              <Button id="stage5-open-next-work" kind="primary" onClick={() => setActiveTab(sampleCount > 0 ? 'formulir' : 'sampel')}>
+                {sampleCount > 0 ? 'Buka formulir audit' : auditLevel === 1 ? 'Periksa cakupan data' : 'Periksa sampel'}
+              </Button>
+            </div>}
+          </Panel>}
+      {!isAdmin && <Panel title="Kesiapan Pemeriksaan" icon={ClipboardList}>
+        <GateSummary title={`Syarat Tingkat ${auditLevel}`} items={startGateItems}/>
+      </Panel>}
+        </section>
+      )}
+      {activeTab === "dokumen" && (
+        <section className="stage5-section">
       <Panel
         title={`Dokumen hasil audit · Tingkat ${auditLevel}`}
         icon={FileText}
       >
-        <p className="wf-note">
-          Ringkasan mengikuti sampel, checklist, temuan, dan keputusan audit
-          yang sudah tercatat. Dokumen ini bukan BA Audit resmi sampai format
-          dan pengesahannya ditetapkan.
-        </p>
         <div className="wf-toolbar">
           {baAccess(
             "audit",
-            `Lihat / susun dokumen audit tingkat ${auditLevel}`,
+            isAdmin ? `Lihat dokumen audit tingkat ${auditLevel}` : `Lihat / susun dokumen audit tingkat ${auditLevel}`,
             0,
             {auditLevel},
           )}
           <Badge
             tone={
-              audit.status === "Lulus"
+              !audit.requiresReview && audit.status === "Lulus"
                 ? "good"
                 : audit.status === "Ditolak"
                   ? "bad"
                   : "warn"
             }
           >
-            {audit.status}
+            {auditStatusForDisplay(audit)}
           </Badge>
         </div>
       </Panel>
-      <div className="wf-grid" style={{ marginTop: 12, alignItems: "start" }}>
-        <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
+        </section>
+      )}
+      <div className="stage5-layout">
+        <div className="stage5-flow-group">
+          {activeTab === "sampel" && (
+            <section className="stage5-section">
           <Panel
             title={`Cakupan & sampling · tingkat ${auditLevel}`}
             icon={ClipboardList}
             extra={
               <Badge
                 tone={
-                  audit.status === "Lulus"
+                  !audit.requiresReview && audit.status === "Lulus"
                     ? "good"
                     : audit.status === "Ditolak"
                       ? "bad"
                       : "warn"
                 }
               >
-                {audit.status}
+                {auditStatusForDisplay(audit)}
               </Badge>
             }
           >
-            <div className="wf-note" style={{ marginBottom: 8 }}>
-              Cakupan mengikuti jenis survei dan tingkat audit. Aturan sampling
-              ditampilkan dari konfigurasi yang berlaku.
-            </div>
             {sampleIssues.length > 0 && sampleCount > 0 && (
               <div
                 className="wf-callout warn"
@@ -565,6 +579,8 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                 {sampleIssues.join(" ")}
               </div>
             )}
+            <details className="stage5-source-rules">
+              <summary>Ketentuan cakupan per jenis survei</summary>
             <div className="wf-table">
               <table data-testid={`table-sampling-level-${auditLevel}`}>
                 <thead>
@@ -584,14 +600,33 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                           <strong>{t}</strong>
                         </td>
                         <td>{rule.label}</td>
-                        <td>{rule.rate}%</td>
-                        <td>{auditLevel === 3 && !/jembatan/i.test(t) ? "Data · kebijakan jenis perlu penetapan" : rule.unit}</td>
+                        <td>{auditLevel === 3 && t !== "Jembatan" ? "Perlu penetapan" : `${rule.rate}%`}</td>
+                        <td>{auditLevel === 3 && t !== "Jembatan" ? "Jenis dan cakupan ditetapkan sesuai kebutuhan audit" : rule.unit}</td>
                       </tr>
                     );
                   })}
                 </tbody>
               </table>
             </div>
+            </details>
+            {levelThreeScopeUnresolved && (
+              <div className="stage5-directorate-scope" data-testid="stage5-level3-manual-scope">
+                <strong>Penetapan cakupan audit Direktorat</strong>
+                <p>Jumlah unit ditetapkan dari kebutuhan audit. Jembatan tetap minimum 1% dan unit dipilih acak dari data yang tersedia.</p>
+                <label htmlFor="directorate-scope-reference">Referensi penetapan cakupan</label>
+                {canEditAudit ? <input id="directorate-scope-reference" aria-label="Referensi penetapan cakupan" value={draft['directorate-scope-reference']??audit.samplingBasisReference??''} placeholder="Nomor surat / dokumen dasar pemeriksaan" onChange={e=>saveText('directorate-scope-reference',e.target.value)} />
+                  : <span>{audit.samplingBasisReference||'Belum tercatat'}</span>}
+                {scopedTypes.filter(type=>type!=='Jembatan').map(type=>{
+                  const eligible=directoratePopulation?.units.filter(unit=>unit.surveyType===type).length??0;
+                  return <div className="stage5-directorate-scope-row" key={type}>
+                    <label htmlFor={`directorate-count-${type}`}>{type} · {eligible} unit tersedia</label>
+                    {canEditAudit ? <input id={`directorate-count-${type}`} type="number" min={1} max={eligible} step={1} aria-label={`Jumlah sampel ${type}`} value={draft[`directorate-scope-count-${type}`]??audit.samplingCoverage?.[type]?.sampledUnits??''} onChange={e=>saveText(`directorate-scope-count-${type}`,e.target.value)} placeholder="Jumlah unit" />
+                      : <span>{audit.samplingCoverage?.[type]?.sampledUnits??'Belum ditetapkan'} unit</span>}
+                  </div>;
+                })}
+                {directoratePopulation?.issues.length ? <p className="wf-callout warn">{directoratePopulation.issues.join(' ')}</p> : null}
+              </div>
+            )}
             <div className="wf-toolbar" style={{ marginTop: 10 }}>
               <Button
                 id={`button-create-samples-${auditLevel}`}
@@ -602,21 +637,16 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                 <Plus size={13} />
                 {auditLevel === 1
                   ? "Catat cakupan audit internal"
-                  : "Siapkan sampel audit"}
+                  : levelThreeScopeUnresolved ? "Tetapkan dan acak sampel" : "Siapkan sampel audit"}
               </Button>
               <Badge tone="info">{sampleCount} unit · {audit.sampleIds.length} rekaman sumber</Badge>
             </div>
-            {!canEditAudit && (
-              <div className="wf-callout" style={{ marginTop: 9 }}>
-                Read-only pada peran ini. Aksi Tingkat {auditLevel} dilakukan
-                oleh <strong>{requiredRole}</strong>.
-              </div>
-            )}
+
             {!canStart && (
               <div className="wf-callout warn" style={{ marginTop: 9 }}>
                 {auditLevel === 1
                   ? "Tertahan: Tahap 4 belum lengkap."
-                  : "Tertahan: paket belum VALID atau audit sebelumnya belum lulus."}
+                  : "Tertahan: cek kesiapan paket, keputusan audit sebelumnya, dan referensi serah berkas."}
               </div>
             )}
             {audit.sampleUnits?.length ? (
@@ -636,7 +666,11 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             ) : <div className="wf-empty">Belum ada unit sampel audit tercatat.</div>}
           </Panel>
 
-          <Panel title="Jejak audit berjenjang" icon={Activity}>
+            </section>
+          )}
+          {activeTab === "ringkasan" && (
+            <section className="stage5-section">
+          <Panel title="Riwayat audit" icon={Activity}>
             {state.audits.map((a, i) => (
               <div
                 className="wf-stage"
@@ -653,42 +687,25 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                 </div>
                 <Badge
                   tone={
-                    a.status === "Lulus"
+                    !a.requiresReview && a.status === "Lulus"
                       ? "good"
                       : a.status === "Ditolak"
                         ? "bad"
                         : "warn"
                   }
                 >
-                  {a.status}
+                  {auditStatusForDisplay(a)}
                 </Badge>
               </div>
             ))}
           </Panel>
+            </section>
+          )}
         </div>
 
-        <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-          <Panel title="Peran & kewenangan" icon={BadgeCheck}>
-            <div className="wf-row">
-              <span>Pelaksana tingkat ini</span>
-              <strong>{requiredRole}</strong>
-            </div>
-            <div className="wf-row">
-              <span>Peran aktif</span>
-              <Badge tone={canEditAudit ? "good" : "info"}>{state.role}</Badge>
-            </div>
-            <div className="wf-callout" style={{ marginTop: 10 }}>
-              {presentation.purpose}
-            </div>
-            {auditLevel === 1 && (
-              <div className="wf-note" style={{ marginTop: 8 }}>
-                Audit Tingkat 1 merupakan pemeriksaan internal Penyedia. Audit
-                Tingkat 2 dilakukan PIC Balai / Pengguna Jasa, dan Audit Tingkat
-                3 dilakukan Direktorat / Pusat.
-              </div>
-            )}
-          </Panel>
-
+        <div className="stage5-flow-group">
+          {activeTab === "keputusan" && (
+            <section className="stage5-section">
           <Panel
             title={
               canEditAudit
@@ -730,7 +747,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                 <Field label={statusLabel}>
                   <Select
                     id={`select-audit-status-${auditLevel}`}
-                    value={audit.status}
+                    value={draft[`audit-status-${auditLevel}`] ?? audit.status}
                     options={[
                       "Belum Dimulai",
                       "Dalam Review",
@@ -738,12 +755,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                       "Lulus",
                       "Ditolak",
                     ]}
-                    onChange={(v) =>
-                      patchAudit(
-                        { status: v as AuditLevel["status"] },
-                        `Ubah status audit tingkat ${auditLevel}`,
-                      )
-                    }
+                    onChange={(v) => saveText(`audit-status-${auditLevel}`, v)}
                   />
                 </Field>
                 <Field label="Catatan pemeriksaan" full>
@@ -758,27 +770,24 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                     placeholder="Catatan audit, temuan atau klarifikasi"
                   />
                 </Field>
-                <Field label="Jenis survei temuan penolakan">
-                  <select data-testid={`select-audit-rejection-type-${auditLevel}`}
-                    value={draft[`audit-rejection-type-${auditLevel}`] ?? ""}
-                    onChange={(e) => saveText(`audit-rejection-type-${auditLevel}`, e.target.value)}>
-                    <option value="">Pilih jenis survei</option>
-                    {scopedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
-                  </select>
-                </Field>
-                <Field
-                  label="Alasan penolakan (wajib bila status Ditolak)"
-                  full
-                >
-                  <textarea
-                    data-testid={`input-audit-rejection-${auditLevel}`}
-                    value={draft[`audit-rejection-${auditLevel}`] ?? ""}
-                    onChange={(e) =>
-                      saveText(`audit-rejection-${auditLevel}`, e.target.value)
-                    }
-                    placeholder="Uraikan ketidaksesuaian yang memicu tindak lanjut."
-                  />
-                </Field>
+                {(draft[`audit-status-${auditLevel}`] ?? audit.status) === "Ditolak" && <>
+                  <Field label="Jenis survei temuan penolakan">
+                    <select data-testid={`select-audit-rejection-type-${auditLevel}`}
+                      value={draft[`audit-rejection-type-${auditLevel}`] ?? ""}
+                      onChange={(e) => saveText(`audit-rejection-type-${auditLevel}`, e.target.value)}>
+                      <option value="">Pilih jenis survei</option>
+                      {scopedTypes.map((type) => <option key={type} value={type}>{type}</option>)}
+                    </select>
+                  </Field>
+                  <Field label="Alasan penolakan" full>
+                    <textarea
+                      data-testid={`input-audit-rejection-${auditLevel}`}
+                      value={draft[`audit-rejection-${auditLevel}`] ?? ""}
+                      onChange={(e) => saveText(`audit-rejection-${auditLevel}`, e.target.value)}
+                      placeholder="Ketidaksesuaian yang perlu ditindaklanjuti"
+                    />
+                  </Field>
+                </>}
                 <Field label={baLabel} full>
                   <input
                     data-testid={`input-audit-ba-${auditLevel}`}
@@ -788,7 +797,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                     }
                   />
                 </Field>
-                {auditLevel === 3 && (
+                {auditLevel === 3 && scopedTypes.includes("Jembatan") && (
                   <Field label="Skor kepercayaan jembatan">
                     <input
                       type="number"
@@ -809,7 +818,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                     kind="primary"
                     onClick={() => {
                       if (
-                        audit.status === "Ditolak" &&
+                        (draft[`audit-status-${auditLevel}`] ?? audit.status) === "Ditolak" &&
                         !draft[`audit-rejection-${auditLevel}`]?.trim()
                       ) {
                         setNotice(
@@ -819,16 +828,9 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                       }
                       patchAudit(
                         {
-                          decisionNote: [
-                            draft[`audit-note-${auditLevel}`] ?? audit.decisionNote,
-                            audit.status === "Ditolak"
-                              ? `Alasan: ${draft[`audit-rejection-${auditLevel}`]}`
-                              : "",
-                          ]
-                            .filter(Boolean)
-                            .join(" · "),
-                          baNumber:
-                            draft[`audit-ba-${auditLevel}`] ?? audit.baNumber,
+                          status: (draft[`audit-status-${auditLevel}`] ?? audit.status) as AuditLevel["status"],
+                          decisionNote: draft[`audit-note-${auditLevel}`] ?? audit.decisionNote,
+                          baNumber: draft[`audit-ba-${auditLevel}`] ?? audit.baNumber,
                         },
                         `Simpan keputusan audit tingkat ${auditLevel}`,
                       );
@@ -852,9 +854,12 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                 activeRole={state.role}
                 audit={audit}
                 checks={auditChecks}
+                showBridgeTrust={scopedTypes.includes("Jembatan")}
               />
             )}
           </Panel>
+            </section>
+          )}
         </div>
       </div>
     </>

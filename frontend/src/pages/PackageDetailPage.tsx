@@ -123,12 +123,13 @@ export default function PackageDetailPage({
       )}
       {selection === "/entry:Survei harian" && (
         <div className="stage3a-note-toolbar">
-          <ContextNotes key={`${packageId}:stage3a`} context="stage3a" state={workflow} principal={principal} recipient={notesRecipient} />
-          <ContextNotes key={`${packageId}:stage3a-field`} context="stage3a-field" state={workflow} principal={principal} recipient={notesRecipient} />
+          {workflow.role !== "PIC Balai / Pengguna Jasa" && (
+            <ContextNotes key={`${packageId}:stage3a`} context="stage3a" state={workflow} principal={principal} recipient={notesRecipient} />
+          )}
+          {workflow.role !== "Direktorat / Pusat" && (
+            <ContextNotes key={`${packageId}:stage3a-field`} context="stage3a-field" state={workflow} principal={principal} recipient={notesRecipient} />
+          )}
         </div>
-      )}
-      {selection === "/verification:Audit tingkat 1–3" && (
-        <ContextNotes key={packageId} state={workflow} principal={principal} recipient={notesRecipient} />
       )}
       {showOverview ? (
         <PackageOverview

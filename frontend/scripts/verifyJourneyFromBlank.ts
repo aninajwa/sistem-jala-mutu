@@ -79,7 +79,7 @@ assert.equal(state.calibrations.length, 0);
 assert.equal(state.dailyRecords.length, 0);
 const server = await createServer({
   configFile: fileURLToPath(new URL("../vite.config.ts", import.meta.url)),
-  server: { host: "127.0.0.1", port: 5174, strictPort: true },
+  server: { host: "127.0.0.1", port: 5174, strictPort: true, watch: { ignored: ["**/test-artifacts/**"] } },
 });
 await server.listen();
 const executablePath = process.env.CHROMIUM_EXECUTABLE;
@@ -448,8 +448,9 @@ try {
     await page.goto(url("/verification:Audit tingkat 1–3"));
     await openFilterPanels(page);
     await page.getByTestId("button-audit-level-" + level).click();
+    await page.getByTestId("stage5-tab-sampel").click();
     await page.getByTestId("button-create-samples-" + level).click();
-    await fillSourceQuestions();
+    // Source form is on the Formulir Audit tab; fill it after switching there.
     for (const input of await page
       .locator(".wf-check input[type=checkbox]:enabled")
       .all())
@@ -466,6 +467,10 @@ try {
         await row.getByRole("textbox").fill("REF-UJI-RNI-SAMPEL-" + level);
       }
     }
+    await page.getByTestId("stage5-tab-formulir").click();
+    await fillSourceQuestions();
+    await page.getByTestId("stage5-tab-keputusan").click();
+    for (const input of await page.locator(".wf-check input[type=checkbox]:enabled").all()) await input.check();
     await page
       .getByTestId("input-audit-note-" + level)
       .fill("Pemeriksaan data RNI uji terisolasi selesai");
