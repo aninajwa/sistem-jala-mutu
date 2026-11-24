@@ -1,5 +1,5 @@
 import { PRODUCTION_REFERENCE_CHECKS } from './surveyStandards';
-import { withProductionReferences } from './testing/productionFixture';
+import { withProductionReferences, withSuitableCalibrationReviews } from './testing/productionFixture';
 import {filledSourceFixture} from './testing/sourceFixture';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {sourceDocument} from './sourceDocumentModel';import {bridgeSamplingResult} from './sourceTechnicalEvaluation';import {switchPciMethod} from './pciMethods';import {createDemoWorkflow} from './demoScenario';import {evaluateStageGate} from './workflowGate';
@@ -22,6 +22,7 @@ test('PCI method drafts are independent, recover previous values and AI cannot u
    pciManual: false, pciBenchmarkBalanced: true, evidenceReference: 'HASIL-PCI-AI',
    referenceChecks: Object.fromEntries(PRODUCTION_REFERENCE_CHECKS.PCI.map(check => [check, true])),
  });
+ withSuitableCalibrationReviews(verified);
  assert.equal(evaluateStageGate(verified, 'Tahap 2').readyToComplete, true);
  state.role='Admin';assert.equal(switchPciMethod(state,false),state);
 });

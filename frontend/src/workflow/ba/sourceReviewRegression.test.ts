@@ -1,6 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import {withProductionReferences} from '../testing/productionFixture';
+import {withProductionReferences,withSuitableCalibrationReviews} from '../testing/productionFixture';
 import {createDemoWorkflow} from '../demoScenario';
 import {sourceDocument,sourceDocumentKey,documentQuestions} from '../sourceDocumentModel';
 import {sourceFormFixture} from '../testing/sourceFormFixture';
@@ -12,6 +12,10 @@ function setup(){
  const memory=new Map<string,string>();
  Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value),removeItem:(key:string)=>memory.delete(key)}});
  const state=withProductionReferences(createDemoWorkflow('complete'));state.project.id='BA-SOURCE-REGRESSION';state.role=B;
+ // The demo package declares 8 survey types but only IRI/PCI have calibration records;
+ // scope this IRI periodic-BA fixture to IRI so the production gate can be satisfied.
+ state.project.surveyTypes=['IRI'];
+ withSuitableCalibrationReviews(state);
  const id:BaIdentity={packageId:state.project.id,kind:'duaMingguan',period:1,survey:'IRI',auditLevel:1};
  const doc=sourceDocument('IRI','periodic14')!,key=sourceDocumentKey(id.packageId,doc.id);
  const submitted=()=>({actor:P,status:'submitted-local',sourceFingerprint:documentFingerprint(state,id)} as BaVersion);
