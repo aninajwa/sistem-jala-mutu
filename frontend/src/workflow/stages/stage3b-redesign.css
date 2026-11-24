@@ -204,3 +204,9 @@
   .wf .stage3b-coverage-list li span { text-align: left; }
   .wf .stage3b-result-row { grid-template-columns: minmax(64px, 90px) minmax(0, 1fr); }
 }
+
+/* Match the Tahap 2 single-heading spacing; stage navigator remains separate. */
+.wf .stage3b-workspace { padding-top:16px; }
+.wf .stage3b-header { margin:0 0 12px; align-items:center; }
+.wf .stage3b-header .wf-eyebrow { margin:0 0 3px; }
+.wf .stage3b-header .wf-title { font-size:20px; line-height:1.35; margin:0; }

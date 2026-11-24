@@ -4,9 +4,15 @@ import type { OperationalWorkflowState, SubmissionState } from './model';
 
 export function applySubmissionEdit(s: OperationalWorkflowState, patch: Partial<SubmissionState>): OperationalWorkflowState {
   if (Object.keys(patch).length===1 && 'stagedReviews' in patch) {
+    return {...s,submission:{...s.submission,...patch,localReadinessConfirmed:false}};
+  }
+  // A local readiness acknowledgement is not a source-system validation
+  // and must not invalidate an already recorded internal audit.
+  if (patch.localReadinessConfirmed === true &&
+      Object.keys(patch).every(key => ['localReadinessConfirmed','targetSystems','validationMessage'].includes(key))) {
     return {...s,submission:{...s.submission,...patch}};
   }
-  const submission = { ...s.submission, ...patch };
+  const submission = { ...s.submission, ...patch, localReadinessConfirmed: false };
   if (!("validationStatus" in patch)) submission.validationStatus = "Draft";
   const confirmationOnly = patch.validationStatus === 'VALID' &&
     Object.keys(patch).every(key => ['validationStatus', 'validationMessage', 'targetSystems'].includes(key));

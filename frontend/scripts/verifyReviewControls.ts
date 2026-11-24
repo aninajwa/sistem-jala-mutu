@@ -404,7 +404,7 @@ try {
       await page.setViewportSize({ width, height });
       await actor(role);
       const tasks = role === "Penyedia Jasa / Ketua Tim"
-        ? ["Konsistensi", "V&V Internal", "Penyerahan ke Balai", "Dokumen & Catatan"]
+        ? ["Konsistensi", "V&V Internal", "Bukti & BA", "Penyerahan ke Balai"]
         : role === "PIC Balai / Pengguna Jasa"
           ? ["Hasil Penyedia", "Pemeriksaan Bersama", "Keputusan & Tindak Lanjut", "BA"]
           : [""];

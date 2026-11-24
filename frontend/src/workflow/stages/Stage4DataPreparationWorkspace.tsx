@@ -1,5 +1,6 @@
 import { evaluateSubmissionReadiness } from '../submissionReadiness';
 import {DocumentAttachments} from '../DocumentAttachments';
+import {Stage3BSourceEvidenceIndex} from '../Stage3BSourceEvidenceIndex';
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
 import {RoleWorkSection} from '../RoleWorkSection';
 import {stagedFallbackReviewReady,stagedSurveyReviewMode} from '../stagedReviewPolicy';
@@ -15,8 +16,10 @@ import {
   Wrench,
 } from "lucide-react";
 import { useCorrectionSelection } from "./useCorrectionSelection";
+import { useState } from "react";
+import "./stage4-redesign.css";
 
-import { fieldReadiness } from "../flowRules";
+import { fieldReadiness, workflowDocumentReferences } from "../flowRules";
 import {
   evaluateLrsGate,
   SUBMISSION_DOCUMENTS,
@@ -44,6 +47,9 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
   const { baAccess, commit, updateSubmission, heading } =
     useWorkflowStage(props);
   const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
+  type Stage4Tab = 'paket' | 'mutu' | 'penyerahan' | 'dokumen' | 'hasil' | 'bertahap' | 'keputusan' | 'ba' | 'monitor' | 'administrasi';
+  const [currentTab, setCurrentTab] = useState<Stage4Tab | null>(null);
+
   const lrs = evaluateLrsGate(state.submission, state.simulationDate);
 
   const canPrepare = state.role === "Penyedia Jasa / Ketua Tim";
@@ -108,12 +114,12 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     updateSubmission(
       {
         targetSystems: requiredTargets,
-        validationStatus: "VALID",
-        validationMessage: `Paket data siap diteruskan ke ${destination}.`,
+        localReadinessConfirmed: true,
+        validationMessage: `Kesiapan lokal telah dicatat untuk ${destination}; menunggu validasi sistem sumber.`,
       },
-      "Konfirmasi kesiapan penyerahan",
+      "Konfirmasi kesiapan lokal Tahap 4",
     );
-    setNotice(`Paket data ditandai siap diteruskan ke ${destination}.`);
+    setNotice(`Kesiapan lokal dicatat. Status VALID menunggu bukti dari sistem sumber (${destination}).`);
   };
   const openLrsCase = () => {
     if (
@@ -261,590 +267,201 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     <div className="wf-row" key={x} data-testid={`stage4-review-doc-${i}`}>
       <span>{x}</span>
       <Badge tone={state.submission.requiredDocuments[x] ? "good" : "warn"}>
-        {state.submission.requiredDocuments[x] ? "Tercatat" : "Belum"}
+        {state.submission.requiredDocuments[x] ? "Dikonfirmasi" : "Belum dikonfirmasi"}
       </Badge>
     </div>
   ));
-  return (
+  const tabs: {id: Stage4Tab; label: string}[] = canPrepare
+    ? [{id:'paket',label:'Paket Data'},{id:'mutu',label:'Pemeriksaan Mutu'},{id:'dokumen',label:'Dokumen & Bukti'},{id:'penyerahan',label:'Penyerahan'}]
+    : isBalaiReview
+      ? [{id:'hasil',label:'Hasil Penyedia'},{id:'bertahap',label:'V&V Bertahap'},{id:'keputusan',label:'Hasil Pemeriksaan'},{id:'ba',label:'BA'}]
+      : state.role === 'Direktorat / Pusat'
+        ? [{id:'monitor',label:'Hasil Pemeriksaan'},{id:'dokumen',label:'Dokumen'}]
+        : [{id:'administrasi',label:'Status Administrasi'},{id:'dokumen',label:'Dokumen'}];
+  const tab = tabs.some(item=>item.id===currentTab) ? currentTab : tabs[0].id;
+  const summary = (title:string, items:typeof readinessItems) => (
+    <div className="stage4-summary" aria-label={title}>
+      {items.map(item=><div key={item.label} className="stage4-summary-row">
+        <span>{item.label}</span><Badge tone={item.ready?'good':'warn'}>{item.ready?'Siap':'Perlu diperiksa'}</Badge>
+      </div>)}
+    </div>
+  );
+  const documentReview = (
     <>
-      {heading("Tahap 4 · penyiapan data", stage4Title, stage4Detail)}
-
-      <GateSummary
-        title={canPrepare ? "Kesiapan Tahap 4" : "Ringkasan kesiapan paket"}
-        items={readinessItems}
-      />
-
-      <DocumentAttachments scope={`${state.project.id}:stage4`} categories={['Paket / referensi data sumber','Paket / referensi data tervalidasi','Dokumen mutu pendukung']} legacyEvidenceIds={['stage4-raw-package','stage4-validated-package','stage4-quality-document']} editable={canPrepare}/>
-      <p className="wf-note" data-testid="stage4-process-guide">
-        Status validasi mengikuti catatan paket. Konfirmasi unggahan SMD memerlukan bukti dari sistem sumber.
-      </p>
-      <RoleWorkSection primary={state.role==="PIC Balai / Pengguna Jasa"} title="Pemeriksaan V&V bertahap Balai">
-        {stagedSourceTypes.length>0&&<SourceAlignmentChecklist pciManual={pciManual}
-          projectInfo={state.project}
-          packageId={state.project.id}
-          phase="staged"
-          surveyTypes={stagedSourceTypes}
-          role={state.role}
-          editableRoles={["PIC Balai / Pengguna Jasa"]}
-          title="Checklist Verifikasi Data"
-        />}
-        {stagedFallbackTypes.map(type=>{const review=state.submission.stagedReviews?.[type]??{decision:'Belum Diperiksa' as const,note:'',reviewedAt:''};const editable=state.role==='PIC Balai / Pengguna Jasa';return <div className="wf-callout" key={type} style={{marginTop:10}}>
-          <strong>{type} · review bertahap</strong>
-          <p className="wf-note">Tidak ada checklist staged khusus {type} pada katalog sumber. Review ini mencatat keputusan V&V bertahap dari kesiapan data dan bukti Tahap 4; tidak membuat checklist metode baru.</p>
-          {editable ? <div className="wf-fields">
-            <Field label="Hasil review">
-              <Select id={`stage4-staged-review-${testId(type)}`} disabled={!editable} value={review.decision} options={['Belum Diperiksa','Sesuai','Temuan']} onChange={(decision)=>updateSubmission({stagedReviews:{...(state.submission.stagedReviews??{}),[type]:{...review,decision:decision as 'Belum Diperiksa'|'Sesuai'|'Temuan',reviewedAt:decision==='Belum Diperiksa'?'':state.simulationDate}}},`Review V&V bertahap ${type}`)}/></Field>
-            <Field label="Catatan review" full><textarea disabled={!editable} rows={2} value={review.note} onChange={(e)=>updateSubmission({stagedReviews:{...(state.submission.stagedReviews??{}),[type]:{...review,note:e.target.value}}},`Catatan V&V bertahap ${type}`)} placeholder="Isi catatan bila ada temuan atau klarifikasi"/></Field>
-          </div> : review.note && <p>{review.note}</p>}
-          <Badge tone={review.decision==='Sesuai'?'good':review.decision==='Temuan'?'bad':'warn'}>{review.decision}</Badge>
-        </div>;})}
-      </RoleWorkSection>
-
-      {canPrepare&&!stagedFormsReady&&<p className="wf-callout warn">Penyerahan menunggu pemeriksaan V&V bertahap PIC Balai. Data dan audit internal tetap dapat disiapkan.</p>}
-      {canPrepare ? (
-        <div className="wf-grid" style={{ marginTop: 12, alignItems: "start" }}>
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <Panel
-              title="Pemeriksaan mutu paket data"
-              icon={ClipboardCheck}
-              extra={
-                <Badge
-                  tone={qualityChecks.every((x) => x.ready) ? "good" : "warn"}
-                >
-                  {qualityChecks.filter((x) => x.ready).length}/
-                  {qualityChecks.length}
-                </Badge>
-              }
-            >
-              {qualityChecks.map((item, i) => (
-                <div
-                  className="wf-row"
-                  key={item.label}
-                  data-testid={`stage4-quality-${i}`}
-                >
-                  <span>
-                    {item.label}
-                    <span className="wf-note" style={{ display: "block" }}>
-                      {item.detail}
-                    </span>
-                  </span>
-                  <Badge tone={item.ready ? "good" : "warn"}>
-                    {item.ready ? "Siap" : "Periksa"}
-                  </Badge>
-                </div>
-              ))}
-              <div className="wf-note" style={{ marginTop: 10 }}>
-                Pemeriksaan mencakup format, kelengkapan, keterikatan spasial,
-                konsistensi antar data, dan kewajaran sebelum paket masuk audit.
-              </div>
-            </Panel>
-            <Panel
-              title="Dokumen mutu Tahap 0–3"
-              icon={BookOpen}
-              extra={
-                <Badge tone={docsPassed ? "good" : "warn"}>
-                  {
-                    documentItems.filter(
-                      (x) => state.submission.requiredDocuments[x],
-                    ).length
-                  }
-                  /{documentItems.length}
-                </Badge>
-              }
-            >
-              <div className="wf-note" style={{ marginBottom: 8 }}>
-                Pastikan bukti kalibrasi/validasi, verval berkala, temuan, dan
-                tindak lanjut yang diwajibkan sudah tercatat.
-              </div>
-              {documentItems.map((x) => (
-                <CheckRow
-                  key={x}
-                  id={`submission-doc-${testId(x)}`}
-                  label={x}
-                  checked={!!state.submission.requiredDocuments[x]}
-                  disabled={!canPrepare}
-                  onChange={(v) => updateReq(x, v)}
-                />
-              ))}
-            </Panel>
-            <Panel
-              title="Kesiapan integrasi data"
-              icon={ArrowRight}
-              extra={
-                <Badge tone={targetsPassed ? "good" : "warn"}>
-                  {targetsPassed ? "Otomatis" : "Belum tersedia"}
-                </Badge>
-              }
-            >
-              <div className="wf-note" style={{ marginBottom: 8 }}>
-                Tujuan integrasi mengikuti konfigurasi paket dan tidak dipilih
-                manual oleh pengguna.
-              </div>
-              {targetAssignments.length ? (
-                targetAssignments.map(({ system, types }) => (
-                  <div
-                    className="wf-row"
-                    key={system}
-                    data-testid={`target-system-${testId(system)}`}
-                  >
-                    <span>
-                      <strong>{system}</strong>
-                      <span className="wf-note" style={{ display: "block" }}>
-                        {types.join(" · ")}
-                      </span>
-                    </span>
-                    <Badge tone="good">Terkonfigurasi</Badge>
-                  </div>
-                ))
-              ) : (
-                <div className="wf-callout warn">
-                  Belum ada jenis survei pada paket sehingga sistem tujuan belum
-                  dapat ditentukan.
-                </div>
-              )}
-            </Panel>
-            <Panel title="Lanjut ke audit & penyerahan" icon={ShieldCheck}>
-              <GateSummary
-                title="Gerbang Tahap 4 → Tahap 5"
-                items={auditGateItems}
-              />
-              <div className="wf-callout" style={{ marginTop: 10 }}>
-                {state.submission.validationMessage ||
-                  "Belum ada konfirmasi kesiapan penyerahan."}
-              </div>
-              <div className="wf-toolbar" style={{ marginTop: 10 }}>
-                <Button
-                  id="button-go-audit-one"
-                  disabled={!preAuditReady}
-                  onClick={() =>
-                    onNavigate("/verification:Audit tingkat 1–3")
-                  }
-                >
-                  <ClipboardCheck size={13} />
-                  Lanjut Audit Tingkat 1
-                </Button>
-                <Button
-                  id="button-submission-validate"
-                  kind="primary"
-                  disabled={!readyToSubmit || !canPrepare}
-                  onClick={validate}
-                >
-                  <Check size={13} />
-                  Konfirmasi siap diserahkan
-                </Button>
-              </div>
-            </Panel>
-          </div>
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <Panel
-              title="Gerbang RNI / LRS"
-              icon={MapPinned}
-              extra={
-                <Badge tone={lrs.passed ? "good" : "bad"}>
-                  {lrs.passed ? "Lulus" : "Tertahan"}
-                </Badge>
-              }
-            >
-              {lrs.checks.map((c, i) => (
-                <div
-                  className="wf-row"
-                  key={c.label}
-                  data-testid={`lrs-gate-check-${i}`}
-                >
-                  <span>
-                    {c.label}
-                    <span className="wf-note" style={{ display: "block" }}>
-                      {c.actual}
-                    </span>
-                  </span>
-                  <Badge tone={c.pass ? "good" : "bad"}>
-                    {c.pass ? "Lulus" : "Tertahan"}
-                  </Badge>
-                </div>
-              ))}
-              {!lrs.passed && (
-                <div className="wf-toolbar" style={{ marginTop: 10 }}>
-                  <Button
-                    id="button-open-lrs-correction"
-                    kind="danger"
-                    onClick={openLrsCase}
-                  >
-                    <Wrench size={13} />
-                    Buka tindak lanjut
-                  </Button>
-                </div>
-              )}
-              <div className="wf-fields" style={{ marginTop: 12 }}>
-                <CheckRow
-                  id="submission-route-changed"
-                  label="Ada perubahan trase / panjang"
-                  checked={state.submission.routeChanged}
-                  disabled={!canPrepare}
-                  onChange={(v) =>
-                    updateSubmission(
-                      { routeChanged: v },
-                      "Catat perubahan trase",
-                    )
-                  }
-                />
-                <Field label="Deviasi panjang (m)">
-                  <input
-                    type="number"
-                    disabled={!canPrepare}
-                    data-testid="input-submission-deviation"
-                    value={state.submission.routeLengthDeviation}
-                    onChange={(e) =>
-                      updateSubmission(
-                        { routeLengthDeviation: Number(e.target.value) },
-                        "Ubah deviasi panjang",
-                      )
-                    }
-                  />
-                </Field>
-                <Field label="Format geometri">
-                  <Select
-                    id="select-submission-geometry"
-                    disabled={!canPrepare}
-                    value={state.submission.geometryFormat || ""}
-                    options={["", "SHP", "GeoJSON"]}
-                    onChange={(v) =>
-                      updateSubmission(
-                        {
-                          geometryFormat:
-                            v as SubmissionState["geometryFormat"],
-                        },
-                        "Pilih format geometri",
-                      )
-                    }
-                  />
-                </Field>
-                <Field label="Kesalahan topologi">
-                  <input
-                    type="number"
-                    disabled={!canPrepare}
-                    data-testid="input-submission-topology"
-                    value={state.submission.topologyErrors}
-                    onChange={(e) =>
-                      updateSubmission(
-                        { topologyErrors: Number(e.target.value) },
-                        "Ubah hasil topologi",
-                      )
-                    }
-                  />
-                </Field>
-                <Field label="Tanggal validasi RNI">
-                  <input
-                    type="date"
-                    disabled={!canPrepare}
-                    data-testid="input-submission-rni-date"
-                    value={state.submission.rniValidatedDate}
-                    onChange={(e) =>
-                      updateSubmission(
-                        { rniValidatedDate: e.target.value },
-                        "Ubah tanggal validasi RNI",
-                      )
-                    }
-                  />
-                </Field>
-                <CheckRow
-                  id="submission-stationing"
-                  label="STA konsisten antar data"
-                  checked={state.submission.stationingConsistent}
-                  disabled={!canPrepare}
-                  onChange={(v) =>
-                    updateSubmission(
-                      { stationingConsistent: v },
-                      "Validasi STA semua survei",
-                    )
-                  }
-                />
-                <CheckRow
-                  id="submission-coordinates"
-                  label="Seluruh data berkoordinat dan terikat LRS"
-                  checked={!!state.submission.coordinatesBoundToLrs}
-                  disabled={!canPrepare}
-                  onChange={(v) =>
-                    updateSubmission(
-                      { coordinatesBoundToLrs: v },
-                      "Periksa koordinat dan ikatan LRS",
-                    )
-                  }
-                />
-                <CheckRow
-                  id="submission-glossary"
-                  label="Format kode & glossary sesuai"
-                  checked={!!state.submission.formatGlossaryCompliant}
-                  disabled={!canPrepare}
-                  onChange={(v) =>
-                    updateSubmission(
-                      { formatGlossaryCompliant: v },
-                      "Periksa format kode & glossary",
-                    )
-                  }
-                />
-                <CheckRow
-                  id="submission-raw-separated"
-                  label="Data sumber dipisahkan"
-                  checked={state.submission.rawSeparated}
-                  disabled={!canPrepare}
-                  onChange={(v) =>
-                    updateSubmission(
-                      { rawSeparated: v },
-                      "Konfirmasi pemisahan data sumber",
-                    )
-                  }
-                />
-                <CheckRow
-                  id="submission-cleaned-separated"
-                  label="Data tervalidasi dipisahkan"
-                  checked={state.submission.cleanedSeparated}
-                  disabled={!canPrepare}
-                  onChange={(v) =>
-                    updateSubmission(
-                      { cleanedSeparated: v },
-                      "Konfirmasi pemisahan data tervalidasi",
-                    )
-                  }
-                />
-              </div>
-            </Panel>
-            <Panel title="Paket data yang disiapkan" icon={Archive}>
-              <Field label="Referensi data sumber / raw" full>
-                <input
-                  disabled={!canPrepare}
-                  data-testid="input-submission-raw-file"
-                  value={state.submission.rawFileName}
-                  onChange={(e) =>
-                    updateSubmission(
-                      { rawFileName: e.target.value },
-                      "Catat referensi data sumber",
-                    )
-                  }
-                />
-              </Field>
-              <Field label="Referensi data tervalidasi" full>
-                <input
-                  disabled={!canPrepare}
-                  data-testid="input-submission-clean-file"
-                  value={state.submission.cleanedFileName}
-                  onChange={(e) =>
-                    updateSubmission(
-                      { cleanedFileName: e.target.value },
-                      "Catat referensi data tervalidasi",
-                    )
-                  }
-                />
-              </Field>
-              <Field label="Referensi bukti visual (bila berlaku)" full>
-                <input
-                  disabled={!canPrepare}
-                  data-testid="input-submission-video"
-                  value={state.submission.videoLink}
-                  onChange={(e) =>
-                    updateSubmission(
-                      { videoLink: e.target.value },
-                      "Catat referensi bukti visual",
-                    )
-                  }
-                />
-              </Field>
-              <div className="wf-note">
-                Referensi paket nantinya dapat berasal dari sistem
-                sumber/storage; halaman ini tetap menjadi ringkasan kesiapan
-                QA/QC.
-              </div>
-            </Panel>
-          </div>
+      <Panel title="Pemeriksaan dokumen sebelumnya" icon={BookOpen}>
+        <div className="stage4-document-source" aria-label="Referensi dokumen dari tahap sebelumnya">
+          {workflowDocumentReferences(state).filter(item =>
+            /Kalibrasi|Alat|Verval|Koreksi|Validasi|Persetujuan/.test(item.name)
+          ).map((item,index)=><div className="stage4-summary-row" key={`${item.name}-${index}`}>
+            <span>{item.name}<small>{item.reference}</small></span>
+            <Badge tone="good">Tercatat</Badge>
+          </div>)}
         </div>
-      ) : (
-        <div className="wf-grid" style={{ marginTop: 12, alignItems: "start" }}>
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <Panel
-              title={
-                isBalaiReview
-                  ? "Ringkasan pemeriksaan Penyedia"
-                  : "Ringkasan mutu paket"
-              }
-              icon={ClipboardCheck}
-              extra={
-                <Badge
-                  tone={qualityChecks.every((x) => x.ready) ? "good" : "warn"}
-                >
-                  {qualityChecks.filter((x) => x.ready).length}/
-                  {qualityChecks.length}
-                </Badge>
-              }
-            >
-              {qualityChecks.map((item, i) => (
-                <div
-                  className="wf-row"
-                  key={item.label}
-                  data-testid={`stage4-review-quality-${i}`}
-                >
-                  <span>
-                    {item.label}
-                    <span className="wf-note" style={{ display: "block" }}>
-                      {item.detail}
-                    </span>
-                  </span>
-                  <Badge tone={item.ready ? "good" : "warn"}>
-                    {item.ready ? "Siap" : "Perlu tindak lanjut"}
-                  </Badge>
-                </div>
-              ))}
-              <div className="wf-callout" style={{ marginTop: 10 }}>
-                {isBalaiReview
-                  ? "Balai meninjau hasil kesiapan yang disiapkan Penyedia; bila belum sesuai, tindak lanjut dikembalikan ke Penyedia sebelum audit."
-                  : "Ringkasan ini menjadi konteks monitoring sebelum audit tingkat pusat."}
-              </div>
-            </Panel>
-            <Panel
-              title="Dokumen mutu yang tersedia"
-              icon={BookOpen}
-              extra={
-                <Badge tone={docsPassed ? "good" : "warn"}>
-                  {
-                    documentItems.filter(
-                      (x) => state.submission.requiredDocuments[x],
-                    ).length
-                  }
-                  /{documentItems.length}
-                </Badge>
-              }
-            >
-              {readOnlyDocRows}
-            </Panel>
-            <Panel
-              title="Kesiapan integrasi data"
-              icon={ArrowRight}
-              extra={
-                <Badge tone={targetsPassed ? "good" : "warn"}>
-                  {targetsPassed ? "Otomatis" : "Belum tersedia"}
-                </Badge>
-              }
-            >
-              <div className="wf-note" style={{ marginBottom: 8 }}>
-                Tujuan integrasi ditampilkan read-only dan mengikuti konfigurasi
-                paket.
-              </div>
-              {targetAssignments.length ? (
-                targetAssignments.map(({ system, types }) => (
-                  <div
-                    className="wf-row"
-                    key={system}
-                    data-testid={`review-target-system-${testId(system)}`}
-                  >
-                    <span>
-                      <strong>{system}</strong>
-                      <span className="wf-note" style={{ display: "block" }}>
-                        {types.join(" · ")}
-                      </span>
-                    </span>
-                    <Badge tone="good">Terkonfigurasi</Badge>
-                  </div>
-                ))
-              ) : (
-                <div className="wf-callout warn">
-                  Belum ada jenis survei pada paket sehingga sistem tujuan belum
-                  dapat ditentukan.
-                </div>
-              )}
-            </Panel>
-            <Panel
-              title={
-                isBalaiReview
-                  ? "Status menuju Audit Tingkat 1"
-                  : "Status menuju audit"
-              }
-              icon={ShieldCheck}
-            >
-              <GateSummary
-                title="Gerbang Tahap 4 → Tahap 5"
-                items={auditGateItems}
-              />
-              <div className="wf-callout" style={{ marginTop: 10 }}>
-                {state.submission.validationMessage ||
-                  "Belum ada konfirmasi kesiapan penyerahan dari Penyedia."}
-              </div>
-              {isBalaiReview && (
-                <div className="wf-note" style={{ marginTop: 10 }}>
-                  Tahap ini menampilkan kesiapan paket. Keputusan assurance
-                  Balai dilakukan pada proses review/audit sesuai kewenangan,
-                  bukan dengan mengubah data penyiapan Penyedia di halaman ini.
-                </div>
-              )}
-            </Panel>
-          </div>
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <Panel
-              title="Hasil gerbang RNI / LRS"
-              icon={MapPinned}
-              extra={
-                <Badge tone={lrs.passed ? "good" : "bad"}>
-                  {lrs.passed ? "Lulus" : "Tertahan"}
-                </Badge>
-              }
-            >
-              {lrs.checks.map((c, i) => (
-                <div
-                  className="wf-row"
-                  key={c.label}
-                  data-testid={`stage4-review-lrs-${i}`}
-                >
-                  <span>
-                    {c.label}
-                    <span className="wf-note" style={{ display: "block" }}>
-                      {c.actual}
-                    </span>
-                  </span>
-                  <Badge tone={c.pass ? "good" : "bad"}>
-                    {c.pass ? "Lulus" : "Tertahan"}
-                  </Badge>
-                </div>
-              ))}
-              {!lrs.passed && isBalaiReview && (
-                <div className="wf-callout warn" style={{ marginTop: 10 }}>
-                  Ada kriteria RNI/LRS yang belum terpenuhi. Paket belum siap
-                  diteruskan; tindak lanjut perlu dilakukan Penyedia pada
-                  data/sumber terkait.
-                </div>
-              )}
-            </Panel>
-            <Panel title="Referensi paket data" icon={Archive}>
-              <div className="wf-row">
-                <span>Data sumber / raw</span>
-                <strong>
-                  {state.submission.rawFileName || "Belum tercatat"}
-                </strong>
-              </div>
-              <div className="wf-row">
-                <span>Data tervalidasi</span>
-                <strong>
-                  {state.submission.cleanedFileName || "Belum tercatat"}
-                </strong>
-              </div>
-              <div className="wf-row">
-                <span>Bukti visual</span>
-                <strong>
-                  {state.submission.videoLink || "Tidak/belum tercatat"}
-                </strong>
-              </div>
-              <div className="wf-note" style={{ marginTop: 10 }}>
-                Referensi bersifat read-only pada peran ini. Perubahan paket
-                dilakukan oleh Penyedia Jasa / Ketua Tim.
-              </div>
-            </Panel>
-          </div>
-        </div>
-      )}
-      <details className="stage-document-details"><summary>Dokumen hasil pemeriksaan · Berita Acara V&V Bertahap</summary>
-      <Panel title="Berita Acara V&V Bertahap" icon={FileText}>
-        <p className="wf-note">
-          Draft dibuat dari hasil pemeriksaan bertahap, bukan otomatis disahkan.
-        </p>
-        {baAccess("bertahap", "Susun BA V&V Bertahap")}
+        <details className="stage4-document-verification">
+          <summary>Konfirmasi kelengkapan dokumen ({documentItems.filter(x=>state.submission.requiredDocuments[x]).length}/{documentItems.length})</summary>
+          {canPrepare && <p className="wf-note">Periksa bukti terlebih dahulu. Konfirmasi ini bukan bukti unggahan server.</p>}
+          {canPrepare ? documentItems.map(x=><CheckRow key={x} id={`submission-doc-${testId(x)}`} label={x} checked={!!state.submission.requiredDocuments[x]} onChange={v=>updateReq(x,v)}/>) : readOnlyDocRows}
+        </details>
       </Panel>
-      </details>
     </>
+  );
+  const stagedReview = (
+    <>
+      {stagedSourceTypes.length>0&&<SourceAlignmentChecklist
+        pciManual={pciManual} projectInfo={state.project} packageId={state.project.id}
+        phase="staged" surveyTypes={stagedSourceTypes} role={state.role}
+        editableRoles={["PIC Balai / Pengguna Jasa"]} title="Checklist Verifikasi Data"
+      />}
+      {stagedFallbackTypes.map(type=>{
+        const review=state.submission.stagedReviews?.[type]??{decision:'Belum Diperiksa' as const,note:'',reviewedAt:''};
+        return <Panel key={type} title={`V&V ${type}`} icon={ClipboardCheck}>
+          {isBalaiReview ? <div className="wf-fields">
+            <Field label="Hasil review"><Select id={`stage4-staged-review-${testId(type)}`} value={review.decision} options={['Belum Diperiksa','Sesuai','Temuan']} onChange={decision=>updateSubmission({stagedReviews:{...(state.submission.stagedReviews??{}),[type]:{...review,decision:decision as 'Belum Diperiksa'|'Sesuai'|'Temuan',reviewedAt:decision==='Belum Diperiksa'?'':state.simulationDate}}},`Review V&V bertahap ${type}`)}/></Field>
+            <Field label="Catatan review" full><textarea rows={2} value={review.note} onChange={e=>updateSubmission({stagedReviews:{...(state.submission.stagedReviews??{}),[type]:{...review,note:e.target.value}}},`Catatan V&V bertahap ${type}`)} placeholder="Isi catatan bila ada temuan atau klarifikasi"/></Field>
+          </div> : <div className="stage4-summary-row"><span>{review.note||type}</span><Badge tone={review.decision==='Sesuai'?'good':review.decision==='Temuan'?'bad':'warn'}>{review.decision}</Badge></div>}
+        </Panel>;
+      })}
+    </>
+  );
+  const stagedResultsSummary = (
+    <Panel title="Hasil V&V Bertahap per Survei" icon={ClipboardCheck}>
+      {state.project.surveyTypes.map(type => {
+        const hasSource = stagedHasSource(type);
+        const complete = stagedTypeReady(type);
+        const fallbackDecision = state.submission.stagedReviews?.[type]?.decision;
+        return <div className="stage4-summary-row" key={type}>
+          <span>{type}<small>{hasSource ? "Formulir pemeriksaan sumber" : "Pemeriksaan Balai tercatat"}</small></span>
+          <Badge tone={complete ? 'good' : 'warn'}>{hasSource ? (complete ? 'Formulir lengkap' : 'Belum lengkap') : (fallbackDecision ?? 'Belum diperiksa')}</Badge>
+        </div>;
+      })}
+      {state.project.surveyTypes.length===0&&<p className="stage4-feedback">Belum ada jenis survei pada paket.</p>}
+      <p className="stage4-feedback">Kelengkapan formulir bukan persetujuan BA. Keputusan dan temuan mengikuti catatan pemeriksaan.</p>
+    </Panel>
+  );
+  const lrsResults = (
+    <Panel title="Hasil RNI / LRS" icon={MapPinned}>
+      {lrs.checks.map((check,i)=><div key={`${check.label}-${i}`} className="stage4-summary-row" data-testid={`stage4-review-lrs-${i}`}>
+        <span>{check.label}<small>{check.actual}</small></span>
+        <Badge tone={check.pass?'good':'bad'}>{check.pass?'Lulus':'Tertahan'}</Badge>
+      </div>)}
+    </Panel>
+  );
+  const packageReferences = (
+    <Panel title="Referensi Paket Data" icon={Archive}>
+      <div className="stage4-summary-row"><span>Data sumber</span><strong>{state.submission.rawFileName||'Belum tercatat'}</strong></div>
+      <div className="stage4-summary-row"><span>Data tervalidasi</span><strong>{state.submission.cleanedFileName||'Belum tercatat'}</strong></div>
+      <div className="stage4-summary-row"><span>Bukti visual</span><strong>{state.submission.videoLink||'Belum tercatat'}</strong></div>
+    </Panel>
+  );
+  return (
+    <section className="stage4-workspace" data-testid="stage4-workspace">
+      <div className="stage4-header">
+        <div className="stage4-heading">
+          <p className="wf-eyebrow">Tahap 4 · penyiapan data</p>
+          <h1 className="wf-title stage4-title">Penyiapan dan Pemeriksaan Data</h1>
+        </div>
+        <div className="stage4-header-actions">
+          {props.stage4Notes?.(state)}
+          <Badge tone={fieldErrors.length===0?'good':'warn'}>{fieldErrors.length===0?'Tahap sebelumnya siap':'Menunggu prasyarat'}</Badge>
+        </div>
+      </div>
+      <nav className="stage4-tabs" aria-label="Pekerjaan Tahap 4">
+        {tabs.map(item=><button key={item.id} type="button" className={`stage4-tab${tab===item.id?' active':''}`} data-testid={`stage4-tab-${item.id}`} aria-current={tab===item.id?'page':undefined} onClick={()=>setCurrentTab(item.id)}>{item.label}</button>)}
+      </nav>
+      <div className="stage4-content" key={tab}>
+        {canPrepare && tab==='paket' && <>
+          <Panel title="Paket yang disiapkan" icon={Archive}>
+            <div className="wf-fields">
+              <Field label="Referensi data sumber / raw" full><input data-testid="input-submission-raw-file" value={state.submission.rawFileName} onChange={e=>updateSubmission({rawFileName:e.target.value},'Catat referensi data sumber')}/></Field>
+              <Field label="Referensi data tervalidasi" full><input data-testid="input-submission-clean-file" value={state.submission.cleanedFileName} onChange={e=>updateSubmission({cleanedFileName:e.target.value},'Catat referensi data tervalidasi')}/></Field>
+              <Field label="Referensi bukti visual (bila berlaku)" full><input data-testid="input-submission-video" value={state.submission.videoLink} onChange={e=>updateSubmission({videoLink:e.target.value},'Catat referensi bukti visual')}/></Field>
+            </div>
+          </Panel>
+          <Panel title="Referensi lokasi RNI / LRS" icon={MapPinned}>
+            <div className="stage4-summary">{lrs.checks.map((check,i)=><div className="stage4-summary-row" key={check.label} data-testid={`lrs-gate-check-${i}`}><span>{check.label}</span><Badge tone={check.pass?'good':'warn'}>{check.pass?'Lulus':'Periksa'}</Badge></div>)}</div>
+            <div className="wf-fields stage4-form-spaced">
+              <CheckRow id="submission-route-changed" label="Ada perubahan trase / panjang" checked={state.submission.routeChanged} onChange={v=>updateSubmission({routeChanged:v},'Catat perubahan trase')}/>
+              <Field label="Deviasi panjang (m)"><input type="number" data-testid="input-submission-deviation" value={state.submission.routeLengthDeviation} onChange={e=>updateSubmission({routeLengthDeviation:Number(e.target.value)},'Ubah deviasi panjang')}/></Field>
+              <Field label="Format geometri"><Select id="select-submission-geometry" value={state.submission.geometryFormat||''} options={['','SHP','GeoJSON']} onChange={v=>updateSubmission({geometryFormat:v as SubmissionState['geometryFormat']},'Pilih format geometri')}/></Field>
+              <Field label="Kesalahan topologi"><input type="number" data-testid="input-submission-topology" value={state.submission.topologyErrors} onChange={e=>updateSubmission({topologyErrors:Number(e.target.value)},'Ubah hasil topologi')}/></Field>
+              <Field label="Tanggal validasi RNI"><input type="date" data-testid="input-submission-rni-date" value={state.submission.rniValidatedDate} onChange={e=>updateSubmission({rniValidatedDate:e.target.value},'Ubah tanggal validasi RNI')}/></Field>
+              <CheckRow id="submission-stationing" label="STA konsisten antar data" checked={state.submission.stationingConsistent} onChange={v=>updateSubmission({stationingConsistent:v},'Validasi STA semua survei')}/>
+              <CheckRow id="submission-coordinates" label="Seluruh data berkoordinat dan terikat LRS" checked={!!state.submission.coordinatesBoundToLrs} onChange={v=>updateSubmission({coordinatesBoundToLrs:v},'Periksa koordinat dan ikatan LRS')}/>
+              <CheckRow id="submission-glossary" label="Format kode & glossary sesuai" checked={!!state.submission.formatGlossaryCompliant} onChange={v=>updateSubmission({formatGlossaryCompliant:v},'Periksa format kode & glossary')}/>
+              <CheckRow id="submission-raw-separated" label="Data sumber dipisahkan" checked={state.submission.rawSeparated} onChange={v=>updateSubmission({rawSeparated:v},'Konfirmasi pemisahan data sumber')}/>
+              <CheckRow id="submission-cleaned-separated" label="Data tervalidasi dipisahkan" checked={state.submission.cleanedSeparated} onChange={v=>updateSubmission({cleanedSeparated:v},'Konfirmasi pemisahan data tervalidasi')}/>
+            </div>
+            {!lrs.passed&&<Button id="button-open-lrs-correction" kind="danger" onClick={openLrsCase}><Wrench size={13}/>Buka tindak lanjut</Button>}
+          </Panel>
+        </>}
+        {canPrepare && tab==='mutu' && <>
+          <Panel title="Pemeriksaan mutu paket" icon={ClipboardCheck}>
+            {qualityChecks.map((item,i)=><div className="stage4-summary-row" key={item.label} data-testid={`stage4-quality-${i}`}><span>{item.label}<small>{item.detail}</small></span><Badge tone={item.ready?'good':'warn'}>{item.ready?'Siap':'Periksa'}</Badge></div>)}
+          </Panel>
+          {documentReview}
+        </>}
+        {canPrepare && tab==='penyerahan' && <>
+          <Panel title="Kesiapan penyerahan" icon={ShieldCheck}>
+            {summary('Kesiapan penyerahan',readinessItems)}
+            <div className="stage4-steps">
+              <span>1 · Siapkan data & bukti</span><span>2 · V&V bertahap Balai</span><span>3 · Audit Tingkat 1</span><span>4 · Kesiapan akhir</span>
+            </div>
+            {summary('Prasyarat audit',auditGateItems)}
+            <p className="stage4-feedback">Konfirmasi lokal bukan penyerahan atau validasi SMD. Status VALID hanya dari hasil sistem sumber.</p>
+            {state.submission.validationMessage && (state.submission.localReadinessConfirmed || state.submission.validationStatus === 'VALID') && <p className="stage4-feedback">{state.submission.validationMessage}</p>}
+            {!stagedFormsReady&&<p className="stage4-feedback">Menunggu pemeriksaan V&V bertahap Balai.</p>}
+            <div className="stage4-actions">
+              <Button id="button-go-audit-one" disabled={!preAuditReady} onClick={()=>onNavigate('/verification:Audit tingkat 1–3')}><ClipboardCheck size={13}/>Buka Audit Tingkat 1 (Tahap 5)</Button>
+              <Button id="button-submission-validate" kind="primary" disabled={!readyToSubmit || state.submission.localReadinessConfirmed === true} onClick={validate}><Check size={13}/>{state.submission.localReadinessConfirmed ? "Kesiapan lokal tercatat" : "Catat kesiapan lokal"}</Button>
+            </div>
+          </Panel>
+        </>}
+        {isBalaiReview && tab==='hasil' && <>
+          <Panel title="Hasil Penyiapan Penyedia" icon={ClipboardCheck}>
+            {summary('Kesiapan',readinessItems)}
+            {qualityChecks.map((item,i)=><div className="stage4-summary-row" key={item.label} data-testid={`stage4-review-quality-${i}`}><span>{item.label}</span><Badge tone={item.ready?'good':'warn'}>{item.ready?'Siap':'Perlu tindak lanjut'}</Badge></div>)}
+          </Panel>
+          {packageReferences}
+          <details className="stage4-prior-evidence"><summary>Bukti paket dan pemeriksaan periode</summary>
+            <DocumentAttachments title="Lampiran paket data" scope={`${state.project.id}:stage4`} categories={['Paket / referensi data sumber','Paket / referensi data tervalidasi','Dokumen mutu pendukung']} legacyEvidenceIds={['stage4-raw-package','stage4-validated-package','stage4-quality-document']} editable={false}/>
+            <Panel title="Bukti formulir Konsistensi & Internal" icon={FileText}><Stage3BSourceEvidenceIndex packageId={state.project.id} period={state.activeCyclePeriod ?? 1} surveys={state.project.surveyTypes} pciManual={pciManual}/></Panel>
+            <DocumentAttachments title="Bukti pemeriksaan 3B" compactPeriodic scope={`${state.project.id}:stage3b-${state.activeCyclePeriod ?? 1}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${state.activeCyclePeriod ?? 1}`,`stage3b-supporting-evidence-${state.activeCyclePeriod ?? 1}`]} editable={false}/>
+          </details>
+        </>}
+        {isBalaiReview && tab==='bertahap' && stagedReview}
+        {isBalaiReview && tab==='keputusan' && <>
+          {stagedResultsSummary}
+          <details className="stage4-prior-evidence"><summary>Hasil RNI/LRS dan prasyarat audit</summary>
+            {lrsResults}
+            <Panel title="Status Pemeriksaan" icon={ShieldCheck}>{summary('Status',auditGateItems)}</Panel>
+          </details>
+        </>}
+        {isBalaiReview && tab==='ba' && <Panel title="Berita Acara V&V Bertahap" icon={FileText}>{baAccess('bertahap','Susun BA V&V Bertahap')}</Panel>}
+        {state.role==='Direktorat / Pusat' && tab==='monitor' && <>
+          {stagedResultsSummary}
+          <details className="stage4-prior-evidence"><summary>Detail formulir V&V bertahap</summary>
+            {stagedSourceTypes.length > 0 && <SourceAlignmentChecklist pciManual={pciManual} projectInfo={state.project} packageId={state.project.id} phase="staged" surveyTypes={stagedSourceTypes} role={state.role} editableRoles={["PIC Balai / Pengguna Jasa"]} title="Hasil pemeriksaan Balai" />}
+            {stagedFallbackTypes.map(type=><div key={type} className="stage4-summary-row"><span>{type}</span><Badge tone={stagedFallbackReviewReady(state,type)?'good':'warn'}>{stagedFallbackReviewReady(state,type)?'Sesuai':'Belum diperiksa'}</Badge></div>)}
+          </details>
+          <details className="stage4-prior-evidence"><summary>Kesiapan paket dan hasil RNI/LRS</summary>
+            <Panel title="Kesiapan Paket" icon={ShieldCheck}>{summary('Kesiapan',readinessItems)}{summary('Audit',auditGateItems)}</Panel>
+            {packageReferences}{lrsResults}
+          </details>
+        </>}
+        {state.role==='Admin' && tab==='administrasi' && <>
+          <Panel title="Status Paket" icon={ClipboardCheck}>{summary('Kelengkapan',readinessItems)}{summary('Audit',auditGateItems)}</Panel>
+          <Panel title="Sistem Tujuan" icon={ArrowRight}>{targetAssignments.length ? targetAssignments.map(({system,types})=><div className="stage4-summary-row" key={system}><span>{system}</span><span>{types.join(' · ')}</span></div>) : <span>Belum tersedia</span>}</Panel>
+        </>}
+        {tab==='dokumen' && <>
+          {documentReview}
+          <DocumentAttachments title="Lampiran paket Tahap 4" scope={`${state.project.id}:stage4`} categories={['Paket / referensi data sumber','Paket / referensi data tervalidasi','Dokumen mutu pendukung']} legacyEvidenceIds={['stage4-raw-package','stage4-validated-package','stage4-quality-document']} editable={canPrepare}/>
+          <details className="stage4-prior-evidence"><summary>Bukti periode Tahap 3B</summary>
+            <Panel title="Lampiran formulir Konsistensi & Internal" icon={FileText}><Stage3BSourceEvidenceIndex packageId={state.project.id} period={state.activeCyclePeriod ?? 1} surveys={state.project.surveyTypes} pciManual={pciManual}/></Panel>
+            <DocumentAttachments title="Bukti pemeriksaan berkala" compactPeriodic scope={`${state.project.id}:stage3b-${state.activeCyclePeriod ?? 1}`} categories={['Bukti repeatability / hasil pemeriksaan berkala','Bukti pendukung periode']} legacyEvidenceIds={[`stage3b-repeatability-${state.activeCyclePeriod ?? 1}`,`stage3b-supporting-evidence-${state.activeCyclePeriod ?? 1}`]} editable={false}/>
+          </details>
+
+        </>}
+      </div>
+    </section>
   );
 }

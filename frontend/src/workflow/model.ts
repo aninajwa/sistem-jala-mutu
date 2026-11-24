@@ -214,6 +214,8 @@ export type SubmissionState = {
   targetSystems: string[];
   validationStatus: 'Draft' | 'VALID' | 'Error';
   validationMessage: string;
+  /** Konfirmasi kesiapan lokal saja; tidak sama dengan VALID dari sistem sumber. */
+  localReadinessConfirmed?: boolean;
   /** V&V bertahap generik hanya untuk jenis survei yang tidak memiliki checklist staged khusus pada sumber. */
   stagedReviews?: Partial<Record<SurveyType,{decision:'Belum Diperiksa'|'Sesuai'|'Temuan';note:string;reviewedAt:string}>>;
   coordinatesBoundToLrs?: boolean;

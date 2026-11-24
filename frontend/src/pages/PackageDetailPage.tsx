@@ -143,6 +143,10 @@ export default function PackageDetailPage({
             <ContextNotes key={`${packageId}:stage3b:${periodState.activeCyclePeriod ?? 1}`}
               context="stage3b" state={periodState} principal={principal} recipient={notesRecipient} />
           )}
+          stage4Notes={stageState => (
+            <ContextNotes key={`${packageId}:stage4`} context="stage4"
+              state={stageState} principal={principal} recipient={notesRecipient} />
+          )}
           key={packageId}
           selection={selection}
           state={workflow}

@@ -317,6 +317,7 @@ try {
   phase = "staged-review";
   await page.goto(url("/entry:Gerbang RNI/LRS"));
   await openFilterPanels(page);
+  await page.getByTestId("stage4-tab-bertahap").click();
   const note = page.getByPlaceholder(
     "Isi catatan bila ada temuan atau klarifikasi",
   );

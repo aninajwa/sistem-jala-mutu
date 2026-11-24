@@ -186,6 +186,7 @@ try {
   phase = "staged-review";
   await page.goto(url("/entry:Gerbang RNI/LRS"));
   await openFilterPanels(page);
+  await page.getByTestId("stage4-tab-bertahap").click();
   const note = page.getByPlaceholder(
     "Isi catatan bila ada temuan atau klarifikasi",
   );
@@ -209,8 +210,8 @@ try {
   ] as WorkflowRole[]) {
     await actor(role);
     assert.equal(
-      await page.getByTestId("stage4-staged-review-lendutan").isDisabled(),
-      true,
+      await page.getByTestId("stage4-staged-review-lendutan").count(),
+      0,
     );
   }
   await actor("PIC Balai / Pengguna Jasa");

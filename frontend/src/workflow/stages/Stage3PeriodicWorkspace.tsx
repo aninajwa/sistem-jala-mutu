@@ -10,6 +10,7 @@ import {periodicSurveyTypes} from '../reviewReadiness';
 import {evaluateStageGate} from '../workflowGate';
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
 import {DocumentAttachments} from '../DocumentAttachments';
+import {Stage3BSourceEvidenceIndex} from '../Stage3BSourceEvidenceIndex';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import { reviewSurvey } from "../periodicReview";
 import {
@@ -344,8 +345,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const providerTasks = [
     ['consistency', 'Konsistensi'],
     ['internal', 'V&V Internal'],
+    ['documents', 'Bukti & BA'],
     ['submission', 'Penyerahan ke Balai'],
-    ['documents', 'Dokumen & Catatan'],
   ] as const;
   const balaiTasks = [
     ['results', 'Hasil Penyedia'],
@@ -391,13 +392,13 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
   const attachments = (<DocumentAttachments compactPeriodic scope={`${state.project.id}:stage3b-${activeStage3BPeriod}`}
             categories={['Bukti repeatability / hasil pemeriksaan berkala', 'Bukti pendukung periode']}
             legacyEvidenceIds={[`stage3b-repeatability-${activeStage3BPeriod}`, `stage3b-supporting-evidence-${activeStage3BPeriod}`]}
-            editable={canEditPeriodicProvider(state)} />);
+            editable={false} />);
   return (
     <section className="stage3b-workspace">
       <header className="stage3b-header">
         <div>
-          <p className="stage3b-package">Tahap 3B · {state.project.packageName}</p>
-          <h1 className="wf-title">Verifikasi dan validasi berkala</h1>
+          <p className="wf-eyebrow">Tahap 3B · V&V berkala</p>
+          <h1 className="wf-title">Verifikasi dan Validasi Berkala</h1>
         </div>
         <span className="stage3b-status">{status}</span>
       </header>
@@ -848,9 +849,8 @@ export function Stage3PeriodicWorkspace(props: WorkflowStageProps) {
             )}
           </Panel>
         ) : null}
-        {(activeTask === 'documents' || (activeTask === 'results' && state.cycle.periodCompleted)) && (
-          attachments
-        )}
+        {activeTask === 'documents' && <Panel title="Bukti formulir yang sudah ada" icon={FileText}><Stage3BSourceEvidenceIndex packageId={state.project.id} period={activeStage3BPeriod} surveys={selectedCycleTypes} pciManual={!pciAi}/></Panel>}
+        {activeTask === 'documents' && attachments}
         {activeTask === 'documents' && (
           history
         )}

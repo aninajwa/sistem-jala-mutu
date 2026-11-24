@@ -147,12 +147,17 @@ export function workflowMutationError(
       return "Persetujuan produksi belum tercatat.";
   }
   if (selection === '/entry:Gerbang RNI/LRS') {
-    const {stagedReviews:oldReviews,...oldInput}=before.submission;
-    const {stagedReviews:newReviews,...newInput}=after.submission;
+    const {stagedReviews:oldReviews,localReadinessConfirmed:oldReadiness,...oldInput}=before.submission;
+    const {stagedReviews:newReviews,localReadinessConfirmed:newReadiness,...newInput}=after.submission;
     const reviewsChanged=changed(oldReviews,newReviews);
+    // Balai can invalidate a *local* readiness acknowledgement as a side effect
+    // of revising its own V&V, but cannot set it to true or edit provider data.
+    const readinessInvalidated=reviewsChanged && newReadiness === false && oldReadiness !== false;
+    const providerInputsChanged=changed(oldInput,newInput) ||
+      (oldReadiness !== newReadiness && !readinessInvalidated);
     if(reviewsChanged&&!allow('submission.review'))return denied;
-    if(changed(oldInput,newInput)&&!allow('submission.prepare'))return denied;
-    if(!reviewsChanged&&!changed(oldInput,newInput)&&!allow('submission.prepare'))return denied;
+    if(providerInputsChanged&&!allow('submission.prepare'))return denied;
+    if(!reviewsChanged&&!providerInputsChanged&&!allow('submission.prepare'))return denied;
     if(reviewsChanged)for(const [type,review] of Object.entries(newReviews??{})){
       if(!before.project.surveyTypes.includes(type as import('./model').SurveyType))return 'Jenis survei review berada di luar lingkup paket.';
       if(review?.decision==='Temuan'&&oldReviews?.[type as import('./model').SurveyType]?.decision!=='Temuan'&&!review.note.trim())return 'Uraian temuan V&V bertahap wajib diisi.';

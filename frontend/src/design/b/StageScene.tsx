@@ -53,7 +53,7 @@ export function StageScene({ children, role, stage }: {
   return (
     <StagePresentationContext.Provider value={presentation}>
       <div className="v2-stage-scene" data-mode={presentation.mode}>
-        {stage && !(["Tahap 0", "Tahap 1", "Tahap 3A"].includes(stage)) && (
+        {stage && !(["Tahap 0", "Tahap 1", "Tahap 3A", "Tahap 4"].includes(stage)) && (
           <div className="v2-stage-toolbar">
             <h2>{title}</h2>
             {sections.length > 1 && (

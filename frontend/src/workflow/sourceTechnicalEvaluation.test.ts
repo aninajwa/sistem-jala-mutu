@@ -59,3 +59,36 @@ test('scalar source comparisons use exact row bounds and reject dimensions or mi
 import {workflowFormIssues} from './repository/workflowReconciliation';
 import {sourceDocumentKey,documentQuestions} from './sourceDocumentModel';
 test('legacy approval flags do not conceal missing current forms and reconciliation never resets history',()=>{const memory=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value)}});const state=createDemoWorkflow('start');state.project.surveyTypes=['RNI'];state.calibrationChecklist.RNI=true;const before=JSON.stringify(state);assert.ok(workflowFormIssues(state).some(issue=>issue.stage==='Tahap 1'));assert.equal(JSON.stringify(state),before);const doc=sourceDocument('RNI','calibration')!;memory.set(sourceDocumentKey(state.project.id,doc.id),JSON.stringify(filledSourceFixture(doc)));assert.equal(workflowFormIssues(state).some(issue=>issue.stage==='Tahap 1'),false);assert.equal(JSON.stringify(state),before);});
+
+import {applySubmissionEdit} from './submissionEdit';
+test('Tahap 4: konfirmasi kesiapan lokal tidak memalsukan status VALID atau menghapus audit internal',()=>{
+ const before=createDemoWorkflow('start');
+ before.role='Penyedia Jasa / Ketua Tim';
+ before.submission.validationStatus='Draft';
+ before.audits[0].status='Lulus';
+ const after=applySubmissionEdit(before,{
+   localReadinessConfirmed:true,
+   targetSystems:['SMD Jalan'],
+   validationMessage:'Kesiapan lokal tercatat, menunggu sistem sumber',
+ });
+ assert.equal(after.submission.validationStatus,'Draft');
+ assert.equal(after.submission.localReadinessConfirmed,true);
+ assert.deepEqual(after.audits,before.audits);
+ assert.equal(after.submission.targetSystems[0],'SMD Jalan');
+ const edited=applySubmissionEdit(after,{rawFileName:'Revisi referensi paket'});
+ assert.equal(edited.submission.localReadinessConfirmed,false);
+ assert.equal(edited.submission.validationStatus,'Draft');
+});
+
+import {workflowMutationError} from './workflowMutationPermissions';
+test('Tahap 4: keputusan V&V Balai membatalkan kesiapan lokal tanpa mengambil izin edit Penyedia',()=>{
+ const before=createDemoWorkflow('start');
+ before.role='PIC Balai / Pengguna Jasa';
+ before.project.surveyTypes=['Lendutan'];
+ before.submission.localReadinessConfirmed=true;
+ const after=applySubmissionEdit(before,{stagedReviews:{Lendutan:{decision:'Temuan',note:'Perlu pemeriksaan ulang',reviewedAt:before.simulationDate}}});
+ assert.equal(after.submission.localReadinessConfirmed,false);
+ assert.equal(workflowMutationError(before,after,'/entry:Gerbang RNI/LRS'),undefined);
+ const unauthorized={...after,submission:{...after.submission,rawFileName:'ubah oleh Balai'}};
+ assert.ok(workflowMutationError(before,unauthorized,'/entry:Gerbang RNI/LRS'));
+});

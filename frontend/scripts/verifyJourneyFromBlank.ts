@@ -414,6 +414,7 @@ try {
   await actor("Penyedia Jasa / Ketua Tim");
   await page.goto(url("/entry:Gerbang RNI/LRS"));
   await openFilterPanels(page);
+  await page.getByTestId("stage4-tab-paket").click();
   for (const input of await page
     .locator(".wf-check input[type=checkbox]:enabled")
     .all()) {
@@ -430,6 +431,11 @@ try {
   await page.getByTestId("input-submission-raw-file").fill("RAW-RNI-UJI");
   await page.getByTestId("input-submission-clean-file").fill("CLEAN-RNI-UJI");
   await page.getByTestId("input-submission-video").fill("VIDEO-RNI-UJI");
+  await page.getByTestId("stage4-tab-mutu").click();
+  await page.getByTestId("stage4-tab-dokumen").click();
+  await page.locator(".stage4-document-verification > summary").click();
+  for (const input of await page.locator(".stage4-document-verification .wf-check input[type=checkbox]:enabled").all()) await input.check();
+  await page.getByTestId("stage4-tab-penyerahan").click();
   await page.getByTestId("button-go-audit-one").click();
   async function fillSourceQuestions() {
     for (const d of await page.locator(".role-work-details").all())
@@ -476,10 +482,12 @@ try {
   await actor("PIC Balai / Pengguna Jasa");
   await page.goto(url("/entry:Gerbang RNI/LRS"));
   await openFilterPanels(page);
+  await page.getByTestId("stage4-tab-bertahap").click();
   await fillSourceQuestions();
   await actor("Penyedia Jasa / Ketua Tim");
   await page.goto(url("/entry:Gerbang RNI/LRS"));
   await openFilterPanels(page);
+  await page.getByTestId("stage4-tab-penyerahan").click();
   await page.getByTestId("button-submission-validate").click();
   assert.equal((await snapshot()).submission.validationStatus, "VALID");
   await record("Tahap 4");

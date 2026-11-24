@@ -1,0 +1,48 @@
+/* Tahap 4: one role and one task at a time. No new business rules here. */
+.wf .stage4-workspace { width: 100%; max-width: none; margin: 0; min-width: 0; }
+.wf .stage4-header { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:4px 0 16px; flex-wrap:wrap; }
+.wf .stage4-kicker { color:#007e83; letter-spacing:.08em; font-size:11px; font-weight:750; }
+.wf .stage4-header h2 { color:#17384e; font-size:23px; font-weight:750; line-height:1.25; margin:4px 0 0; }
+.wf .stage4-tabs { display:flex; gap:7px; flex-wrap:wrap; padding:0 0 12px; border-bottom:1px solid #dbe7e9; margin-bottom:16px; }
+.wf .stage4-tab { appearance:none; border:1px solid #d6e3e6; background:#fff; border-radius:9px; font-size:13px; font-weight:650; color:#375761; padding:10px 13px; cursor:pointer; }
+.wf .stage4-tab.active { color:#006569; background:#e7f7f5; border-color:#57bbb9; }
+.wf .stage4-tab:focus-visible { outline:3px solid #a5e5e0; outline-offset:2px; }
+.wf .stage4-content { display:grid; grid-template-columns:minmax(0,1fr); gap:13px; min-width:0; }
+.wf .stage4-content .wf-panel { min-width:0; margin:0; }
+.wf .stage4-content .wf-fields { max-width:100%; }
+.wf .stage4-summary { display:grid; gap:0; }
+.wf .stage4-summary-row { display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:8px 15px; padding:11px 0; border-bottom:1px solid #e3ecee; font-size:13px; color:#244653; }
+.wf .stage4-summary-row:last-child { border-bottom:0; }
+.wf .stage4-summary-row>span:first-child { min-width:0; flex:1 1 230px; }
+.wf .stage4-summary-row>strong { overflow-wrap:anywhere; max-width:100%; }
+.wf .stage4-summary-row small { display:block; font-size:12px; color:#60737c; margin-top:3px; }
+.wf .stage4-form-spaced { margin-top:14px; }
+.wf .stage4-feedback { color:#4b6370; font-size:13px; margin:12px 0 0; }
+.wf .stage4-actions { display:flex; flex-wrap:wrap; align-items:center; gap:10px; margin-top:18px; }
+.wf .stage4-steps { display:flex; flex-wrap:wrap; gap:7px; margin:16px 0; }
+.wf .stage4-steps span { border:1px solid #d7e6e7; background:#f7fbfb; border-radius:7px; padding:7px 10px; color:#42616b; font-size:12px; }
+@media(max-width:640px){.wf .stage4-header h2{font-size:20px}.wf .stage4-tabs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));}.wf .stage4-tab{min-height:44px;padding:8px 7px}.wf .stage4-content{gap:10px}.wf .stage4-actions > *{width:100%;}}
+
+/* Unified package canvas. Avoid narrow centered column and repeated navigation. */
+.wf .stage4-workspace { box-sizing: border-box; padding: 0 2px; }
+.wf .stage4-header .stage4-title { margin: 4px 0 0; }
+.wf .stage4-content { width: 100%; }
+.wf .stage4-workspace .wf-panel { width: 100%; box-sizing: border-box; }
+.wf .stage4-workspace .wf-fields { grid-template-columns: repeat(2,minmax(0,1fr)); }
+.wf .stage4-workspace .wf-field[style*="grid-column"] { min-width:0; }
+.wf .stage4-workspace input,.wf .stage4-workspace select { max-width:100%; box-sizing:border-box; }
+.wf .stage4-document-verification { border-top:1px solid #e3ecee; margin-top:12px; padding-top:10px; }
+.wf .stage4-document-verification > summary,.wf .stage4-prior-evidence > summary {cursor:pointer; font-weight:600; color:#31515f; padding:10px 0;}
+.wf .stage4-prior-evidence {border:1px solid #dce9eb;border-radius:8px;padding:0 14px;background:#fff;}
+.wf .stage4-prior-evidence > .wf-panel {margin:8px 0 14px;}
+@media (max-width:750px){.wf .stage4-workspace .wf-fields{grid-template-columns:minmax(0,1fr)}}
+
+/* Tahap 4: place the single contextual note beside status, not between
+   the package navigator and the work heading. Match Tahap 2 heading rhythm. */
+.wf .stage4-header { align-items:center; padding:16px 0 12px; margin:0; }
+.wf .stage4-heading { min-width:0; }
+.wf .stage4-heading .wf-eyebrow { margin:0 0 3px; }
+.wf .stage4-heading .stage4-title { font-size:20px; line-height:1.35; margin:0; }
+.wf .stage4-header-actions { display:flex; align-items:center; justify-content:flex-end; flex-wrap:wrap; gap:8px; }
+.wf .stage4-header-actions .v2-note-entry { margin:0; }
+@media(max-width:640px){ .wf .stage4-header { align-items:flex-start; } }
