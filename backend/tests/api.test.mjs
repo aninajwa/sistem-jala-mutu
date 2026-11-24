@@ -617,7 +617,8 @@ before(async () => {
         return row;
       };
       const versioned = row => {
-        if (lastRpc.p_expected_version !== row.versi) { send({ code: '40001', message: 'Kasus koreksi telah berubah' }, 409); return true; }
+        // Real RPCs raise PT409: PostgREST retries 40001 (serialization failure) until the client times out.
+        if (lastRpc.p_expected_version !== row.versi) { send({ code: 'PT409', message: 'Kasus koreksi telah berubah' }, 409); return true; }
         return null;
       };
       const deny = () => send({ code: '42501', message: 'Akses tidak dibenarkan' }, 403);

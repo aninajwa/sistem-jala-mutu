@@ -20,6 +20,9 @@ export async function supabaseFetch(path: string, token: string, init: RequestIn
   }
   if (!response.ok) {
     const failure = await response.json().catch(() => null) as { code?: string; message?: string; error?: string } | null;
+    // PostgREST retries SQLSTATE 40001 (serialization failure) until the client gives up, so
+    // RPCs signal a stale version with PT409 instead. Treat it exactly like 40001 below.
+    if (failure?.code === 'PT409') failure.code = '40001';
     if (path.startsWith('/rest/v1/rpc/admin_') && /(?:daftar_peran_dapat_ditugaskan|daftar_penugasan_peran|tambah_penugasan_peran|ubah_penugasan_peran|cabut_penugasan_peran)$/.test(path)) {
       if (failure?.code === '28000' || response.status === 401) throw new ApiError(401, 'Sesi tidak valid atau telah tamat');
       if (failure?.code === '42501' || response.status === 403) throw new ApiError(403, 'Akses tidak dibenarkan');

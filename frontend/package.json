@@ -29,6 +29,7 @@
     "test:auth": "node --import tsx --test src/auth/identity.test.ts",
     "test:login": "node --import tsx scripts/verifyLogin.ts",
     "test:server-journey": "node --import tsx scripts/verifyServerJourney.ts",
+    "test:correction-lifecycle": "node --import tsx scripts/verifyCorrectionLifecycle.ts",
     "test:patch02": "node --import tsx --test src/workflow/balaiReviewQueue.test.ts",
     "test:patch02:e2e": "node --import tsx scripts/verifyPatch02.ts",
     "test:stage0": "vitest run src/workflow/Stage0Persistence.test.tsx",
