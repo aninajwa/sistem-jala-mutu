@@ -1,4 +1,4 @@
--- PENDING APPROVAL. PostgREST retries SQLSTATE 40001 (serialization failure) until the client
+-- APPLIED 2026-11-24 as migration koreksi_stale_version_pt409. PostgREST retries SQLSTATE 40001 (serialization failure) until the client
 -- times out, so a stale-version error never reaches the API. Signal it with PT409 (HTTP 409);
 -- the backend maps PT409 to the same 409 conflict as 40001.
 create or replace function app_private.koreksi_kunci(p_paket_id integer, p_koreksi_id integer, p_expected_version integer)
