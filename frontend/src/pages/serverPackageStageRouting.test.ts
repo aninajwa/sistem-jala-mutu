@@ -67,7 +67,8 @@ test('authenticated server package workspace renders Dirah stage presentation re
   assert.match(stage, /renderChecklist\([\s\S]*?PREPARATION_SOURCE_REVIEWS/);
   assert.match(stage, /Panel title="Pengajuan ke PIC Balai"/);
   assert.doesNotMatch(stage, /data-testid="dirah-stage0-server"|<select aria-label=\{`\$\{item\.label\} · jawapan`\}/);
-  assert.match(source, /selection === OVERVIEW \?[\s\S]*?stageOne \|\| selection === '\/entry:Gerbang RNI\/LRS' \? content :/);
+  assert.match(source, /selection === OVERVIEW \?[\s\S]*?stageOne \|\| selection === '\/entry:Gerbang RNI\/LRS' \|\| selection === CORRECTIONS \? content :/);
+  assert.match(source, /selection === CORRECTIONS \? <ServerCorrectionWorkspace /);
   assert.match(source, /selection === '\/entry:Gerbang RNI\/LRS' \? <ServerStage4Workspace packageId=\{packageId\} role=\{role\} \/>/);
   assert.match(source, /serverStatusNote=\{readOnlyNote\}/);
 });

@@ -342,6 +342,13 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
   };
 
   const openCorrection = (packageId: string, correctionId: string) => {
+    if (authenticatedRole) {
+      // Server cases live in the package workspace, addressed by paket + koreksi in the URL.
+      const selection = "/actions:Koreksi berbukti";
+      setSelectedSubmodule(selection);
+      setLocation(`/actions?paket=${encodeURIComponent(packageId)}&koreksi=${encodeURIComponent(correctionId)}&submodule=${encodeURIComponent(selection)}`);
+      return;
+    }
     const target = scopedPackages[packageId];
     const correction = target?.corrections?.find(
       (item) => item.id === correctionId,

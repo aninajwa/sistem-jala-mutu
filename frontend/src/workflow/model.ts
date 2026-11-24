@@ -312,6 +312,8 @@ export type CorrectionCase = {
   ruleChecks?: Record<string, boolean>;
   ruleNumbers?: Record<string, number>;
   provinceUpdateBa?: string;
+  /** Server mode only: optimistic version sent as expected_version on the next action. */
+  serverVersion?: number;
 };
 
 export type SemesterTwoEvidence = {

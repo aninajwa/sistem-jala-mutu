@@ -1,6 +1,6 @@
 import type { PageProps } from "../types";
 import CorrectionDashboard from "./corrections/CorrectionDashboard";
-import { ServerCorrectionDashboard } from './corrections/ServerCorrectionDashboard';
+import { ServerCorrectionsPage } from './corrections/ServerCorrectionsPage';
 
 export type CorrectionPageProps = PageProps & {
   authenticatedRole?: import('../workflow/model').WorkflowRole;
@@ -11,6 +11,6 @@ export type CorrectionPageProps = PageProps & {
 };
 
 export default function ActionsPage(props: CorrectionPageProps) {
-  if (props.authenticatedRole) return <ServerCorrectionDashboard role={props.authenticatedRole} />;
+  if (props.authenticatedRole) return <ServerCorrectionsPage {...props} authenticatedRole={props.authenticatedRole} />;
   return <CorrectionDashboard {...props} />;
 }
