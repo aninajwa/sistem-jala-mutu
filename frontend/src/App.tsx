@@ -561,7 +561,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
         <main className="main-area">
           {authenticatedRole && !isPackageWorkspace && (
             <div className="auth-local-notice">
-              Masuk sebagai {userLabel}. Paket, workspace Tahap 0–4 dan koreksi memakai data server; halaman ringkasan lain masih pratinjau lokal.
+              Masuk sebagai {userLabel}. Paket, tahap 0–6, koreksi dan tahap per paket di dashboard memakai data server; sebagian grafik ringkasan masih pratinjau lokal.
             </div>
           )}
           <AppTopbar

@@ -7,6 +7,7 @@ import {
 } from "./serverDashboard";
 import { useServerDashboard } from "./useServerDashboard";
 import { useServerDirahPackages } from "./useServerDirahPackages";
+import { serverStageText, useServerPackageStages, type ServerPackageStage } from "./useServerPackageStages";
 import { FilterPanel } from "../design/b/FilterPanel";
 import { DirectorateMap } from "../design/b/geo/DirectorateMap";
 import {
@@ -753,6 +754,27 @@ function AttentionList({
   );
 }
 
+/**
+ * Server mode: the work queue labels and order come from GET /paket-tahap, not from local demo state
+ * (which is empty for server packages and would always read "Tahap 0"). Finished packages go last.
+ */
+function withServerStages<T extends { id: string; priority: string; label: string; description: string }>(
+  queue: T[],
+  stages: Record<string, ServerPackageStage> | null | undefined,
+): T[] {
+  if (!stages) return queue;
+  const rank = (item: T) => (item.priority === "complete" ? 1 : 0);
+  return queue
+    .map((item) => {
+      const stage = stages[item.id];
+      if (!stage) return item;
+      return stage.tahap === "Selesai"
+        ? { ...item, priority: "complete", label: "Paket selesai", description: "Penerimaan akhir tercatat; seluruh tahap 0–6 selesai." }
+        : { ...item, priority: "action", label: `Lanjutkan ${stage.tahap}`, description: `Tahap aktif: ${stage.tahap} · ${stage.keterangan}.` };
+    })
+    .sort((a, b) => rank(a) - rank(b));
+}
+
 function DashboardPageContent(p: DashboardProps) {
   const role = p.workflow.role,
     provider = role === "Penyedia Jasa / Ketua Tim",
@@ -781,7 +803,7 @@ function DashboardPageContent(p: DashboardProps) {
       survey,
       period,
     ),
-    queue = dashboardWorkQueue(packages, role),
+    queue = withServerStages(dashboardWorkQueue(packages, role), p.serverStages),
     reviews = p.serverReviewQueue ?? balaiReviewQueue(packages),
     audits = directorateAuditRows(packages);
   const entries = Object.values(packages),
@@ -876,7 +898,7 @@ function DashboardPageContent(p: DashboardProps) {
           </details>
         </div>
         <div className="b-row-end">
-          <strong>{derivePackageStage(state)}</strong>
+          <strong data-testid={`dashboard-stage-${item.id}`}>{p.serverStages ? serverStageText(p.serverStages[item.id]) : derivePackageStage(state)}</strong>
           <WorkLink onClick={() => p.openPackage(item.id)}>Buka paket</WorkLink>
         </div>
       </article>
@@ -1185,7 +1207,7 @@ function DashboardPageContent(p: DashboardProps) {
             <MetricTile
               icon={CheckCircle2}
               label="Penerimaan akhir"
-              value={metrics.accepted}
+              value={p.serverStages ? Object.values(p.serverStages).filter((stage) => stage.tahap === "Selesai" && packages[String(stage.paket_id)]).length : metrics.accepted}
               note="Penerimaan final tercatat"
             />
           </div>
@@ -1670,6 +1692,8 @@ function AuthenticatedDashboard({p}:{p:DashboardProps}) {
 }
 
 type DashboardProps = PageProps & {
+  /** Server mode: active stage per package from GET /paket-tahap (never derived from local demo state). */
+  serverStages?: Record<string, ServerPackageStage> | null;
   canCreatePackage?: boolean;
   dashboardAuthenticated?: boolean;
   onCreatePackage?: () => void;
@@ -1678,6 +1702,7 @@ type DashboardProps = PageProps & {
 /** Logged-in users: Dirah dashboard over server packages, with the server sync view one click away. */
 function AuthenticatedDirahDashboard({ p }: { p: DashboardProps }) {
   const { state, reload } = useServerDirahPackages(true, p.workflow.role);
+  const serverStages = useServerPackageStages();
   const [viewMode, setViewMode] = useState<"dirah" | "server">("dirah");
   const [createPackageOpen, setCreatePackageOpen] = useState(false);
   if (viewMode === "server") {
@@ -1698,7 +1723,7 @@ function AuthenticatedDirahDashboard({ p }: { p: DashboardProps }) {
             ? "Memuat paket dari server…"
             : state.status === "error"
               ? `Gagal memuat paket: ${state.message}`
-              : `${Object.keys(state.packages).length} paket dari server${state.truncated ? " (sebagian)" : ""}. Status tahap per paket dibaca di workspace paket.`}
+              : `${Object.keys(state.packages).length} paket dari server${state.truncated ? " (sebagian)" : ""}. Tahap per paket dibaca dari server.`}
         </span>
         {state.status === "error" && <button type="button" className="btn sm" onClick={reload}>Coba lagi</button>}
         <button type="button" className="btn sm" onClick={() => setViewMode("server")}>Status koreksi server</button>
@@ -1706,6 +1731,7 @@ function AuthenticatedDirahDashboard({ p }: { p: DashboardProps }) {
       <DashboardPageContent
         {...p}
         packages={state.packages}
+        serverStages={serverStages ?? {}}
         onCreatePackage={() => setCreatePackageOpen(true)}
       />
       {createPackageOpen && p.canCreatePackage && (

@@ -1,3 +1,4 @@
+import { serverStageText, useServerPackageStages } from "./useServerPackageStages";
 import { apiRequest } from "../auth/client";
 import { readDeclaredPackageSurveyScopes } from "../workflow/declaredPackageSurveyScope";
 import {
@@ -43,6 +44,7 @@ type Props = {
   /** Server mode: show the create action and server package statuses instead of local derivations. */
   onCreatePackage?: () => void;
   serverPackageStatuses?: Record<string, string>;
+  serverStages?: Record<string, import("./useServerPackageStages").ServerPackageStage> | null;
   serverReviewQueue?: import("../workflow/balaiReviewQueue").BalaiReviewItem[];
 };
 function LocalPackagesPage({
@@ -52,14 +54,15 @@ function LocalPackagesPage({
   onOpenReview,
   onCreatePackage,
   serverPackageStatuses,
+  serverStages,
   serverReviewQueue,
 }: Props) {
   const stageOf = (s: OperationalWorkflowState) =>
-    serverPackageStatuses ? serverPackageStatusLabel(serverPackageStatuses[s.project.id]) : derivePackageStage(s);
+    serverPackageStatuses ? serverStageText(serverStages?.[s.project.id]) : derivePackageStage(s);
   const statusOf = (s: OperationalWorkflowState) =>
     serverPackageStatuses ? serverPackageStatusLabel(serverPackageStatuses[s.project.id]) : packageStatus(s);
   const waitingOf = (s: OperationalWorkflowState) =>
-    serverPackageStatuses ? "Lihat status per tahap di workspace paket" : packageWaitingFor(s);
+    serverPackageStatuses ? serverStageText(serverStages?.[s.project.id]) : packageWaitingFor(s);
   const [compact, setCompact] = useState(false);
   const provider = role === "Penyedia Jasa / Ketua Tim";
   const [search, setSearch] = useState("");
@@ -322,6 +325,7 @@ function serverPackageStatusLabel(status: string | undefined): string {
       DIAJUKAN: 'Diajukan',
       DISETUJUI: 'Disetujui',
       PERLU_REVISI: 'Perlu revisi',
+      SELESAI: 'Selesai',
     };
     return labels[status] ?? status;
 }
@@ -397,6 +401,7 @@ function ServerPackagesPage({ role, onOpen, onOpenReview, serverReviewQueue }: P
         const mapped = mapServerPackagesToDirahPackages(packages, balais, role);
         return mapped;
     }, [packages, balais, role]);
+    const serverStages = useServerPackageStages();
     const serverPackageStatuses = useMemo(
       () => Object.fromEntries(packages.map(item => [String(item.paket_id), item.status])),
       [packages],
@@ -421,6 +426,7 @@ function ServerPackagesPage({ role, onOpen, onOpenReview, serverReviewQueue }: P
           onOpenReview={onOpenReview}
           serverReviewQueue={serverReviewQueue}
           serverPackageStatuses={serverPackageStatuses}
+          serverStages={serverStages}
           onCreatePackage={canCreate ? () => { setNotice(''); setCreatePackageOpen(true); } : undefined}
         />
         {hasMore && <div><p>Carian dan filter berlaku pada paket yang sudah dimuat. Muat berikutnya untuk melihat lebih banyak paket.</p><button type="button" className="wf-button primary" disabled={loading || !!error} onClick={() => setPage(value => value + 1)}>Muat paket berikutnya <ArrowRight size={15} /></button></div>}

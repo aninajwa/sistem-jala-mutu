@@ -608,10 +608,11 @@ before(async () => {
       return send({ paket_id: 1, nama_paket: lastRpc.p_nama_paket, status: 'DRAFT', created_by: 3 });
     }
     const auditRpc = url.pathname.split('/').pop();
-    if (url.pathname.startsWith('/rest/v1/rpc/') && ['baca_progres_tahap_akhir','daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
+    if (url.pathname.startsWith('/rest/v1/rpc/') && ['baca_tahap_paket_saya','baca_progres_tahap_akhir','daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
       if (lastRpc.p_expected_version === 99) return send({ code: 'PT409', message: 'Audit telah berubah' }, 409);
+      if (auditRpc === 'baca_tahap_paket_saya') return send([{ paket_id: 3, status_paket: 'SELESAI', tahap: 'Selesai', keterangan: 'Penerimaan akhir tercatat' }]);
       return send({ rpc: auditRpc, paket_id: lastRpc.p_paket_id });
     }
     if (url.pathname.startsWith('/rest/v1/rpc/') && url.pathname.split('/').pop()?.includes('koreksi')) {
@@ -2070,4 +2071,13 @@ test('only the PIC reviews a Verval cycle and a correction request needs a note'
   const r = await request('/paket/3/siklus-verval/5/review', 'reviewer', { expected_version: 3, keputusan: 'DITERIMA', catatan: '' });
   assert.equal(r.status, 200);
   assert.deepEqual(lastRpc, { p_paket_id: 3, p_siklus_id: 5, p_expected_version: 3, p_keputusan: 'DITERIMA', p_catatan: '' });
+});
+
+test('package stages are read for all caller packages in one RPC call', async () => {
+  for (const token of ['provider', 'reviewer', 'director']) {
+    const r = await request('/paket-tahap', token);
+    assert.equal(r.status, 200, token);
+    assert.deepEqual(r.body.data, [{ paket_id: 3, status_paket: 'SELESAI', tahap: 'Selesai', keterangan: 'Penerimaan akhir tercatat' }]);
+  }
+  assert.equal((await request('/paket-tahap')).status, 401);
 });
