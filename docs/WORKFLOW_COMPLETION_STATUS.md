@@ -269,3 +269,10 @@ Diperiksa di browser untuk ketiga peran:
 - Halaman Tahap 4 Direktorat tidak lagi menampilkan error ruas.
 
 Sisa: performa (sekitar 10 RPC per halaman paket), dan RPC lama yang masih memakai kode `40001` (checklist, kalibrasi, LRS, scope) yang bisa membuat request menggantung saat terjadi konflik.
+
+## 11. Teknis: performa, PT409, dan data uji (2026-11-25)
+
+- **Performa.** Halaman paket memuat 17 request API tanpa duplikat; yang paling lambat 246 ms. Saturasi compute Supabase tidak terulang. Halaman ringkasan memakai panggilan gabungan (`/paket-tahap`, `/verval`, `/notifikasi`).
+- **PT409.** Migrasi `20261125070000_stale_version_pt409_semua` mengganti `errcode '40001'` menjadi `'PT409'` di 17 fungsi lama. Tidak ada lagi fungsi yang memakai 40001; 26 fungsi kini memakai PT409.
+  - Uji di database nyata: simpan LRS dengan versi usang mendapat 409 dalam 0,9 detik. Sebelumnya request menggantung sekitar 20 detik lalu 503.
+- **Data uji.** Kasus koreksi uji #1, #2, dan #4 ditutup lewat SQL yang disetujui pemilik proyek. Riwayat status tetap tercatat. Sekarang tidak ada kasus terbuka.
