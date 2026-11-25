@@ -803,6 +803,14 @@ test('Admin and Admin multi-role are denied before workflow RPC or Storage on al
     }
   }
 });
+test('Admin read-only guard never blocks GET requests on routers mounted after a write-guarded router', async () => {
+  const reads = ['/jenis-survei', '/penyedia', '/jenis-dokumen', '/paket-tahap', '/paket/3/dokumen', '/paket/3/koreksi',
+    '/paket/3/berita-acara', '/review-queue'];
+  for (const path of reads) {
+    const result = await request(path, 'admin');
+    assert.notEqual(result.body?.error ?? result.body?.message, 'Admin hanya boleh membaca workflow', `admin GET ${path}: ${JSON.stringify(result.body)}`);
+  }
+});
 test('Admin-only listing uses authenticated read-only RPC and bounded pagination', async () => {
   const identity = await request('/me', 'admin');
   assert.equal(identity.status, 200);

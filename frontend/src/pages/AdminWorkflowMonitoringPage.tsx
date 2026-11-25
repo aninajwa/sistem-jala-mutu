@@ -3,11 +3,12 @@ import {ClipboardCheck,Clock3,History,Search,ShieldCheck} from 'lucide-react';
 import {KPI,PageHeading,Section,Status} from '../components/app/AppComponents';
 import {adminAuditRows,adminReviewRows} from '../workflow/monitoringProjection';
 import type {PageProps} from '../types';
+import type {BalaiReviewItem} from '../workflow/balaiReviewQueue';
 import './verificationQueue.css';
 import './adminMonitoringDetail.css';
 
 /** Administrative monitoring is a read-only projection of real review and audit records. */
-export default function AdminWorkflowMonitoringPage(p:PageProps){
+export default function AdminWorkflowMonitoringPage(p:PageProps&{serverReviewRows?:BalaiReviewItem[]}){
  const [query,setQuery]=useState('');
  const [balai,setBalai]=useState('');
  const [status,setStatus]=useState('');
@@ -15,7 +16,7 @@ export default function AdminWorkflowMonitoringPage(p:PageProps){
  const [detail,setDetail]=useState<{title:string;subtitle:string;status:string;reason:string;note:string;context:string}|null>(null);
  useEffect(()=>{if(!detail)return;const onEscape=(event:KeyboardEvent)=>{if(event.key==='Escape')setDetail(null)};window.addEventListener('keydown',onEscape);return()=>window.removeEventListener('keydown',onEscape)},[detail]);
  const auditOnly=p.activeTab==='Audit';
- const reviewRows=useMemo(()=>adminReviewRows(p.packages),[p.packages]);
+ const reviewRows=useMemo(()=>p.serverReviewRows??adminReviewRows(p.packages),[p.serverReviewRows,p.packages]);
  const auditRows=useMemo(()=>adminAuditRows(p.packages),[p.packages]);
  const balais=useMemo(()=>[...new Set(Object.values(p.packages).map(v=>v.project.balai))].sort(),[p.packages]);
  const reviewStages=[...new Set(reviewRows.map(r=>r.stage))];

@@ -1,19 +1,21 @@
-import { useEffect, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import AdminWorkflowMonitoringPage from './AdminWorkflowMonitoringPage';
 import { apiRequest } from '../auth/client';
 import { Database, MapPinned } from 'lucide-react';
 import { KPI, PageHeading, Section } from '../components/app/AppComponents';
 import type { PageProps } from '../types';
 import { useServerEnrichedPackages } from './useServerEnrichedPackages';
+import { serverAdminReviewRows } from './serverAdminMonitoring';
 
 /** Admin "Monitoring Workflow" on server packages filled with server facts (read-only, Dirah UI unchanged). */
 export function ServerAdminMonitoringPage(p: PageProps) {
-  const { packages, loading, error } = useServerEnrichedPackages(p.workflow.role);
+  const { packages, stages, loading, error } = useServerEnrichedPackages(p.workflow.role);
+  const reviewRows = useMemo(() => serverAdminReviewRows(packages, stages ?? {}), [packages, stages]);
   return <>
     <div className="ds-view-toggle" role="status" data-testid="admin-monitoring-server-status">
       <span>{error ? `Gagal memuat paket: ${error}` : loading ? 'Memuat paket dan status dari server…' : `${Object.keys(packages).length} paket dari server.`}</span>
     </div>
-    <AdminWorkflowMonitoringPage {...p} packages={packages} />
+    <AdminWorkflowMonitoringPage {...p} packages={packages} serverReviewRows={reviewRows} />
   </>;
 }
 

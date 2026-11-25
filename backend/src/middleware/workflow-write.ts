@@ -9,8 +9,13 @@ export function assertWorkflowWriteAllowed(identity: Pick<Identity, 'roles'>) {
   }
 }
 
-/** Apply before route-specific role checks, body processing, upload, or RPC calls. */
-export const denyAdminWorkflowWrites: RequestHandler = (_req, res, next) => {
+const READ_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
+
+/** Apply before route-specific role checks, body processing, upload, or RPC calls.
+ * Reads pass through: sub-routers mount this with `router.use` and without a path, so it sees every
+ * request that enters them, including GETs meant for later routers. Each read RPC checks access itself. */
+export const denyAdminWorkflowWrites: RequestHandler = (req, res, next) => {
+  if (READ_METHODS.has(req.method)) { next(); return; }
   try {
     assertWorkflowWriteAllowed(res.locals.identity);
     next();
