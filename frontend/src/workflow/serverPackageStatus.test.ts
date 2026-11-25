@@ -118,3 +118,14 @@ test('Tahap 4-6 rail facts turn complete only from server progress', () => {
   assert.equal(midway['Tahap 6']?.label, '2/4 termin diterima');
   assert.equal(finalStagesFacts(null, false, true)['Tahap 6']?.state, 'error');
 });
+
+test('Tahap 3A/3B turn complete when Tahap 4 is approved and show progress before that', () => {
+  const base = { status_paket: 'DRAFT', tahap4: 'DRAFT' as const, audit: {}, koreksi_audit_terbuka: 0, termin_selesai: 0, termin_total: 4, penerimaan_akhir: false, jumlah_sesi_survei: 1, jumlah_siklus_verval: 0 };
+  const early = finalStagesFacts(base);
+  assert.equal(early['Tahap 3A'], undefined, 'keeps the detailed session label until complete');
+  assert.equal(early['Tahap 3B']?.state, 'unknown');
+  assert.equal(finalStagesFacts({ ...base, jumlah_siklus_verval: 2 })['Tahap 3B']?.state, 'pending');
+  const approved = finalStagesFacts({ ...base, tahap4: 'DISETUJUI' });
+  assert.equal(approved['Tahap 3A']?.state, 'complete');
+  assert.equal(approved['Tahap 3B']?.state, 'complete');
+});

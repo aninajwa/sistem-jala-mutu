@@ -790,7 +790,6 @@ export function ServerPackageWorkspace({
   const canReview = canReviewPreparation(role, contract.status, submission?.status);
   const packageStatus = finalProgress.value?.status_paket ?? contract.status;
   const serverStageStatuses: ServerStageFacts = {
-    ...finalStagesFacts(finalProgress.value, finalProgress.loading, finalProgress.error),
     'Tahap 0': preparationStageFact({
       submissionStatus: submission?.status,
       checklistStatus: checklist?.pengisian.status,
@@ -816,6 +815,7 @@ export function ServerPackageWorkspace({
         : stage3aProgress.sessionCount > 0 ? 'pending' : 'unknown',
       label: packageSurveyProgressLabel(stage3aProgress, stage3aProgressLoading, stage3aProgressError),
     },
+    ...finalStagesFacts(finalProgress.value, finalProgress.loading, finalProgress.error),
   };
   const stageStatus = (code: string) => code === 'Tahap 0'
     ? checklist
