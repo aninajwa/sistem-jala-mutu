@@ -13,7 +13,7 @@ if (process.env.JM_ALLOW_WRITES !== '1') { console.error('Set JM_ALLOW_WRITES=1:
 const base = process.env.JM_BASE_URL ?? 'http://127.0.0.1:5173';
 const packageId = process.env.JM_PACKAGE ?? '3';
 const shotDir = process.env.JM_SCREENSHOT_DIR;
-const stamp = new Date().toISOString().slice(0, 10);
+const stamp = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 const T = { timeout: 45000 };
 
 const STAGE4 = '/entry:Gerbang RNI/LRS';

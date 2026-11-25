@@ -26,10 +26,19 @@ async function session(browser: Browser, who: string, email?: string, password?:
   await page.waitForSelector('.app-shell', { timeout: 30000 });
   return page;
 }
+async function idle(page: Page) { await page.locator('[data-testid="server-stage3b-workspace"][data-refreshing="false"]').waitFor(T); }
 async function fillRepeats(page: Page, values: string[]) {
+  await idle(page);
   for (const [index, value] of values.entries()) await page.getByLabel(`Nilai ulangan ${index + 1}`).fill(value);
 }
-async function saved(page: Page, text: string | RegExp) { await page.getByRole('status').filter({ hasText: text }).first().waitFor(T); }
+/** Waits for the success message; fails fast with the UI's own error text if an alert appears instead. */
+async function saved(page: Page, text: string | RegExp) {
+  const ok = page.getByRole('status').filter({ hasText: text }).first();
+  const failed = page.locator('[data-testid="server-stage3b-workspace"] [role="alert"]').first();
+  await Promise.race([ok.waitFor(T), failed.waitFor(T)]);
+  if (await failed.isVisible()) throw new Error(`UI error: ${await failed.innerText()}`);
+}
+const runId = new Date().toISOString().replace(/[-:T.Z]/g, '').slice(0, 14);
 
 const browser = await chromium.launch();
 try {
@@ -39,6 +48,18 @@ try {
   const open = provider.getByTestId('verval-open');
   if (await open.count()) { await open.click(); await saved(provider, 'Siklus verval baru dibuka.'); console.log('✔ cycle opened'); }
   await provider.getByTestId('verval-cycle-detail').waitFor(T);
+  const pic = await session(browser, 'PIC', process.env.JM_PIC_EMAIL, process.env.JM_PIC_PASSWORD);
+  const chip = provider.getByTestId('verval-cycle-detail').locator('.wf-panel-head .wf-status').first();
+  if ((await chip.innerText()).trim() === 'Menunggu PIC') {
+    // Resume a cycle left submitted by an earlier run: the PIC sends it back, the Penyedia resubmits.
+    await pic.goto(url);
+    await pic.getByLabel('Catatan pemeriksaan Verval').fill('Ajukan ulang dengan nomor BA baru (uji UI)');
+    await pic.getByTestId('verval-request-fix').click(T);
+    await saved(pic, 'Siklus dikembalikan ke Penyedia untuk perbaikan.');
+    await provider.goto(url);
+    await provider.getByTestId('verval-cycle-detail').waitFor(T);
+    console.log('• earlier submitted cycle sent back by PIC');
+  }
 
   await fillRepeats(provider, ['3.0', '4.5', '3.2']);
   await provider.getByTestId('verval-preview').getByText('Tidak konsisten').waitFor(T);
@@ -53,7 +74,8 @@ try {
   await saved(provider, 'Uji konsistensi tersimpan di server.');
   console.log('✔ consistent retest recorded');
 
-  await provider.getByLabel('Nomor BA Verval').fill(`UJI-BA-VERVAL-${new Date().toISOString().slice(0, 10)}`);
+  await idle(provider);
+  await provider.getByLabel('Nomor BA Verval').fill(`UJI-BA-VERVAL-${runId}`);
   await provider.getByTestId('verval-submit').click();
   await saved(provider, /BA Verval diajukan/);
   const cycleNo = (await provider.getByTestId('verval-cycle-detail').locator('h4').first().innerText()).match(/ke-(\d+)/)?.[1];
@@ -61,7 +83,6 @@ try {
   if (shotDir) await provider.screenshot({ path: `${shotDir}/verval-submitted.png`, fullPage: true });
   console.log(`✔ BA submitted (cycle ${cycleNo})`);
 
-  const pic = await session(browser, 'PIC', process.env.JM_PIC_EMAIL, process.env.JM_PIC_PASSWORD);
   await pic.goto(url);
   await pic.getByTestId('verval-accept').click(T);
   await saved(pic, 'Siklus diterima. BA Verval 2-Mingguan tercatat.');

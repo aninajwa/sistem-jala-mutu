@@ -18,6 +18,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
   const [pkg, setPkg] = useState<VervalPackage | null>(null);
   const [loadError, setLoadError] = useState('');
   const [revision, setRevision] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -40,7 +41,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
   useEffect(() => {
     if (!capabilities?.read) return;
     const controller = new AbortController();
-    setLoadError('');
+    setLoadError(''); setRefreshing(true);
     getVervalPackage(packageId, controller.signal).then(data => {
       if (controller.signal.aborted) return;
       setPkg(data);
@@ -53,7 +54,8 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
         ruas_id: current.ruas_id || String(data.opsi.ruas[0]?.ruas_id ?? ''),
       }));
       setRepeats(current => current.map(row => ({ ...row, rater_personel_id: row.rater_personel_id || String(data.opsi.personel[0]?.personel_id ?? '') })));
-    }).catch(reason => { if (!controller.signal.aborted) setLoadError(vervalErrorMessage(reason)); });
+    }).catch(reason => { if (!controller.signal.aborted) setLoadError(vervalErrorMessage(reason)); })
+      .finally(() => { if (!controller.signal.aborted) setRefreshing(false); });
     return () => controller.abort();
   }, [packageId, capabilities?.read, revision]);
 
@@ -71,6 +73,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
     try {
       await action();
       setMessage(done);
+      setRefreshing(true);
       setRevision(value => value + 1);
       window.dispatchEvent(new CustomEvent('jalamutu:package-stage-facts-refresh', { detail: { packageId } }));
     } catch (reason) { setError(vervalErrorMessage(reason)); } finally { setBusy(false); }
@@ -106,7 +109,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
   const personName = (id: number) => pkg?.opsi.personel.find(item => item.personel_id === id)?.nama ?? `Personel ${id}`;
   const roadName = (id: number) => { const road = pkg?.opsi.ruas.find(item => item.ruas_id === id); return road ? `${road.nomor_ruas ?? ''} ${road.nama_ruas ?? ''}`.trim() : `Ruas ${id}`; };
 
-  return <div className="wf" data-testid="server-stage3b-workspace" aria-label={`Verval berkala paket ${packageId}`}>
+  return <div className="wf" data-testid="server-stage3b-workspace" data-refreshing={refreshing ? 'true' : 'false'} aria-label={`Verval berkala paket ${packageId}`}>
     <section className="wf-panel">
       <div className="wf-panel-head"><div><h3>Tahap 3B · Verval berkala 14 hari</h3>
         <p className="wf-note">Penyedia menguji konsistensi alat/rater tiap 14 hari (IRI: KV ≤ 5%, PCI: SD ≤ 8), menerbitkan BA Verval 2-Mingguan, lalu PIC Balai memeriksa. Hasil tidak konsisten menahan data 14 hari terakhir dan membuka kasus koreksi.</p></div>
@@ -124,7 +127,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
               <div className="wf-kpi-value">{active ? (dueDays! < 0 ? 'Terlambat' : dueDays === 0 ? 'Hari ini' : `${dueDays} hari`) : '—'}</div>
               <div className="wf-note">{active ? formatDate(active.jatuh_tempo) : ''}</div></div>
           </div>
-          {actions.includes('open') && <div className="wf-toolbar"><button type="button" className="wf-button primary" data-testid="verval-open" disabled={busy} onClick={() => void openCycle()}><Plus size={13} /> Buka siklus {pkg.siklus.length ? `ke-${pkg.siklus.length + 1}` : 'pertama'}</button></div>}
+          {actions.includes('open') && <div className="wf-toolbar"><button type="button" className="wf-button primary" data-testid="verval-open" disabled={busy || refreshing} onClick={() => void openCycle()}><Plus size={13} /> Buka siklus {pkg.siklus.length ? `ke-${pkg.siklus.length + 1}` : 'pertama'}</button></div>}
           {role === PROVIDER && !pkg.boleh_buka && pkg.alasan_tidak_boleh_buka && <p className="wf-note">{pkg.alasan_tidak_boleh_buka}</p>}
           {pkg.siklus.length === 0 && <p className="wf-note">Belum ada siklus verval. {role === PROVIDER ? 'Buka siklus pertama; periodenya dimulai dari tanggal sesi survei pertama.' : 'Menunggu Penyedia membuka siklus pertama.'}</p>}
           {pkg.siklus.length > 0 && <div className="wf-table"><table className="balai-history-table" data-testid="verval-cycles">
@@ -191,7 +194,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
           <div className={`wf-callout ${preview ? (preview.consistent ? '' : 'danger') : 'warn'} wf-field full`} data-testid="verval-preview">
             {preview ? <>Rata-rata {preview.mean} · SD {preview.sd} · KV {preview.kv ?? '—'}% → <strong>{preview.consistent ? 'Konsisten' : 'Tidak konsisten'}</strong> ({preview.rule})</>
               : 'Isi minimal 2 nilai ulangan untuk melihat hasil konsistensi.'}</div>
-          <div className="wf-toolbar wf-field full"><button type="submit" className="wf-button" data-testid="verval-save-test" disabled={busy || !preview}>{busy ? 'Menyimpan…' : 'Simpan uji konsistensi'}</button></div>
+          <div className="wf-toolbar wf-field full"><button type="submit" className="wf-button" data-testid="verval-save-test" disabled={busy || refreshing || !preview}>{busy ? 'Menyimpan…' : 'Simpan uji konsistensi'}</button></div>
         </form>}
 
         {role === PROVIDER && ['BERJALAN', 'DITAHAN', 'PERLU_PERBAIKAN'].includes(cycle.status) && <div className="wf-panel" style={{ marginTop: 12 }}>
@@ -202,7 +205,7 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
             <div className="wf-fields">
               <label className="wf-field"><span>Nomor BA Verval</span><input aria-label="Nomor BA Verval" value={baNumber} maxLength={100} onChange={e => setBaNumber(e.target.value)} /></label>
               <div className="wf-toolbar wf-field" style={{ alignSelf: 'end' }}>
-                <button type="button" className="wf-button primary" data-testid="verval-submit" disabled={busy || !actions.includes('submit') || !baNumber.trim()} onClick={() => void submit()}>Ajukan ke PIC Balai</button>
+                <button type="button" className="wf-button primary" data-testid="verval-submit" disabled={busy || refreshing || !actions.includes('submit') || !baNumber.trim()} onClick={() => void submit()}>Ajukan ke PIC Balai</button>
               </div>
             </div>
             {!actions.includes('submit') && <p className="wf-note">{cycle.koreksi_terbuka > 0 ? 'Tutup kasus koreksi Verval terlebih dahulu.' : 'Catat uji konsistensi untuk setiap jenis survei paket.'}</p>}
@@ -212,8 +215,8 @@ export function ServerVervalWorkspace({ packageId, role, onNavigate }: { package
         {actions.includes('review') && <div className="wf-fields" style={{ marginTop: 12 }}>
           <label className="wf-field full"><span>Catatan pemeriksaan (wajib bila meminta perbaikan)</span><textarea aria-label="Catatan pemeriksaan Verval" value={reviewNote} maxLength={2000} onChange={e => setReviewNote(e.target.value)} /></label>
           <div className="wf-toolbar wf-field full">
-            <button type="button" className="wf-button" data-testid="verval-request-fix" disabled={busy || !reviewNote.trim()} onClick={() => void review('PERLU_PERBAIKAN')}>Minta perbaikan</button>
-            <button type="button" className="wf-button primary" data-testid="verval-accept" disabled={busy} onClick={() => void review('DITERIMA')}>Terima data 14 hari</button>
+            <button type="button" className="wf-button" data-testid="verval-request-fix" disabled={busy || refreshing || !reviewNote.trim()} onClick={() => void review('PERLU_PERBAIKAN')}>Minta perbaikan</button>
+            <button type="button" className="wf-button primary" data-testid="verval-accept" disabled={busy || refreshing} onClick={() => void review('DITERIMA')}>Terima data 14 hari</button>
           </div>
         </div>}
       </div>
