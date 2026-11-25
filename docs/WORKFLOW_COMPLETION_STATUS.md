@@ -242,3 +242,30 @@ Rail paket:
 UI: `ServerVervalWorkspace` ditulis ulang dan membaca semua data dengan satu panggilan `GET /paket/:id/verval`.
 
 Uji (menulis data): `test:verval-ui`. Lulus 2026-11-25 pada paket 3, siklus 1 DITERIMA.
+
+## 10. Halaman ringkasan dan peran Direktorat memakai data server (2026-11-25)
+
+Migrasi yang dipasang:
+- `20261125040000_tahap_paket_saya`
+- `20261125050000_direktorat_baca`
+- `20261125060000_notifikasi_saya`
+
+Semua migrasi ini hanya membaca data dan tidak mengubah tabel.
+
+| Halaman | Sumber server |
+|---|---|
+| Beranda (tahap per paket, KPI) | `GET /paket-tahap` → `baca_tahap_paket_saya` (tahap aktif, audit, sesi, koreksi; satu panggilan) |
+| Audit Tingkat 3 (Direktorat) | sama, melalui adapter `attachServerAuditFacts` ke antrean Dirah |
+| Notifikasi (semua peran) | `GET /notifikasi` → `baca_notifikasi_saya` (tugas aktif dihitung langsung dari data, tanpa penyimpanan) |
+| Analisis & Kepatuhan, Dashboard & Laporan | `useServerEnrichedPackages`: paket + fakta tahap/audit/sesi/penerimaan + kasus koreksi |
+| Dokumen Mutu (semua peran) | `GET /paket/:id/dokumen` (PDF di Supabase Storage, tombol Buka PDF lewat `/download`) + `GET /paket/:id/berita-acara` |
+
+Akses Direktorat dan Admin untuk membaca sesi survei, siklus verval, dan validasi LRS dibuka lewat `assert_survei_read` dan `assert_validasi_lrs_access` (mode baca). Hak tulis tidak berubah.
+
+Diperiksa di browser untuk ketiga peran:
+- Notifikasi: Penyedia 3 tugas, PIC 2 tugas, Direktorat 0 tugas.
+- PDF terbuka di tab baru.
+- Paket 3 tampil di "Hasil & Riwayat" Audit Tingkat 3.
+- Halaman Tahap 4 Direktorat tidak lagi menampilkan error ruas.
+
+Sisa: performa (sekitar 10 RPC per halaman paket), dan RPC lama yang masih memakai kode `40001` (checklist, kalibrasi, LRS, scope) yang bisa membuat request menggantung saat terjadi konflik.

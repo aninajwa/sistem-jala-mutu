@@ -43,6 +43,12 @@ router.get('/paket/:id/audit-penerimaan-capabilities', (_req, res) => {
 });
 
 /** Active stage of every package the caller may read, in one call (dashboard and package list). */
+/** Active tasks for the caller, derived live from workflow data (no stored notifications). */
+router.get('/notifikasi', async (_req, res) => {
+  requireEnabled();
+  await rpc(res, 'baca_notifikasi_saya', {});
+});
+
 router.get('/paket-tahap', async (_req, res) => {
   requireEnabled();
   await rpc(res, 'baca_tahap_paket_saya', {});
@@ -51,6 +57,12 @@ router.get('/paket-tahap', async (_req, res) => {
 router.get('/paket/:id/progres-akhir', async (req, res) => {
   requireEnabled();
   await rpc(res, 'baca_progres_tahap_akhir', { p_paket_id: parse(paketIdSchema, req.params.id, 'ID paket') });
+});
+
+/** Berita Acara of one package (audit, verval, penerimaan) for the Dokumen Mutu page. */
+router.get('/paket/:id/berita-acara', async (req, res) => {
+  requireEnabled();
+  await rpc(res, 'baca_berita_acara_paket', { p_paket_id: parse(paketIdSchema, req.params.id, 'ID paket') });
 });
 
 router.get('/paket/:id/upload-sistem', async (req, res) => {

@@ -1,3 +1,6 @@
+import ServerNotificationsPage from "./pages/ServerNotificationsPage";
+import { ServerCompliancePage, ServerReportsPage } from "./pages/ServerSummaryPages";
+import { ServerDirectorateAuditPage } from "./pages/audit/ServerDirectorateAuditPage";
 import ProviderWorkHome from "./pages/ProviderWorkHome";
 import { localPrincipal } from "./workflow/access/packageAccess";
 import "./design/v2.css";
@@ -505,7 +508,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
     packageStore.activeRole === "Admin" ? (
       <AdminWorkflowMonitoringPage {...pageProps} />
     ) : packageStore.activeRole === "Direktorat / Pusat" ? (
-      <DirectorateAuditPage {...pageProps} />
+      authenticatedRole ? <ServerDirectorateAuditPage {...pageProps} /> : <DirectorateAuditPage {...pageProps} />
     ) : packageStore.activeRole === "PIC Balai / Pengguna Jasa" ? (
       <VerificationPage {...pageProps} />
     ) : (
@@ -651,7 +654,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
                 />
               ) : location === "/notifications" ||
                 selectedSubmodule.startsWith("/notifications:") ? (
-                <NotificationsPage
+                authenticatedRole ? <ServerNotificationsPage {...pageProps} /> : <NotificationsPage
                   {...pageProps}
                   principal={principal}
                   onOpen={openNotificationTarget}
@@ -734,15 +737,15 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
                   </Route>
 
                   <Route path="/compliance">
-                    <CompliancePage {...pageProps} />
+                    {authenticatedRole ? <ServerCompliancePage {...pageProps} /> : <CompliancePage {...pageProps} />}
                   </Route>
 
                   <Route path="/reports">
-                    <ReportsPage
+                    {authenticatedRole ? <ServerReportsPage {...pageProps} principal={principal} /> : <ReportsPage
                       key={principal.id + principal.role}
                       {...pageProps}
                       principal={principal}
-                    />
+                    />}
                   </Route>
 
                   <Route path="/documents">
@@ -750,11 +753,11 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
                   </Route>
 
                   <Route path="/notifications">
-                    <NotificationsPage
+                    {authenticatedRole ? <ServerNotificationsPage {...pageProps} /> : <NotificationsPage
                       {...pageProps}
                       principal={principal}
                       onOpen={openNotificationTarget}
-                    />
+                    />}
                   </Route>
 
                   <Route path="/audit">

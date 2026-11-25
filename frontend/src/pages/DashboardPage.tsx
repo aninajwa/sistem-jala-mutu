@@ -6,8 +6,8 @@ import {
   type ResourceState,
 } from "./serverDashboard";
 import { useServerDashboard } from "./useServerDashboard";
-import { useServerDirahPackages } from "./useServerDirahPackages";
-import { serverStageText, useServerPackageStages, type ServerPackageStage } from "./useServerPackageStages";
+import { serverStageText, type ServerPackageStage } from "./useServerPackageStages";
+import { useServerEnrichedPackages } from "./useServerEnrichedPackages";
 import { FilterPanel } from "../design/b/FilterPanel";
 import { DirectorateMap } from "../design/b/geo/DirectorateMap";
 import {
@@ -1701,8 +1701,10 @@ type DashboardProps = PageProps & {
 
 /** Logged-in users: Dirah dashboard over server packages, with the server sync view one click away. */
 function AuthenticatedDirahDashboard({ p }: { p: DashboardProps }) {
-  const { state, reload } = useServerDirahPackages(true, p.workflow.role);
-  const serverStages = useServerPackageStages();
+  const enriched = useServerEnrichedPackages(p.workflow.role);
+  const { reload } = enriched;
+  const state = enriched.error ? { status: "error" as const, message: enriched.error } : { status: enriched.loading ? "loading" as const : "ready" as const, truncated: false };
+  const serverStages = enriched.stages;
   const [viewMode, setViewMode] = useState<"dirah" | "server">("dirah");
   const [createPackageOpen, setCreatePackageOpen] = useState(false);
   if (viewMode === "server") {
@@ -1723,14 +1725,14 @@ function AuthenticatedDirahDashboard({ p }: { p: DashboardProps }) {
             ? "Memuat paket dari server…"
             : state.status === "error"
               ? `Gagal memuat paket: ${state.message}`
-              : `${Object.keys(state.packages).length} paket dari server${state.truncated ? " (sebagian)" : ""}. Tahap per paket dibaca dari server.`}
+              : `${Object.keys(enriched.packages).length} paket dari server. Tahap per paket dibaca dari server.`}
         </span>
         {state.status === "error" && <button type="button" className="btn sm" onClick={reload}>Coba lagi</button>}
         <button type="button" className="btn sm" onClick={() => setViewMode("server")}>Status koreksi server</button>
       </div>
       <DashboardPageContent
         {...p}
-        packages={state.packages}
+        packages={enriched.packages}
         serverStages={serverStages ?? {}}
         onCreatePackage={() => setCreatePackageOpen(true)}
       />

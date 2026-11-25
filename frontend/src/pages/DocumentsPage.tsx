@@ -1,4 +1,4 @@
-import { ServerPicDocuments } from './ServerPicDocuments';
+import { ServerDocuments } from './ServerPicDocuments';
 import { FilterPanel } from "../design/b/FilterPanel";
 import { WorkspaceHeading, StatePill } from "../design/b/Patterns";
 import { FileCheck2, ArrowRight } from "lucide-react";
@@ -181,10 +181,10 @@ function statusText(row: Row) {
 }
 type DocumentsPageProps = PageProps & { authenticatedRole?: WorkflowRole; packageId?: string | null };
 
-// Authenticated PIC Balai reads package documents from the server; other roles keep the local catalog.
+// Logged-in users (every role) read package documents and Berita Acara from the server; demo mode keeps the local catalog.
 export default function DocumentsPage(p: DocumentsPageProps) {
-  if (p.authenticatedRole === "PIC Balai / Pengguna Jasa") {
-    return <ServerPicDocuments requestedPackageId={p.packageId ?? null} />;
+  if (p.authenticatedRole) {
+    return <ServerDocuments requestedPackageId={p.packageId ?? null} role={p.authenticatedRole} />;
   }
   return <LocalDocumentsPage {...p} />;
 }

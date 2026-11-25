@@ -38,3 +38,17 @@ export async function apiRequest<T>(path: string, init: RequestInit = {}, token?
   if (!body) throw new Error('Respons backend bukan JSON. Periksa alamat API/proxy frontend.');
   return body as T;
 }
+
+/** Authenticated binary GET (e.g. a PDF from /paket/:id/dokumen/:dokumenId/download). */
+export async function apiBlob(path: string, signal?: AbortSignal): Promise<Blob> {
+  if (authConfigurationError || !supabase) throw new Error(authConfigurationError || 'Konfigurasi autentikasi belum lengkap.');
+  const { data, error } = await supabase.auth.getSession();
+  if (error || !data.session) throw new ApiError(401, 'Sesi telah berakhir. Silakan masuk kembali.');
+  const base = (env.VITE_API_BASE_URL || '/api').replace(/\/$/, '');
+  const response = await fetch(base + path, { headers: { Authorization: `Bearer ${data.session.access_token}` }, signal: signal ?? AbortSignal.timeout(30000) });
+  if (!response.ok) {
+    const body = await response.json().catch(() => null);
+    throw new ApiError(response.status, body?.error || `Dokumen gagal dibuka (${response.status}).`);
+  }
+  return response.blob();
+}

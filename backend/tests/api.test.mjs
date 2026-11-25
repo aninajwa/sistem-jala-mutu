@@ -608,10 +608,11 @@ before(async () => {
       return send({ paket_id: 1, nama_paket: lastRpc.p_nama_paket, status: 'DRAFT', created_by: 3 });
     }
     const auditRpc = url.pathname.split('/').pop();
-    if (url.pathname.startsWith('/rest/v1/rpc/') && ['baca_tahap_paket_saya','baca_progres_tahap_akhir','daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
+    if (url.pathname.startsWith('/rest/v1/rpc/') && ['baca_berita_acara_paket','baca_notifikasi_saya','baca_tahap_paket_saya','baca_progres_tahap_akhir','daftar_upload_sistem','catat_upload_sistem','baca_audit','simpan_audit','putuskan_audit','baca_penerimaan','catat_penerimaan'].includes(auditRpc)) {
       let raw = ''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
       if (lastRpc.p_expected_version === 99) return send({ code: 'PT409', message: 'Audit telah berubah' }, 409);
+      if (auditRpc === 'baca_notifikasi_saya') return send([{ paket_id: 3, nama_paket: 'UJIAN', judul: 'Audit tingkat 3 siap dikerjakan', pesan: '', nada: 'action', tautan: '/verification:Audit tingkat 1–3', tenggat: null }]);
       if (auditRpc === 'baca_tahap_paket_saya') return send([{ paket_id: 3, status_paket: 'SELESAI', tahap: 'Selesai', keterangan: 'Penerimaan akhir tercatat' }]);
       return send({ rpc: auditRpc, paket_id: lastRpc.p_paket_id });
     }
@@ -2080,4 +2081,20 @@ test('package stages are read for all caller packages in one RPC call', async ()
     assert.deepEqual(r.body.data, [{ paket_id: 3, status_paket: 'SELESAI', tahap: 'Selesai', keterangan: 'Penerimaan akhir tercatat' }]);
   }
   assert.equal((await request('/paket-tahap')).status, 401);
+});
+
+test('notifications are derived per caller in one RPC call', async () => {
+  const r = await request('/notifikasi', 'director');
+  assert.equal(r.status, 200);
+  assert.equal(r.body.data[0].judul, 'Audit tingkat 3 siap dikerjakan');
+  assert.equal((await request('/notifikasi')).status, 401);
+});
+
+test('package Berita Acara are readable by every package role through one RPC', async () => {
+  for (const token of ['provider', 'reviewer', 'director']) {
+    const r = await request('/paket/3/berita-acara', token);
+    assert.equal(r.status, 200, token);
+    assert.equal(r.body.data.rpc, 'baca_berita_acara_paket');
+  }
+  assert.equal((await request('/paket/999/berita-acara', 'director')).status, 404);
 });
