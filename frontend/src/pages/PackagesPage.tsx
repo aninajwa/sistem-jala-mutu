@@ -8,7 +8,6 @@ import {
   Building2,
   Search,
   ClipboardList,
-  FolderOpen,
   Archive,
 } from "lucide-react";
 import type { OperationalWorkflowState, WorkflowRole } from "../workflow/model";
@@ -37,7 +36,6 @@ export default function PackagesPage({
   onOpenReview,
 }: Props) {
   const [compact, setCompact] = useState(false);
-  const provider = role === "Penyedia Jasa / Ketua Tim";
   const [search, setSearch] = useState("");
   const [balai, setBalai] = useState("");
   const [status, setStatus] = useState("");
@@ -117,13 +115,13 @@ export default function PackagesPage({
               <option key={v}>{v}</option>
             ))}
           </select>
-          {!provider && <button
+          <button
             className="btn"
             aria-pressed={compact}
             onClick={() => setCompact(!compact)}
           >
             {compact ? "Tampilan kartu" : "Tampilan ringkas"}
-          </button>}
+          </button>
         </div>
       </FilterPanel>
       <div className="b-catalog-caption">
@@ -146,29 +144,7 @@ export default function PackagesPage({
           </details>
         )}
       </div>
-      {provider && rows.length > 0 && (
-        <ul className="provider-case-queue" aria-label="Paket dalam penugasan">
-          {rows.map((state) => (
-            <li key={state.project.id} data-testid={`package-card-${state.project.id}`}>
-              <div>
-                <small>{state.project.contractNumber || state.project.id}</small>
-                <h2>{state.project.packageName}</h2>
-                <p>{state.project.balai} · {state.project.semester}</p>
-                <p>{state.project.surveyTypes.join(", ") || "Jenis survei belum tercatat"}</p>
-                <p>{state.project.routes.join(", ") || "Ruas belum tercatat"}</p>
-              </div>
-              <div className="provider-case-action">
-                <strong>{derivePackageStage(state)} · {packageStatus(state)}</strong>
-                <span>{packageWaitingFor(state)}</span>
-                <button type="button" className="wf-button primary" onClick={() => onOpen(state.project.id)}>
-                  Buka Paket <ArrowRight size={14} aria-hidden="true" />
-                </button>
-              </div>
-            </li>
-          ))}
-        </ul>
-      )}
-      {!provider && <div className="b-package-grid">
+      <div className="b-package-grid">
         {rows.map((s) => {
           const review =
             role === "PIC Balai / Pengguna Jasa"
@@ -260,7 +236,7 @@ export default function PackagesPage({
             </article>
           );
         })}
-      </div>}
+      </div>
       {!rows.length && (
         <Feedback
           kind="empty"
