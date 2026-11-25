@@ -2,7 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createDemoWorkflow } from '../../workflow/demoScenario';
 import { directorateAuditRows } from '../../workflow/monitoringProjection';
-import { attachServerAuditFacts } from './serverDirectorateAudit';
+import { attachServerAuditFacts, attachVervalReviews } from './serverDirectorateAudit';
 
 const base = (id: string) => { const state = createDemoWorkflow('start'); state.project.id = id; return state; };
 const stage = (paket_id: number, audit: Record<string, string>, tahap4 = 'DISETUJUI', alasan: string | null = null) =>
@@ -37,4 +37,16 @@ test('server sessions become recorded daily records and a finished package count
   assert.equal(out[3].dailyRecords[0].date, '2026-11-19');
   assert.equal(out[3].dailyRecords[0].state, 'Tercatat');
   assert.equal(out[3].acceptance.finalAcceptance, true);
+});
+
+test('the latest PIC verval decision becomes the per-survey review result', () => {
+  const pkg = base('3'); pkg.project.surveyTypes = [];
+  const out = attachVervalReviews({ 3: pkg }, { 3: [
+    { siklus_ke: 1, status: 'DITERIMA', catatan_review: null, direview_pada: '2026-11-25T03:00:00Z', nomor_ba: 'BA-1', uji: [{ jenis_kode: 'IRI' }] },
+    { siklus_ke: 2, status: 'PERLU_PERBAIKAN', catatan_review: 'Ulangi uji', direview_pada: '2026-11-26T03:00:00Z', nomor_ba: 'BA-2', uji: [{ jenis_kode: 'IRI' }] },
+    { siklus_ke: 3, status: 'BERJALAN', catatan_review: null, direview_pada: null, nomor_ba: null, uji: [] },
+  ] });
+  assert.deepEqual(out[3].cycle.surveyReviews?.IRI, { decision: 'Temuan', reviewedAt: '2026-11-26', note: 'Ulangi uji' });
+  assert.equal(out[3].activeCyclePeriod, 2);
+  assert.deepEqual(out[3].project.surveyTypes, ['IRI']);
 });

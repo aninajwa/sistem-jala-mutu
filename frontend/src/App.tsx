@@ -1,3 +1,4 @@
+import { ServerAdminMonitoringPage, ServerMasterPage } from "./pages/ServerAdminPages";
 import ServerNotificationsPage from "./pages/ServerNotificationsPage";
 import { ServerCompliancePage, ServerReportsPage } from "./pages/ServerSummaryPages";
 import { ServerDirectorateAuditPage } from "./pages/audit/ServerDirectorateAuditPage";
@@ -506,7 +507,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
 
   const roleVerificationPage =
     packageStore.activeRole === "Admin" ? (
-      <AdminWorkflowMonitoringPage {...pageProps} />
+      authenticatedRole ? <ServerAdminMonitoringPage {...pageProps} /> : <AdminWorkflowMonitoringPage {...pageProps} />
     ) : packageStore.activeRole === "Direktorat / Pusat" ? (
       authenticatedRole ? <ServerDirectorateAuditPage {...pageProps} /> : <DirectorateAuditPage {...pageProps} />
     ) : packageStore.activeRole === "PIC Balai / Pengguna Jasa" ? (
@@ -564,7 +565,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
         <main className="main-area">
           {authenticatedRole && !isPackageWorkspace && (
             <div className="auth-local-notice">
-              Masuk sebagai {userLabel}. Paket, tahap 0–6, koreksi dan tahap per paket di dashboard memakai data server; sebagian grafik ringkasan masih pratinjau lokal.
+              Masuk sebagai {userLabel}. Semua data paket, tahap 0–6, koreksi, notifikasi, laporan dan dokumen dibaca dari server Supabase.
             </div>
           )}
           <AppTopbar
@@ -717,7 +718,7 @@ export default function App({ authenticatedRole, userLabel, onSignOut }: AppProp
                   </Route>
 
                   <Route path="/data-master">
-                    <MasterPage {...pageProps} />
+                    {authenticatedRole ? <ServerMasterPage /> : <MasterPage {...pageProps} />}
                   </Route>
 
                   <Route path="/packages">{packageList}</Route>

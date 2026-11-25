@@ -29,6 +29,8 @@ export function attachServerAuditFacts(
       ...state,
       audits,
       dailyRecords: (stage.sesi ?? []).map(sessionToDailyRecord),
+      // Survey types proven by recorded sessions belong to the package scope even if the list row omits it.
+      project: { ...state.project, surveyTypes: [...new Set([...state.project.surveyTypes, ...(stage.sesi ?? []).map(sessionToDailyRecord).map(r => r.surveyType)])] },
       submission: { ...state.submission, validationStatus: stage.tahap4 === 'DISETUJUI' ? 'VALID' : 'Draft' },
       acceptance: { ...state.acceptance, finalAcceptance: finished, acceptanceDecision: finished ? 'Diterima' : state.acceptance.acceptanceDecision },
     }];
@@ -45,4 +47,25 @@ export function sessionToDailyRecord(row: ServerSessionSummary): DailySurveyReco
     surfaceDry: true, glareFree: true, speedAndLaneCompliant: true, tool: '', operator: '', driver: '', poi: '', disturbances: '', eventNotes: '',
     state: 'Tercatat',
   } as DailySurveyRecord;
+}
+
+type ReviewedCycle = { siklus_ke: number; status: string; catatan_review: string | null; direview_pada?: string | null; nomor_ba: string | null; uji: Array<{ jenis_kode: string }> };
+/**
+ * PIC decisions on verval cycles as Dirah's per-survey review results ("Hasil per survei"):
+ * DITERIMA -> Sesuai, PERLU_PERBAIKAN -> Temuan; only the latest reviewed cycle per package.
+ */
+export function attachVervalReviews(packages: Record<string, OperationalWorkflowState>, cycles: Record<string, ReviewedCycle[]>) {
+  return Object.fromEntries(Object.entries(packages).map(([id, state]) => {
+    const reviewed = (cycles[id] ?? []).filter(c => (c.status === 'DITERIMA' || c.status === 'PERLU_PERBAIKAN') && c.direview_pada)
+      .sort((a, b) => b.siklus_ke - a.siklus_ke)[0];
+    if (!reviewed) return [id, state];
+    const decision = reviewed.status === 'DITERIMA' ? 'Sesuai' as const : 'Temuan' as const;
+    const types = [...new Set(reviewed.uji.map(u => u.jenis_kode))].filter(code => (SURVEY_TYPES as readonly string[]).includes(code)) as SurveyType[];
+    const surveyReviews = Object.fromEntries(types.map(type => [type, {
+      decision, reviewedAt: reviewed.direview_pada!.slice(0, 10),
+      note: reviewed.catatan_review ?? `BA Verval ${reviewed.nomor_ba ?? ''} · siklus ke-${reviewed.siklus_ke}`,
+    }]));
+    const surveyTypes = [...new Set([...state.project.surveyTypes, ...types])];
+    return [id, { ...state, project: { ...state.project, surveyTypes }, activeCyclePeriod: reviewed.siklus_ke, cycle: { ...state.cycle, requiresReview: false, reviewPendingTypes: [], surveyReviews } }];
+  }));
 }
