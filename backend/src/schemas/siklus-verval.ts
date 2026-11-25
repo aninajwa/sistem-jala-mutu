@@ -32,3 +32,16 @@ export const siklusVervalConsistencyBodySchema = z.object({
     ctx.addIssue({ code: z.ZodIssueCode.custom, path: ['ulangan'], message: 'Nomor ulangan mesti unik dan berurutan mulai dari 1' });
   }
 });
+
+export const siklusVervalSubmitSchema = z.object({
+  expected_version: expectedVersion,
+  nomor_ba: z.string().trim().min(1).max(100),
+}).strict();
+
+export const siklusVervalReviewSchema = z.object({
+  expected_version: expectedVersion,
+  keputusan: z.enum(['DITERIMA', 'PERLU_PERBAIKAN']),
+  catatan: z.string().trim().max(2000),
+}).strict().refine(value => value.keputusan !== 'PERLU_PERBAIKAN' || value.catatan.length > 0, {
+  message: 'Catatan wajib diisi bila meminta perbaikan', path: ['catatan'],
+});

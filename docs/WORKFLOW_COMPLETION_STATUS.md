@@ -210,3 +210,35 @@ UI:
 - `/verification:Audit tingkat 1–3` dan `/reports:Penerimaan & termin` di workspace paket.
 
 Uji (menulis data): `test:audit-acceptance-ui`. Butuh kredensial `JM_PROVIDER_*`, `JM_PIC_*` dan `JM_DIRECTOR_*` di env.
+
+## 9. Tahap 3B Verval 14 hari dan rail lengkap (2026-11-25)
+
+Migrasi yang dipasang:
+- `20261125000000_status_tahap_akhir`: paket menjadi SELESAI saat penerimaan akhir dicatat, dan rail Tahap 4–6 mendapat status dari server.
+- `20261125010000_rail_tahap1_3_direktorat`: Direktorat dan Admin boleh membaca konfirmasi Tahap 1, dan rail menerima jumlah sesi survei dan siklus verval.
+- `20261125020000_verval_14_hari`: gate `STAGE3B_PRODUCTION_RPCS`.
+
+Aturan Verval 14 hari (disetujui pemilik proyek 2026-11-25, mengikuti flowchart 02):
+1. **Periode siklus.** Siklus 1 dimulai pada tanggal sesi survei pertama. Siklus N+1 dimulai sehari setelah siklus N berakhir. Setiap siklus berlangsung 14 hari, dan jatuh temponya hari terakhir periode.
+2. **Membuka siklus berikutnya.** Siklus baru boleh dibuka segera setelah siklus sebelumnya DITERIMA, tanpa menunggu tanggal. Siklus yang melewati jatuh tempo ditandai "Terlambat".
+3. **Uji konsistensi.**
+   - Minimal 2 ulangan. Server menghitung rata-rata, SD, dan KV.
+   - IRI dan jenis lain lulus kalau KV ≤ 5%. PCI lulus kalau SD ≤ 8.
+   - PCI dan Drainase wajib memakai rater yang berbeda untuk setiap ulangan.
+   - Yang dinilai adalah uji terakhir per jenis survei.
+4. **Pengajuan BA.**
+   - Butuh uji untuk setiap jenis survei paket.
+   - Kalau ada yang tidak konsisten, siklus menjadi DITAHAN dan kasus Koreksi dibuka otomatis (tahap tertahan `Verval 14 hari`).
+   - Setelah kasus ditutup, Penyedia menguji ulang lalu mengajukan kembali.
+5. **Pemeriksaan PIC.**
+   - DITERIMA: BA `VERVAL_2_MINGGUAN` dicatat.
+   - PERLU_PERBAIKAN: catatan wajib diisi.
+6. **Syarat Tahap 4.** Pengajuan Tahap 4 membutuhkan minimal satu siklus DITERIMA, dan tidak boleh ada siklus yang masih terbuka.
+
+Rail paket:
+- Tahap 1 hijau saat konfirmasi PIC disetujui dan snapshot-nya cocok.
+- Tahap 3A dan 3B hijau saat Tahap 4 DISETUJUI, karena periode survei dianggap selesai. Sebelum itu, 3B menampilkan "n/m siklus diterima", atau status tertahan kalau ada siklus DITAHAN.
+
+UI: `ServerVervalWorkspace` ditulis ulang dan membaca semua data dengan satu panggilan `GET /paket/:id/verval`.
+
+Uji (menulis data): `test:verval-ui`. Lulus 2026-11-25 pada paket 3, siklus 1 DITERIMA.

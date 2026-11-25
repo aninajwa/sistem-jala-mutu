@@ -140,6 +140,12 @@ before(async () => {
         ],
       }]);
     }
+    if (['/rest/v1/rpc/baca_verval_paket','/rest/v1/rpc/ajukan_verval','/rest/v1/rpc/review_verval'].includes(url.pathname)) {
+      let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
+      if (lastRpc.p_paket_id === 999) return send({ code: 'P0002', message: 'Paket tidak ditemukan' }, 404);
+      if (lastRpc.p_expected_version === 99) return send({ code: 'PT409', message: 'Siklus Verval telah berubah. Muat ulang' }, 409);
+      return send({ rpc: url.pathname.split('/').pop(), paket_id: lastRpc.p_paket_id });
+    }
     if (url.pathname === '/rest/v1/rpc/buat_siklus_verval') {
       let raw=''; for await (const chunk of req) raw += chunk; lastRpc = JSON.parse(raw);
       if (token === 'foreign-reviewer' || lastRpc.p_paket_id !== 9 || ['inactive-testqa','no-testqa-allowlist','blank-testqa-purpose'].includes(token)) return send({ code: '42501', message: 'Paket tidak terdaftar aktif untuk pengujian Verval TEST/QA' }, 403);
@@ -2035,4 +2041,33 @@ test('only the PIC records a term acceptance with a BA number', async () => {
 test('Admin cannot write audit or acceptance data', async () => {
   assert.equal((await request('/paket/3/audit/1', 'admin', { expected_version: 0 }, 'PUT')).status, 403);
   assert.equal((await request('/paket/3/penerimaan/1', 'admin', { expected_version: 0, jenis: 'PARSIAL', nomor_ba: 'X' })).status, 403);
+});
+
+test('Verval package read is one aggregated RPC open to package roles', async () => {
+  for (const token of ['provider', 'reviewer', 'director']) {
+    const r = await request('/paket/3/verval', token);
+    assert.equal(r.status, 200, token);
+    assert.equal(r.body.data.rpc, 'baca_verval_paket');
+  }
+  assert.equal((await request('/paket/999/verval', 'provider')).status, 404);
+});
+
+test('only the Penyedia submits a Verval cycle with a BA number and version', async () => {
+  const body = { expected_version: 2, nomor_ba: 'BA-VERVAL-1' };
+  assert.equal((await request('/paket/3/siklus-verval/5/ajukan', 'reviewer', body)).status, 403);
+  assert.equal((await request('/paket/3/siklus-verval/5/ajukan', 'provider', { ...body, nomor_ba: ' ' })).status, 400);
+  const r = await request('/paket/3/siklus-verval/5/ajukan', 'provider', body);
+  assert.equal(r.status, 200);
+  assert.deepEqual(lastRpc, { p_paket_id: 3, p_siklus_id: 5, p_expected_version: 2, p_nomor_ba: 'BA-VERVAL-1' });
+  const stale = await request('/paket/3/siklus-verval/5/ajukan', 'provider', { ...body, expected_version: 99 });
+  assert.equal(stale.status, 409);
+  assert.equal(stale.body.error, 'Siklus Verval telah berubah. Muat ulang');
+});
+
+test('only the PIC reviews a Verval cycle and a correction request needs a note', async () => {
+  assert.equal((await request('/paket/3/siklus-verval/5/review', 'provider', { expected_version: 3, keputusan: 'DITERIMA', catatan: '' })).status, 403);
+  assert.equal((await request('/paket/3/siklus-verval/5/review', 'reviewer', { expected_version: 3, keputusan: 'PERLU_PERBAIKAN', catatan: '' })).status, 400);
+  const r = await request('/paket/3/siklus-verval/5/review', 'reviewer', { expected_version: 3, keputusan: 'DITERIMA', catatan: '' });
+  assert.equal(r.status, 200);
+  assert.deepEqual(lastRpc, { p_paket_id: 3, p_siklus_id: 5, p_expected_version: 3, p_keputusan: 'DITERIMA', p_catatan: '' });
 });

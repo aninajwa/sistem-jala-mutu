@@ -1,221 +1,227 @@
-import { useEffect, useRef, useState, type FormEvent } from 'react';
-import { RefreshCw, ArrowLeft, ArrowRight } from 'lucide-react';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ArrowLeft, ArrowRight, CalendarClock, Plus, RefreshCw } from 'lucide-react';
 import { apiRequest } from '../auth/client';
-import { createVervalCycleAndConfirm, displayVervalValue, getStage3BCapabilities, getVervalConsistency, getVervalCycle, getVervalCycles, saveConsistencyAndConfirm, type ConsistencyCheck, type Stage3BCapabilities, type VervalCycle } from './serverVervalData';
+import { getStage3BCapabilities, type Stage3BCapabilities } from './serverVervalData';
+import {
+  consistencyPreview, daysUntil, formatDate, getVervalPackage, latestTestsByType, openVervalCycle, recordConsistency,
+  reviewVervalCycle, STATUS_LABEL, submitVervalCycle, vervalActions, vervalErrorMessage,
+  type VervalCycleRow, type VervalPackage,
+} from './verval/vervalRules';
 
-function attributes(record: Record<string, unknown>) {
-  return Object.entries(record).map(([key, value]) => <div className="package-context-grid" key={key}>
-    <small>{key.replaceAll('_', ' ')}</small><strong>{displayVervalValue(key, value)}</strong>
-  </div>);
-}
+const PROVIDER = 'Penyedia Jasa / Ketua Tim';
+const emptyRepeat = () => ({ rater_personel_id: '', nilai: '' });
 
-export function ServerVervalWorkspace({
-  packageId,
-  role,
-  onNavigate,
-}: {
-  packageId: string;
-  role: string;
-  onNavigate?: (selection: string) => void;
-}) {
+/** Tahap 3B: Penyedia's self-run verval every 14 days (flowchart 02), reviewed by the PIC Balai. */
+export function ServerVervalWorkspace({ packageId, role, onNavigate }: { packageId: string; role: string; onNavigate?: (selection: string) => void }) {
+  const navigate = (selection: string) => onNavigate ? onNavigate(selection) : window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: selection }));
   const [capabilities, setCapabilities] = useState<Stage3BCapabilities | null>(null);
-  const [capabilityError, setCapabilityError] = useState('');
-  const [mutationBusy, setMutationBusy] = useState(false);
-  const [mutationError, setMutationError] = useState('');
-  const [consistencyDraft, setConsistencyDraft] = useState({ jenis_survei_id: '', tim_id: '', ruas_id: '', sta_awal: '', sta_akhir: '' });
-  const [repeatDraft, setRepeatDraft] = useState([{ rater_personel_id: '', nilai: '' }]);
-  const [cycles, setCycles] = useState<VervalCycle[]>([]);
-  const [listLoading, setListLoading] = useState(true);
-  const [listError, setListError] = useState('');
-  const [listRevision, setListRevision] = useState(0);
+  const [pkg, setPkg] = useState<VervalPackage | null>(null);
+  const [loadError, setLoadError] = useState('');
+  const [revision, setRevision] = useState(0);
   const [selectedId, setSelectedId] = useState<number | null>(null);
-  const [cycle, setCycle] = useState<VervalCycle | null>(null);
-  const [cycleLoading, setCycleLoading] = useState(false);
-  const [cycleError, setCycleError] = useState('');
-  const [consistency, setConsistency] = useState<ConsistencyCheck[]>([]);
-  const [consistencyLoading, setConsistencyLoading] = useState(false);
-  const [consistencyError, setConsistencyError] = useState('');
-  const [detailRevision, setDetailRevision] = useState(0);
-  const cycleRequestId = useRef<string | null>(null);
-  const consistencyRequestId = useRef<string | null>(null);
-
-  const navigate = (to: string) => {
-    if (onNavigate) onNavigate(to);
-    else window.dispatchEvent(new CustomEvent('jalamutu:navigate', { detail: to }));
-  };
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const [message, setMessage] = useState('');
+  const [draft, setDraft] = useState({ jenis_survei_id: '', tim_id: '', ruas_id: '', sta_awal: '0', sta_akhir: '300' });
+  const [repeats, setRepeats] = useState([emptyRepeat(), emptyRepeat(), emptyRepeat()]);
+  const [baNumber, setBaNumber] = useState('');
+  const [reviewNote, setReviewNote] = useState('');
+  const openRequest = useRef<string | null>(null);
+  const testRequest = useRef<string | null>(null);
 
   useEffect(() => {
     const controller = new AbortController();
-    setCapabilities(null); setCapabilityError('');
-    getStage3BCapabilities(packageId, apiRequest, controller.signal).then(setCapabilities).catch(error => {
-      if (!controller.signal.aborted) setCapabilityError(error instanceof Error ? error.message : 'Kesiapan Stage 3B tidak dapat dibaca.');
-    });
+    getStage3BCapabilities(packageId, apiRequest, controller.signal)
+      .then(value => { if (!controller.signal.aborted) setCapabilities(value); })
+      .catch(reason => { if (!controller.signal.aborted) setLoadError(vervalErrorMessage(reason)); });
     return () => controller.abort();
   }, [packageId]);
 
   useEffect(() => {
+    if (!capabilities?.read) return;
     const controller = new AbortController();
-    if (!capabilities?.read) {
-      setCycles([]); setListLoading(false); setListError(''); setSelectedId(null);
-      return () => controller.abort();
-    }
-    setListLoading(true);
-    setListError('');
-    getVervalCycles(packageId, apiRequest, controller.signal).then(rows => {
+    setLoadError('');
+    getVervalPackage(packageId, controller.signal).then(data => {
       if (controller.signal.aborted) return;
-      setCycles(rows);
-      setSelectedId(current => current !== null && rows.some(row => row.siklus_id === current) ? current : null);
-    }).catch(error => {
-      if (!controller.signal.aborted) setListError(error instanceof Error ? error.message : 'Gagal memuat siklus Verval.');
-    }).finally(() => {
-      if (!controller.signal.aborted) setListLoading(false);
-    });
+      setPkg(data);
+      setSelectedId(current => current !== null && data.siklus.some(row => row.siklus_id === current) ? current
+        : (data.siklus.find(row => row.status !== 'DITERIMA') ?? data.siklus[data.siklus.length - 1])?.siklus_id ?? null);
+      setDraft(current => ({
+        ...current,
+        jenis_survei_id: current.jenis_survei_id || String(data.opsi.jenis_survei[0]?.jenis_survei_id ?? ''),
+        tim_id: current.tim_id || String(data.opsi.tim[0]?.tim_id ?? ''),
+        ruas_id: current.ruas_id || String(data.opsi.ruas[0]?.ruas_id ?? ''),
+      }));
+      setRepeats(current => current.map(row => ({ ...row, rater_personel_id: row.rater_personel_id || String(data.opsi.personel[0]?.personel_id ?? '') })));
+    }).catch(reason => { if (!controller.signal.aborted) setLoadError(vervalErrorMessage(reason)); });
     return () => controller.abort();
-  }, [packageId, listRevision, capabilities?.read]);
+  }, [packageId, capabilities?.read, revision]);
 
-  useEffect(() => {
-    if (selectedId === null) {
-      setCycle(null);
-      setCycleError('');
-      setCycleLoading(false);
-      setConsistency([]);
-      setConsistencyError('');
-      setConsistencyLoading(false);
-      return;
-    }
-    const controller = new AbortController();
-    setCycleLoading(true);
-    setCycleError('');
-    setCycle(null);
-    getVervalCycle(packageId, selectedId, apiRequest, controller.signal).then(value => {
-      if (!controller.signal.aborted) setCycle(value);
-    }).catch(error => {
-      if (!controller.signal.aborted) setCycleError(error instanceof Error ? error.message : 'Gagal memuat detail siklus.');
-    }).finally(() => {
-      if (!controller.signal.aborted) setCycleLoading(false);
-    });
+  const cycle = pkg?.siklus.find(row => row.siklus_id === selectedId) ?? null;
+  const actions = pkg ? vervalActions(pkg, cycle, role) : [];
+  const selectedType = pkg?.opsi.jenis_survei.find(item => String(item.jenis_survei_id) === draft.jenis_survei_id);
+  const preview = consistencyPreview(repeats.map(row => row.nilai === '' ? Number.NaN : Number(row.nilai)), selectedType?.kode ?? '');
+  const accepted = pkg?.siklus.filter(row => row.status === 'DITERIMA').length ?? 0;
+  const active = pkg?.siklus.find(row => row.status !== 'DITERIMA') ?? null;
+  const dueDays = active ? daysUntil(active.jatuh_tempo) : null;
+  const typeChecks = useMemo(() => pkg && cycle ? latestTestsByType(pkg, cycle) : [], [pkg, cycle]);
 
-    setConsistencyLoading(true);
-    setConsistencyError('');
-    setConsistency([]);
-    getVervalConsistency(packageId, selectedId, apiRequest, controller.signal).then(rows => {
-      if (!controller.signal.aborted) setConsistency(rows);
-    }).catch(error => {
-      if (!controller.signal.aborted) setConsistencyError(error instanceof Error ? error.message : 'Gagal memuat uji konsistensi.');
-    }).finally(() => {
-      if (!controller.signal.aborted) setConsistencyLoading(false);
-    });
-    return () => controller.abort();
-  }, [packageId, selectedId, detailRevision, capabilities?.read]);
-
-  async function openCycle() {
-    setMutationBusy(true); setMutationError('');
-    try { cycleRequestId.current ??= crypto.randomUUID(); const result = await createVervalCycleAndConfirm(packageId, apiRequest, cycleRequestId.current); cycleRequestId.current = null; setCycles(result.cycles); setSelectedId(result.cycle.siklus_id); setListRevision(value => value + 1); }
-    catch (error) { setMutationError(error instanceof Error ? error.message : 'Gagal membuka siklus.'); }
-    finally { setMutationBusy(false); }
-  }
-
-  async function saveConsistency(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    if (!cycle || selectedId === null) return;
-    const ids = [consistencyDraft.jenis_survei_id, consistencyDraft.tim_id, consistencyDraft.ruas_id].map(Number);
-    const raters = repeatDraft.map(row => Number(row.rater_personel_id));
-    const values = [consistencyDraft.sta_awal, consistencyDraft.sta_akhir, ...repeatDraft.map(row => row.nilai)].map(Number);
-    if (ids.some(value => !Number.isSafeInteger(value) || value < 1) || raters.some(value => !Number.isSafeInteger(value) || value < 1) || values.some(value => !Number.isFinite(value))) { setMutationError('Isi semua ID dan nilai numerik dengan benar.'); return; }
-    setMutationBusy(true); setMutationError('');
+  async function run(action: () => Promise<unknown>, done: string) {
+    setBusy(true); setError(''); setMessage('');
     try {
-      const result = await saveConsistencyAndConfirm(packageId, selectedId, {
-        request_id: consistencyRequestId.current ??= crypto.randomUUID(), expected_version: cycle.versi ?? 0,
-        jenis_survei_id: ids[0], tim_id: ids[1], ruas_id: ids[2], sta_awal: values[0], sta_akhir: values[1],
-        ulangan: repeatDraft.map((row, index) => ({ ulangan_ke: index + 1, rater_personel_id: raters[index], nilai: Number(row.nilai) })),
-      }, apiRequest);
-      consistencyRequestId.current = null;
-      setCycles(result.cycles); setConsistency(result.checks); setDetailRevision(value => value + 1);
-      setConsistencyDraft({ jenis_survei_id: '', tim_id: '', ruas_id: '', sta_awal: '', sta_akhir: '' });
-      setRepeatDraft([{ rater_personel_id: '', nilai: '' }]);
-    } catch (error) { setMutationError(error instanceof Error ? error.message : 'Gagal menyimpan uji konsistensi.'); }
-    finally { setMutationBusy(false); }
+      await action();
+      setMessage(done);
+      setRevision(value => value + 1);
+      window.dispatchEvent(new CustomEvent('jalamutu:package-stage-facts-refresh', { detail: { packageId } }));
+    } catch (reason) { setError(vervalErrorMessage(reason)); } finally { setBusy(false); }
   }
+  const openCycle = () => run(async () => {
+    openRequest.current ??= crypto.randomUUID();
+    const created = await openVervalCycle(packageId, openRequest.current);
+    openRequest.current = null;
+    setSelectedId(created.siklus_id);
+  }, 'Siklus verval baru dibuka.');
+  function saveTest(event: FormEvent) {
+    event.preventDefault();
+    if (!cycle) return;
+    void run(async () => {
+      testRequest.current ??= crypto.randomUUID();
+      await recordConsistency(packageId, cycle.siklus_id, {
+        request_id: testRequest.current, expected_version: cycle.versi ?? 0,
+        jenis_survei_id: Number(draft.jenis_survei_id), tim_id: Number(draft.tim_id), ruas_id: Number(draft.ruas_id),
+        sta_awal: Number(draft.sta_awal), sta_akhir: Number(draft.sta_akhir),
+        ulangan: repeats.map((row, index) => ({ ulangan_ke: index + 1, rater_personel_id: Number(row.rater_personel_id), nilai: Number(row.nilai) })),
+      });
+      testRequest.current = null;
+      setRepeats(current => current.map(row => ({ ...row, nilai: '' })));
+    }, 'Uji konsistensi tersimpan di server.');
+  }
+  const submit = () => cycle && run(() => submitVervalCycle(packageId, cycle.siklus_id, cycle.versi, baNumber.trim()),
+    'BA Verval diajukan. Bila ada uji tidak konsisten, siklus ditahan dan kasus koreksi dibuka otomatis.');
+  const review = (keputusan: 'DITERIMA' | 'PERLU_PERBAIKAN') => cycle && run(async () => {
+    await reviewVervalCycle(packageId, cycle.siklus_id, cycle.versi, keputusan, reviewNote.trim());
+    setReviewNote('');
+  }, keputusan === 'DITERIMA' ? 'Siklus diterima. BA Verval 2-Mingguan tercatat.' : 'Siklus dikembalikan ke Penyedia untuk perbaikan.');
 
-  return <div data-testid="server-stage3b-workspace" aria-label={`Verval berkala paket ${packageId}`}>
-    <section className="wf-panel" aria-labelledby="server-verval-list-title">
-      <div className="wf-panel-head"><h3 id="server-verval-list-title">Siklus Verval · Paket #{packageId}</h3>
-        <button type="button" className="wf-button" disabled={!capabilities?.read || listLoading} onClick={() => setListRevision(value => value + 1)}><RefreshCw size={13} /> {listLoading ? 'Memuat…' : 'Muat semula siklus'}</button>
-      </div>
+  const personName = (id: number) => pkg?.opsi.personel.find(item => item.personel_id === id)?.nama ?? `Personel ${id}`;
+  const roadName = (id: number) => { const road = pkg?.opsi.ruas.find(item => item.ruas_id === id); return road ? `${road.nomor_ruas ?? ''} ${road.nama_ruas ?? ''}`.trim() : `Ruas ${id}`; };
+
+  return <div className="wf" data-testid="server-stage3b-workspace" aria-label={`Verval berkala paket ${packageId}`}>
+    <section className="wf-panel">
+      <div className="wf-panel-head"><div><h3>Tahap 3B · Verval berkala 14 hari</h3>
+        <p className="wf-note">Penyedia menguji konsistensi alat/rater tiap 14 hari (IRI: KV ≤ 5%, PCI: SD ≤ 8), menerbitkan BA Verval 2-Mingguan, lalu PIC Balai memeriksa. Hasil tidak konsisten menahan data 14 hari terakhir dan membuka kasus koreksi.</p></div>
+        <button type="button" className="wf-button" disabled={!capabilities?.read || busy} onClick={() => setRevision(value => value + 1)}><RefreshCw size={13} /> Muat ulang</button></div>
       <div className="wf-body">
-        {capabilityError && <div role="alert" className="wf-callout danger">{capabilityError}</div>}
-        {!capabilityError && !capabilities && <p role="status">Memeriksa kesiapan RPC Stage 3B…</p>}
-        {capabilities && !capabilities.read && <div className="wf-callout warn" role="status"><strong>Verval Berkala belum tersedia</strong><p>Anda masih dapat melihat sesi dan segmen yang sudah tercatat di Survei Harian.</p></div>}
-        {capabilities?.write && <div className="wf-toolbar"><button type="button" className="wf-button" disabled={mutationBusy || role !== 'Penyedia Jasa / Ketua Tim'} onClick={openCycle}>Buka siklus berikutnya</button></div>}
-        {mutationError && <div role="alert" className="wf-callout danger">{mutationError}</div>}
-        {capabilities?.read && listLoading && <p role="status">Memuat daftar siklus Verval…</p>}
-        {!listLoading && capabilities?.read && listError && <div role="alert" className="wf-callout danger">{listError}<button type="button" className="wf-button" onClick={() => setListRevision(value => value + 1)}>Coba lagi</button></div>}
-        {!listLoading && capabilities?.read && !listError && cycles.length === 0 && <p className="wf-note">Belum ada siklus Verval untuk paket ini.</p>}
-        {!listLoading && !listError && cycles.length > 0 && <div className="wf-table-wrap"><table className="wf-table">
-          <thead><tr><th>Siklus</th><th>Periode</th><th>Status</th><th>Maklumat</th></tr></thead>
-          <tbody>{cycles.map(item => <tr key={item.siklus_id}>
-            <td><button type="button" className="wf-button" aria-pressed={selectedId === item.siklus_id} onClick={() => setSelectedId(item.siklus_id)}>Pilih siklus #{item.siklus_id}{item.siklus_ke == null ? '' : ` · Ke-${item.siklus_ke}`}</button></td>
-            <td>{displayVervalValue('periode_mulai', item.periode_mulai)} – {displayVervalValue('periode_selesai', item.periode_selesai)}</td>
-            <td>{displayVervalValue('status', item.status)}</td>
-            <td>{Object.keys(item).length} atribut dari API</td>
-          </tr>)}</tbody>
-        </table></div>}
+        {capabilities && !capabilities.read && <div className="wf-callout warn" role="status"><strong>Verval Berkala belum tersedia</strong><p>Fitur ini belum diaktifkan di server. Sesi dan segmen tetap dapat dilihat di Survei Harian.</p></div>}
+        {loadError && <div role="alert" className="wf-callout danger">{loadError} <button type="button" className="wf-button" onClick={() => setRevision(value => value + 1)}>Coba lagi</button></div>}
+        {capabilities?.read && !pkg && !loadError && <p role="status" className="wf-note">Memuat siklus verval…</p>}
+        {pkg && <>
+          <div className="wf-kpis">
+            <div className="wf-kpi"><div className="wf-kpi-label">Siklus diterima PIC</div><div className="wf-kpi-value" data-testid="verval-accepted">{accepted}</div></div>
+            <div className="wf-kpi"><div className="wf-kpi-label">Siklus aktif</div><div className="wf-kpi-value">{active ? `Ke-${active.siklus_ke}` : '—'}</div>
+              <div className="wf-note">{active ? STATUS_LABEL[active.status].label : 'Tidak ada siklus terbuka'}</div></div>
+            <div className="wf-kpi"><div className="wf-kpi-label">Jatuh tempo</div>
+              <div className="wf-kpi-value">{active ? (dueDays! < 0 ? 'Terlambat' : dueDays === 0 ? 'Hari ini' : `${dueDays} hari`) : '—'}</div>
+              <div className="wf-note">{active ? formatDate(active.jatuh_tempo) : ''}</div></div>
+          </div>
+          {actions.includes('open') && <div className="wf-toolbar"><button type="button" className="wf-button primary" data-testid="verval-open" disabled={busy} onClick={() => void openCycle()}><Plus size={13} /> Buka siklus {pkg.siklus.length ? `ke-${pkg.siklus.length + 1}` : 'pertama'}</button></div>}
+          {role === PROVIDER && !pkg.boleh_buka && pkg.alasan_tidak_boleh_buka && <p className="wf-note">{pkg.alasan_tidak_boleh_buka}</p>}
+          {pkg.siklus.length === 0 && <p className="wf-note">Belum ada siklus verval. {role === PROVIDER ? 'Buka siklus pertama; periodenya dimulai dari tanggal sesi survei pertama.' : 'Menunggu Penyedia membuka siklus pertama.'}</p>}
+          {pkg.siklus.length > 0 && <div className="wf-table"><table className="balai-history-table" data-testid="verval-cycles">
+            <thead><tr><th>Siklus</th><th>Periode 14 hari</th><th>Survei</th><th>BA</th><th>Status</th></tr></thead>
+            <tbody>{pkg.siklus.map(row => <tr key={row.siklus_id} aria-selected={row.siklus_id === selectedId} style={row.siklus_id === selectedId ? { background: '#f0f7f4' } : undefined}>
+              <td><button type="button" className="wf-button" aria-pressed={row.siklus_id === selectedId} onClick={() => setSelectedId(row.siklus_id)}>Siklus ke-{row.siklus_ke}</button></td>
+              <td>{formatDate(row.periode_mulai)} – {formatDate(row.periode_selesai)}{row.terlambat && <div><span className="wf-status bad">Terlambat</span></div>}</td>
+              <td>{row.jumlah_sesi} sesi · {Number(row.panjang_km).toLocaleString('id-ID')} km</td>
+              <td>{row.nomor_ba ?? '—'}</td>
+              <td><span className={`wf-status ${STATUS_LABEL[row.status].tone}`} data-testid={`verval-status-${row.siklus_ke}`}>{STATUS_LABEL[row.status].label}</span></td>
+            </tr>)}</tbody>
+          </table></div>}
+          {message && <div role="status" className="wf-callout">{message}</div>}
+          {error && <div role="alert" className="wf-callout danger">{error}</div>}
+        </>}
       </div>
     </section>
 
-    {selectedId !== null && <>
-      <section className="wf-panel" aria-labelledby="server-verval-detail-title">
-        <div className="wf-panel-head"><h3 id="server-verval-detail-title">Detail siklus #{selectedId}</h3>
-          <button type="button" className="wf-button" disabled={cycleLoading || consistencyLoading} onClick={() => setDetailRevision(value => value + 1)}><RefreshCw size={13} /> {cycleLoading || consistencyLoading ? 'Memuat…' : 'Muat semula detail & konsistensi'}</button>
-        </div>
-        <div className="wf-body">
-          {cycleLoading && <p role="status">Memuat detail siklus…</p>}
-          {!cycleLoading && cycleError && <div role="alert" className="wf-callout danger">{cycleError}<button type="button" className="wf-button" onClick={() => setDetailRevision(value => value + 1)}>Coba lagi</button></div>}
-          {!cycleLoading && cycle && <div className="package-context-grid verval-cycle-attributes" data-testid="verval-cycle-attributes">{attributes(cycle as Record<string, unknown>)}</div>}
-        </div>
-      </section>
+    {pkg && cycle && <section className="wf-panel" data-testid="verval-cycle-detail" aria-label={`Siklus ke-${cycle.siklus_ke}`}>
+      <div className="wf-panel-head"><div><h4>Siklus ke-{cycle.siklus_ke} · {formatDate(cycle.periode_mulai)} – {formatDate(cycle.periode_selesai)}</h4>
+        <p className="wf-note"><CalendarClock size={12} /> Jatuh tempo {formatDate(cycle.jatuh_tempo)}{cycle.nomor_ba ? ` · BA ${cycle.nomor_ba}` : ''}</p></div>
+        <span className={`wf-status ${STATUS_LABEL[cycle.status].tone}`}>{STATUS_LABEL[cycle.status].label}</span></div>
+      <div className="wf-body">
+        {cycle.status === 'DITAHAN' && <div className="wf-callout danger" role="status"><strong>Data 14 hari terakhir ditahan</strong>
+          <p>{cycle.koreksi_terbuka > 0 ? 'Selesaikan kasus koreksi Verval, lalu catat uji ulang dan ajukan kembali.' : 'Kasus koreksi sudah ditutup. Catat uji ulang lalu ajukan kembali.'}</p>
+          {cycle.koreksi_terbuka > 0 && <button type="button" className="wf-button" onClick={() => navigate('/actions:Koreksi berbukti')}>Buka Koreksi</button>}</div>}
+        {cycle.status === 'PERLU_PERBAIKAN' && <div className="wf-callout warn"><strong>Catatan PIC</strong><p>{cycle.catatan_review}</p></div>}
+        {cycle.status === 'DIAJUKAN' && <div className="wf-callout warn" role="status">BA Verval {cycle.nomor_ba} menunggu pemeriksaan PIC Balai.</div>}
+        {cycle.status === 'DITERIMA' && <div className="wf-callout" role="status"><strong>Data 14 hari diterima</strong><p>BA Verval 2-Mingguan {cycle.nomor_ba}{cycle.catatan_review ? ` · ${cycle.catatan_review}` : ''}</p></div>}
 
-      <section className="wf-panel" aria-labelledby="server-verval-consistency-title">
-        <div className="wf-panel-head"><h3 id="server-verval-consistency-title">Uji konsistensi · Siklus #{selectedId}</h3></div>
-        <div className="wf-body">
-          {consistencyLoading && <p role="status">Memuat uji konsistensi…</p>}
-          {!consistencyLoading && consistencyError && <div role="alert" className="wf-callout danger">{consistencyError}<button type="button" className="wf-button" onClick={() => setDetailRevision(value => value + 1)}>Coba lagi</button></div>}
-          {!consistencyLoading && !consistencyError && consistency.length === 0 && <p className="wf-note">Belum ada rekod uji konsistensi yang dipulangkan untuk siklus ini.</p>}
-          {!consistencyLoading && !consistencyError && consistency.map(row => <article className="wf-panel" key={row.konsistensi_id}>
-            <div className="wf-panel-head"><h4>Konsistensi #{row.konsistensi_id}</h4></div>
-            <div className="wf-body"><div className="package-context-grid">{attributes(row as Record<string, unknown>)}</div></div>
-          </article>)}
-          {capabilities?.write && role === 'Penyedia Jasa / Ketua Tim' && cycle && <form className="wf-body" onSubmit={saveConsistency} aria-label="Tambah uji konsistensi">
-            <p className="wf-note">Entri ditolak server bila relasi paket/tim/ruas/personel tidak sesuai. Semua ulangan disimpan dalam satu transaksi.</p>
+        <h4>Uji konsistensi</h4>
+        {cycle.uji.length === 0 ? <p className="wf-note">Belum ada uji konsistensi pada siklus ini.</p>
+          : <div className="wf-table"><table className="balai-history-table" data-testid="verval-tests">
+            <thead><tr><th>Jenis</th><th>Lokasi</th><th>Ulangan</th><th>Rata-rata</th><th>SD</th><th>KV</th><th>Hasil</th></tr></thead>
+            <tbody>{cycle.uji.map(test => <tr key={test.konsistensi_id}>
+              <td>{test.jenis_kode}</td>
+              <td>{roadName(test.ruas_id)}<div className="wf-note">STA {test.sta_awal}–{test.sta_akhir}</div></td>
+              <td>{test.ulangan.map(item => item.nilai).join(' · ')}<div className="wf-note">{[...new Set(test.ulangan.map(item => personName(item.rater_personel_id)))].join(', ')}</div></td>
+              <td>{test.rata_rata ?? '—'}</td><td>{test.simpangan_baku ?? '—'}</td><td>{test.kv_persen == null ? '—' : `${test.kv_persen}%`}</td>
+              <td><span className={`wf-status ${test.status === 'Konsisten' ? 'ok' : 'bad'}`}>{test.status}</span></td>
+            </tr>)}</tbody></table></div>}
+
+        {actions.includes('record') && capabilities?.write && <form className="wf-fields" style={{ marginTop: 12 }} onSubmit={saveTest} aria-label="Catat uji konsistensi">
+          <label className="wf-field"><span>Jenis survei</span><select value={draft.jenis_survei_id} onChange={e => setDraft({ ...draft, jenis_survei_id: e.target.value })}>
+            {pkg.opsi.jenis_survei.map(item => <option key={item.jenis_survei_id} value={item.jenis_survei_id}>{item.kode} · {item.nama}</option>)}</select></label>
+          <label className="wf-field"><span>Tim</span><select value={draft.tim_id} onChange={e => setDraft({ ...draft, tim_id: e.target.value })}>
+            {pkg.opsi.tim.map(item => <option key={item.tim_id} value={item.tim_id}>{item.nama_tim}</option>)}</select></label>
+          <label className="wf-field"><span>Ruas lokasi kontrol</span><select value={draft.ruas_id} onChange={e => setDraft({ ...draft, ruas_id: e.target.value })}>
+            {pkg.opsi.ruas.map(item => <option key={item.ruas_id} value={item.ruas_id}>{roadName(item.ruas_id)}</option>)}</select></label>
+          <div className="wf-field" style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
+            <label className="wf-field"><span>STA awal (m)</span><input type="number" min="0" step="any" value={draft.sta_awal} onChange={e => setDraft({ ...draft, sta_awal: e.target.value })} /></label>
+            <label className="wf-field"><span>STA akhir (m)</span><input type="number" min="0" step="any" value={draft.sta_akhir} onChange={e => setDraft({ ...draft, sta_akhir: e.target.value })} /></label>
+          </div>
+          <div className="wf-field full"><span>Ulangan (lintasan / rater)</span>
+            {repeats.map((row, index) => <div key={index} style={{ display: 'grid', gridTemplateColumns: '80px 1fr 140px 32px', gap: 8, alignItems: 'center', marginTop: 4 }}>
+              <span className="wf-note">Ulangan {index + 1}</span>
+              <select aria-label={`Rater ulangan ${index + 1}`} value={row.rater_personel_id} onChange={e => setRepeats(list => list.map((item, i) => i === index ? { ...item, rater_personel_id: e.target.value } : item))}>
+                {pkg.opsi.personel.map(item => <option key={item.personel_id} value={item.personel_id}>{item.nama}</option>)}</select>
+              <input aria-label={`Nilai ulangan ${index + 1}`} type="number" step="any" value={row.nilai} placeholder={selectedType?.kode === 'IRI' ? 'IRI m/km' : 'Nilai'} onChange={e => setRepeats(list => list.map((item, i) => i === index ? { ...item, nilai: e.target.value } : item))} />
+              {repeats.length > 2 ? <button type="button" className="wf-button" aria-label={`Hapus ulangan ${index + 1}`} onClick={() => setRepeats(list => list.filter((_, i) => i !== index))}>×</button> : <span />}
+            </div>)}
+            <button type="button" className="wf-button" style={{ marginTop: 6 }} onClick={() => setRepeats(list => [...list, { ...emptyRepeat(), rater_personel_id: list[0]?.rater_personel_id ?? '' }])}>+ Tambah ulangan</button>
+          </div>
+          <div className={`wf-callout ${preview ? (preview.consistent ? '' : 'danger') : 'warn'} wf-field full`} data-testid="verval-preview">
+            {preview ? <>Rata-rata {preview.mean} · SD {preview.sd} · KV {preview.kv ?? '—'}% → <strong>{preview.consistent ? 'Konsisten' : 'Tidak konsisten'}</strong> ({preview.rule})</>
+              : 'Isi minimal 2 nilai ulangan untuk melihat hasil konsistensi.'}</div>
+          <div className="wf-toolbar wf-field full"><button type="submit" className="wf-button" data-testid="verval-save-test" disabled={busy || !preview}>{busy ? 'Menyimpan…' : 'Simpan uji konsistensi'}</button></div>
+        </form>}
+
+        {role === PROVIDER && ['BERJALAN', 'DITAHAN', 'PERLU_PERBAIKAN'].includes(cycle.status) && <div className="wf-panel" style={{ marginTop: 12 }}>
+          <div className="wf-panel-head"><h4>Ajukan BA Verval 2-Mingguan</h4></div>
+          <div className="wf-body">
+            <ul style={{ margin: '0 0 8px', paddingLeft: 18 }}>{typeChecks.map(item => <li key={item.jenis_survei_id}>{item.kode}: {item.latest
+              ? <span className={`wf-status ${item.latest.status === 'Konsisten' ? 'ok' : 'bad'}`}>{item.latest.status}</span> : <span className="wf-status warn">Belum diuji</span>}</li>)}</ul>
             <div className="wf-fields">
-              {([['jenis_survei_id','ID jenis survei'],['tim_id','ID tim'],['ruas_id','ID ruas'],['sta_awal','STA awal'],['sta_akhir','STA akhir']] as const).map(([key,label]) => <label className="wf-field" key={key}><span>{label}</span><input required type="number" step={key.startsWith('sta_') ? 'any' : '1'} min={key.startsWith('sta_') ? undefined : '1'} value={consistencyDraft[key]} onChange={event => setConsistencyDraft(current => ({ ...current, [key]: event.target.value }))} /></label>)}
-              <label className="wf-field"><span>Jumlah ulangan (1–20)</span><input type="number" min="1" max="20" step="1" value={repeatDraft.length} onChange={event => { const count = Math.max(1, Math.min(20, Number(event.target.value) || 1)); setRepeatDraft(current => Array.from({ length: count }, (_, index) => current[index] ?? { rater_personel_id: '', nilai: '' })); }} /></label>
-              {repeatDraft.map((repeat, index) => <div className="wf-fields" key={index}>
-                <label className="wf-field"><span>Ulangan #{index + 1} · ID rater/personel</span><input required type="number" min="1" step="1" value={repeat.rater_personel_id} onChange={event => setRepeatDraft(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, rater_personel_id: event.target.value } : row))} /></label>
-                <label className="wf-field"><span>Ulangan #{index + 1} · Nilai</span><input required type="number" step="any" value={repeat.nilai} onChange={event => setRepeatDraft(current => current.map((row, rowIndex) => rowIndex === index ? { ...row, nilai: event.target.value } : row))} /></label>
-              </div>)}
+              <label className="wf-field"><span>Nomor BA Verval</span><input aria-label="Nomor BA Verval" value={baNumber} maxLength={100} onChange={e => setBaNumber(e.target.value)} /></label>
+              <div className="wf-toolbar wf-field" style={{ alignSelf: 'end' }}>
+                <button type="button" className="wf-button primary" data-testid="verval-submit" disabled={busy || !actions.includes('submit') || !baNumber.trim()} onClick={() => void submit()}>Ajukan ke PIC Balai</button>
+              </div>
             </div>
-            <button type="submit" className="wf-button" disabled={mutationBusy || cycle.versi === undefined}>{mutationBusy ? 'Menyimpan…' : `Simpan pada versi ${cycle.versi ?? 'tidak tersedia'}`}</button>
-          </form>}
-        </div>
-      </section>
-    </>}
+            {!actions.includes('submit') && <p className="wf-note">{cycle.koreksi_terbuka > 0 ? 'Tutup kasus koreksi Verval terlebih dahulu.' : 'Catat uji konsistensi untuk setiap jenis survei paket.'}</p>}
+          </div>
+        </div>}
 
-    <div className="wf-toolbar" style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-      <button
-        type="button"
-        className="wf-button"
-        onClick={() => navigate('/entry:Survei harian')}
-      >
-        <ArrowLeft size={13} /> Kembali ke Tahap 3A (Survei Harian)
-      </button>
-      <button
-        type="button"
-        className="wf-button primary"
-        onClick={() => navigate('/entry:Gerbang RNI/LRS')}
-      >
-        Lanjut ke Tahap 4 (Validasi LRS / Gerbang RNI) <ArrowRight size={13} />
-      </button>
+        {actions.includes('review') && <div className="wf-fields" style={{ marginTop: 12 }}>
+          <label className="wf-field full"><span>Catatan pemeriksaan (wajib bila meminta perbaikan)</span><textarea aria-label="Catatan pemeriksaan Verval" value={reviewNote} maxLength={2000} onChange={e => setReviewNote(e.target.value)} /></label>
+          <div className="wf-toolbar wf-field full">
+            <button type="button" className="wf-button" data-testid="verval-request-fix" disabled={busy || !reviewNote.trim()} onClick={() => void review('PERLU_PERBAIKAN')}>Minta perbaikan</button>
+            <button type="button" className="wf-button primary" data-testid="verval-accept" disabled={busy} onClick={() => void review('DITERIMA')}>Terima data 14 hari</button>
+          </div>
+        </div>}
+      </div>
+    </section>}
+
+    <div className="wf-toolbar" style={{ marginTop: 24, justifyContent: 'space-between' }}>
+      <button type="button" className="wf-button" onClick={() => navigate('/entry:Survei harian')}><ArrowLeft size={13} /> Kembali ke Tahap 3A (Survei Harian)</button>
+      <button type="button" className="wf-button primary" onClick={() => navigate('/entry:Gerbang RNI/LRS')}>Lanjut ke Tahap 4 (Gerbang RNI/LRS) <ArrowRight size={13} /></button>
     </div>
   </div>;
 }

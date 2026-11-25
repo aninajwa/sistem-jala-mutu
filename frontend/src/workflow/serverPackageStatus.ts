@@ -95,6 +95,8 @@ export type FinalStagesProgress = {
   penerimaan_akhir: boolean;
   jumlah_sesi_survei?: number;
   jumlah_siklus_verval?: number;
+  verval_diterima?: number;
+  verval_ditahan?: number;
 };
 
 /** Tahap 4-6 rail facts from baca_progres_tahap_akhir; only server states mark a stage complete. */
@@ -123,7 +125,8 @@ export function finalStagesFacts(progress: FinalStagesProgress | null, loading =
   // Rule approved 2026-11-25: the survey period (3A daily survey, 3B 14-day verval) ends when the PIC approves Tahap 4.
   const surveyClosed = progress.tahap4 === 'DISETUJUI';
   const tahap3b: ServerStageFact = surveyClosed ? { state: 'complete', label: 'Periode verval ditutup · Tahap 4 disetujui' }
-    : (progress.jumlah_siklus_verval ?? 0) > 0 ? { state: 'pending', label: `${progress.jumlah_siklus_verval} siklus verval berjalan` }
+    : (progress.verval_ditahan ?? 0) > 0 ? { state: 'blocked', label: 'Siklus verval ditahan / perlu perbaikan' }
+    : (progress.jumlah_siklus_verval ?? 0) > 0 ? { state: 'pending', label: `${progress.verval_diterima ?? 0}/${progress.jumlah_siklus_verval} siklus verval diterima` }
       : { state: 'unknown', label: 'Belum ada siklus verval' };
   return {
     ...(surveyClosed ? { 'Tahap 3A': { state: 'complete', label: 'Periode survei ditutup · Tahap 4 disetujui' } as ServerStageFact } : {}),

@@ -12,3 +12,5 @@ PACKAGE_SCOPE_AMENDMENT_RPCS=false
 STAGE4_WORKFLOW_RPCS=false
 # Tahap 4 upload log, Tahap 5 audit, Tahap 6 penerimaan (migration 20261124020000)
 AUDIT_ACCEPTANCE_RPCS=false
+# Tahap 3B Verval 14 hari (migration 20261125020000)
+STAGE3B_PRODUCTION_RPCS=false

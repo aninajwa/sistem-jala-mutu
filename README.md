@@ -83,7 +83,7 @@ Gate di bawah ini fail-closed: kalau nilainya tidak `true`, endpoint terkait men
 | `STAGE1_IRI_CHECKLIST_ENABLED`, `STAGE1_IRI_PROJECT_DRAFT_ACCEPTED`, `STAGE1_IRI_AUTHORIZATION_CONTRACT_INSTALLED` | Checklist kalibrasi IRI Tahap 1 (ketiganya harus `true`) |
 | `STAGE1_PIC_CONFIRMATION_ENABLED`, `_APPROVED`, `_AUTHORIZATION_INSTALLED` | Pengajuan/review konfirmasi kalibrasi Tahap 1 |
 | `PACKAGE_ROAD_ASSIGNMENT_ENABLED`, `_APPROVED`, `_AUTHORIZATION_INSTALLED` | Penetapan ruas jalan ke paket |
-| `STAGE3B_PRODUCTION_RPCS` | Siklus Verval 14 hari (Tahap 3B) |
+| `STAGE3B_PRODUCTION_RPCS` | Siklus Verval 14 hari (Tahap 3B): buka siklus, uji konsistensi, ajukan BA, review PIC. Butuh migrasi `20261125020000` |
 | `STAGE4_LRS_RPCS` | Baca/simpan validasi LRS Tahap 4 |
 | `STAGE4_WORKFLOW_RPCS` | Ajukan/review Tahap 4. Butuh migrasi `20261124020000` |
 | `AUDIT_ACCEPTANCE_RPCS` | Catatan upload ke SMD/INVI-J/InSlope/InDrain, Audit berjenjang (Tahap 5), Termin dan penerimaan (Tahap 6). Butuh migrasi `20261124020000` |

@@ -129,3 +129,9 @@ test('Tahap 3A/3B turn complete when Tahap 4 is approved and show progress befor
   assert.equal(approved['Tahap 3A']?.state, 'complete');
   assert.equal(approved['Tahap 3B']?.state, 'complete');
 });
+
+test('Tahap 3B is blocked while a verval cycle is held and counts accepted cycles', () => {
+  const base = { status_paket: 'DRAFT', tahap4: 'DRAFT' as const, audit: {}, koreksi_audit_terbuka: 0, termin_selesai: 0, termin_total: 4, penerimaan_akhir: false, jumlah_sesi_survei: 1 };
+  assert.equal(finalStagesFacts({ ...base, jumlah_siklus_verval: 2, verval_diterima: 1 })['Tahap 3B']?.label, '1/2 siklus verval diterima');
+  assert.equal(finalStagesFacts({ ...base, jumlah_siklus_verval: 1, verval_ditahan: 1 })['Tahap 3B']?.state, 'blocked');
+});

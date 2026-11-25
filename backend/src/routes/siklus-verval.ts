@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { denyAdminWorkflowWrites } from '../middleware/workflow-write';
 import { ApiError, supabaseRequest } from '../services/supabase';
-import { siklusVervalConsistencyBodySchema, siklusVervalCreateBodySchema, siklusVervalIdSchema } from '../schemas/siklus-verval';
+import { siklusVervalConsistencyBodySchema, siklusVervalCreateBodySchema, siklusVervalIdSchema, siklusVervalReviewSchema, siklusVervalSubmitSchema } from '../schemas/siklus-verval';
 
 const router = Router();
 router.use(denyAdminWorkflowWrites);
@@ -88,6 +88,47 @@ router.post('/paket/:id/siklus-verval/:siklusId/uji-konsistensi', async (req, re
   });
   res.setHeader('Cache-Control', 'private, no-store');
   res.status(201).json({ data });
+});
+
+/** One aggregated read for the whole Tahap 3B page: cycles, tests, repetitions and form options. */
+router.get('/paket/:id/verval', async (req, res) => {
+  if (!productionRpcEnabled()) throw new ApiError(503, 'RPC Stage 3B produksi belum diaktifkan.');
+  const packageId = parseId(req.params.id, 'ID paket');
+  const data = await supabaseRequest('/rest/v1/rpc/baca_verval_paket', res.locals.identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: packageId }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data });
+});
+
+router.post('/paket/:id/siklus-verval/:siklusId/ajukan', async (req, res) => {
+  if (!productionRpcEnabled()) throw new ApiError(503, 'Penulisan Stage 3B dinonaktifkan sampai RPC produksi terpasang dan diverifikasi.');
+  const { identity } = res.locals;
+  if (!identity.roles.some((role: { nama: string }) => role.nama === 'penyedia_jasa')) throw new ApiError(403, 'Hanya Penyedia Jasa boleh mengajukan BA Verval');
+  const packageId = parseId(req.params.id, 'ID paket');
+  const cycleId = parseId(req.params.siklusId, 'ID siklus Verval');
+  const parsed = siklusVervalSubmitSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Nomor BA dan versi siklus wajib diisi', details: parsed.error.flatten() }); return; }
+  const data = await supabaseRequest('/rest/v1/rpc/ajukan_verval', identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: packageId, p_siklus_id: cycleId, p_expected_version: parsed.data.expected_version, p_nomor_ba: parsed.data.nomor_ba }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data });
+});
+
+router.post('/paket/:id/siklus-verval/:siklusId/review', async (req, res) => {
+  if (!productionRpcEnabled()) throw new ApiError(503, 'Penulisan Stage 3B dinonaktifkan sampai RPC produksi terpasang dan diverifikasi.');
+  const { identity } = res.locals;
+  if (!identity.roles.some((role: { nama: string }) => role.nama === 'pic_balai')) throw new ApiError(403, 'Hanya PIC Balai boleh memeriksa siklus Verval');
+  const packageId = parseId(req.params.id, 'ID paket');
+  const cycleId = parseId(req.params.siklusId, 'ID siklus Verval');
+  const parsed = siklusVervalReviewSchema.safeParse(req.body);
+  if (!parsed.success) { res.status(400).json({ error: 'Keputusan pemeriksaan Verval tidak valid', details: parsed.error.flatten() }); return; }
+  const data = await supabaseRequest('/rest/v1/rpc/review_verval', identity.token, {
+    method: 'POST', body: JSON.stringify({ p_paket_id: packageId, p_siklus_id: cycleId, p_expected_version: parsed.data.expected_version, p_keputusan: parsed.data.keputusan, p_catatan: parsed.data.catatan }),
+  });
+  res.setHeader('Cache-Control', 'private, no-store');
+  res.json({ data });
 });
 
 export default router;
