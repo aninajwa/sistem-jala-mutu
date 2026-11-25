@@ -1,0 +1,24 @@
+{
+  "sifat": "DRAF LOKAL, BELUM DISAHKAN",
+  "id": "d1659b41-a018-4c5b-a8ec-eafa62d85200",
+  "owner": "local:Penyedia Jasa / Ketua Tim",
+  "packageId": "A",
+  "kind": "weekly",
+  "start": "2026-11-01",
+  "end": "2026-11-07",
+  "content": [
+    "Uraian HTTP Kemajuan kegiatan",
+    "Uraian HTTP Kendala",
+    "Uraian HTTP Tindak lanjut",
+    "Uraian HTTP Dokumentasi"
+  ],
+  "attachments": [
+    {
+      "name": "bukti.png",
+      "type": "image/png",
+      "data": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+jRz0AAAAASUVORK5CYII="
+    }
+  ],
+  "updated": "2026-11-05T08:50:16.541Z",
+  "version": 1
+}

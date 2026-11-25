@@ -1,0 +1,178 @@
+.admin-users-page {
+  min-width: 0;
+  color: #364b5f;
+}
+
+.admin-users-page .table-wrap {
+  max-width: 100%;
+  overflow-x: auto;
+  overscroll-behavior-x: contain;
+}
+
+.admin-users-page table {
+  min-width: 550px;
+}
+
+.admin-users-page th,
+.admin-users-page td {
+  padding: 8px 10px;
+  line-height: 1.4;
+  vertical-align: middle;
+}
+
+.admin-users-page th {
+  color: #425b72;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.admin-users-page td {
+  color: #364b5f;
+  font-size: 13px;
+}
+
+.admin-users-body {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-users-filters {
+  display: flex;
+  align-items: end;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.admin-users-field {
+  display: grid;
+  min-width: min(100%, 220px);
+  gap: 5px;
+  color: #425b72;
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.4;
+}
+
+.admin-users-control {
+  box-sizing: border-box;
+  display: inline-flex;
+  min-height: 37px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 1px solid #cad7e2;
+  border-radius: 6px;
+  background: #fff;
+  padding: 6px 10px;
+  color: #31506c;
+  font: 500 13px/1.4 'DM Sans', sans-serif;
+}
+
+.admin-users-field input.admin-users-control {
+  width: min(100%, 300px);
+}
+
+.admin-users-field select.admin-users-control {
+  min-width: 100px;
+  cursor: pointer;
+}
+
+.admin-users-search {
+  border-color: #167fbd;
+  background: #167fbd;
+  color: #fff;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.admin-users-search:hover:not(:disabled) {
+  background: #116da4;
+}
+
+.admin-users-control:focus-visible {
+  outline: 3px solid #75c8ef;
+  outline-offset: 2px;
+}
+
+.admin-users-control:disabled {
+  cursor: not-allowed;
+  opacity: .55;
+}
+
+.admin-users-pagination {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 10px;
+  color: #425b72;
+  font-size: 12px;
+  line-height: 1.4;
+}
+
+.admin-users-pagination > div {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+@media (max-width: 540px) {
+  .admin-users-filters {
+    align-items: stretch;
+  }
+
+  .admin-users-field,
+  .admin-users-field input.admin-users-control,
+  .admin-users-field select.admin-users-control {
+    width: 100%;
+  }
+
+  .admin-users-search {
+    align-self: flex-start;
+  }
+}
+
+/* Scoped to Hak Akses; intentionally follows the existing compact Admin panel. */
+.admin-access-manage {
+  display: grid;
+  gap: 12px;
+  border-top: 1px solid #e7edf2;
+  padding-top: 12px;
+}
+
+.admin-access-picker-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.admin-access-picker-grid .admin-users-control { width: 100%; justify-content: flex-start; }
+
+.admin-access-current,
+.admin-access-draft,
+.admin-access-preview {
+  display: grid;
+  gap: 7px;
+  border: 1px solid #dce5ed;
+  border-radius: 6px;
+  background: #fbfdff;
+  padding: 10px 12px;
+  color: #364b5f;
+  font-size: 12px;
+}
+
+.admin-access-current ul { display: grid; gap: 5px; margin: 0; padding: 0; list-style: none; }
+.admin-access-current li { display: flex; flex-wrap: wrap; gap: 8px 18px; }
+.admin-access-current small,
+.admin-access-preview small { color: #77899a; font-size: 10px; line-height: 1.45; }
+.admin-access-current p,
+.admin-access-preview p,
+.admin-access-draft p { margin: 0; }
+.admin-access-preview.is-valid { border-color: #b6dfcf; background: #f3fbf7; }
+.admin-access-preview.is-invalid { border-color: #efc5c3; background: #fff8f7; color: #a83f39; }
+.admin-access-preview strong { color: #146c54; }
+.admin-access-preview.is-invalid strong { color: inherit; }
+
+@media (max-width: 540px) {
+  .admin-access-picker-grid { grid-template-columns: minmax(0, 1fr); }
+}

@@ -16,6 +16,7 @@ import { useCorrectionSelection } from "./useCorrectionSelection";
 
 import { AuditReadOnlySummary } from "../AuditReadOnlySummary";
 import { auditSampleIntegrity } from "../auditSampleIntegrity";
+import { resolveAuditRejectionRecords, hasOpenAuditRejectionCase } from "../auditRejectionCases";
 import { buildAuditSamplePlan } from "../auditSamplePlan";
 import { EvidenceAttachment } from "../EvidenceAttachment";
 import { AUDIT_REVIEW_CHECKS, fieldReadiness } from "../flowRules";
@@ -54,7 +55,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
   const { baAccess, commit, heading } = useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage5AuditWorkspace`,{});
   const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
-  const [auditLevel, setAuditLevel] = useState<1 | 2 | 3>(state.role==='PIC Balai / Pengguna Jasa'?2:state.role==='Direktorat / Pusat'?3:1);
+  const [auditLevel, setAuditLevel] = useState<1 | 2 | 3>(()=>{const key=`jala-notification-audit:${state.project.id}`,level=Number(sessionStorage.getItem(key));sessionStorage.removeItem(key);return [1,2,3].includes(level)?level as 1|2|3:state.role==='PIC Balai / Pengguna Jasa'?2:state.role==='Direktorat / Pusat'?3:1;});
   const lrs = evaluateLrsGate(state.submission, state.simulationDate);
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
@@ -217,6 +218,10 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
+    if (patch.status === 'Klarifikasi' && !(draft[`audit-note-${auditLevel}`] ?? audit.decisionNote).trim()) {
+      setNotice('Catatan klarifikasi wajib diisi. Klarifikasi belum menjadi temuan penolakan.'); return;
+    }
+    if (patch.status === 'Klarifikasi') patch={...patch,decisionNote:draft[`audit-note-${auditLevel}`]??audit.decisionNote};
     if (patch.status === "Lulus") {
       const inspections=scopedTypes.map(type=>sourceInspectionStatus(`${state.project.id}::audit-${auditLevel}`,type,'audit',state.productionTests.PCI.pciManual!==false,state.project));
       const incomplete=inspections.filter(item=>!item.complete);
@@ -301,35 +306,42 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       return;
     }
     const rejectionSource = `Penolakan audit tingkat ${auditLevel}`;
-    const existingCase =
-      patch.status === "Ditolak"
-        ? state.corrections.find(
-            (item) =>
-              item.source === rejectionSource && item.surveyType === rejectionType && item.status !== "Ditutup",
-          )
-        : undefined;
-    let rejectionCase: CorrectionCase | undefined;
-    if (patch.status === "Ditolak" && !existingCase) {
-      rejectionCase = defaultCase(state);
-      rejectionCase.source = rejectionSource;
-      rejectionCase.blockedStage = `Audit tingkat ${auditLevel}`;
-      rejectionCase.returnStage = `Audit tingkat ${auditLevel}`;
-      rejectionCase.owner =
-        auditLevel === 3
+    const rejectionResolution = resolveAuditRejectionRecords({
+      units: audit.sampleUnits ?? [],
+      surveyType: rejectionType as typeof scopedTypes[number],
+      records: state.dailyRecords,
+    });
+    if (patch.status === "Ditolak" && rejectionResolution.error) {
+      setNotice(rejectionResolution.error);
+      return;
+    }
+    const recordIds = patch.status === "Ditolak" ? rejectionResolution.recordIds : [];
+    const rejectionCases: CorrectionCase[] = [];
+    if (patch.status === "Ditolak") {
+      for (const recordId of recordIds) {
+        if (hasOpenAuditRejectionCase({
+          cases: state.corrections,
+          source: rejectionSource,
+          surveyType: rejectionType as typeof scopedTypes[number],
+          recordId,
+        })) continue;
+        const rejectionCase = defaultCase(state);
+        rejectionCase.source = rejectionSource;
+        rejectionCase.blockedStage = `Audit tingkat ${auditLevel}`;
+        rejectionCase.returnStage = `Audit tingkat ${auditLevel}`;
+        rejectionCase.owner = auditLevel === 3
           ? "PIC Balai / Pengguna Jasa"
           : "Penyedia Jasa / Ketua Tim";
-      rejectionCase.surveyType = rejectionType as typeof scopedTypes[number];
-      rejectionCase.originalValue =
-        state.dailyRecords.find(
-          (record) => record.surveyType === rejectionCase?.surveyType,
-        )?.rawValue || "Belum ada nilai raw tertaut";
-      rejectionCase.rejectionReason = (
-        draft[`audit-rejection-${auditLevel}`] ?? ""
-      ).trim();
-      rejectionCase.linkedRecordId = state.dailyRecords.find(
-        (record) => record.surveyType === rejectionCase?.surveyType,
-      )?.id;
-      rejectionCase.severity = auditLevel === 3 ? "Kritis" : "Mayor";
+        rejectionCase.surveyType = rejectionType as typeof scopedTypes[number];
+        const auditRecord = state.dailyRecords.find(record =>
+          record.id === recordId && record.surveyType === rejectionType,
+        );
+        rejectionCase.originalValue = auditRecord?.rawValue || "Belum ada nilai raw tertaut";
+        rejectionCase.rejectionReason = (draft[`audit-rejection-${auditLevel}`] ?? "").trim();
+        rejectionCase.linkedRecordId = auditRecord?.id;
+        rejectionCase.severity = auditLevel === 3 ? "Kritis" : "Mayor";
+        rejectionCases.push(rejectionCase);
+      }
     }
     if (patch.status === "Ditolak") patch = { ...patch, decisionNote: (draft[`audit-rejection-${auditLevel}`] ?? "").trim() };
     const invalidates =
@@ -353,9 +365,9 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             ? x.status === "Belum Dimulai" ? x : { ...x, requiresReview: true, reviewReason: `Audit tingkat ${auditLevel} berubah; periksa kembali keterkaitan keputusan.` }
             : x,
       ) as OperationalWorkflowState["audits"],
-      corrections: rejectionCase
-        ? [rejectionCase, ...s.corrections]
-        : existingCase ? s.corrections.map(item => item.id === existingCase.id ? { ...item, rejectionReason: patch.decisionNote ?? item.rejectionReason } : item) : s.corrections,
+      corrections: rejectionCases.length
+        ? [...rejectionCases, ...s.corrections]
+        : s.corrections,
       acceptance:
         invalidates || patch.status === "Ditolak"
           ? {
@@ -368,8 +380,21 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             }
           : s.acceptance,
     }));
-    if (rejectionCase) setCaseId(rejectionCase.id);
-    else if (existingCase) setCaseId(existingCase.id);
+    if (patch.status === "Ditolak") {
+      if (rejectionCases.length) {
+        setCaseId(rejectionCases[0].id);
+      } else {
+        const existingCase = state.corrections.find(item =>
+          recordIds.some(recordId =>
+            item.source === rejectionSource &&
+            item.surveyType === rejectionType &&
+            item.status !== "Ditutup" &&
+            item.linkedRecordId === recordId,
+          ),
+        );
+        if (existingCase) setCaseId(existingCase.id);
+      }
+    }
   };
   const levelLabels = ([1, 2, 3] as const).map(
     (level) => AUDIT_LEVEL_PRESENTATION[level].label,
@@ -389,17 +414,9 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
         "Audit tingkat 1–3",
         "Pemeriksaan dilakukan berurutan. Tingkat 1 mencatat bukti kesiapan internal Penyedia; assurance formal berikutnya dilakukan PIC Balai dan Direktorat sesuai kewenangan.",
       )}
-      <div
-        className="wf-callout"
-        data-testid="stage5-process-guide"
-        style={{ marginBottom: 12 }}
-      >
-        <strong>Urutan audit:</strong> Tingkat 1 oleh Penyedia, Tingkat 2 oleh
-        PIC Balai, dan Tingkat 3 oleh Direktorat. Catat cakupan serta bukti
-        sebelum keputusan. Sampel dihitung secara konsisten dari rekaman yang
-        tersedia; perubahan rekaman atau aturan sampling membutuhkan pemeriksaan
-        ulang. Nomor BA yang dicatat bukan tanda tangan/pengesahan otomatis.
-      </div>
+      <p className="wf-note" data-testid="stage5-process-guide">
+        Audit 1 · Penyedia. Audit 2 · Balai. Audit 3 · Direktorat.
+      </p>
       <RoleWorkSection primary={canEditAudit} title={`Hasil Audit Tingkat ${auditLevel}`}><SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
         projectInfo={state.project}
         key={`${state.project.id}:audit-${auditLevel}`}
@@ -418,9 +435,6 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           commit('Ubah jawaban sumber audit',`Audit ${auditLevel}`,current=>({...current,audits:current.audits.map(item=>item.level===auditLevel?{...item,requiresReview:true,reviewReason:'Jawaban checklist sumber audit berubah; periksa kembali.'}:item) as OperationalWorkflowState['audits']}));
         }}
       /></RoleWorkSection>
-      <div className="wf-callout" style={{ marginBottom: 12 }}>
-        <strong>{state.role}:</strong> {STAGE5_ROLE_GUIDANCE[state.role]}
-      </div>
       {state.corrections.some(
         (item) =>
           item.blockedStage === `Audit tingkat ${auditLevel}` &&
@@ -482,7 +496,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           <div>
             <small>Akses</small>
             <strong>
-              {canEditAudit ? "Pemeriksaan & keputusan" : "Read-only"}
+              {canEditAudit ? "Pemeriksaan dan keputusan" : "Hasil pemeriksaan"}
             </strong>
           </div>
         </div>
@@ -502,6 +516,8 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
           {baAccess(
             "audit",
             `Lihat / susun dokumen audit tingkat ${auditLevel}`,
+            0,
+            {auditLevel},
           )}
           <Badge
             tone={
@@ -555,7 +571,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                   <tr>
                     <th>Jenis survei</th>
                     <th>Protokol cakupan</th>
-                    <th>Rate</th>
+                    <th>Cakupan konfigurasi</th>
                     <th>Satuan</th>
                   </tr>
                 </thead>
@@ -569,7 +585,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                         </td>
                         <td>{rule.label}</td>
                         <td>{rule.rate}%</td>
-                        <td>{rule.unit}</td>
+                        <td>{auditLevel === 3 && !/jembatan/i.test(t) ? "Data · kebijakan jenis perlu penetapan" : rule.unit}</td>
                       </tr>
                     );
                   })}
@@ -610,8 +626,8 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                   <tbody>{audit.sampleUnits.map(unit=><tr key={unit.id} data-testid={`sample-unit-${unit.id}`}>
                     <td><strong>{unit.unitKey}</strong><small>{unit.surveyType} · {unit.road} · {unit.unitType}{unit.lengthKm!==undefined?` · ${unit.lengthKm} km`:''}</small></td>
                     <td>{unit.sourceRecordId}<small>{unit.sourceReference||'Referensi sumber belum dicatat'}</small></td>
-                    <td><select aria-label={`Hasil sampel ${unit.unitKey}`} disabled={!canEditAudit||auditLevel===1} value={unit.reviewStatus??'Belum Diperiksa'} onChange={e=>patchSampleUnit(unit.id,{reviewStatus:e.target.value as AuditSampleUnit['reviewStatus']})}><option>Belum Diperiksa</option><option>Valid</option><option>Tidak Valid</option></select>{auditLevel===1&&<small>Audit internal mencakup seluruh unit.</small>}</td>
-                    <td>{auditLevel===1?<span>{unit.evidenceReference||unit.sourceReference||'Mengikuti bukti sumber'}</span>:<input aria-label={`Bukti sampel ${unit.unitKey}`} disabled={!canEditAudit} value={unit.evidenceReference??''} placeholder="Nomor dokumen / foto / referensi" onChange={e=>patchSampleUnit(unit.id,{evidenceReference:e.target.value})}/>}</td>
+                    <td>{canEditAudit && auditLevel !== 1 ? <select aria-label={`Hasil sampel ${unit.unitKey}`} value={unit.reviewStatus??'Belum Diperiksa'} onChange={e=>patchSampleUnit(unit.id,{reviewStatus:e.target.value as AuditSampleUnit['reviewStatus']})}><option>Belum Diperiksa</option><option>Valid</option><option>Tidak Valid</option></select> : <span>{auditLevel === 1 ? "Cakupan audit internal" : unit.reviewStatus ?? "Belum diperiksa"}</span>}</td>
+                    <td>{auditLevel===1 || !canEditAudit?<span>{unit.evidenceReference||unit.sourceReference||'Belum tercatat'}</span>:<input aria-label={`Bukti sampel ${unit.unitKey}`} value={unit.evidenceReference??''} placeholder="Nomor dokumen / foto / referensi" onChange={e=>patchSampleUnit(unit.id,{evidenceReference:e.target.value})}/>}</td>
                   </tr>)}</tbody>
                 </table>
               </div>
@@ -804,7 +820,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                       patchAudit(
                         {
                           decisionNote: [
-                            draft[`audit-note-${auditLevel}`] || "",
+                            draft[`audit-note-${auditLevel}`] ?? audit.decisionNote,
                             audit.status === "Ditolak"
                               ? `Alasan: ${draft[`audit-rejection-${auditLevel}`]}`
                               : "",
@@ -816,11 +832,10 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
                         },
                         `Simpan keputusan audit tingkat ${auditLevel}`,
                       );
-                      setNotice(
-                        auditLevel === 1
-                          ? "Bukti audit internal/kesiapan dicatat."
-                          : "Keputusan audit dan referensi BA dicatat.",
-                      );
+                      // Do not announce success here. patchAudit can reject a
+                      // change, and storage authorization runs afterwards.
+                      // The persisted status and visible error are the source
+                      // of truth; a success toast here was misleading.
                     }}
                   >
                     <Save size={13} />

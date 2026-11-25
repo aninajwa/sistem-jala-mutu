@@ -15,7 +15,8 @@ export type PageProps = {
   workflow: OperationalWorkflowState;
   packages: Record<string, OperationalWorkflowState>;
   openPackage: (id: string) => void;
-  openPackageBA: (id: string, kind: string) => void;
+  openPackageReview: (id:string, selection:string, context?:{period?:number;auditLevel?:number}) => void;
+  openPackageBA: (id: string, kind: string, context?: {survey?:string;period?:number;auditLevel?:number;returnTo?:string}) => void;
   balai: string;
   periode: string;
   jenis: string;
@@ -29,4 +30,6 @@ export type PageProps = {
   updateStatus: (t: StatusRecordType, id: string, status: string) => void;
   record: (a: string, o: string) => void;
   setNotice: (s: string) => void;
+  /** Authenticated reviewer roles: queue rows from GET /api/review-queue instead of local projections. */
+  serverReviewQueue?: import('./workflow/balaiReviewQueue').BalaiReviewItem[];
 };

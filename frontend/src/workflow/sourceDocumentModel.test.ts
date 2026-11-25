@@ -2,7 +2,7 @@ import test from 'node:test';import assert from 'node:assert/strict';
 import catalog from './sourceChecklistCatalog.json';import {documentAnswersComplete,documentQuestions,sourceDocument} from './sourceDocumentModel';
 test('every source-derived choice is traceable to the original exact table and row',()=>{
  let total=0;
- for(const document of catalog){const questions=documentQuestions(document);const ids=new Set<string>();for(const question of questions){assert.ok(!ids.has(question.id));ids.add(question.id);assert.ok(question.options.length>=2);const table=document.tables.find(table=>table.table===question.table);const source=question.paragraph?(document as {blocks?:{id?:string;text?:string}[]}).blocks?.find(block=>block.id===question.paragraph)?.text??'':table?[...table.rows[question.row-1],...table.rows[0]].join(' '):'';for(const option of question.options)assert.ok(source.includes(option));total++;}}
+ for(const document of catalog){const questions=documentQuestions(document);const ids=new Set<string>();for(const question of questions){assert.ok(!ids.has(question.id));ids.add(question.id);assert.ok(question.options.length>=2);const table=document.tables.find(table=>table.table===question.table);const source=question.paragraph?(document as {blocks?:{id?:string;text?:string}[]}).blocks?.find(block=>block.id===question.paragraph)?.text??'':table?[...(question.id.endsWith(':selection')?table.rows.flat():table.rows[question.row-1]),...table.rows[0]].join(' '):'';for(const option of question.options)assert.ok(source.includes(option));total++;}}
  assert.ok(total>1000,'All source documents must be inspected, not just one checklist');
 });
 test('PCI source preserves separate availability and condition answers, not a generic yes/no',()=>{

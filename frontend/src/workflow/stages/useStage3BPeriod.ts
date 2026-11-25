@@ -1,6 +1,8 @@
 import { localPersistence } from '../repository/localPersistence';
 import { useCallback, useEffect, useState } from "react";
-import type { OperationalWorkflowState, VervalCycle } from "../model";
+import type { OperationalWorkflowState } from "../model";
+import { switchWorkflowCyclePeriod } from "../cyclePeriodTransition";
+import { useDraftPersistenceAllowed } from "../../hooks/usePersistedDraft";
 
 type UpdateWorkflow = (
   updater: (current: OperationalWorkflowState) => OperationalWorkflowState,
@@ -28,24 +30,21 @@ export function useStage3BPeriod(
   clearBaDraft: () => void,
   currentPeriod?: number,
 ) {
+  const persistenceAllowed=useDraftPersistenceAllowed();
   const [stage3BCompletion, setStage3BCompletion] =
     useState<Completion>(emptyCompletion);
   const storageKey = `jala-stage3b-active-period:${packageId}`;
-  const [activeStage3BPeriod, setActiveStage3BPeriod] = useState(() => {
-    try {
-      const stored = currentPeriod ?? Number(localPersistence.getItem(storageKey));
-      return Number.isInteger(stored) && stored >= 1 ? stored : 1;
-    } catch {
-      return 1;
-    }
-  });
+  // Sumber kebenaran periode adalah state paket, bukan localStorage/UI.
+  const activeStage3BPeriod = Number.isSafeInteger(currentPeriod) && Number(currentPeriod) >= 1
+    ? Number(currentPeriod) : 1;
   useEffect(() => {
+    if(!persistenceAllowed)return;
     try {
       localPersistence.setItem(storageKey, String(activeStage3BPeriod));
     } catch {
-      // Navigating periods still works without local persistence.
+      // Periode tetap mengikuti state paket meskipun penyimpanan UI gagal.
     }
-  }, [storageKey, activeStage3BPeriod]);
+  }, [storageKey, activeStage3BPeriod, persistenceAllowed]);
   const [stage3bPeriodRange, setStage3BPeriodRange] = useState<{
     start: string;
     end: string;
@@ -65,57 +64,22 @@ export function useStage3BPeriod(
     if (!Number.isInteger(number) || number < 1) return;
 
     onUpdate(
-      (current) => {
-        const history = {
-          ...(current.cycleHistory || {}),
-          [String(current.activeCyclePeriod ?? activeStage3BPeriod)]: {
-            ...current.cycle,
-          },
-        };
-        const target = history[String(number)];
-        const fresh: VervalCycle = {
-          ...current.cycle,
-          lastCompletedDate: "",
-          periodCompleted: false,
-          heldRecordIds: [],
-          checkedProtocols: {},
-          iriCoefficientVariation: null,
-          pciAiStandardDeviation: null,
-          pciManualMaxDifferencePercent: null,
-          reRatingStatus: "Belum Diperiksa",
-          consistency: "Belum Diperiksa",
-          bridgeFieldValidation: false,
-          finalPeriodValidation: false,
-          certificateId: "",
-          userReview: "Belum Diperiksa",
-          userReviewNote: "",
-          surveyReviews: {},
-          reviewPendingTypes: [],
-          affectedTool: "",
-          requiresReview: false,
-          reviewReason: "",
-          bridgeValidatedPercent: 0,
-          bridgeValidationReport: "",
-          finalValidationLocation: "",
-          finalToolUnchanged: false,
-        };
-        return {
-          ...current,
-          cycleHistory: history,
-          activeCyclePeriod: number,
-          cycle: target ? { ...target } : fresh,
-        };
-      },
+      (current) => switchWorkflowCyclePeriod(current, number),
       "Pilih periode verval",
       `Periode ${number}`,
     );
 
-    setActiveStage3BPeriod(number);
+
     clearBaDraft();
     setStage3BCompletion(emptyCompletion());
     setStage3BStatus({});
     setStage3BPeriodRange({ start: "", end: "" });
   };
+
+  useEffect(()=>{
+    const key=`jala-notification-period:${packageId}`,value=Number(sessionStorage.getItem(key));
+    if(Number.isSafeInteger(value)&&value>0){sessionStorage.removeItem(key);switchStage3BPeriod(value);}
+  },[packageId]);
 
   return {
     stage3BCompletion,

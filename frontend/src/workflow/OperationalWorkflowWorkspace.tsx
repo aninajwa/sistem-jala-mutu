@@ -1,4 +1,8 @@
-import {StageActionContext} from './StageActionContext';
+import { PACKAGE_WORKFLOW_ITEMS } from "./roleNavigation";
+import { StageScene } from "../design/b/StageScene";
+import { StageChecklistIndex } from "./Checkpoint09Package";
+import "./checkpoint09.css";
+import { StageActionContext } from "./StageActionContext";
 import type { ComponentType } from "react";
 import "./workflow.css";
 import type { WorkflowStageProps } from "./stages/stageSupport";
@@ -17,6 +21,7 @@ import { WorkflowCoverageWorkspace } from "./stages/WorkflowCoverageWorkspace";
 import { WorkflowDocuments } from "./WorkflowDocuments";
 import { periodRange } from "./stages/periodSchedule";
 import { useStage3BPeriod } from "./stages/useStage3BPeriod";
+import { DraftPersistenceBoundary } from "../hooks/usePersistedDraft";
 export type OperationalWorkflowWorkspaceProps = WorkflowStageProps;
 const screens: Record<string, ComponentType<WorkflowStageProps>> = {
   "/entry:Persiapan & SPMK": Stage0PreparationWorkspace,
@@ -57,15 +62,44 @@ function DocumentsWorkspace(props: WorkflowStageProps) {
 export function OperationalWorkflowWorkspace(
   props: OperationalWorkflowWorkspaceProps,
 ) {
-  const Screen =
-    props.selection === "/documents:BA & dokumen workflow"
-      ? DocumentsWorkspace
-      : screens[props.selection];
+  const Screen = dirahScreenForSelection(props.selection);
   if (!Screen) return null;
-  return (
-    <div className="wf" data-testid="operational-workflow-workspace">
-      <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate}/>
+  const serverStage0 = props.serverReadOnly && props.serverPreparation && props.selection === "/entry:Persiapan & SPMK";
+  const unavailableStage = props.serverReadOnly && (props.selection === "/verification:Audit tingkat 1–3" || props.selection === "/reports:Penerimaan & termin");
+  const stageCode = PACKAGE_WORKFLOW_ITEMS.find((item) => item.selection === props.selection)?.code;
+  const stageScreen = (
+    <StageScene key={`${props.state.project.id}:${props.selection}`} role={props.state.role} stage={stageCode}>
       <Screen key={`${props.state.project.id}:${props.selection}`} {...props} />
+    </StageScene>
+  );
+  const screen = (
+    <div className="wf" data-testid="operational-workflow-workspace">
+      {!props.serverReadOnly && props.selection !== "/entry:Survei harian" && (
+        <StageActionContext state={props.state} selection={props.selection} onNavigate={props.onNavigate} />
+      )}
+      {!props.serverReadOnly && !(["/entry:Persiapan & SPMK", "/documents:Kalibrasi & personel", "/entry:Survei harian"].includes(props.selection)) && (
+        <StageChecklistIndex key={`${props.selection}:${props.state.role}`} state={props.state} selection={props.selection} />
+      )}
+      {props.serverReadOnly && !serverStage0 && (
+        <p className="wf-note" role="status">
+          {unavailableStage
+            ? "Pratinjau saja — fungsi tahap ini belum tersedia melalui server. Kontrol di bawah dinonaktifkan."
+            : props.serverStatusNote || "Status tahap ini belum tersedia dari server."}
+        </p>
+      )}
+      <div inert={props.serverReadOnly && !serverStage0} aria-disabled={(props.serverReadOnly && !serverStage0) || undefined} data-testid={props.serverReadOnly ? "server-readonly-dirah-stage" : undefined}>
+        {unavailableStage ? <fieldset className="ui09-disabled-preview" disabled>{stageScreen}</fieldset> : stageScreen}
+      </div>
     </div>
   );
+  return props.serverReadOnly
+    ? <DraftPersistenceBoundary enabled={false}>{screen}</DraftPersistenceBoundary>
+    : screen;
+}
+
+/** Returns the original Dirah screen used for a package workflow selection. */
+export function dirahScreenForSelection(selection:string):ComponentType<WorkflowStageProps>|undefined{
+  return selection === "/documents:BA & dokumen workflow"
+    ? DocumentsWorkspace
+    : screens[selection];
 }

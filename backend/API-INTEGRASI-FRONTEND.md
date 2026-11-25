@@ -17,15 +17,29 @@ CORS backend menggunakan `FRONTEND_ORIGIN` dengan default `http://localhost:5173
 
 **Komputer berbeza:** `localhost` merujuk kepada komputer masing-masing. Jika Dirah menjalankan frontend pada komputernya, backend perlu dijalankan pada komputer Dirah juga, atau gunakan alamat backend yang boleh dicapai melalui rangkaian/deployment. URL `localhost:5000` di komputer Dirah **tidak** mengakses backend di komputer Afeeq.
 
-Contoh environment variable yang *dicadangkan* untuk Vite (belum disahkan wujud dalam projek frontend):
+Contoh environment variable frontend untuk pengujian Admin menggunakan project Sandbox:
 
 ```env
-VITE_API_URL=http://localhost:5000/api
-VITE_SUPABASE_URL=https://vnvknmwcidberkjwtqjx.supabase.co
-VITE_SUPABASE_PUBLISHABLE_KEY=<publishable-key>
+VITE_API_BASE_URL=/api
+VITE_SUPABASE_URL=https://yehwlrlbtcxtlogenahw.supabase.co
+VITE_SUPABASE_PUBLISHABLE_KEY=<sandbox-publishable-key>
 ```
 
-Nama `VITE_*` perlu dipadankan dengan kod frontend sebenar. **Jangan masukkan Supabase secret key/service role key ke frontend atau commit fail `.env` yang mengandungi rahsia.**
+**Pengujian Admin wajib menggunakan Jala-Mutu-Admin-Sandbox (`yehwlrlbtcxtlogenahw`), bukan project Supabase utama.** Jangan masukkan Supabase secret key/service role key ke frontend atau commit fail `.env` yang mengandungi rahsia.
+
+### Pengasingan backend untuk QA Admin
+
+Jalankan backend QA dengan konfigurasi berikut (isi publishable key Sandbox secara lokal; jangan menampilkan atau mencatat nilainya):
+
+```env
+ADMIN_SANDBOX_QA=true
+SUPABASE_URL=https://yehwlrlbtcxtlogenahw.supabase.co
+SUPABASE_PUBLISHABLE_KEY=<sandbox-publishable-key>
+ADMIN_ROLE_MANAGEMENT_ENABLED=false
+ADMIN_ROLE_READS_ENABLED=false
+```
+
+Saat `ADMIN_SANDBOX_QA=true`, backend memvalidasi URL secara tepat sebelum membuka port HTTP dan gagal startup jika project ref, protokol, path, atau komponen URL lain tidak sesuai. Jangan jalankan pengujian Admin dengan URL project utama. Mode ini hanya opt-in untuk QA; deployment produksi terpisah tetap dapat memakai `SUPABASE_URL` miliknya tanpa mengaktifkan flag QA. Validasi ini tidak mengaktifkan gate baca atau mutasi.
 
 ## 2. Authentication
 
@@ -134,8 +148,15 @@ Jangan gunakan role yang dipilih sendiri pada UI sebagai bukti hak akses. Gunaka
 | GET | `/paket/:id/uji-coba/:ujiCobaId` | Detail uji coba dan data berkaitan |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/seksi` | Tambah seksi |
 | POST | `/paket/:id/uji-coba/:ujiCobaId/seksi/:seksiId/pengukuran` | Tambah pengukuran |
+| GET | `/paket/:id/uji-coba/:ujiCobaId/evaluasi` | Baca pratinjau evaluasi parameter IRI |
+| POST | `/paket/:id/uji-coba/:ujiCobaId/evaluasi` | Simpan A, B, R² dan CV untuk dibandingkan dengan ambang DRAFT KAK 2026 |
+| GET | `/paket/:id/uji-coba/:ujiCobaId/pengajuan` | Baca status, versi, snapshot pengajuan, dan keputusan PIC |
+| POST | `/paket/:id/uji-coba/:ujiCobaId/pengajuan` | Penyedia mengajukan uji coba DRAFT yang sudah mempunyai seksi dan pengukuran |
+| POST | `/paket/:id/uji-coba/:ujiCobaId/pengajuan/review` | PIC Balai memberi keputusan `PERLU_REVISI` atau `DISETUJUI` |
 
-**Belum tersedia/disahkan untuk alur Tahap 2:** endpoint submit uji coba, review/keputusan, berita acara, atau kelulusan automatik. Jangan paparkan sebagai fungsi siap.
+Semakan Tahap 2 masih manual. Endpoint evaluasi hanya menghasilkan **pratinjau** perbandingan empat parameter IRI dengan ambang KAK 2026 yang masih berstatus `DRAFT`; pratinjau tidak mengunci pengajuan dan tidak menggantikan keputusan PIC. Nilai statistik dimasukkan oleh Penyedia Jasa dan belum dikira daripada data mentah oleh backend. Jika keputusan `PERLU_REVISI`, rekod percobaan lama kekal sebagai sejarah dan Penyedia membuat uji coba baharu dengan `percobaan_ke` seterusnya.
+
+**Belum tersedia/disahkan untuk alur Tahap 2:** berita acara dan kelulusan automatik. Jangan paparkan sebagai fungsi siap.
 
 ## 4. Respons sebenar yang sudah diuji
 
@@ -200,7 +221,8 @@ Contoh di atas ialah data ujian, **bukan data production**.
 | Beberapa operasi paket, dokumen, kalibrasi, personel | Pernah dibangunkan/diuji secara berasingan; perlu regression test sebelum integrasi penuh |
 | Login React → Supabase Auth → Express | Belum diuji |
 | Semua kombinasi role dan endpoint | Belum diuji |
-| Keputusan validasi Tahap 2 dan BA | Belum dibina/disahkan sebagai alur lengkap |
+| Pratinjau parameter IRI Tahap 2 | API tersedia; membandingkan A, B, R² dan CV dengan ambang DRAFT tanpa auto-approval |
+| Keputusan validasi muktamad Tahap 2 dan BA | Belum dibina/disahkan sebagai alur lengkap |
 
 Untuk operasi POST/PATCH/upload, **jangan meneka body request** daripada jadual route. Rujuk schema Zod, implementasi route dan Postman collection berkaitan sebelum Dirah membina form.
 
@@ -228,3 +250,38 @@ Untuk operasi POST/PATCH/upload, **jangan meneka body request** daripada jadual 
 ---
 
 Dokumen ini ialah **panduan integrasi awal**, bukan spesifikasi API muktamad. Kemas kini apabila kontrak request/response, aturan akses, atau route berubah.
+# Tahap 2D — Kriteria PCI pratinjau
+
+`GET /api/paket/:id/uji-coba-kriteria/:jenisSurveiId` membaca konfigurasi kriteria uji coba mengikut skop paket. Untuk PCI, konfigurasi KAK 2026 disimpan sebagai `DRAFT`: enam seksi percobaan, lima ulangan, ketepatan terhadap ground truth, standar deviasi, mAP dan F1-Score.
+
+Respons menetapkan `sumber_nilai: BELUM_TERSAMBUNG_SMD`, `boleh_mengunci_pengajuan: false`, dan `keputusan_pic_tetap_manual: true`. Endpoint ini hanya membaca kriteria; ia tidak menerima nilai manual, tidak menghitung PCI ASTM D6433 daripada data yang belum tersedia, dan tidak meluluskan uji coba secara automatik.
+
+## Tahap 2E Kriteria operasi Lendutan
+
+Endpoint kriteria yang sama menerima `jenisSurveiId` Lendutan dan mengembalikan lima syarat operasi daripada KAK 2026: interval pengukuran 0.5 km, loading plate 300 mm untuk kaedah yang menggunakannya, durasi pembebanan 25 hingga 35 ms, kalibrasi referensi maksimum 12 bulan, dan pemeriksaan repeatability maksimum setiap 30 hari.
+
+Konfigurasi ini berstatus `DRAFT`, tidak mengandungi ambang penerimaan nilai lendutan, belum menerima data SMD, dan tidak mengubah keputusan manual PIC.
+
+## Tahap 2F Kriteria operasi Jembatan
+
+`GET /api/paket/:id/uji-coba-kriteria/:jenisSurveiId` juga menerima `jenisSurveiId` Jembatan dan mengembalikan enam aturan operasi daripada KAK 2026: frekuensi survei satu kali setahun, batas panjang prioritas 6 meter, interval maksimum Pemeriksaan Detail 5 tahun, pemicu NK 3, pemicu umur umum 40 tahun, dan pemicu umur bangunan atas baja 30 tahun.
+
+Angka tersebut ialah aturan pemilihan atau frekuensi pemeriksaan yang bergantung pada konteks jembatan. Semua konfigurasi berstatus `DRAFT`, tidak menjadi keputusan lulus otomatis, dan tidak menggantikan verifikasi INVI-J atau keputusan manual PIC.
+
+## Tahap 2G Kriteria operasi Lereng
+
+Endpoint kriteria yang sama menerima `jenisSurveiId` Lereng dan mengembalikan empat aturan daripada KAK 2026: survei satu kali setahun, periode Februari hingga Oktober, inventarisasi umumnya untuk lereng lebih dari 5 meter dengan pengecualian gejala keruntuhan, dan empat kategori tingkat risiko.
+
+Konfigurasi ini berstatus `DRAFT`. Hasil penilaian risiko tetap berasal daripada In-Slope dan keputusan penerimaan kekal melalui audit serta semakan manual PIC.
+
+## Tahap 2H Kriteria operasi Drainase
+
+Endpoint kriteria menerima `jenisSurveiId` Drainase dan mengembalikan tiga aturan KAK 2026: inspeksi satu kali setahun, periode Februari hingga Mei, dan lima kategori kondisi. Hasil sebenar kekal berasal daripada InDrain serta melalui audit manual.
+
+## Tahap 2I Kriteria operasi Lalu Lintas
+
+Konfigurasi Lalu Lintas memuat durasi 3 x 24 jam bagi LHRT di bawah 5000, 7 x 24 jam bagi LHRT di atas 5000, pengecualian survei konvensional selepas pemantauan AI 365 hari, dan spesifikasi minimum kamera, tripod, serta resolusi rekaman. KAK belum menetapkan metode bagi LHRT tepat 5000, maka kes itu tidak diputuskan secara automatik.
+
+## Tahap 2J Kriteria operasi RNI
+
+Konfigurasi RNI memuat interval umum pemutakhiran lima tahun, ketelitian jarak 0.1 persen, ketelitian GPS 6 meter pada minimum 90 persen waktu, interval koordinat maksimum 10 meter, toleransi selisih jarak 30 meter per ruas, dan ketelitian dimensi 0.1 meter. Semua aturan berstatus `DRAFT` dan tidak menggantikan pemeriksaan SMD/LRS atau keputusan manual PIC.

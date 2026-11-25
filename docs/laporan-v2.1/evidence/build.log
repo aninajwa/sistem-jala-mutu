@@ -1,0 +1,19 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> jala-mutu-frontend@0.0.0 build
+> tsc -p tsconfig.json --noEmit && vite build
+
+vite v7.3.7 building client environment for production...
+transforming...
+✓ 2505 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                     1.31 kB │ gzip:   0.52 kB
+dist/assets/index-B6eMP21T.css    268.09 kB │ gzip:  53.59 kB
+dist/assets/index-B7Bz5Nbd.js   3,711.07 kB │ gzip: 742.94 kB
+
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rollupOptions.output.manualChunks to improve chunking: https://rollupjs.org/configuration-options/#output-manualchunks
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 7.49s

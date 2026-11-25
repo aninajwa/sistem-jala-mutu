@@ -22,6 +22,30 @@ export type PreparationState = {
   reviewerNote: string;
 };
 
+export type CalibrationReviewSubject = 'Alat dan personel' | 'Sertifikat kalibrasi' | 'Hasil kalibrasi' | 'Dokumen pendukung';
+export type CalibrationReviewResponse = { note: string; reference?: string; respondedAt: string };
+export type CalibrationReviewEntry = {
+  result: 'Sesuai' | 'Perlu klarifikasi' | 'Ada ketidaksesuaian';
+  note: string;
+  evidenceReference: string;
+  reviewedAt: string;
+  reviewer: 'PIC Balai / Pengguna Jasa';
+  sourceSignature: string;
+  response?: CalibrationReviewResponse;
+  history?: Omit<CalibrationReviewEntry, 'history'>[];
+};
+/** Hasil per bagian disimpan mandiri; data lama tidak dianggap memenuhi semua bagian. */
+export type CalibrationReview = {
+  result: 'Sesuai' | 'Perlu klarifikasi' | 'Ada ketidaksesuaian';
+  subject: CalibrationReviewSubject;
+  sections?: Partial<Record<CalibrationReviewSubject, CalibrationReviewEntry>>;
+  note: string;
+  evidenceReference: string;
+  reviewedAt: string;
+  reviewer: 'PIC Balai / Pengguna Jasa';
+  sourceSignature: string;
+};
+
 export type CalibrationRecord = {
   id: string;
   equipment: string;
@@ -37,6 +61,8 @@ export type CalibrationRecord = {
   standardReference?: string;
   certificateReference?: string;
   surveyType?: SurveyType;
+  /** Stable references retained when this view model came from authenticated API data. */
+  serverIds?: { calibrationId: number; equipmentId: number; teamId: number; personId: number | null; qualificationIds: number[]; documentId: number | null };
 };
 
 export type ProductionTest = {
@@ -145,7 +171,7 @@ export type DailySurveyRecord = {
 
 export type VervalCycle = {
   reviewPendingTypes?: SurveyType[];
-  surveyReviews?: Partial<Record<SurveyType, { decision: "Belum Diperiksa" | "Sesuai" | "Temuan"; note: string; reviewedAt: string }>>;
+  surveyReviews?: Partial<Record<SurveyType,{decision: "Belum Diperiksa"|"Sesuai"|"Temuan"; note:string; reviewedAt:string; evidenceReferences?:string[]}>>;
   requiresReview?: boolean;
   reviewReason?: string;
   lastCompletedDate: string;
@@ -248,6 +274,8 @@ export type AcceptanceTerm = {
 };
 
 export type CorrectionCase = {
+  /** Exact origin of a formal calibration finding; immutable after creation. */
+  calibrationFinding?: { surveyType: SurveyType; subject: CalibrationReviewSubject; sourceSignature: string; reviewedAt: string };
   cyclePeriod?: number;
   id: string;
   source: string;
@@ -262,6 +290,8 @@ export type CorrectionCase = {
   fieldDataValid: 'Ya' | 'Tidak' | 'Tidak Berlaku' | '';
   surveyType: SurveyType;
   actionType: string;
+  /** Rencana pekerjaan yang akan dilaksanakan; bukan laporan pelaksanaan. */
+  proposedPlan?: string;
   evidence: string;
   originalValue: string;
   proposedValue: string;
@@ -270,12 +300,20 @@ export type CorrectionCase = {
   status: 'Terbuka' | 'Menunggu Persetujuan' | 'Disetujui' | 'Dilaksanakan' | 'Verifikasi Ulang' | 'Ditutup';
   returnStage: string;
   linkedRecordId?: string;
+  /** Referensi tindakan nyata pada sistem sumber / rekaman lapangan setelah disetujui. */
+  executionReference?: string;
+  /** Referensi hasil pemeriksaan ulang oleh Pengguna Jasa pada tahap sumber. */
+  retestReference?: string;
+  /** Alasan ketidaklulusan hasil uji ulang, ditulis oleh pemeriksa. */
+  retestFailureReason?: string;
   verification?: { surveyor: boolean; teamLeader: boolean; balai: boolean };
   reviewNote?: string;
   ruleScenario?: string;
   ruleChecks?: Record<string, boolean>;
   ruleNumbers?: Record<string, number>;
   provinceUpdateBa?: string;
+  /** Server mode only: optimistic version sent as expected_version on the next action. */
+  serverVersion?: number;
 };
 
 export type SemesterTwoEvidence = {
@@ -312,7 +350,24 @@ export type WorkflowEvent = {
   newValue?: string;
 };
 
+/** Append-only review actions; older snapshots remain readable without fabricated metadata. */
+export type ReviewActivity = {
+  id: string;
+  recordedAt: string;
+  actor: WorkflowRole;
+  stage: 'Tahap 0' | 'Tahap 2' | 'Tahap 3B' | 'Tahap 5' | 'Tahap 6';
+  period?: number;
+  auditLevel?: 1 | 2 | 3;
+  action: 'catatan' | 'keputusan' | 'pengajuan-ulang' | 'pengajuan' | 'perubahan-pemeriksaan';
+  previousStatus: string;
+  status: string;
+  previousNote: string;
+  note: string;
+};
+
 export type OperationalWorkflowState = {
+  reviewActivityHistory?: ReviewActivity[];
+  balaiDecisionHistory?: Array<{stage:'Tahap 0'|'Tahap 2'|'Tahap 6'; recordedAt:string; actor:WorkflowRole; previousDecision:string; decision:string; previousNote:string; note:string; previousReference?:string; reference?:string}>;
   pciMethodDrafts?: Partial<Record<"manual" | "ai", ProductionTest>>;
   flowContractVersion?: number;
   simulationDate: string;
@@ -337,13 +392,21 @@ export type OperationalWorkflowState = {
     ppk: string;
     routes: string[];
     surveyTypes: SurveyType[];
+    /** Server package survey scope is separate from an empty label list. */
+    surveyScopeStatus?: 'loading' | 'error' | 'undefined' | 'defined';
+    surveyScopeSurveys?: Array<{ jenis_survei_id: number; kode: string | null; nama: string | null; aktif: boolean | null }>;
+    surveyScopeAssociationCount?: number;
+    surveyScopeUnresolvedAssociationCount?: number;
+    surveyScopeDeclaredStatus?: 'not_stored' | 'unset' | 'defined';
     semester: 'Semester I' | 'Semester II';
     preparation: PreparationState;
   };
   calibrations: CalibrationRecord[];
   calibrationChecklist: Record<SurveyType, boolean>;
+  calibrationReviews?: Partial<Record<SurveyType, CalibrationReview>>;
   productionTests: Record<SurveyType, ProductionTest>;
-  productionTestDates?: Partial<Record<SurveyType, string>>;
+  productionFailures?: Partial<Record<string, { reference: string; methodReview: string; date: string }[]>>;
+  productionTestDates?: Partial<Record<SurveyType,string>>;
   dailyRecords: DailySurveyRecord[];
   cycle: VervalCycle;
   cycleHistory?: Record<string, VervalCycle>;
@@ -359,7 +422,8 @@ export type OperationalWorkflowState = {
     finalAcceptance: boolean;
     finalAcceptanceBa?: string;
     acceptanceCriteria?: Record<string, boolean>;
-    acceptanceDecision?: 'Belum Diperiksa' | 'Diterima' | 'Ditolak';
+    acceptanceDecision?: 'Belum Diperiksa' | 'Diterima' | 'Diterima dengan Catatan' | 'Ditolak';
+    acceptanceReviewNote?: string;
     acceptanceRejectionReason?: string;
     semesterTwoEvidence?: SemesterTwoEvidence;
   };
@@ -641,7 +705,8 @@ export function loadOperationalWorkflowState(): OperationalWorkflowState {
       ])) as OperationalWorkflowState['productionTests'],
       cycle: { ...INITIAL_WORKFLOW.cycle, ...parsed.cycle },
       cycleHistory: parsed.cycleHistory ?? {},
-      calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type => [type, parsed.calibrationChecklist?.[type] ?? false])) as Record<SurveyType, boolean>,
+      calibrationChecklist: Object.fromEntries(SURVEY_TYPES.map(type=>[type,parsed.calibrationChecklist?.[type]??false])) as Record<SurveyType,boolean>,
+      calibrationReviews: parsed.calibrationReviews ?? {},
       submission: {
         ...INITIAL_WORKFLOW.submission,
         ...parsed.submission,
@@ -1023,8 +1088,14 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
     const detail =
       test.productionDetails ?? {};
 
+    // Nama field di formulir dan key lama sama-sama diterima; jangan ubah data historis.
+    const sourceField: Record<string, string> = {
+      slopeGeometry: 'geometry',
+      slopeMaterial: 'materialCondition',
+      protectionStructure: 'engineeringStructure',
+    };
     const text = (key: string) =>
-      String(detail[key] ?? '').trim();
+      String(detail[key] || detail[sourceField[key]] || '').trim();
 
     const yes = (key: string) =>
       detail[key] === true;
@@ -1541,7 +1612,7 @@ export function evaluateProductionTest(type: SurveyType, test: ProductionTest) {
 }
 
 export function samplingRule(type: SurveyType, level: 1 | 2 | 3) {
-  if (type === 'Lendutan' && level === 2) return { label: 'Sampling Pengguna Jasa · ketentuan sementara', rate: 5, unit: 'titik lendutan' };
+  if (type === 'Lendutan' && level === 2) return { label: 'Sampling Pengguna Jasa · ketentuan sementara, belum terverifikasi terhadap dokumen sumber', rate: 5, unit: 'titik lendutan; persentase belum terverifikasi' };
   if (level === 1) return { label: 'Audit Penyedia Jasa', rate: 100, unit: 'seluruh data' };
   if (level === 3) return { label: 'Audit Direktorat', rate: 1, unit: 'minimum 1% data' };
   if (type === 'Jembatan' || type === 'Lereng' || type === 'Lendutan') {

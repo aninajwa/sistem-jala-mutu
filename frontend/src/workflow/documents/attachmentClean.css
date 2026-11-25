@@ -1,0 +1,22 @@
+/* Penyederhanaan tampilan lampiran BA tanpa menghapus metadata audit */
+.documents-area .wf-body { display: grid; gap: 12px; }
+.documents-area .document-upload-flow { display: grid; gap: 10px; padding: 14px; border: 1px solid #dbe5ec; border-radius: 10px; background: #f8fbfd; }
+.documents-area .document-category-label { display: grid; gap: 6px; font-size: 12px; font-weight: 600; color: #2a455d; min-width: 0; }
+.documents-area .document-category-label select { min-height: 38px; width: 100%; max-width: 100%; border: 1px solid #cbd8e4; border-radius: 7px; padding: 8px 10px; background: #fff; color: #20344b; font: inherit; }
+.documents-area .document-upload-actions { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; }
+.documents-area .document-file { padding: 12px 14px; border: 1px solid #dce5ed; border-radius: 9px; background: #fff; min-width: 0; }
+.documents-area .document-file .wf-row { display:flex; justify-content:space-between; align-items:center; gap:12px; flex-wrap:wrap; padding:0; }
+.documents-area .document-file-info { display:flex; gap:10px; align-items:center; flex:1; min-width:180px; color:#315e7e; }
+.documents-area .document-file-info>div { min-width:0; }
+.documents-area .document-file-info strong { display:block; color:#24394b; overflow-wrap:anywhere; font-size:13px; }
+.documents-area .document-file-info small { display:block; color:#6a7b89; margin-top:4px; }
+.documents-area .document-file-actions { display:flex; align-items:center; gap:8px; flex-wrap:nowrap; }
+.documents-area .document-file-actions .wf-button { display:inline-flex; align-items:center; justify-content:center; gap:6px; }
+.documents-area .document-unlink { width:36px; min-width:36px; height:36px; padding:7px; color:#8b4750; }
+.documents-area .document-advanced { margin-top:9px; font-size:12px; color:#607486; }
+.documents-area .document-advanced summary { display:flex; align-items:center; gap:6px; cursor:pointer; width:fit-content; }
+.documents-area .document-advanced[open] { padding-top:8px; border-top:1px solid #e9eef2; }
+.documents-area .document-needs { font-size:12px; color:#4c6378; }
+.documents-area .document-needs summary { cursor:pointer; }
+.documents-area .document-requirements { margin:8px 0 2px; }
+@media(max-width:560px){ .documents-area .document-file-actions { width:100%; justify-content:flex-end; } }

@@ -1,0 +1,4774 @@
+{
+  "70b6ba7aedbb4e10": {
+    "sha256": "6c1db615c03bb207cdf7c2b1ee71054c2c7380266c35b9c58ebb961ba37e1112",
+    "survey": "Lalu Lintas",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "fixed",
+        "heading": "1. Status Progres Keseluruhan"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "2. Detail Progres Per Lokasi"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "1. Administrasi"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "2. Sumber Daya"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian Metode dan Standar"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Pelaksanaan di Lapangan (Sampel)"
+      },
+      "7": {
+        "mode": "repeat",
+        "heading": "1. Validasi Sampling Data Mentah"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "2. Parameter Validasi Teknis"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3. Validasi Hasil Pencacahan Sampel"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian Metode Pengolahan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "2. Validasi Format Data"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan dan Akurasi Hasil"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "2. Kelengkapan Laporan"
+      },
+      "14": {
+        "mode": "optional",
+        "heading": "1. Hambatan dan Permasalahan"
+      },
+      "15": {
+        "mode": "optional",
+        "heading": "2. Identifikasi Risiko"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "1. Tindakan Perbaikan untuk Temuan"
+      },
+      "17": {
+        "mode": "optional",
+        "heading": "2. Rekomendasi Peningkatan"
+      },
+      "18": {
+        "mode": "optional",
+        "heading": "1. Jadwal Penyelesaian Tahap Berikutnya"
+      },
+      "19": {
+        "mode": "optional",
+        "heading": "2. Koordinasi dengan Pengguna Jasa"
+      },
+      "20": {
+        "mode": "fixed",
+        "heading": "1. Hasil Penilaian Tahap"
+      },
+      "21": {
+        "mode": "approval",
+        "heading": "K. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t9:r7": {
+        "label": "3.6 Perbandingan dengan data sekunder (jika ada)",
+        "key": "applicable:t9:r7"
+      }
+    }
+  },
+  "4012cd3e899722d8": {
+    "sha256": "d107da8e1b68effd6141f3945985e9caf25f9ae364df0789a39d02ae359e9ee8",
+    "survey": "Lalu Lintas",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "fixed",
+        "heading": "1. Kamera Perekam (CCTV/Video/IP Camera)"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "2. Perangkat Pendukung"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "3. GPS dan Perangkat Waktu"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "1. Persiapan Survei"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "2. Penempatan Peralatan"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "3. Validasi Pengambilan Data"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "1. Format Data"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "2. Klasifikasi Kendaraan"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3. Pengolahan dan Analisis"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "1. Format Laporan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "2. Kelengkapan Dokumentasi"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "3. Backup dan Keamanan Data"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Internal"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Eksternal"
+      },
+      "15": {
+        "mode": "optional",
+        "heading": "F. TINDAK LANJUT DAN REKOMENDASI"
+      },
+      "16": {
+        "mode": "approval",
+        "heading": "G. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t2:r9": {
+        "label": "2.8 Wireless outdoor access point (jika digunakan)",
+        "key": "applicable:t2:r9"
+      },
+      "t14:r2": {
+        "label": "2.1 Kesesuaian dengan data historis (jika ada)",
+        "key": "applicable:t14:r2"
+      }
+    }
+  },
+  "e44f65b98716f656": {
+    "sha256": "407047c0791b29b1ac1edefd1d18851b133b7e147ecf2753b2d4534c7bbf0b6e",
+    "survey": "Lalu Lintas",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Kamera Perekam"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Perangkat Penunjang"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Lokasi"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Waktu"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Metode Manual"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Metode Tidak Langsung (Rekaman)"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Identifikasi Jenis Kendaraan"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Antar Operator"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Harian"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Sampel (Uji Repeatability)"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Format Data"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Analisis"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi dengan Data Historis"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi dengan Data Sekitar"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "1. Pengulangan Pemrosesan"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "2. Uji Cross-check"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "1. Konsistensi Total"
+      },
+      "18": {
+        "mode": "optional",
+        "heading": "2. Temuan Inkonsistensi dan Mitigasi"
+      },
+      "19": {
+        "mode": "approval",
+        "heading": "J. VALIDASI KONSISTENSI"
+      }
+    },
+    "conditions": {
+      "t2:r5": {
+        "label": "2.4 Stabilitas jaringan (untuk IP Camera)",
+        "key": "applicable:t2:r5"
+      },
+      "t10:r5": {
+        "label": "2.4 Konsistensi antar metode pencacahan (jika ada)",
+        "key": "applicable:t10:r5"
+      }
+    }
+  },
+  "bf5f69f73c590c99": {
+    "sha256": "e8dabcbcc7a9a50c0aecc633548e19e0235c7d075816d54d236254ebafc7522f",
+    "survey": "Lalu Lintas",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "repeat",
+        "heading": "1. Kegiatan Survei yang Dilakukan"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "2. Rekap Jumlah Survei 2 Mingguan"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan Dokumentasi Administrasi"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "2. Verifikasi Administrasi Personil"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian Metode"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Verifikasi Peralatan Survei"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan Data"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "2. Validasi Kualitas Data"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3. Validasi Khusus Sampel Data"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "1. Format Data"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "2. Metode Analisis"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan Laporan"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "2. Kualitas Penyajian"
+      },
+      "14": {
+        "mode": "optional",
+        "heading": "1. Permasalahan yang Ditemukan Selama 2 Minggu"
+      },
+      "15": {
+        "mode": "optional",
+        "heading": "2. Identifikasi Risiko untuk 2 Minggu Kedepan"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "1. Tindakan Perbaikan untuk Temuan"
+      },
+      "17": {
+        "mode": "optional",
+        "heading": "2. Rekomendasi untuk Peningkatan"
+      },
+      "18": {
+        "mode": "optional",
+        "heading": "1. Jadwal Survei"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "2. Alokasi Sumber Daya"
+      },
+      "20": {
+        "mode": "approval",
+        "heading": "J. PERSETUJUAN VERIFIKASI DAN VALIDASI"
+      }
+    },
+    "conditions": {
+      "t4:r5": {
+        "label": "2.4 Pelatihan personil tambahan (jika ada)",
+        "key": "applicable:t4:r5"
+      },
+      "t9:r4": {
+        "label": "3.3 Cross-check dengan data sekunder (jika ada)",
+        "key": "applicable:t9:r4"
+      }
+    }
+  },
+  "bb15280317d77d2c": {
+    "sha256": "16e824a10df2a55a09aff7fbcf17e69b90517a52f9687512f2206622fe054a34",
+    "survey": "Lalu Lintas",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "fixed",
+        "heading": "1. Persiapan Administrasi"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "2. Persiapan Tim Survei"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "3. Persiapan Peralatan"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "4. Survei Pendahuluan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Verifikasi Pemasangan Peralatan"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Verifikasi Proses Pengambilan Data"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3. Verifikasi Pengumpulan Data Harian"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "1. Validasi Kelengkapan Data"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "2. Validasi Kualitas Data Mentah"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "1. Verifikasi Metode Pencacahan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "2. Validasi Hasil Pencacahan"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "3. Validasi Sampling Internal"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "1. Verifikasi Metode Pengolahan"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "2. Validasi Hasil Pengolahan"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "1. Verifikasi Format Data"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "2. Verifikasi Penyajian Laporan"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "1. Verifikasi Backup Data"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "2. Verifikasi Keamanan Data"
+      },
+      "19": {
+        "mode": "optional",
+        "heading": "1. Permasalahan yang Teridentifikasi"
+      },
+      "20": {
+        "mode": "optional",
+        "heading": "2. Tindakan Perbaikan"
+      },
+      "21": {
+        "mode": "fixed",
+        "heading": "1. Validasi Kelengkapan Final"
+      },
+      "22": {
+        "mode": "approval",
+        "heading": "J. PERSETUJUAN INTERNAL"
+      }
+    },
+    "conditions": {
+      "t14:r6": {
+        "label": "2.5 Kesesuaian dengan data historis (jika ada)",
+        "key": "applicable:t14:r6"
+      }
+    }
+  },
+  "2df92dd0d499c598": {
+    "sha256": "cf79677f5ee69bf74768cd45f9a0baec23da2bf1a6f03ca634d3bcb657909fc7",
+    "survey": "Drainase",
+    "phase": "audit",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI DATA YANG DIAUDIT"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. AUDIT KELENGKAPAN DOKUMENTASI PENDUKUNG"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. AUDIT KESESUAIAN METODE DAN PROSEDUR"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. AUDIT FORMAT DATA"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. AUDIT KELENGKAPAN DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. AUDIT KETELITIAN DATA"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. AUDIT KEWAJARAN DATA"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "I. HASIL SAMPLING AUDIT LAPANGAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. ANALISIS STATISTIK DATA AUDIT"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. DISTRIBUSI KONDISI DRAINASE"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. TEMUAN AUDIT"
+      },
+      "13": {
+        "mode": "optional",
+        "heading": "M. REKOMENDASI TINDAKAN PERBAIKAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N.1. Status Penerimaan Data"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "N.2. Status Akhir Data"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "O. RENCANA TINDAK LANJUT AUDIT"
+      },
+      "17": {
+        "mode": "approval",
+        "heading": "P. PERSETUJUAN HASIL AUDIT"
+      }
+    },
+    "conditions": {
+      "t3:r10": {
+        "label": "C.9 Dokumentasi tindakan perbaikan (jika ada) tersedia",
+        "key": "applicable:t3:r10"
+      }
+    }
+  },
+  "688f81b130b19d11": {
+    "sha256": "44c8c1e16e0879a2b9dc3c13f7436ab2e74a56cc61bc315b36f9b87f55b8caf8",
+    "survey": "Drainase",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI PROGRESS SURVEI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI PERSIAPAN SURVEI"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VERIFIKASI PELAKSANAAN SURVEI"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI KELENGKAPAN DATA"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI KUALITAS DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VALIDASI KONSISTENSI DATA"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VALIDASI KEWAJARAN DATA"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. VALIDASI PENGELOLAAN DATA"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. UJI SAMPLING INTERNAL"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. DISTRIBUSI KONDISI DRAINASE"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "M. KESIMPULAN VERIFIKASI DAN VALIDASI INTERNAL"
+      },
+      "14": {
+        "mode": "approval",
+        "heading": "O. PERSETUJUAN HASIL VERIFIKASI DAN VALIDASI INTERNAL"
+      }
+    },
+    "conditions": {
+      "t7:r12": {
+        "label": "G.11 Konsistensi pengukuran dengan hasil survei sebelumnya (jika ada)",
+        "key": "applicable:t7:r12"
+      },
+      "t9:r11": {
+        "label": "I.10 Proses perbaikan data (jika ada) dilakukan dengan benar",
+        "key": "applicable:t9:r11"
+      },
+      "t9:r13": {
+        "label": "I.12 Log perubahan data (jika ada) tersedia",
+        "key": "applicable:t9:r13"
+      }
+    }
+  },
+  "c0373e9fbdbcd58f": {
+    "sha256": "d9c51cf80e119e8d1e65082a8dfca6ff685bbedc76dcbdcaebab05e462a5fd8f",
+    "survey": "Drainase",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI PERALATAN SURVEI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. KALIBRASI DAN PERSIAPAN PERALATAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VALIDASI PEMAHAMAN PROSEDUR DAN STANDAR"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. UJI KONSISTENSI PENILAIAN KONDISI DRAINASE"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI LOKASI UJI SAMPEL"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VALIDASI PENGOPERASIAN APLIKASI INDRAIN"
+      },
+      "8": {
+        "mode": "repeat",
+        "heading": "H. HASIL UJI KONSISTENSI PENILAIAN KONDISI DRAINASE"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. ANALISIS HASIL KALIBRASI DAN VALIDASI"
+      },
+      "10": {
+        "mode": "optional",
+        "heading": "J. TEMUAN DAN REKOMENDASI"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. KESIMPULAN KALIBRASI DAN VALIDASI"
+      },
+      "12": {
+        "mode": "approval",
+        "heading": "L. PERSETUJUAN HASIL KALIBRASI DAN VALIDASI"
+      }
+    },
+    "conditions": {
+      "t3:r10": {
+        "label": "C.9 Koneksi internet (bila diperlukan) tersedia dan stabil",
+        "key": "applicable:t3:r10"
+      }
+    }
+  },
+  "7e3a7fcdcb780a6e": {
+    "sha256": "3d8a8056c6cbaa07a9b0d390a4956f89e15cb92c5ab481a2b95f0978b3ec1245",
+    "survey": "Drainase",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI PROGRESS SURVEI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI KELENGKAPAN DATA"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VALIDASI KONSISTENSI PELAKSANAAN SURVEI"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI SAMPLING ULANG"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI KUALITAS DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VERIFIKASI KONSISTENSI PERALATAN"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VERIFIKASI PROSES UNGGAH DATA"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. HASIL SAMPLING ULANG"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. DISTRIBUSI KONDISI DRAINASE (2 MINGGU TERAKHIR)"
+      },
+      "11": {
+        "mode": "optional",
+        "heading": "K. ANALISIS TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. ANALISIS KENDALA DAN SOLUSI"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "M. KESIMPULAN VERIFIKASI DAN VALIDASI 2-MINGGUAN"
+      },
+      "14": {
+        "mode": "approval",
+        "heading": "O. PERSETUJUAN HASIL VERIFIKASI DAN VALIDASI 2-MINGGUAN"
+      }
+    },
+    "conditions": {
+      "t8:r9": {
+        "label": "H.8 Proses perbaikan data (jika ada) dilakukan dengan benar",
+        "key": "applicable:t8:r9"
+      }
+    }
+  },
+  "b685b0ad7196aefe": {
+    "sha256": "5dfcb3859d5999713a97257b3554e9781e211df79700f059c0220c50efcd8114",
+    "survey": "Drainase",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI LOKASI UJI KONSISTENSI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. KONSISTENSI PENGUKURAN ANTAR SURVEYOR"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. KONSISTENSI PENGUKURAN BERULANG (REPEATABILITY)"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. KONSISTENSI PENGGUNAAN APLIKASI INDRAIN"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. KONSISTENSI DENGAN STANDAR DAN PEDOMAN"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. KONSISTENSI DOKUMENTASI"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. HASIL UJI KONSISTENSI PENGUKURAN ANTAR SURVEYOR"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. HASIL UJI KONSISTENSI PENGUKURAN BERULANG"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. ANALISIS HASIL UJI KONSISTENSI"
+      },
+      "11": {
+        "mode": "optional",
+        "heading": "K. TEMUAN DAN REKOMENDASI"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. KESIMPULAN UJI KONSISTENSI"
+      },
+      "13": {
+        "mode": "approval",
+        "heading": "M. PERSETUJUAN HASIL UJI KONSISTENSI"
+      }
+    },
+    "conditions": {}
+  },
+  "fecc9c901d37f3d0": {
+    "sha256": "78138e428dd2a4754454d0cc3f74dbc41f891cced87412fdb0235fc9e88ac50a",
+    "survey": "Drainase",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI PROGRESS SURVEI BERTAHAP"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI KELENGKAPAN DOKUMEN PENDUKUNG"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VERIFIKASI KELENGKAPAN DATA YANG DIUNGGAH"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI KUALITAS DATA YANG DIUNGGAH"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI SAMPLING INDEPENDEN"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VALIDASI KONSISTENSI METODOLOGI"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VERIFIKASI KONSISTENSI DENGAN PEDOMAN"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. VERIFIKASI PENANGANAN TEMUAN TAHAP SEBELUMNYA"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. HASIL SAMPLING INDEPENDEN"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. DISTRIBUSI KONDISI DRAINASE (TAHAP INI)"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. ANALISIS TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "M. KESIMPULAN VERIFIKASI DAN VALIDASI BERTAHAP"
+      },
+      "14": {
+        "mode": "approval",
+        "heading": "O. PERSETUJUAN HASIL VERIFIKASI DAN VALIDASI BERTAHAP"
+      }
+    },
+    "conditions": {
+      "t3:r9": {
+        "label": "C.8 Dokumentasi tindakan perbaikan (jika ada) tersedia",
+        "key": "applicable:t3:r9"
+      },
+      "t9:r4": {
+        "label": "I.3 Perbaikan metode survei (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r4"
+      },
+      "t9:r5": {
+        "label": "I.4 Perbaikan penggunaan aplikasi (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r5"
+      },
+      "t9:r6": {
+        "label": "I.5 Perbaikan dokumentasi (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r6"
+      },
+      "t9:r7": {
+        "label": "I.6 Perbaikan penilaian kondisi (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r7"
+      },
+      "t9:r8": {
+        "label": "I.7 Perbaikan pengelolaan data (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r8"
+      },
+      "t9:r9": {
+        "label": "I.8 Perbaikan kinerja tim (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r9"
+      },
+      "t9:r10": {
+        "label": "I.9 Perbaikan konsistensi (jika disarankan) telah dilakukan",
+        "key": "applicable:t9:r10"
+      },
+      "t14:r6": {
+        "label": "Perwakilan Direktorat (jika diperlukan)",
+        "key": "applicable:t14:r6"
+      }
+    }
+  },
+  "5e082f210ca6976a": {
+    "sha256": "744ef5182ea246e0b6b8a68865cde6e4819a433f39be5700e46e05061dd76e8f",
+    "survey": "Lendutan",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "II. INFORMASI PERALATAN"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "III. KALIBRASI REFERENSI TAHUNAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "IV. KALIBRASI RELATIF"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "V. PENGUKURAN KONSISTENSI (REPEATABILITY)"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "VI. MONITORING SENSOR LENDUTAN"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "VII. VALIDASI SISTEM"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "VIII. UJI COBA PENGUKURAN"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "IX. DOKUMENTASI HASIL UJI"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "X. KESIMPULAN DAN REKOMENDASI"
+      },
+      "11": {
+        "mode": "approval",
+        "heading": "XI. TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t6:r4": {
+        "label": "Jika penggantian dilakukan, apakah sensor pengganti tersertifikasi dalam kalibrasi referensi sebelumnya (dalam 12 bulan terakhir)?",
+        "answer": "t6:r3:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t6:r5": {
+        "label": "Jika No. 3 dijawab \"Tidak\", apakah kalibrasi referensi ulang telah dilakukan?",
+        "answer": "t6:r4:c3",
+        "values": [
+          "Tidak"
+        ]
+      },
+      "t6:r6": {
+        "label": "Jika No. 3 dijawab \"Ya\", apakah kalibrasi relatif telah dilakukan?",
+        "answer": "t6:r4:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t8:r7": {
+        "label": "6. Hasil dievaluasi terhadap data historis (jika ada)",
+        "key": "applicable:t8:r7"
+      },
+      "t3:r2": {
+        "label": "FWD: Load cell dan deflection sensors tervalidasi (AASHTO 2009, R32)",
+        "answer": "t2:r1:c2",
+        "values": [
+          "FWD"
+        ]
+      },
+      "t3:r3": {
+        "label": "FWD: Temperature measurement sensors tervalidasi (sesuai spesifikasi pabrik)",
+        "answer": "t2:r1:c2",
+        "values": [
+          "FWD"
+        ]
+      },
+      "t3:r4": {
+        "label": "LWD: Geophone dan Level Beban tervalidasi (ASTM E2835-11 2015)",
+        "answer": "t2:r1:c2",
+        "values": [
+          "LWD"
+        ]
+      },
+      "t3:r5": {
+        "label": "LWD: Temperature measurement sensors tervalidasi (sesuai spesifikasi pabrik)",
+        "answer": "t2:r1:c2",
+        "values": [
+          "LWD"
+        ]
+      },
+      "t3:r6": {
+        "label": "BB: Kalibrasi dial gauge",
+        "answer": "t2:r1:c2",
+        "values": [
+          "BB"
+        ]
+      },
+      "t3:r7": {
+        "label": "BB: Kalibrasi beban",
+        "answer": "t2:r1:c2",
+        "values": [
+          "BB"
+        ]
+      },
+      "t4:r2": {
+        "label": "FWD: Deflection sensors tervalidasi (AASHTO 2009, R32 / COST 336 U4)",
+        "answer": "t2:r1:c2",
+        "values": [
+          "FWD"
+        ]
+      },
+      "t4:r3": {
+        "label": "LWD: Deflection sensors tervalidasi (ASTM E2835-11 2015)",
+        "answer": "t2:r1:c2",
+        "values": [
+          "LWD"
+        ]
+      },
+      "t4:r4": {
+        "label": "BB: Kalibrasi relatif terhadap sensor lain",
+        "answer": "t2:r1:c2",
+        "values": [
+          "BB"
+        ]
+      }
+    },
+    "concernValues": {
+      "t6:r3:c3": [
+        "Ya"
+      ],
+      "t5:r3:c4": [
+        "> 5%"
+      ]
+    }
+  },
+  "f69354a32e76ae8e": {
+    "sha256": "dca8501408c6768243156cd630cc9a2d77dbee3d4df02d8cca60fe9b3f085507",
+    "survey": "IRI",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "B. PERSIAPAN VERIFIKASI DAN VALIDASI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI KELENGKAPAN DATA"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VERIFIKASI KEWAJARAN DATA"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI KEAKURATAN DATA"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI FORMAT DATA"
+      },
+      "7": {
+        "mode": "repeat",
+        "heading": "G. HASIL SPOT CHECK / SAMPLING"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. STATISTIK VALIDASI DATA"
+      },
+      "9": {
+        "mode": "optional",
+        "heading": "I. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. KESIMPULAN VERIFIKASI DAN VALIDASI"
+      },
+      "11": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t4:r8": {
+        "label": "D.7 Jika ada nilai hilang/anomali, sudah dicatat dan dijelaskan",
+        "key": "applicable:t4:r8"
+      },
+      "t5:r3": {
+        "label": "E.2 Nilai IRI hasil survei konvergen dengan nilai referensi (jika ada)",
+        "key": "applicable:t5:r3"
+      },
+      "t5:r11": {
+        "label": "E.10 Data telah divalidasi terhadap pengukuran independen (jika tersedia)",
+        "key": "applicable:t5:r11"
+      }
+    }
+  },
+  "4bf20a41e4db5e3c": {
+    "sha256": "4a6317b698f2645391cbe5b19edc3bd84d3ef62ac28a3e6d7178e6c7d5185090",
+    "survey": "IRI",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "B. TIM PELAKSANA VERIFIKASI DAN VALIDASI BERTAHAP"
+      },
+      "3": {
+        "mode": "repeat",
+        "heading": "C. RUAS JALAN YANG DIVERIFIKASI"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. REVIEW DOKUMENTASI DAN PROSES"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI ALAT DAN METODE"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VERIFIKASI KUALITAS DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VERIFIKASI KEWAJARAN DATA"
+      },
+      "8": {
+        "mode": "optional",
+        "heading": "H. PEMERIKSAAN SILANG DENGAN DATA LAIN"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "I. HASIL PEMERIKSAAN SAMPLING LAPANGAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. ANALISIS STATISTIK HASIL VERIFIKASI"
+      },
+      "11": {
+        "mode": "optional",
+        "heading": "K. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. EVALUASI PROGRESS KESELURUHAN"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "M. EVALUASI BERDASARKAN KRITERIA PENERIMAAN DATA"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N.1. Kesimpulan Verifikasi dan Validasi Bertahap"
+      },
+      "15": {
+        "mode": "optional",
+        "heading": "O. RENCANA TINDAK LANJUT"
+      },
+      "16": {
+        "mode": "approval",
+        "heading": "P. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t4:r10": {
+        "label": "D.9 Survei ulang (jika ada) terdokumentasi dengan baik",
+        "key": "applicable:t4:r10"
+      },
+      "t6:r9": {
+        "label": "F.8 Segmen yang tidak valid (jika ada) tercatat dengan jelas",
+        "key": "applicable:t6:r9"
+      },
+      "t7:r10": {
+        "label": "G.9 Nilai IRI konsisten dengan data PCI (jika tersedia)",
+        "key": "applicable:t7:r10"
+      },
+      "t7:r11": {
+        "label": "G.10 Nilai IRI konsisten dengan data lendutan (jika tersedia)",
+        "key": "applicable:t7:r11"
+      }
+    }
+  },
+  "bd492d0bf8d7f96d": {
+    "sha256": "ab68855c227ec7ea681fcf3ff03a0b75157b14761e63a13d48bd08a5f8fd550d",
+    "survey": "IRI",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "1. Informasi Umum"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "2. Kalibrasi Alat"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "3. Validasi Alat"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "4. GPS dan Pengukuran Jarak"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "5. Dokumentasi Kalibrasi"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "6. Hasil Validasi"
+      }
+    },
+    "conditions": {}
+  },
+  "25d94206136f9881": {
+    "sha256": "13115c0e427183728dc38acbda99d9f82c3c61e41e11dc031ad4280ac4acedbf",
+    "survey": "IRI",
+    "phase": "audit",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI DATA YANG DIAUDIT"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. AUDIT KELENGKAPAN DOKUMENTASI PENDUKUNG"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. AUDIT KESESUAIAN METODE DAN PROSEDUR"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. AUDIT FORMAT DATA"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. AUDIT KELENGKAPAN DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. AUDIT KETELITIAN DATA"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. AUDIT KEWAJARAN DATA"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "I. HASIL SAMPLING AUDIT LAPANGAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. ANALISIS STATISTIK DATA AUDIT"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. DISTRIBUSI NILAI IRI"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. TEMUAN AUDIT"
+      },
+      "13": {
+        "mode": "optional",
+        "heading": "M. REKOMENDASI TINDAKAN PERBAIKAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N.1. Status Penerimaan Data"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "N.2. Status Akhir Data"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "O. RENCANA TINDAK LANJUT AUDIT"
+      },
+      "17": {
+        "mode": "approval",
+        "heading": "P. PERSETUJUAN HASIL AUDIT"
+      }
+    },
+    "conditions": {
+      "t3:r11": {
+        "label": "C.10 Dokumentasi tindakan perbaikan (jika ada) tersedia",
+        "key": "applicable:t3:r11"
+      },
+      "t6:r11": {
+        "label": "F.10 Segmen yang tidak valid (jika ada) tercatat dan dijelaskan",
+        "key": "applicable:t6:r11"
+      },
+      "t8:r10": {
+        "label": "H.9 Nilai IRI konsisten dengan data historis (bila tersedia)",
+        "key": "applicable:t8:r10"
+      }
+    }
+  },
+  "f5d636d530a507d7": {
+    "sha256": "f8a36c3e0008233828ad73f95c11442ff6f780c2c1f14dbe705fe95b2b90dda1",
+    "survey": "IRI",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "B. TIM PELAKSANA VERIFIKASI DAN VALIDASI"
+      },
+      "3": {
+        "mode": "repeat",
+        "heading": "C. RUAS JALAN YANG DIEVALUASI (PERIODE 2 MINGGUAN)"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VERIFIKASI DAN VALIDASI ALAT"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VERIFIKASI PROSEDUR SURVEI"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VERIFIKASI KELENGKAPAN DAN KUALITAS DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VALIDASI KEWAJARAN DATA"
+      },
+      "8": {
+        "mode": "repeat",
+        "heading": "H. HASIL SAMPLING VERIFIKASI (MIN 5% DARI TOTAL PANJANG)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. ANALISIS STATISTIK HASIL SAMPLING"
+      },
+      "10": {
+        "mode": "optional",
+        "heading": "J. DOKUMENTASI MASALAH DAN TINDAKAN PERBAIKAN"
+      },
+      "11": {
+        "mode": "optional",
+        "heading": "K. FAKTOR-FAKTOR YANG MEMPENGARUHI KUALITAS PENGUKURAN"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. EVALUASI PROGRESS SURVEI"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "M. KESIMPULAN DAN REKOMENDASI"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "M. KESIMPULAN DAN REKOMENDASI"
+      },
+      "15": {
+        "mode": "optional",
+        "heading": "N. RENCANA TINDAK LANJUT"
+      },
+      "16": {
+        "mode": "approval",
+        "heading": "O. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t5:r11": {
+        "label": "E.10 Catatan perubahan prosedur (jika ada) tersedia dan terdokumentasi",
+        "key": "applicable:t5:r11"
+      },
+      "t7:r6": {
+        "label": "G.5 Nilai IRI konsisten dengan data historis (jika tersedia)",
+        "key": "applicable:t7:r6"
+      }
+    }
+  },
+  "2fe9c6f09c5304d2": {
+    "sha256": "2008327f5fbdc4ab6d8d64dbfe69381f96d5bd41f0b6af2935aad83f6820b900",
+    "survey": "Lereng",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "reference",
+        "heading": ""
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "BAGIAN 1: INFORMASI UMUM"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2.1 Peralatan GPS"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "2.2 Peralatan Clinometer/Inclinometer"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "2.3 Peralatan Distance Meter/Roll Meter"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2.4 Peralatan Drone (Jika Digunakan)"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "2.5 Peralatan Pendukung Lainnya"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "3.1 Persiapan Survey"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3.2 Validasi Metode Pengukuran"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "3.3 Validasi Survei Awal"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "4.1 Validasi Data Pengukuran Geometri Lereng"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "4.2 Validasi Data Material Penyusun Lereng"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "4.3 Validasi Data Kondisi Lereng dan Gejala Keruntuhan"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "4.4 Validasi Data Penilaian Risiko"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "5.1 Validasi Kelengkapan Data"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "5.2 Validasi Format Data untuk InSlope"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "5.3 Validasi Proses Pengunggahan"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "6.1 Konsistensi dan Akurasi"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "6.2 Kesimpulan dan Rekomendasi"
+      },
+      "20": {
+        "mode": "approval",
+        "heading": "6.2 Kesimpulan dan Rekomendasi"
+      }
+    },
+    "conditions": {
+      "t6": {
+        "label": "2.4 Peralatan Drone (Jika Digunakan)",
+        "key": "applicable:t6"
+      },
+      "t6:r10": {
+        "label": "9 Izin terbang telah diperoleh (jika diperlukan)",
+        "key": "applicable:t6:r10"
+      },
+      "t12:r5": {
+        "label": "4 Identifikasi struktur batuan (jika ada) sesuai",
+        "key": "applicable:t12:r5"
+      },
+      "t15:r10": {
+        "label": "9 Data hasil drone (jika ada) lengkap",
+        "key": "applicable:t15:r10"
+      }
+    }
+  },
+  "bcc2b76ed6b7293a": {
+    "sha256": "2c62022b501c316c9d1ba4b7f99a27b0fa23c90c058c2dfbc6ed09aac46f9bcc",
+    "survey": "Lereng",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "reference",
+        "heading": ""
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "BAGIAN 1: INFORMASI UMUM"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "BAGIAN 2: KEMAJUAN PEKERJAAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3.1 Verifikasi Personil"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "3.2 Verifikasi Peralatan"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "BAGIAN 4: VERIFIKASI METODE DAN PROSEDUR"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "5.1 Validasi Kelengkapan Data"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "5.2 Validasi Akurasi Data (Cek Silang dengan Data Lapangan)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "5.3 Validasi Konsistensi Data (Perbandingan Antar Surveyor)"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "BAGIAN 6: VALIDASI PENGUNGGAHAN DATA"
+      },
+      "11": {
+        "mode": "optional",
+        "heading": "7.1 Temuan dan Deviasi"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "7.2 Identifikasi Risiko dan Mitigasi"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "8.1 Status Verifikasi dan Validasi"
+      },
+      "14": {
+        "mode": "identity",
+        "heading": "8.3 Rencana Verifikasi Berikutnya"
+      },
+      "15": {
+        "mode": "approval",
+        "heading": "BAGIAN 9: TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t5:r6": {
+        "label": "5 Drone (jika digunakan) berfungsi optimal",
+        "key": "applicable:t5:r6"
+      },
+      "t7:r7": {
+        "label": "6 Data bangunan rekayasa (jika ada) lengkap",
+        "key": "applicable:t7:r7"
+      }
+    }
+  },
+  "e9da17fcbe791f04": {
+    "sha256": "a554e387a4c5aa97f44cb0670320512440998afc738f00770f3abdf7f4447e3e",
+    "survey": "Lereng",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "BAGIAN 1: INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "2.1 Dokumen Persiapan"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2.2 Kesiapan Tim"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3.1 Kelengkapan dan Kondisi Peralatan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "3.2 Verifikasi Hasil Kalibrasi Peralatan"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "4.1 Kesesuaian Metode Survei"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "4.2 Penerapan Protokol K3"
+      },
+      "8": {
+        "mode": "repeat",
+        "heading": "5.1 Validasi Sampling Data (Minimum 10%)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "5.2 Validasi Kelengkapan Data Administrasi"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "5.3 Validasi Kelengkapan Data Geometri Lereng"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "5.4 Validasi Kelengkapan Data Material Penyusun"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "5.5 Validasi Kelengkapan Data Gejala Keruntuhan"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "5.6 Validasi Kelengkapan Penilaian Risiko"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "5.7 Validasi Dokumentasi Visual"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "6.1 Verifikasi Input Data"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "6.2 Verifikasi Perhitungan dan Analisis"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "6.3 Verifikasi Format Data untuk Sistem InSlope"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "7.1 Verifikasi Kelengkapan Laporan"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "7.2 Verifikasi Dokumentasi Pendukung"
+      },
+      "20": {
+        "mode": "optional",
+        "heading": "8.1 Daftar Temuan Internal"
+      },
+      "21": {
+        "mode": "optional",
+        "heading": "8.2 Tindakan Perbaikan dan Pencegahan"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "9.1 Status Validasi Data"
+      },
+      "23": {
+        "mode": "optional",
+        "heading": "9.2 Kendala dan Risiko"
+      },
+      "24": {
+        "mode": "identity",
+        "heading": "10.3 Rencana Validasi dan Verifikasi Selanjutnya"
+      },
+      "25": {
+        "mode": "approval",
+        "heading": "BAGIAN 11: TANDA TANGAN PERSETUJUAN INTERNAL"
+      }
+    },
+    "conditions": {
+      "t4:r5": {
+        "label": "4 Drone (jika ada)",
+        "key": "applicable:t4:r5"
+      },
+      "t5:r5": {
+        "label": "4 Drone (jika ada)",
+        "key": "applicable:t5:r5"
+      },
+      "t10:r7": {
+        "label": "6 Bangunan pengaman (jika ada)",
+        "key": "applicable:t10:r7"
+      },
+      "t14:r4": {
+        "label": "3 Foto gejala keruntuhan (jika ada)",
+        "key": "applicable:t14:r4"
+      },
+      "t14:r5": {
+        "label": "4 Foto bangunan pengaman (jika ada)",
+        "key": "applicable:t14:r5"
+      }
+    }
+  },
+  "2ebef0343273cb5e": {
+    "sha256": "1404e1e20f8b6393f4d313db27beb86d5e8f5ffb4816bd0e35d1820209d583bb",
+    "survey": "Lereng",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "reference",
+        "heading": ""
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "BAGIAN 1: INFORMASI UMUM"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2.1 Pengujian Konsistensi GPS"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "2.2 Pengujian Konsistensi Clinometer/Inclinometer"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "2.3 Pengujian Konsistensi Distance Meter/Roll Meter"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2.4 Pengujian Konsistensi Drone (jika digunakan)"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3.1 Pengukuran Geometri Lereng"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "3.2 Identifikasi Material Penyusun Lereng"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3.3 Identifikasi Gejala Keruntuhan"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "3.4 Penilaian Kondisi dan Risiko Lereng"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "4.1 Pengukuran Ulang Pada Lokasi Yang Sama (Interval 2 Minggu)"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "5.1 Dokumentasi Visual"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "5.2 Sketsa dan Gambar"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "BAGIAN 6: KONSISTENSI DATA DIGITAL"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "BAGIAN 7: KONSISTENSI METODE KERJA"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "8.1 Ringkasan Hasil Konsistensi"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "8.2 Status Konsistensi"
+      },
+      "18": {
+        "mode": "optional",
+        "heading": "8.3 Temuan Ketidakkonsistenan dan Tindakan Perbaikan"
+      },
+      "19": {
+        "mode": "identity",
+        "heading": "9.3 Jadwal Uji Konsistensi Berikutnya"
+      },
+      "20": {
+        "mode": "approval",
+        "heading": "BAGIAN 10: TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t6": {
+        "label": "2.4 Pengujian Konsistensi Drone (jika digunakan)",
+        "key": "applicable:t6"
+      }
+    }
+  },
+  "f992c5a1b3dfd5c2": {
+    "sha256": "27443160f6f2cdda4a860ab9c2394967a9eac1c2f2048e1450e848ff753c614c",
+    "survey": "Lereng",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "reference",
+        "heading": ""
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "BAGIAN 1: INFORMASI UMUM"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "BAGIAN 2: STATUS KEMAJUAN PEKERJAAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3.1 Kelengkapan Dokumen"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "3.2 Kelengkapan Personil"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "4.1 Kondisi Peralatan"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "4.2 Verifikasi Metode"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "5.1 Pemilihan Sampel Validasi"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "5.2 Validasi Data Administrasi"
+      },
+      "10": {
+        "mode": "repeat",
+        "heading": "5.3 Validasi Data Geometri Lereng"
+      },
+      "11": {
+        "mode": "repeat",
+        "heading": "5.4 Validasi Data Material dan Kondisi Lereng"
+      },
+      "12": {
+        "mode": "repeat",
+        "heading": "5.5 Validasi Data Gejala Keruntuhan"
+      },
+      "13": {
+        "mode": "repeat",
+        "heading": "5.6 Validasi Penilaian Risiko"
+      },
+      "14": {
+        "mode": "repeat",
+        "heading": "5.7 Validasi Dokumentasi Visual"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "6.1 Status Pengunggahan Data"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "6.2 Validasi Data dalam Sistem InSlope"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "7.1 Validasi Analisis Risiko"
+      },
+      "18": {
+        "mode": "repeat",
+        "heading": "7.2 Validasi Rekomendasi Penanganan"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "8.1 Ringkasan Temuan"
+      },
+      "20": {
+        "mode": "optional",
+        "heading": "8.2 Daftar Temuan dan Tindakan Perbaikan"
+      },
+      "21": {
+        "mode": "optional",
+        "heading": "8.3 Tindak Lanjut Temuan Validasi Sebelumnya"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "9.1 Evaluasi Implementasi Program Mutu"
+      },
+      "23": {
+        "mode": "optional",
+        "heading": "9.2 Evaluasi Manajemen Risiko"
+      },
+      "24": {
+        "mode": "fixed",
+        "heading": "10.1 Status Validasi Bertahap"
+      },
+      "25": {
+        "mode": "identity",
+        "heading": "10.3 Jadwal Validasi Bertahap Berikutnya"
+      },
+      "26": {
+        "mode": "approval",
+        "heading": "BAGIAN 11: TANDA TANGAN PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t5:r6": {
+        "label": "5 Operator Drone (jika ada)",
+        "key": "applicable:t5:r6"
+      },
+      "t6:r5": {
+        "label": "4 Drone (jika ada)",
+        "key": "applicable:t6:r5"
+      }
+    }
+  },
+  "9b870467a26e2b8a": {
+    "sha256": "ea0ee4e3ed126bc1ea575835d20ba9af557fec6be0b168c0294fc9dc324ddd35",
+    "survey": "RNI",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": ""
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "1. Koordinasi Tim Verifikasi"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2. Persiapan Dokumen dan Data"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3. Penetapan Ruang Lingkup"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Evaluasi Progres Pencapaian"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Evaluasi Hasil Verifikasi 2-Mingguan"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3. Analisis Tren Kualitas Data"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "1. Metodologi Sampling"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "2. Verifikasi Data Lapangan"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "3. Verifikasi Data Terolah"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian Metode Survei"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "2. Kesesuaian Format dan Struktur Data"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "3. Kesesuaian dengan Persyaratan Pengguna"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "1. Implementasi Rencana Mutu"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "2. Efektivitas Validasi Internal"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "3. Efektivitas Tindakan Perbaikan"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian Format Data"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "2. Kelengkapan Data"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "3. Integritas Data"
+      },
+      "20": {
+        "mode": "fixed",
+        "heading": "1. Identifikasi Temuan Utama"
+      },
+      "21": {
+        "mode": "fixed",
+        "heading": "2. Rekomendasi Tindakan Perbaikan"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "3. Rekomendasi Peningkatan Proses"
+      },
+      "23": {
+        "mode": "fixed",
+        "heading": "3. Rekomendasi Peningkatan Proses"
+      },
+      "24": {
+        "mode": "fixed",
+        "heading": "3. Rekomendasi Peningkatan Proses"
+      },
+      "25": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      },
+      "26": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      },
+      "27": {
+        "mode": "reference",
+        "heading": "1. Kriteria Penerimaan Verifikasi Bertahap"
+      },
+      "28": {
+        "mode": "reference",
+        "heading": "2. Metode Sampling Verifikasi Bertahap"
+      },
+      "29": {
+        "mode": "reference",
+        "heading": "4. Tenggat Waktu Tindak Lanjut"
+      },
+      "30": {
+        "mode": "reference",
+        "heading": "5. Metode Verifikasi Tindak Lanjut"
+      },
+      "31": {
+        "mode": "reference",
+        "heading": "6. Jadwal Verifikasi Bertahap untuk Proyek 10 Bulan"
+      }
+    },
+    "conditions": {
+      "t5:r7": {
+        "label": "1.6 Penyerahan data ke SMD Jalan telah dimulai (jika diperlukan)",
+        "key": "applicable:t5:r7"
+      },
+      "t9:r2": {
+        "label": "2.1 Kunjungan lapangan dilakukan untuk verifikasi sampel (jika diperlukan)",
+        "key": "applicable:t9:r2"
+      },
+      "t26:r5": {
+        "label": "Direktorat (jika diperlukan)",
+        "key": "applicable:t26:r5"
+      },
+      "t27:r2": {
+        "label": "25-30% Format: ≥ 95%  Kelengkapan: ≥ 90%  Ketelitian: ≥ 90%  Kewajaran: ≥ 90% Ketidaksesuaian Kritis: 100%  Ketidaksesuaian Mayor: ≥ 90%  Ketidaksesuaian Minor: ≥ 80% Peningkatan metode survei jika diperlukan  Pelatihan tambahan jika diperlukan",
+        "key": "applicable:t27:r2"
+      },
+      "t31:r4": {
+        "label": "70-80% Akhir Bulan ke-7 Penyedia Jasa, Pengguna Jasa, PPK Fisik, Direktorat (jika diperlukan)",
+        "key": "applicable:t31:r4"
+      },
+      "t31:r5": {
+        "label": ">90% Akhir Bulan ke-9 Penyedia Jasa, Pengguna Jasa, PPK Fisik, Direktorat (jika diperlukan)",
+        "key": "applicable:t31:r5"
+      }
+    }
+  },
+  "d365d74b06494499": {
+    "sha256": "3b389c3a011da11eb34e4b3762d8d07e85ac166fbacd851273d15b9534b8042e",
+    "survey": "RNI",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": ""
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "1. Tim Verifikasi dan Validasi Internal"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2. Perencanaan Verifikasi dan Validasi"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3. Penetapan Kriteria Penerimaan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan Data Survei"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Format Data"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3. Kewajaran Data"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan Data"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "2. Ketelitian Data"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "3. Kesesuaian dengan Standar Teknis"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "1. Pemeriksaan Silang Antar Parameter"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "2. Pemeriksaan Silang Antar Segmen"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "3. Pemeriksaan Silang dengan Data Sebelumnya"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "1. Identifikasi Ketidaksesuaian"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "2. Tindakan Perbaikan"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "3. Verifikasi Hasil Perbaikan"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "1. Berita Acara Verifikasi dan Validasi Internal"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "2. Statistik Verifikasi dan Validasi"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "3. Manajemen Data Verifikasi dan Validasi"
+      },
+      "20": {
+        "mode": "fixed",
+        "heading": "3. Manajemen Data Verifikasi dan Validasi"
+      },
+      "21": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      },
+      "22": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t13:r2": {
+        "label": "3.1 Kesesuaian dengan data RNI terdahulu (jika ada)",
+        "key": "applicable:t13:r2"
+      },
+      "t15:r5": {
+        "label": "2.4 Survei ulang dilakukan jika diperlukan",
+        "key": "applicable:t15:r5"
+      },
+      "t15:r6": {
+        "label": "2.5 Pemrosesan ulang data dilakukan jika diperlukan",
+        "key": "applicable:t15:r6"
+      },
+      "t15:r7": {
+        "label": "2.6 Pelatihan ulang personil dilakukan jika diperlukan",
+        "key": "applicable:t15:r7"
+      },
+      "t15:r8": {
+        "label": "2.7 Kalibrasi ulang alat dilakukan jika diperlukan",
+        "key": "applicable:t15:r8"
+      }
+    }
+  },
+  "196c4354dbc13ebe": {
+    "sha256": "a6619aeb4c3efa6fcd4c70578cc6adfe50e92fed66381e0bc6e30332a25b33c6",
+    "survey": "RNI",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": ""
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "1. Alat Pengukur Jarak"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2. GPS/GNSS"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3. Kamera Dokumentasi"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "4. Peralatan Pendukung Lainnya"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "1. Persiapan Surveyor dan Dokumentasi"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "2. Validasi Lokasi dan Ruas Survei"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "3. Uji Coba Survei (Validasi Produksi Data)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "1. Kalibrasi Berkala"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "2. Validasi Konsistensi Data"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "3. Verifikasi dan Validasi Internal"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "1. Pemeriksaan Format Data"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "2. Pemeriksaan Kelengkapan Data"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "3. Pemeriksaan Ketelitian dan Kewajaran Data"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "1. Identifikasi Risiko"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "2. Mitigasi Risiko"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "3. Tindak Lanjut"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "3. Tindak Lanjut"
+      },
+      "19": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      },
+      "20": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t3:r6": {
+        "label": "2.5 Sudah dilakukan kalibrasi post-processed differential correction jika diperlukan",
+        "key": "applicable:t3:r6"
+      },
+      "t8:r6": {
+        "label": "3.5 Kalibrasi ulang dilakukan jika terdapat penyimpangan",
+        "key": "applicable:t8:r6"
+      },
+      "t9:r7": {
+        "label": "1.6 Tindakan koreksi dilakukan bila terjadi penyimpangan",
+        "key": "applicable:t9:r7"
+      }
+    }
+  },
+  "5b3515182e477df4": {
+    "sha256": "e3b08dfff28967aca2260918c42c8d511398c4c0860f66966dba40f7c8b3d634",
+    "survey": "RNI",
+    "phase": "audit",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI DATA YANG DIAUDIT"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. AUDIT KELENGKAPAN DOKUMENTASI PENDUKUNG"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. AUDIT KESESUAIAN METODE DAN PROSEDUR"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. AUDIT FORMAT DATA"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. AUDIT KELENGKAPAN DATA"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. AUDIT KETELITIAN DATA"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. AUDIT KEWAJARAN DATA"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "I. HASIL SAMPLING AUDIT LAPANGAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. ANALISIS STATISTIK DATA AUDIT"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. DISTRIBUSI TIPE JALAN DAN JENIS PERMUKAAN"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. TEMUAN AUDIT"
+      },
+      "13": {
+        "mode": "optional",
+        "heading": "M. REKOMENDASI TINDAKAN PERBAIKAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N.1. Status Penerimaan Data"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "N.2. Status Akhir Data"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "O. RENCANA TINDAK LANJUT AUDIT"
+      },
+      "17": {
+        "mode": "approval",
+        "heading": "P. PERSETUJUAN HASIL AUDIT"
+      }
+    },
+    "conditions": {
+      "t3:r11": {
+        "label": "C.10 Dokumentasi tindakan perbaikan (jika ada) tersedia",
+        "key": "applicable:t3:r11"
+      },
+      "t5:r11": {
+        "label": "E.10 Format data historis penanganan (bila ada) sesuai ketentuan",
+        "key": "applicable:t5:r11"
+      },
+      "t6:r7": {
+        "label": "F.6 Data historis penanganan (bila diperintahkan khusus) lengkap",
+        "key": "applicable:t6:r7"
+      }
+    }
+  },
+  "44e8e820776134be": {
+    "sha256": "83c555ce88fe6a2f04d88b939c200f835c7b3e593faeb0df7925f597107e0e24",
+    "survey": "RNI",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": ""
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "1. Penjadwalan dan Tim Pelaksana"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2. Persiapan Dokumen dan Data"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3. Penetapan Ruang Lingkup"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Kelengkapan Laporan Validasi Internal"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Kesesuaian Kriteria Validasi Internal"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3. Tindak Lanjut Temuan Internal"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "1. Pengambilan Sampel"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "2. Pemeriksaan Parameter Kunci"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "3. Analisis Konsistensi Data"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian dengan Pedoman Teknis"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "2. Kesesuaian dengan Spesifikasi Kontrak"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "3. Kesesuaian dengan Standar SMD Jalan"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "1. Kesesuaian dengan Jadwal"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "2. Kesesuaian dengan Target Volume"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "3. Kualitas Hasil Survei"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "1. Identifikasi Temuan"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "2. Rekomendasi Tindakan Perbaikan"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "3. Evaluasi Tindak Lanjut Periode Sebelumnya"
+      },
+      "20": {
+        "mode": "fixed",
+        "heading": "1. Penerbitan Berita Acara"
+      },
+      "21": {
+        "mode": "fixed",
+        "heading": "2. Pelaporan dan Distribusi"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "3. Dokumentasi dan Pengarsipan"
+      },
+      "23": {
+        "mode": "fixed",
+        "heading": "3. Dokumentasi dan Pengarsipan"
+      },
+      "24": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      },
+      "25": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t4:r7": {
+        "label": "3.6 Lokasi kunjungan lapangan (jika ada) ditetapkan",
+        "key": "applicable:t4:r7"
+      },
+      "t14:r4": {
+        "label": "1.3 Penyebab keterlambatan (jika ada) teridentifikasi",
+        "key": "applicable:t14:r4"
+      },
+      "t14:r5": {
+        "label": "1.4 Rencana perbaikan jadwal (jika diperlukan) tersedia",
+        "key": "applicable:t14:r5"
+      },
+      "t15:r8": {
+        "label": "2.7 Rencana pencapaian target (jika tertinggal) tersedia",
+        "key": "applicable:t15:r8"
+      }
+    }
+  },
+  "25335db7e851b08e": {
+    "sha256": "07c8f4266ee408fba0a4509cdf39310e8c89dec5eaa56ca07effa6f3961e00ea",
+    "survey": "RNI",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": ""
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "1. Penetapan Ruas Uji Konsistensi"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "2. Metode Pengujian Konsistensi Awal"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "3. Jaminan Kualitas Pengukuran Awal"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "1. Jadwal Pengujian Konsistensi"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2. Metode Pengujian Konsistensi Berkala"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3. Pemeriksaan Parameter Konsistensi"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "1. Pengukuran Jarak"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "2. Pengukuran Koordinat"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "3. Data Inventori Jalan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "1. Format Laporan Konsistensi"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "2. Pemantauan Tren Konsistensi"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "3. Pengelolaan Data Konsistensi"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "1. Identifikasi Penyimpangan"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "2. Mitigasi Penyimpangan"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "3. Evaluasi Efektivitas Tindakan"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "3. Evaluasi Efektivitas Tindakan"
+      },
+      "18": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      },
+      "19": {
+        "mode": "approval",
+        "heading": "PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t2:r8": {
+        "label": "1.7 Data referensi ruas uji sudah disiapkan (jika ada data survei sebelumnya)",
+        "key": "applicable:t2:r8"
+      },
+      "t3:r7": {
+        "label": "2.6 Pengukuran dilakukan pada kondisi cuaca yang berbeda (jika memungkinkan)",
+        "key": "applicable:t3:r7"
+      },
+      "t15:r5": {
+        "label": "2.4 Survei ulang dilakukan jika diperlukan",
+        "key": "applicable:t15:r5"
+      },
+      "t15:r6": {
+        "label": "2.5 Kalibrasi ulang alat dilakukan jika diperlukan",
+        "key": "applicable:t15:r6"
+      },
+      "t15:r7": {
+        "label": "2.6 Pelatihan ulang personil dilakukan jika diperlukan",
+        "key": "applicable:t15:r7"
+      },
+      "t15:r8": {
+        "label": "2.7 Pembaruan prosedur survei dilakukan jika diperlukan",
+        "key": "applicable:t15:r8"
+      }
+    }
+  },
+  "5c3d9dab26b1eef3": {
+    "sha256": "bc5de26e2ca5704556325e34c75d0b90e08128ac8154ba252e320e5221713e0c",
+    "survey": "Jembatan",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI JEMBATAN YANG DIVERIFIKASI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI KELENGKAPAN DATA JEMBATAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VERIFIKASI DOKUMENTASI VISUAL"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN INVENTARISASI"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN DETAIL"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN RUTIN"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN KHUSUS (JIKA DILAKUKAN)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. VALIDASI KEWAJARAN DATA"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. VALIDASI KONSISTENSI DATA"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. VALIDASI FORMAT DATA"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. VERIFIKASI PENGUNGGAHAN DATA KE SISTEM"
+      },
+      "13": {
+        "mode": "repeat",
+        "heading": "M. ANALISIS KERUSAKAN STRUKTURAL"
+      },
+      "14": {
+        "mode": "optional",
+        "heading": "N. TEMUAN DAN PERBAIKAN YANG DIPERLUKAN"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "O.1. Kesimpulan Verifikasi dan Validasi Internal"
+      },
+      "16": {
+        "mode": "approval",
+        "heading": "P. PERSETUJUAN INTERNAL"
+      }
+    },
+    "conditions": {
+      "t4:r10": {
+        "label": "D.9 Foto tampak atas tersedia (jika memungkinkan)",
+        "key": "applicable:t4:r10"
+      },
+      "t5:r3": {
+        "label": "E.2 Inventarisasi struktur pelebaran jembatan lengkap (jika ada)",
+        "key": "applicable:t5:r3"
+      },
+      "t6:r15": {
+        "label": "F.14 Tindakan darurat diidentifikasi (jika diperlukan)",
+        "key": "applicable:t6:r15"
+      },
+      "t6:r16": {
+        "label": "F.15 Kebutuhan pemeriksaan khusus diidentifikasi (jika diperlukan)",
+        "key": "applicable:t6:r16"
+      },
+      "t7:r8": {
+        "label": "G.7 Tindakan darurat diidentifikasi (jika diperlukan)",
+        "key": "applicable:t7:r8"
+      },
+      "t7:r9": {
+        "label": "G.8 Kebutuhan pemeriksaan khusus diidentifikasi (jika diperlukan)",
+        "key": "applicable:t7:r9"
+      },
+      "t8": {
+        "label": "H. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN KHUSUS (JIKA DILAKUKAN)",
+        "key": "applicable:t8"
+      },
+      "t8:r6": {
+        "label": "H.5 Pengujian material dilakukan (jika diperlukan)",
+        "key": "applicable:t8:r6"
+      },
+      "t8:r7": {
+        "label": "H.6 Pengujian kekuatan struktur dilakukan (jika diperlukan)",
+        "key": "applicable:t8:r7"
+      },
+      "t8:r8": {
+        "label": "H.7 Pengujian dinamik dilakukan (jika diperlukan)",
+        "key": "applicable:t8:r8"
+      },
+      "t10:r5": {
+        "label": "J.4 Data konsisten dengan hasil pemeriksaan sebelumnya (jika ada)",
+        "key": "applicable:t10:r5"
+      }
+    }
+  },
+  "635ff09af0b05d17": {
+    "sha256": "0f16a9b5d6bfc9d6dd0ded4f4e0f686f45fefd800967aec003dcb090ea96df77",
+    "survey": "Jembatan",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "B. RINGKASAN PEMERIKSAAN JEMBATAN"
+      },
+      "3": {
+        "mode": "repeat",
+        "heading": "C. SAMPLING JEMBATAN YANG DIVERIFIKASI"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. REVIEW DOKUMEN DAN PROSES"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VERIFIKASI DATA PEMERIKSAAN INVENTARISASI"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VERIFIKASI DATA PEMERIKSAAN DETAIL"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VERIFIKASI DATA PEMERIKSAAN RUTIN"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VERIFIKASI KUALITAS DOKUMENTASI VISUAL"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. VERIFIKASI PENGUNGGAHAN DATA KE SISTEM"
+      },
+      "10": {
+        "mode": "repeat",
+        "heading": "J. HASIL SAMPLING VERIFIKASI LAPANGAN"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. ANALISIS KESESUAIAN NILAI KONDISI (NK)"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. HASIL PENILAIAN TINGKAT KEPERCAYAAN DATA"
+      },
+      "13": {
+        "mode": "optional",
+        "heading": "M. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N. EVALUASI PROGRESS PEKERJAAN"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "O. PENILAIAN RISIKO KONDISI JEMBATAN"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "P.1. Kesimpulan Verifikasi dan Validasi Bertahap"
+      },
+      "17": {
+        "mode": "optional",
+        "heading": "Q. RENCANA TINDAK LANJUT"
+      },
+      "18": {
+        "mode": "approval",
+        "heading": "R. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t4:r8": {
+        "label": "D.7 Perubahan tim inspektur (jika ada) terdokumentasi",
+        "key": "applicable:t4:r8"
+      }
+    }
+  },
+  "f44a9cd28e501485": {
+    "sha256": "e6117ac9f029d1637d706e214579816949862e9c066bc7ea170afe82c4bfa871",
+    "survey": "Jembatan",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "identity",
+        "heading": "B. INFORMASI JEMBATAN YANG DIPERIKSA"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. KALIBRASI PERALATAN PEMERIKSAAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VALIDASI KOMPETENSI PERSONIL PEMERIKSAAN"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI DOKUMENTASI PENDUKUNG"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI PROSEDUR UJI COBA PEMERIKSAAN"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VALIDASI KELENGKAPAN PEMERIKSAAN INVENTARISASI"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VALIDASI KELENGKAPAN PEMERIKSAAN DETAIL"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. VALIDASI KELENGKAPAN PEMERIKSAAN RUTIN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. VALIDASI PROSEDUR PEMERIKSAAN"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. VALIDASI DOKUMENTASI HASIL PEMERIKSAAN"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. VALIDASI PENGUNGGAHAN DATA KE SISTEM"
+      },
+      "13": {
+        "mode": "repeat",
+        "heading": "M. HASIL UJI SAMPLING VALIDASI LAPANGAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N.1. Kesimpulan Kalibrasi dan Validasi"
+      },
+      "15": {
+        "mode": "approval",
+        "heading": "O. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t3:r7": {
+        "label": "C.6 Pengukur ketebalan film cat terkalibrasi (jika digunakan)",
+        "key": "applicable:t3:r7"
+      },
+      "t3:r16": {
+        "label": "C.15 Peralatan khusus untuk pemeriksaan khusus (jika diperlukan) tersedia dan terkalibrasi",
+        "key": "applicable:t3:r16"
+      },
+      "t3:r17": {
+        "label": "C.16 Drone/UAV berfungsi dan terkalibrasi (jika digunakan)",
+        "key": "applicable:t3:r17"
+      },
+      "t5:r8": {
+        "label": "E.7 Gambar as-built drawing tersedia (jika ada)",
+        "key": "applicable:t5:r8"
+      },
+      "t11:r10": {
+        "label": "K.9 Foto tampak atas diambil (jika memungkinkan)",
+        "key": "applicable:t11:r10"
+      },
+      "t11:r13": {
+        "label": "K.12 Drone/UAV digunakan untuk dokumentasi (jika diperlukan)",
+        "key": "applicable:t11:r13"
+      },
+      "t12:r10": {
+        "label": "L.9 Backup data tersedia jika terjadi kegagalan sistem",
+        "key": "applicable:t12:r10"
+      },
+      "t12:r11": {
+        "label": "L.10 Data penanganan yang sedang berjalan diunggah (jika ada)",
+        "key": "applicable:t12:r11"
+      }
+    }
+  },
+  "4be5f6719eed76a1": {
+    "sha256": "45d4113bc6864ead3a8200a8ded702f9753c6cda716478c94f7544fd8a6f959c",
+    "survey": "Jembatan",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "B. DAFTAR JEMBATAN YANG DIEVALUASI KONSISTENSINYA"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. KONSISTENSI PERSONIL PEMERIKSAAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. KONSISTENSI PERALATAN PEMERIKSAAN"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. KONSISTENSI PROSEDUR PEMERIKSAAN INVENTARISASI"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. KONSISTENSI PROSEDUR PEMERIKSAAN DETAIL"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. KONSISTENSI PROSEDUR PEMERIKSAAN RUTIN"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. KONSISTENSI DOKUMENTASI VISUAL"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. KONSISTENSI PENILAIAN TINGKAT KERUSAKAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. KONSISTENSI PENILAIAN NILAI KONDISI (NK)"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "K. KONSISTENSI PENILAIAN SRKFP"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "L. KONSISTENSI PENGUNGGAHAN DATA KE SISTEM"
+      },
+      "13": {
+        "mode": "repeat",
+        "heading": "M. HASIL UJI KONSISTENSI ANTAR INSPEKTOR"
+      },
+      "14": {
+        "mode": "repeat",
+        "heading": "N. HASIL UJI KONSISTENSI TERHADAP REFERENSI"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "O. ANALISIS STATISTIK KONSISTENSI"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "P. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "Q.1. Kesimpulan Evaluasi Konsistensi"
+      },
+      "18": {
+        "mode": "approval",
+        "heading": "R. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t3:r5": {
+        "label": "C.4 Personil pengganti (jika ada) memiliki kualifikasi yang setara",
+        "key": "applicable:t3:r5"
+      },
+      "t8:r11": {
+        "label": "H.10 Metode pengambilan gambar drone (jika digunakan) konsisten",
+        "key": "applicable:t8:r11"
+      }
+    }
+  },
+  "8b0578aeb2926138": {
+    "sha256": "17999563010bf908588a8f70da1d0aff3f2414a91b4d8ca01c97a91fa20dc35a",
+    "survey": "Jembatan",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "B. JEMBATAN YANG DIPERIKSA DALAM PERIODE 2 MINGGUAN"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI RENCANA VS REALISASI"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VERIFIKASI KELENGKAPAN DOKUMENTASI PENDUKUNG"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN INVENTARISASI"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN DETAIL"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VERIFIKASI KELENGKAPAN DATA PEMERIKSAAN RUTIN"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "H. VALIDASI KUALITAS DATA"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "I. HASIL SAMPLING VERIFIKASI"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "J. EVALUASI METODE PEMERIKSAAN"
+      },
+      "11": {
+        "mode": "optional",
+        "heading": "K. KENDALA DAN SOLUSI SELAMA PERIODE 2 MINGGUAN"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "L. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "M. EVALUASI PROGRESS PEKERJAAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "N. ANALISIS STATISTIK PENILAIAN KONDISI"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "O.1. Kesimpulan Verifikasi dan Validasi 2-Mingguan"
+      },
+      "16": {
+        "mode": "repeat",
+        "heading": "P. RENCANA KERJA PERIODE BERIKUTNYA"
+      },
+      "17": {
+        "mode": "approval",
+        "heading": "Q. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t4:r9": {
+        "label": "D.8 Catatan kendala pemeriksaan tersedia (jika ada)",
+        "key": "applicable:t4:r9"
+      },
+      "t4:r11": {
+        "label": "D.10 Surat izin pemeriksaan jembatan tersedia (jika diperlukan)",
+        "key": "applicable:t4:r11"
+      },
+      "t7:r8": {
+        "label": "G.7 Kebutuhan tindakan darurat diidentifikasi (jika ada)",
+        "key": "applicable:t7:r8"
+      },
+      "t7:r9": {
+        "label": "G.8 Kebutuhan pemeriksaan khusus diidentifikasi (jika ada)",
+        "key": "applicable:t7:r9"
+      },
+      "t7:r10": {
+        "label": "G.9 Kebutuhan perbaikan data inventarisasi diidentifikasi (jika ada)",
+        "key": "applicable:t7:r10"
+      },
+      "t8:r9": {
+        "label": "H.8 Data konsisten dengan hasil pemeriksaan sebelumnya (jika ada)",
+        "key": "applicable:t8:r9"
+      },
+      "t10:r6": {
+        "label": "J.5 Alat bantu akses (tangga, perancah, dsb.) digunakan jika diperlukan",
+        "key": "applicable:t10:r6"
+      }
+    }
+  },
+  "a5b8cce89e05d300": {
+    "sha256": "561c2abbb23c7691661f4860e009510f54b0163f88543bfbd4649a5976029353",
+    "survey": "Jembatan",
+    "phase": "audit",
+    "tables": {
+      "1": {
+        "mode": "repeat",
+        "heading": "2. Data Jembatan yang Diaudit"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "3. Audit Persiapan dan Peralatan"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "4. Audit Pelaksanaan Pemeriksaan Inventarisasi Jembatan"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "5. Audit Pelaksanaan Pemeriksaan Detail Jembatan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "6. Audit Pelaksanaan Pemeriksaan Rutin Jembatan"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "7. Audit Dokumentasi dan Pengolahan Data"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "8. Audit Verifikasi dan Validasi"
+      },
+      "8": {
+        "mode": "approval",
+        "heading": "10. Persetujuan"
+      }
+    },
+    "conditions": {
+      "t4:r7": {
+        "label": "6 Apakah kebutuhan tindakan darurat telah diidentifikasi (jika ada)?",
+        "key": "applicable:t4:r7"
+      },
+      "t4:r8": {
+        "label": "7 Apakah kebutuhan pemeriksaan khusus telah diidentifikasi (jika ada)?",
+        "key": "applicable:t4:r8"
+      },
+      "t5:r9": {
+        "label": "8 Apakah kebutuhan tindakan darurat telah diidentifikasi (jika ada)?",
+        "key": "applicable:t5:r9"
+      },
+      "t5:r10": {
+        "label": "9 Apakah kebutuhan pemeriksaan khusus telah diidentifikasi (jika ada)?",
+        "key": "applicable:t5:r10"
+      }
+    }
+  },
+  "624bbf69f2da7dbf": {
+    "sha256": "da2f8acdd49aa8e247769f28ee3b7b99e6a89368ce462ab97e897c1d7066da38",
+    "survey": "PCI Manual",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "B. VERIFIKASI KELENGKAPAN DATA"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI KUALITAS DATA DOKUMENTASI"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VALIDASI AKURASI DATA PENGUKURAN"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. VALIDASI KEWAJARAN DATA"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. VERIFIKASI KEPATUHAN TERHADAP PROSEDUR"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "G. VERIFIKASI FORMAT PELAPORAN"
+      },
+      "8": {
+        "mode": "optional",
+        "heading": "H. TEMUAN DAN REKOMENDASI"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "I. RINGKASAN HASIL VERIFIKASI DAN VALIDASI"
+      }
+    },
+    "conditions": {}
+  },
+  "739bf29784baf231": {
+    "sha256": "43a5cfbd65f562f2076f4e464bc455905ce64eec6018505f0f7b2fe9416c87e5",
+    "survey": "PCI Manual",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "repeat",
+        "heading": "A. DATA RUAS JALAN"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "B. INFORMASI TIM PELAKSANA"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "A. VERIFIKASI PERALATAN"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "B. KALIBRASI DAN VALIDASI PERALATAN"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "C. PERSIAPAN ADMINISTRASI DAN MANAJEMEN"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "A. CHECKLIST PROSEDUR PELAKSANAAN HARIAN"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "B. VERIFIKASI KUALITAS GAMBAR/VIDEO"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "A. VERIFIKASI PENGOLAHAN DATA"
+      },
+      "9": {
+        "mode": "repeat",
+        "heading": "B. VALIDASI KONSISTENSI (REPEATABILITY)"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "C. REKAPITULASI KERUSAKAN YANG DITEMUKAN"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "A. VALIDASI FORMAT, KELENGKAPAN, KETELITIAN, DAN KEWAJARAN DATA"
+      },
+      "12": {
+        "mode": "repeat",
+        "heading": "B. REKAPITULASI NILAI PCI PER RUAS"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "C. AUDIT PENYEDIA JASA (INTERNAL)"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "D. AUDIT PENGGUNA JASA (EKSTERNAL)"
+      },
+      "15": {
+        "mode": "optional",
+        "heading": "VI. CATATAN TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "16": {
+        "mode": "approval",
+        "heading": "VII. PERSETUJUAN CHECKLIST"
+      }
+    },
+    "conditions": {
+      "t10:r2:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r2:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r3:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r3:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r4:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r4:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r5:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r5:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r6:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r6:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r7:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r7:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r8:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r8:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r9:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r9:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r10:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r10:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r11:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r11:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r12:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r12:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t10:r13:values": {
+        "label": "Kerusakan ditemukan",
+        "answer": "t10:r13:c3",
+        "values": [
+          "Ya"
+        ]
+      }
+    },
+    "concernValues": {
+      "t10:r2:c3": [],
+      "t10:r3:c3": [],
+      "t10:r4:c3": [],
+      "t10:r5:c3": [],
+      "t10:r6:c3": [],
+      "t10:r7:c3": [],
+      "t10:r8:c3": [],
+      "t10:r9:c3": [],
+      "t10:r10:c3": [],
+      "t10:r11:c3": [],
+      "t10:r12:c3": [],
+      "t10:r13:c3": []
+    }
+  },
+  "bfe4deeb08930567": {
+    "sha256": "2dacc6320024d1ed14dfc1acc5b8bc7c71a20e0e34e2e46e2e8e67faf9186550",
+    "survey": "PCI Manual",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI PENGUJIAN"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "B. KONDISI PENGUJIAN"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "1. Perbandingan Nilai PCI Rata-rata"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "2. Konsistensi Identifikasi Jenis Kerusakan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "3. Konsistensi Penilaian Tingkat Keparahan"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "4. Konsistensi Pengukuran Dimensi Kerusakan"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "D. ANALISIS STATISTIK KONSISTENSI"
+      },
+      "8": {
+        "mode": "repeat",
+        "heading": "E. EVALUASI KHUSUS PENILAI"
+      }
+    },
+    "conditions": {}
+  },
+  "df3481c79197b876": {
+    "sha256": "7e84be74bd6fbe5dab90bbe8a42c380970c325d29c6f5fb05e5d8f53bd19d7b7",
+    "survey": "PCI Manual",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "fixed",
+        "heading": "A. KALIBRASI PERALATAN"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "B. PERSIAPAN SURVEI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VALIDASI UJI COBA SURVEI"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "D. VALIDASI KONSISTENSI PENILAI"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "E. PENILAIAN JENIS KERUSAKAN"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "F. FORMAT PELAPORAN DATA"
+      }
+    },
+    "conditions": {},
+    "fieldConditions": {
+      "t5:r2:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r2:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r3:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r3:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r4:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r4:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r5:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r5:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r6:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r6:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r7:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r7:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r8:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r8:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r9:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r9:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r10:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r10:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r11:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r11:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r12:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r12:c3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "t5:r13:c4": {
+        "label": "Jenis kerusakan teridentifikasi",
+        "answer": "t5:r13:c3",
+        "values": [
+          "Ya"
+        ]
+      }
+    }
+  },
+  "fcc0301a672c83fe": {
+    "sha256": "c845a3feca113966b2c3a97915d5c1f729ad22a37807d086b7e76a73ac8c0d14",
+    "survey": "PCI Manual",
+    "phase": "audit",
+    "tables": {
+      "1": {
+        "mode": "repeat",
+        "heading": "I. INFORMASI RUAS JALAN YANG DIAUDIT"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "A. KESESUAIAN FORMAT DATA"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "A. KELENGKAPAN DATA"
+      },
+      "4": {
+        "mode": "repeat",
+        "heading": "B. SAMPLING KELENGKAPAN DATA (MINIMAL 5%)"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "A. KETELITIAN LOKASI DAN PENGUKURAN"
+      },
+      "6": {
+        "mode": "repeat",
+        "heading": "B. VERIFIKASI KETELITIAN DENGAN SAMPLING (MINIMAL 5%)"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "A. KEWAJARAN DATA KERUSAKAN"
+      },
+      "8": {
+        "mode": "repeat",
+        "heading": "B. PERBANDINGAN NILAI PCI DENGAN KONDISI AKTUAL (SAMPLING MIN. 5%)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "A. KONSISTENSI INTERNAL DATA"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "VII. VERIFIKASI DOKUMENTASI QA/QC PENYEDIA JASA"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "VIII. REKAPITULASI TEMUAN AUDIT"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "A. PENILAIAN KESELURUHAN"
+      },
+      "13": {
+        "mode": "approval",
+        "heading": "X. PERSETUJUAN"
+      }
+    },
+    "conditions": {
+      "t9:r9": {
+        "label": "8. Konsistensi dengan data survei terdahulu (jika ada)",
+        "key": "applicable:t9:r9"
+      }
+    }
+  },
+  "92189075e1079af9": {
+    "sha256": "c85ea8bd62777c6d1ca8e7ca4b7d58717394b03acfa82876394963f70ef0323f",
+    "survey": "PCI Manual",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "A. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "repeat",
+        "heading": "B. PERSONEL DAN PERALATAN YANG DIVERIFIKASI"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "C. VERIFIKASI PROSES PENGAMBILAN DATA"
+      },
+      "4": {
+        "mode": "repeat",
+        "heading": "1. Perbandingan Hasil Nilai PCI"
+      },
+      "5": {
+        "mode": "repeat",
+        "heading": "2. Perbandingan Identifikasi Jenis Kerusakan"
+      },
+      "6": {
+        "mode": "repeat",
+        "heading": "3. Perbandingan Penilaian Tingkat Keparahan"
+      },
+      "7": {
+        "mode": "repeat",
+        "heading": "4. Perbandingan Pengukuran Dimensi"
+      },
+      "8": {
+        "mode": "repeat",
+        "heading": "E. VALIDASI KUALITAS DOKUMENTASI"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "F. VALIDASI KEWAJARAN DATA 2-MINGGUAN"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "G. VALIDASI BERDASARKAN JENIS KERUSAKAN"
+      },
+      "11": {
+        "mode": "repeat",
+        "heading": "H. EVALUASI TIM SURVEI"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "I. TEMUAN VERIFIKASI DAN TINDAKAN PERBAIKAN"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "J. RINGKASAN HASIL VERIFIKASI 2-MINGGUAN"
+      },
+      "14": {
+        "mode": "repeat",
+        "heading": "K. TREN KINERJA 2-MINGGUAN"
+      }
+    },
+    "conditions": {
+      "t9:r6": {
+        "label": "5 Data konsisten dengan data historis (jika tersedia)",
+        "key": "applicable:t9:r6"
+      }
+    }
+  },
+  "ad4bf0a35d4bcb1c": {
+    "sha256": "5d5ad3426c755222bba43f0e21f4c996ef6f70864cbd825efd1de4bd7ac6a699",
+    "survey": "PCI AI",
+    "phase": "calibration",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "A. Spesifikasi Smartphone"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "B. Perangkat Pendukung"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "A. Instalasi dan Konfigurasi Aplikasi"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "B. Kalibrasi Mandiri"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "A. Verifikasi Model AI"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "B. Kemampuan Deteksi Model AI"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "A. Persiapan Uji Coba"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "B. Pelaksanaan Uji Coba"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "C. Analisis Hasil Uji Coba"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "A. Validasi Internal (Penyedia Jasa)"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "B. Validasi Eksternal (Pengguna Jasa)"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "C. Tindakan Perbaikan"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "A. Metrik Evaluasi"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "B. Analisis Confusion Matrix"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "C. Evaluasi Per Jenis Kerusakan"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "A. Hasil Kegiatan Kalibrasi dan Validasi"
+      },
+      "18": {
+        "mode": "approval",
+        "heading": "B. Kesimpulan dan Rekomendasi"
+      }
+    },
+    "conditions": {}
+  },
+  "c95d9b5787a25074": {
+    "sha256": "cb4226f342f05f49d0d8f59b0777c8cca8fe851d0efd4189e308d5d714b8ea8d",
+    "survey": "PCI AI",
+    "phase": "periodic14",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "optional",
+        "heading": "A. Status Tindak Lanjut Temuan Sebelumnya"
+      },
+      "3": {
+        "mode": "optional",
+        "heading": "B. Perkembangan Tindakan Perbaikan"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "A. Pemeriksaan Rutin Perangkat"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "B. Pemeriksaan Kalibrasi"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "A. Uji Konsistensi 2-Mingguan"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "B. Hasil Uji Konsistensi"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "A. Progres Pengambilan Data"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "B. Progres Pengolahan Data"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "C. Kesesuaian dengan Jadwal"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "A. Sampling Acak Data"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "B. Validasi Sampling oleh Tim QA/QC"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "C. Hasil Validasi Sampling"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "A. Evaluasi Performa Model AI"
+      },
+      "15": {
+        "mode": "repeat",
+        "heading": "B. Evaluasi per Jenis Kerusakan (Top 5 Jenis Kerusakan Terdeteksi)"
+      },
+      "16": {
+        "mode": "optional",
+        "heading": "C. Identifikasi Pola Kesalahan"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "A. Kelengkapan Data"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "B. Kesiapan Format Data untuk SMD Jalan"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "C. Uji Coba Pengunggahan"
+      },
+      "20": {
+        "mode": "optional",
+        "heading": "A. Temuan Utama"
+      },
+      "21": {
+        "mode": "optional",
+        "heading": "B. Rekomendasi Tindakan Perbaikan"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "A. Ringkasan Status"
+      },
+      "23": {
+        "mode": "approval",
+        "heading": "C. Catatan Tambahan"
+      }
+    },
+    "conditions": {}
+  },
+  "11a21a92763df302": {
+    "sha256": "fe5fb95b689a4ebe60620743d570290330115adfe3037315306bee3d3562697e",
+    "survey": "PCI AI",
+    "phase": "consistency",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "A. Konsistensi Perangkat"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "B. Konsistensi Metode Akuisisi"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "A. Konsistensi Proses Pengolahan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "B. Konsistensi Format Data Hasil"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "A. Uji Konsistensi Berkala"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "B. Evaluasi Stabilitas Deteksi"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "A. Verifikasi Internal (Penyedia Jasa)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "B. Verifikasi Eksternal (Pengguna Jasa)"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "A. Analisis Konsistensi Per Jenis Kerusakan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "B. Analisis Konsistensi Dimensi Kerusakan"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "C. Analisis Konsistensi Klasifikasi Kerusakan"
+      },
+      "13": {
+        "mode": "optional",
+        "heading": "A. Identifikasi Faktor Penyebab Inkonsistensi"
+      },
+      "14": {
+        "mode": "optional",
+        "heading": "B. Implementasi Tindakan Koreksi"
+      },
+      "15": {
+        "mode": "repeat",
+        "heading": "A. Hasil Uji Konsistensi pada Ruas Referensi"
+      },
+      "16": {
+        "mode": "repeat",
+        "heading": "B. Dokumentasi Visual"
+      },
+      "17": {
+        "mode": "approval",
+        "heading": "B. Rekomendasi untuk Peningkatan Konsistensi"
+      }
+    },
+    "conditions": {}
+  },
+  "da509e2bc14972be": {
+    "sha256": "08149708b3de6ce328bf8f9879a8f496e927727350f9126ecb130796cedd6540",
+    "survey": "PCI AI",
+    "phase": "internal",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "A. Verifikasi Perangkat Pengambilan Data"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "B. Verifikasi Aplikasi Smartphone"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "C. Verifikasi Kondisi Lingkungan"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "A. Persiapan Pengambilan Data"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "B. Proses Pengambilan Data"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "C. Pengunggahan dan Penyimpanan Data"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "A. Kualitas Visual"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "B. Stabilitas Video"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "C. Kelengkapan Cakupan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "A. Proses Pengolahan"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "B. Validasi Deteksi Kerusakan"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "C. Validasi Pengukuran Dimensi"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "A. Validasi Sampling Internal"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "B. Validasi Per Jenis Kerusakan"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "C. Validasi Hasil PCI"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "A. Format Data"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "B. Kelengkapan Data"
+      },
+      "19": {
+        "mode": "fixed",
+        "heading": "C. Validasi Data"
+      },
+      "20": {
+        "mode": "optional",
+        "heading": "A. Temuan Masalah dan Solusi"
+      },
+      "21": {
+        "mode": "fixed",
+        "heading": "B. Tindak Lanjut"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "A. Ringkasan Hasil"
+      },
+      "23": {
+        "mode": "approval",
+        "heading": "C. Catatan Tambahan"
+      }
+    },
+    "conditions": {},
+    "concernValues": {
+      "t21:r2:c3": [
+        "Ya"
+      ],
+      "t21:r3:c3": [
+        "Ya"
+      ],
+      "t21:r4:c3": [
+        "Ya"
+      ],
+      "t21:r5:c3": [
+        "Ya"
+      ],
+      "t21:r6:c3": [
+        "Ya"
+      ]
+    }
+  },
+  "1714faa514bacfb4": {
+    "sha256": "c5146857541e2128681f0d97740fde6867eeb7cc24a2af2b6bbd2614d654a47e",
+    "survey": "PCI AI",
+    "phase": "audit",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": ""
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "1.1 Perangkat Akuisisi Video"
+      },
+      "3": {
+        "mode": "fixed",
+        "heading": "1.2 Perangkat Pendukung"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "1.3 Sistem AI dan Platform"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "2.1 Faktor Konfigurasi"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "2.2 Faktor Lingkungan"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "3.1 Pendeteksian Kerusakan Perkerasan Lentur"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "3.2 Pendeteksian Kerusakan Perkerasan Kaku"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3.3 Pendeteksian Kondisi Perkerasan Lainnya"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "4.1 Evaluasi Metrik Model"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "4.2 Evaluasi Validasi Lintas Pengujian"
+      },
+      "12": {
+        "mode": "fixed",
+        "heading": "5.1 Format dan Kelengkapan Keluaran"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "5.2 Konsistensi dan Kewajaran Data"
+      },
+      "14": {
+        "mode": "repeat",
+        "heading": "6.1 Sampel Validasi (Sampling 5% Panjang Jalan)"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "6.2 Rangkuman Hasil Sampling"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "8. KESIMPULAN DAN TANDA TANGAN"
+      },
+      "17": {
+        "mode": "approval",
+        "heading": "8. KESIMPULAN DAN TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t17:r5": {
+        "label": "Perwakilan Direktorat (bila diperlukan)",
+        "key": "applicable:t17:r5"
+      }
+    }
+  },
+  "c9001994803ff66a": {
+    "sha256": "37878d4c8688c6671a0cfaf6e420214075194a210a5bc6f8da4c330503458e2e",
+    "survey": "PCI AI",
+    "phase": "staged",
+    "tables": {
+      "1": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "2": {
+        "mode": "fixed",
+        "heading": "A. Progres Kumulatif"
+      },
+      "3": {
+        "mode": "repeat",
+        "heading": "B. Rincian Progres per Provinsi"
+      },
+      "4": {
+        "mode": "fixed",
+        "heading": "A. Konsistensi Parameter Model AI"
+      },
+      "5": {
+        "mode": "fixed",
+        "heading": "B. Konsistensi Perangkat dan Metode"
+      },
+      "6": {
+        "mode": "fixed",
+        "heading": "C. Konsistensi Hasil Antar Periode"
+      },
+      "7": {
+        "mode": "fixed",
+        "heading": "A. Sampling untuk Validasi Bertahap"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "B. Kualitas Visual Data Video"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "C. Validasi Akurasi Deteksi Kerusakan"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "A. Evaluasi Kinerja Model AI Secara Keseluruhan"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "B. Evaluasi per Jenis Kerusakan"
+      },
+      "12": {
+        "mode": "optional",
+        "heading": "C. Analisis Confusion Matrix"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "A. Verifikasi Format Data"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "B. Uji Coba Pengunggahan"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "C. Verifikasi Kelengkapan Data Berdasarkan Referensi Lokasi"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "A. Analisis Distribusi Kondisi Jalan"
+      },
+      "17": {
+        "mode": "optional",
+        "heading": "B. Analisis Kebutuhan Penanganan"
+      },
+      "18": {
+        "mode": "optional",
+        "heading": "C. Perbandingan dengan Hasil Survei Lain"
+      },
+      "19": {
+        "mode": "optional",
+        "heading": "A. Ringkasan Temuan"
+      },
+      "20": {
+        "mode": "optional",
+        "heading": "B. Rekomendasi Tindakan Perbaikan"
+      },
+      "21": {
+        "mode": "optional",
+        "heading": "C. Evaluasi Tindak Lanjut Temuan Sebelumnya"
+      },
+      "22": {
+        "mode": "repeat",
+        "heading": "A. Dokumentasi Visual Sampling"
+      },
+      "23": {
+        "mode": "approval",
+        "heading": "B. Grafik dan Analisis Tren"
+      }
+    },
+    "conditions": {},
+    "fieldConditions": {
+      "value:t5:r2:c4": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r2:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r2:c5": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r2:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r3:c4": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r3:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r3:c5": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r3:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r4:c4": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r4:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r4:c5": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r4:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r5:c4": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r5:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r5:c5": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r5:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r6:c4": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r6:c3",
+        "values": [
+          "Berubah"
+        ]
+      },
+      "value:t5:r6:c5": {
+        "label": "Perangkat atau metode dinyatakan berubah pada status sumber",
+        "answer": "t5:r6:c3",
+        "values": [
+          "Berubah"
+        ]
+      }
+    }
+  },
+  "ba-audit-lendutan": {
+    "sha256": "3168da1a0dec2cb3483ce30e5e351066211ab284613b9703b264c2cc22f75df4",
+    "survey": "Lendutan",
+    "phase": "audit",
+    "tables": {
+      "13": {
+        "mode": "fixed",
+        "heading": "5.1 Kelengkapan Dokumen dan Data"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "5.2 Kualitas Data"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "5.3 Verifikasi Lapangan (jika dilakukan)"
+      }
+    },
+    "conditions": {
+      "t15": {
+        "label": "5.3 Verifikasi Lapangan (jika dilakukan)",
+        "key": "applicable:t15"
+      }
+    }
+  },
+  "ba-audit-lereng": {
+    "sha256": "3168da1a0dec2cb3483ce30e5e351066211ab284613b9703b264c2cc22f75df4",
+    "survey": "Lereng",
+    "phase": "audit",
+    "tables": {
+      "16": {
+        "mode": "fixed",
+        "heading": "6.1 Kelengkapan Dokumen dan Data"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "6.2 Kualitas Data"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "6.3 Verifikasi Lapangan (jika dilakukan)"
+      }
+    },
+    "conditions": {
+      "t16:r8": {
+        "label": "7 Dokumentasi drone (jika ada) tersedia",
+        "key": "applicable:t16:r8"
+      },
+      "t18": {
+        "label": "6.3 Verifikasi Lapangan (jika dilakukan)",
+        "key": "applicable:t18"
+      }
+    }
+  },
+  "ba-audit-lalu-lintas": {
+    "sha256": "3168da1a0dec2cb3483ce30e5e351066211ab284613b9703b264c2cc22f75df4",
+    "survey": "Lalu Lintas",
+    "phase": "audit",
+    "tables": {
+      "22": {
+        "mode": "fixed",
+        "heading": "8.1 Kelengkapan Dokumen dan Data"
+      },
+      "23": {
+        "mode": "fixed",
+        "heading": "8.2 Kualitas Data"
+      },
+      "24": {
+        "mode": "fixed",
+        "heading": "8.3 Verifikasi Lapangan (jika dilakukan)"
+      }
+    },
+    "conditions": {
+      "t24": {
+        "label": "8.3 Verifikasi Lapangan (jika dilakukan)",
+        "key": "applicable:t24"
+      }
+    }
+  },
+  "bd492d0bf8d7f96d-consistency": {
+    "sha256": "ab68855c227ec7ea681fcf3ff03a0b75157b14761e63a13d48bd08a5f8fd550d",
+    "survey": "IRI",
+    "phase": "consistency",
+    "tables": {
+      "7": {
+        "mode": "identity",
+        "heading": "1. Informasi Umum"
+      },
+      "8": {
+        "mode": "fixed",
+        "heading": "2. Keterulangan (Repeatability)"
+      },
+      "9": {
+        "mode": "fixed",
+        "heading": "3. Kondisi Operasional"
+      },
+      "10": {
+        "mode": "fixed",
+        "heading": "4. Format dan Kualitas Data"
+      },
+      "11": {
+        "mode": "fixed",
+        "heading": "5. Dokumentasi Konsistensi"
+      },
+      "12": {
+        "mode": "repeat",
+        "heading": "6. Hasil Konsistensi"
+      },
+      "13": {
+        "mode": "fixed",
+        "heading": "7. Faktor-faktor yang Mempengaruhi Pengukuran"
+      },
+      "14": {
+        "mode": "optional",
+        "heading": "8. Tindakan Perbaikan"
+      },
+      "15": {
+        "mode": "approval",
+        "heading": "Persetujuan"
+      }
+    },
+    "conditions": {},
+    "fieldConditions": {
+      "value:t13:r2:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r2",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r3:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r3",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r4:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r4",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r5:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r5",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r6:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r6",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r7:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r7",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r8:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r8",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r9:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r9",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r10:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r10",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r11:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r11",
+        "values": [
+          "Ya"
+        ]
+      },
+      "value:t13:r12:c5": {
+        "label": "Faktor mempengaruhi pengukuran terjadi",
+        "answer": "t13:r12",
+        "values": [
+          "Ya"
+        ]
+      }
+    },
+    "concernValues": {
+      "t13:r2": [],
+      "t13:r3": [],
+      "t13:r4": [],
+      "t13:r5": [],
+      "t13:r6": [],
+      "t13:r7": [],
+      "t13:r8": [],
+      "t13:r9": [],
+      "t13:r10": [],
+      "t13:r11": [],
+      "t13:r12": []
+    }
+  },
+  "5e082f210ca6976a-ongoing": {
+    "sha256": "744ef5182ea246e0b6b8a68865cde6e4819a433f39be5700e46e05061dd76e8f",
+    "survey": "Lendutan",
+    "phase": "consistency",
+    "tables": {
+      "12": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "13": {
+        "mode": "identity",
+        "heading": "II. INFORMASI PERALATAN"
+      },
+      "14": {
+        "mode": "fixed",
+        "heading": "III. PELAKSANAAN VALIDASI BERJALAN"
+      },
+      "15": {
+        "mode": "fixed",
+        "heading": "IV. PENGUKURAN KONSISTENSI (REPEATABILITY)"
+      },
+      "16": {
+        "mode": "fixed",
+        "heading": "V. MONITORING KONDISI ALAT"
+      },
+      "17": {
+        "mode": "fixed",
+        "heading": "VI. DOKUMENTASI HASIL VALIDASI BERJALAN"
+      },
+      "18": {
+        "mode": "fixed",
+        "heading": "VII. KESIMPULAN DAN REKOMENDASI"
+      },
+      "19": {
+        "mode": "approval",
+        "heading": "VIII. TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t15:r5": {
+        "label": "4. Perbandingan dengan hasil pengukuran sebelumnya (jika ada)",
+        "key": "applicable:t15:r5"
+      }
+    },
+    "concernValues": {
+      "t16:r6:c3": [
+        "Ya"
+      ]
+    }
+  },
+  "5e082f210ca6976a-audit-internal": {
+    "sha256": "744ef5182ea246e0b6b8a68865cde6e4819a433f39be5700e46e05061dd76e8f",
+    "survey": "Lendutan",
+    "phase": "audit",
+    "tables": {
+      "20": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "21": {
+        "mode": "identity",
+        "heading": "II. INFORMASI PERALATAN DAN PERSONIL"
+      },
+      "22": {
+        "mode": "fixed",
+        "heading": "III. AUDIT PERSIAPAN DAN PELAKSANAAN SURVEI"
+      },
+      "23": {
+        "mode": "fixed",
+        "heading": "IV. AUDIT PENGUMPULAN DAN PENGOLAHAN DATA"
+      },
+      "24": {
+        "mode": "fixed",
+        "heading": "V. AUDIT PENCATATAN DAN DOKUMENTASI"
+      },
+      "25": {
+        "mode": "fixed",
+        "heading": "VI. AUDIT HASIL SURVEI"
+      },
+      "26": {
+        "mode": "optional",
+        "heading": "VII. TEMUAN DAN TINDAKAN PERBAIKAN"
+      },
+      "27": {
+        "mode": "approval",
+        "heading": "IX. TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t25:r5": {
+        "label": "c. Konsistensi dengan data historis (jika ada)",
+        "key": "applicable:t25:r5"
+      }
+    }
+  },
+  "5e082f210ca6976a-audit-balai": {
+    "sha256": "744ef5182ea246e0b6b8a68865cde6e4819a433f39be5700e46e05061dd76e8f",
+    "survey": "Lendutan",
+    "phase": "audit",
+    "tables": {
+      "28": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "29": {
+        "mode": "identity",
+        "heading": "II. INFORMASI PERALATAN DAN PERSONIL"
+      },
+      "30": {
+        "mode": "fixed",
+        "heading": "III. AUDIT DOKUMEN MANAJEMEN MUTU"
+      },
+      "31": {
+        "mode": "fixed",
+        "heading": "IV. AUDIT PENGAMBILAN SAMPEL DATA (5% DARI TOTAL DATA)"
+      },
+      "32": {
+        "mode": "fixed",
+        "heading": "V. AUDIT PELAKSANAAN SURVEI"
+      },
+      "33": {
+        "mode": "fixed",
+        "heading": "VI. AUDIT HASIL SURVEI"
+      },
+      "34": {
+        "mode": "fixed",
+        "heading": "VII. PERBANDINGAN HASIL AUDIT DENGAN DATA PENYEDIA JASA"
+      },
+      "35": {
+        "mode": "optional",
+        "heading": "VIII. TEMUAN DAN TINDAKAN PERBAIKAN YANG DISARANKAN"
+      },
+      "36": {
+        "mode": "fixed",
+        "heading": "X. PENERIMAAN DATA"
+      },
+      "37": {
+        "mode": "approval",
+        "heading": "XI. TANDA TANGAN"
+      }
+    },
+    "conditions": {}
+  },
+  "5e082f210ca6976a-audit-directorate": {
+    "sha256": "744ef5182ea246e0b6b8a68865cde6e4819a433f39be5700e46e05061dd76e8f",
+    "survey": "Lendutan",
+    "phase": "audit",
+    "tables": {
+      "38": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "39": {
+        "mode": "identity",
+        "heading": "II. INFORMASI PERALATAN DAN PERSONIL"
+      },
+      "40": {
+        "mode": "fixed",
+        "heading": "III. AUDIT DOKUMEN MANAJEMEN MUTU"
+      },
+      "41": {
+        "mode": "fixed",
+        "heading": "IV. AUDIT PENGAMBILAN SAMPEL DATA (1% DARI TOTAL DATA)"
+      },
+      "42": {
+        "mode": "fixed",
+        "heading": "V. AUDIT HASIL SURVEI"
+      },
+      "43": {
+        "mode": "optional",
+        "heading": "VI. TEMUAN DAN TINDAKAN PERBAIKAN YANG DISARANKAN"
+      },
+      "44": {
+        "mode": "fixed",
+        "heading": "VIII. PENERIMAAN DATA"
+      },
+      "45": {
+        "mode": "approval",
+        "heading": "IX. TANDA TANGAN"
+      }
+    },
+    "conditions": {}
+  },
+  "5e082f210ca6976a-acceptance": {
+    "sha256": "744ef5182ea246e0b6b8a68865cde6e4819a433f39be5700e46e05061dd76e8f",
+    "survey": "Lendutan",
+    "phase": "acceptance",
+    "tables": {
+      "46": {
+        "mode": "identity",
+        "heading": "I. INFORMASI UMUM"
+      },
+      "47": {
+        "mode": "identity",
+        "heading": "II. INFORMASI PERALATAN"
+      },
+      "48": {
+        "mode": "repeat",
+        "heading": "III. RINCIAN DATA YANG DITERIMA"
+      },
+      "49": {
+        "mode": "fixed",
+        "heading": "IV. VERIFIKASI PROSES AUDIT"
+      },
+      "50": {
+        "mode": "fixed",
+        "heading": "V. VERIFIKASI KUALITAS DATA"
+      },
+      "51": {
+        "mode": "fixed",
+        "heading": "VI. STATUS PENERIMAAN"
+      },
+      "52": {
+        "mode": "approval",
+        "heading": "VIII. TANDA TANGAN"
+      }
+    },
+    "conditions": {
+      "t49:r4": {
+        "label": "3. Audit Direktorat (jika diperlukan)",
+        "key": "applicable:t49:r4"
+      }
+    }
+  }
+}

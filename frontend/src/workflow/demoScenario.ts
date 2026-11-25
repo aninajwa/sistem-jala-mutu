@@ -133,7 +133,7 @@ function correctionCase(status:CorrectionCase['status']):CorrectionCase{
   return {
     id:'KOR-DEMO-001',source:'Verval 14 hari',blockedStage:'Verval 14 hari',road:DEMO_ROAD,stationing:'STA 2+000 – 2+100',
     rejectionReason:'Koefisien variasi IRI pada sampel repeatability melebihi batas konfigurasi demo.',severity:'Mayor',owner:'Ketua Tim IRI',dueDate:'2027-06-04',
-    rootCause:'Metode',fieldDataValid:'Tidak',surveyType:'IRI',actionType:'Survei ulang sebagian ruas',evidence:'EVID-KOREKSI-IRI-DEMO-001',
+    rootCause:'Metode',fieldDataValid:'Tidak',surveyType:'IRI',actionType:'Survei ulang sebagian ruas',proposedPlan:'Survei ulang segmen yang ditandai dan bandingkan dengan data sumber sebelum penyampaian hasil.',evidence:'EVID-KOREKSI-IRI-DEMO-001',
     originalValue:'IRI 4.2 m/km',proposedValue:'Hasil survei ulang tersimpan pada sistem sumber; referensi SRC-IRI-RETEST-001',approval:status==='Terbuka'?'Draft':'Disetujui',
     retest:status==='Terbuka'?'Belum Diuji':'Lulus',status,returnStage:'Verval 14 hari',linkedRecordId:'IRI-001',
     verification:status==='Ditutup'?{surveyor:true,teamLeader:true,balai:true}:{surveyor:true,teamLeader:true,balai:false},

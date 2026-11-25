@@ -10,5 +10,5 @@ export const ujiCobaPengukuranCreateSchema = z.object({
 
     beban_kn: z.number().finite().nonnegative().nullable(),
 
-    rater_personel_id: z.number().int().positive().nullable(),
+    rater_personel_id: z.number().int().positive().max(2147483647).nullable(),
 }).strict();

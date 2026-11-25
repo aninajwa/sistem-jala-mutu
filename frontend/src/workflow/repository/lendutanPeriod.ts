@@ -1,7 +1,6 @@
 import {readLocal,writeLocal} from './localPersistence';
 import type {WorkflowRole} from '../model';
-/** Draft PP C.4.b/c, C.5.b/c. Sampling 5%: temporary user decision, 22 Oct 2026. */
-export const LENDUTAN_PERIOD_RATE=5;
+/** Draft PP C.4.b/c and C.5.b/c require recorded sampling, without a periodic percentage. */
 export const INTERNAL_PARAMETERS=['Pemeriksaan format dan kelengkapan data','Pemeriksaan kesesuaian hasil dengan metode yang ditetapkan','Identifikasi data yang perlu perbaikan','Validasi koordinat dan kesesuaian dengan sistem referensi lokasi','Cross-check antara personel penilai'];
 export const JOINT_PARAMETERS=['Sampling data','Pemeriksaan peralatan','Peninjauan format data'];
 export type LendutanPeriodRecord={values:Record<string,string>;history:{at:string;actor:WorkflowRole;field:string;before:string;after:string}[]};
@@ -19,15 +18,16 @@ export function lendutanSampling(total:string,sample:string,reference:string){
  const count=(s:string)=>/^\d+$/.test(s.trim())?Number(s):NaN;
  const n=count(total),k=count(sample);
  if(!Number.isSafeInteger(n)||!Number.isSafeInteger(k)||n<=0||k<0||k>n)return {valid:false,complete:false,label:'Belum dapat dinilai',reason:'Isi total titik > 0 dan jumlah sampel bilangan bulat, tidak melebihi total.'};
- const minimum=Math.ceil(n*LENDUTAN_PERIOD_RATE/100),valid=k>=minimum;
- return {valid:valid&&!!reference.trim(),complete:!!reference.trim(),label:valid?'Memenuhi':'Tidak Memenuhi',reason:`${k}/${n} titik (${(k/n*100).toFixed(2)}%); minimum ${minimum} titik (5%).${reference.trim()?'':' Lengkapi daftar/referensi titik sampel.'}`};
+ const valid=k>0,complete=valid&&!!reference.trim();
+ return {valid:complete,complete,label:complete?'Cakupan tercatat':'Belum lengkap',reason:`${k}/${n} titik (${(k/n*100).toFixed(2)}%). Draft PP C.5 tidak menetapkan persentase minimum untuk pemeriksaan berkala.${reference.trim()?'':' Lengkapi daftar/referensi titik sampel.'}`};
 }
 export function lendutanPeriodStatus(scope:string,phase:string){
  const {values}=readLendutanPeriod(scope,phase),parameters=phase==='internal'?INTERNAL_PARAMETERS:JOINT_PARAMETERS;
  const required=[...parameters,'Kesimpulan','Rekomendasi',...(phase==='internal'?['Data valid','Data tidak valid','Tindakan perbaikan']:[])];
+ if(phase==='internal'&&/^(0|tidak ada|nihil)$/i.test(values['Data tidak valid']?.trim()??''))required.splice(required.indexOf('Tindakan perbaikan'),1);
  const missing=required.filter(key=>!values[key]?.trim());
  const sample=phase==='periodic14'?lendutanSampling(values.total??'',values.sample??'',values.sampleReference??''):undefined;
  const concerns=sample&&!sample.valid?[sample.reason]:[];
  const complete=!missing.length&&(!sample||sample.complete);
- return {complete,concerns,reason:missing.length?'Lengkapi hasil pemeriksaan manual: '+missing.join(', '):sample&&!sample.complete?sample.reason:'',sourceHash:'DraftPP-C4-C5-user-sampling-5pct-2026-10-22'};
+ return {complete,concerns,reason:missing.length?'Lengkapi hasil pemeriksaan manual: '+missing.join(', '):sample&&!sample.complete?sample.reason:'',sourceHash:'DraftPP-C4-C5-p553-588'};
 }

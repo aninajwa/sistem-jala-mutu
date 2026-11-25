@@ -1,0 +1,1352 @@
+/* Paket C: typography, task hierarchy and native component refinement. */
+.b-shell {
+  --c-muted: #526b7d;
+  --c-line: #d9e5ec;
+  font-size: 14px;
+  background: #f3f7fa;
+  color: #16374c;
+}
+.b-shell .content {
+  padding: 22px 28px 40px;
+  max-width: 1720px;
+}
+.b-shell .topbar {
+  min-height: 68px;
+  padding: 10px 28px;
+}
+.b-shell .crumb {
+  font-size: 11px;
+  color: #526b7d;
+}
+.b-shell .page-title {
+  font-size: 15px;
+  line-height: 1.5;
+}
+.b-shell .global-filters .jm-account {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.b-role-chip {
+  background: transparent;
+  border: 0;
+  color: #3b6276;
+  font-size: 12px;
+  padding: 0;
+}
+.b-account-menu > summary {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 44px;
+  padding: 0 12px;
+  cursor: pointer;
+  border: 1px solid var(--c-line);
+  border-radius: 8px;
+  background: #fff;
+  color: #315b70;
+  list-style: none;
+}
+.b-account-menu > summary::-webkit-details-marker {
+  display: none;
+}
+.b-account-menu .b-account-actions {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 8px);
+  z-index: 700;
+  width: 270px;
+  display: grid;
+  gap: 10px;
+  background: #fff;
+  padding: 16px;
+  border: 1px solid var(--c-line);
+  box-shadow: 0 12px 32px #14394b20;
+  border-radius: 12px;
+}
+.b-account-actions .btn {
+  min-height: 44px !important;
+  justify-content: center;
+}
+.c-development {
+  display: block;
+  padding: 8px 10px;
+  font-size: 11px;
+  color: #765a26;
+  background: #fff6de;
+  border-radius: 6px;
+}
+.b-account-actions > label {
+  display: none !important;
+}
+.b-heading,
+.b-heading.has-art {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  min-height: 112px;
+  padding: 22px 0;
+  background: transparent;
+  border: 0;
+  box-shadow: none;
+  border-radius: 0;
+  margin: 0;
+}
+.b-heading h1 {
+  font-size: 28px;
+  line-height: 1.25;
+  letter-spacing: -0.6px;
+  margin: 6px 0;
+}
+.b-heading p {
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--c-muted);
+  max-width: 650px;
+  margin: 7px 0 0;
+}
+.b-eyebrow {
+  font-size: 10px;
+  letter-spacing: 1.3px;
+  color: #146d78;
+}
+.b-heading-action {
+  margin: 0;
+  position: relative;
+  z-index: 1;
+  flex-shrink: 0;
+}
+.b-heading.has-art .b-infrastructure {
+  width: 250px;
+  right: 120px;
+  opacity: 0.08;
+  bottom: 0;
+}
+.b-heading-action .btn {
+  min-height: 44px;
+  font-size: 13px;
+  white-space: nowrap;
+}
+.b-dashboard {
+  gap: 20px;
+}
+.b-metrics {
+  gap: 14px;
+}
+.b-metric {
+  padding: 18px;
+  min-height: 116px;
+  border-radius: 12px;
+  box-shadow: 0 2px 8px #173f4f05;
+}
+.b-metric > div > span {
+  font-size: 12px;
+  line-height: 1.5;
+  color: #36566c;
+}
+.b-metric strong {
+  font-size: 30px;
+  line-height: 1.2;
+  margin-top: 7px;
+}
+.b-metric small {
+  font-size: 11px;
+  color: #536d80;
+  line-height: 1.5;
+  margin-top: 8px;
+}
+.b-filter-panel > summary {
+  font-size: 13px;
+  min-height: 48px;
+  padding: 12px 16px;
+}
+.b-filter-panel > summary > b {
+  font-size: 11px;
+  color: #526d7f;
+  background: #edf3f6;
+}
+.b-filter-panel-content {
+  padding: 16px;
+}
+.b-filter-panel-content label,
+.b-filter-strip label {
+  font-size: 12px !important;
+  color: #38586e !important;
+}
+.b-filter-panel select,
+.b-filter-panel input {
+  font-size: 13px;
+  min-height: 44px;
+}
+.b-filter-reset {
+  font-size: 12px;
+  min-height: 40px;
+}
+.b-panel {
+  border-radius: 12px;
+  box-shadow: 0 3px 12px #173c5010;
+}
+.b-panel-head {
+  padding: 18px 20px;
+  gap: 12px;
+}
+.b-panel-head h2 {
+  font-size: 17px;
+  line-height: 1.5;
+}
+.b-panel-head small {
+  font-size: 10px;
+  color: #526d80;
+  letter-spacing: 0.8px;
+  line-height: 1.6;
+}
+.b-panel-body {
+  padding: 18px 20px;
+}
+.b-text-action {
+  font-size: 12px;
+  min-height: 40px;
+  line-height: 1.6;
+}
+.b-package-row h3,
+.b-review-row h3,
+.b-audit-priority h3 {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.b-package-row small,
+.b-review-row small,
+.b-audit-priority small {
+  font-size: 12px;
+  color: #526e80;
+  line-height: 1.6;
+}
+.b-package-row p,
+.b-review-row p,
+.b-audit-priority p {
+  font-size: 13px;
+  color: #486579;
+  line-height: 1.65;
+}
+.b-package-row {
+  padding: 18px 0;
+}
+.b-audit-priority {
+  padding: 16px 0;
+}
+.b-state {
+  font-size: 11px;
+}
+.b-note,
+.c-data-note,
+.c-review-analysis,
+.b-analysis-details {
+  border: 1px solid var(--c-line);
+  border-radius: 9px;
+  background: #fff;
+}
+.b-note > summary,
+.c-data-note > summary,
+.c-review-analysis > summary,
+.b-analysis-details > summary {
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 44px;
+  padding: 12px 15px;
+  color: #365e75;
+  cursor: pointer;
+}
+.c-review-analysis > .b-grid {
+  padding: 16px;
+}
+.c-data-note {
+  margin: 12px 0;
+}
+.c-data-note p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #526b7d;
+  margin: 0;
+  padding: 0 16px 14px;
+}
+.c-work-shortcut {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 20px;
+  background: #fff;
+  border: 1px solid var(--c-line);
+  border-radius: 12px;
+  color: #137c83;
+  text-decoration: none;
+}
+.c-work-shortcut > span {
+  flex: 1;
+  display: grid;
+  gap: 5px;
+}
+.c-work-shortcut strong {
+  font-size: 14px;
+  color: #173c53;
+}
+.c-work-shortcut small {
+  font-size: 12px;
+  line-height: 1.6;
+  color: #526d7d;
+}
+.b-status-bar {
+  padding: 14px 0;
+}
+.b-status-bar > div {
+  font-size: 13px;
+}
+.b-status-bar meter {
+  height: 7px;
+}
+.b-admin-tools > a {
+  min-height: 110px;
+  padding: 20px 20px 20px 65px;
+}
+.b-admin-tools h2 {
+  font-size: 16px;
+}
+.b-admin-tools p {
+  font-size: 12px;
+  color: #526b7d;
+}
+.b-admin-proposal-summary > span {
+  font-size: 12px;
+  color: #526b7d;
+}
+.b-shell .jm-feedback {
+  padding: 24px 18px;
+  box-shadow: none;
+  background: transparent;
+}
+.b-shell .jm-feedback h1,
+.b-shell .jm-feedback h2 {
+  font-size: 17px;
+}
+.b-shell .jm-feedback p {
+  font-size: 13px;
+  line-height: 1.7;
+  max-width: 500px;
+  margin: 10px auto;
+}
+.b-shell .jm-feedback-icon {
+  width: 42px;
+  height: 42px;
+  margin-bottom: 12px;
+}
+.b-shell .jm-feedback > small {
+  display: none;
+}
+.b-shell .btn,
+.b-shell .wf-button {
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 40px;
+}
+.b-shell .b-view-tabs {
+  gap: 4px;
+  flex-wrap: wrap;
+}
+.b-shell .b-view-tabs button {
+  min-height: 44px;
+  padding: 10px 14px;
+  font-size: 12px;
+}
+.b-shell input,
+.b-shell select,
+.b-shell textarea {
+  line-height: 1.6;
+}
+.b-shell label {
+  line-height: 1.6;
+}
+@media (max-width: 1100px) {
+  .b-provider-layout,
+  .b-review-layout,
+  .b-national-layout {
+    grid-template-columns: 1fr;
+  }
+  .b-heading h1 {
+    font-size: 26px;
+  }
+  .b-heading.has-art .b-infrastructure {
+    display: none;
+  }
+}
+@media (max-width: 780px) {
+  .b-shell .content {
+    padding: 8px 14px 28px;
+  }
+  .b-shell .topbar {
+    padding: 8px 14px;
+    min-height: 62px;
+  }
+  .b-shell .page-title {
+    font-size: 13px !important;
+    max-width: 180px;
+  }
+  .b-role-chip {
+    font-size: 10px;
+    max-width: 62px;
+  }
+  .b-account-menu > summary {
+    padding: 0;
+    width: 44px;
+    justify-content: center;
+  }
+  .b-shell .jm-account {
+    gap: 8px;
+  }
+  .b-heading,
+  .b-heading.has-art {
+    min-height: 0;
+    display: block;
+    padding: 14px 0 18px;
+  }
+  .b-heading h1 {
+    font-size: 24px;
+    line-height: 1.25;
+    margin-top: 6px;
+  }
+  .b-heading p {
+    font-size: 12px;
+    line-height: 1.6;
+    margin-top: 8px;
+  }
+  .b-heading-action {
+    margin-top: 13px;
+  }
+  .b-heading-action .btn {
+    font-size: 12px;
+    min-height: 44px;
+  }
+  .b-eyebrow {
+    font-size: 9px;
+  }
+  .b-dashboard {
+    gap: 14px;
+  }
+  .b-metrics {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .b-metric {
+    padding: 13px;
+    min-height: 112px;
+    gap: 9px;
+    align-items: flex-start;
+  }
+  .b-metric-symbol {
+    width: 28px;
+    height: 28px;
+    min-width: 28px;
+  }
+  .b-metric-symbol svg {
+    width: 17px;
+    height: 17px;
+  }
+  .b-metric > div > span {
+    font-size: 11px;
+    line-height: 1.5;
+  }
+  .b-metric strong {
+    font-size: 25px;
+    margin-top: 6px;
+  }
+  .b-metric small {
+    font-size: 10px;
+    line-height: 1.5;
+    margin-top: 7px;
+  }
+  .b-panel-head,
+  .b-panel-body {
+    padding: 16px;
+  }
+  .b-panel-head h2 {
+    font-size: 16px;
+  }
+  .b-panel-head small {
+    font-size: 9px;
+  }
+  .b-text-action {
+    font-size: 12px;
+    min-height: 44px;
+  }
+  .b-package-row h3,
+  .b-review-row h3,
+  .b-audit-priority h3 {
+    font-size: 13px;
+  }
+  .b-package-row small,
+  .b-review-row small,
+  .b-audit-priority small {
+    font-size: 11px;
+  }
+  .b-audit-priority p {
+    font-size: 12px;
+    line-height: 1.6;
+  }
+  .b-audit-priority {
+    padding: 12px 0;
+  }
+  .b-state {
+    font-size: 10px;
+  }
+  .b-filter-panel > summary {
+    font-size: 12px;
+  }
+  .b-filter-panel > summary > b {
+    font-size: 10px;
+  }
+  .b-note > summary,
+  .c-review-analysis > summary,
+  .c-data-note > summary {
+    font-size: 12px;
+    min-height: 44px;
+  }
+  .c-review-analysis > .b-grid {
+    padding: 10px;
+  }
+  .b-stack {
+    gap: 10px;
+  }
+  .c-work-shortcut {
+    padding: 15px;
+  }
+  .c-work-shortcut small {
+    font-size: 11px;
+  }
+  .b-national-layout .b-priority-panel {
+    order: 0;
+  }
+  .b-national-layout {
+    display: flex;
+    flex-direction: column;
+  }
+  .b-shell .wf-button,
+  .b-shell .btn {
+    min-height: 44px;
+  }
+  .b-shell .b-filter-panel input,
+  .b-shell .b-filter-panel select {
+    font-size: 16px;
+    min-height: 46px;
+  }
+  .b-shell .b-admin-tools {
+    gap: 10px;
+  }
+  .b-shell .b-admin-tools > a {
+    min-height: 82px;
+  }
+  .b-shell .b-admin-tools p {
+    font-size: 12px;
+  }
+  .c-data-note p {
+    font-size: 12px;
+  }
+  .b-shell .b-view-tabs button {
+    font-size: 11px;
+  }
+}
+/* Task-specific stage navigation: original fields/actions remain mounted. */
+.c-stage-layout {
+  row-gap: 16px;
+}
+.c-stage-views {
+  grid-column: 1/-1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  padding: 0 0 12px;
+  border-bottom: 1px solid var(--c-line);
+}
+.c-stage-views button {
+  border: 1px solid #d7e3ea;
+  background: #fff;
+  color: #466577;
+  border-radius: 7px;
+  padding: 9px 13px;
+  min-height: 44px;
+  font-size: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.c-stage-views button span {
+  font-size: 11px;
+  color: #527080;
+  background: #edf4f6;
+  border-radius: 5px;
+  padding: 2px 5px;
+}
+.c-stage-views button[aria-pressed="true"] {
+  background: #0b6e78;
+  color: #fff;
+  border-color: #0b6e78;
+}
+.c-stage-views button[aria-pressed="true"] span {
+  background: #ffffff20;
+  color: #fff;
+}
+.c-stage-main[data-view="work"] [data-c-section]:not([data-c-section="work"]),
+.c-stage-main[data-view="evidence"]
+  [data-c-section]:not([data-c-section="evidence"]),
+.c-stage-main[data-view="decision"]
+  [data-c-section]:not([data-c-section="decision"]),
+.c-stage-main[data-view="history"]
+  [data-c-section]:not([data-c-section="history"]) {
+  display: none;
+}
+.c-stage-context {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  background: #eef7f8;
+  border: 1px solid #c4dfe3;
+  border-radius: 10px;
+  padding: 16px 18px;
+  gap: 10px;
+  margin: 16px 0;
+}
+.c-stage-context .stage-task-summary {
+  grid-column: 1/-1;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 15px;
+}
+.c-stage-context .stage-task-summary small {
+  display: block;
+  font-size: 11px;
+  color: #496d7e;
+  margin-bottom: 4px;
+}
+.c-stage-context .stage-task-summary strong {
+  font-size: 16px;
+  line-height: 1.5;
+  color: #123d53;
+}
+.c-stage-context .wf-status {
+  font-size: 11px;
+  white-space: normal;
+  line-height: 1.7;
+}
+.c-stage-context details summary {
+  font-size: 12px;
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  cursor: pointer;
+  color: #33687c;
+}
+.c-stage-context .stage-task-blockers {
+  grid-column: 1/-1;
+  border-top: 1px solid #c5dde3;
+}
+.c-stage-context .stage-task-blockers ul {
+  margin: 0;
+  padding: 0 0 10px 20px;
+  font-size: 13px;
+  line-height: 1.8;
+  color: #5b552a;
+}
+.c-stage-context .stage-task-details {
+  grid-column: 1;
+}
+.c-stage-context[data-mode="monitor"] {
+  background: #f0f4f7;
+  border-color: #d5e0e9;
+}
+.c-stage-context[data-mode="review"],
+.c-stage-context[data-mode="audit"] {
+  border-left: 4px solid #168b87;
+}
+.c-panel-context {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+}
+.c-panel-intent {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0;
+  color: #546c7d;
+  white-space: nowrap;
+}
+.b-shell .c-form-panel > .wf-panel-head {
+  background: #f6fafb;
+  color: #174456;
+  padding: 16px 20px;
+  border-bottom: 1px solid #dbe7ed;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+}
+.b-shell .c-form-panel > .wf-panel-head h3 {
+  font-size: 16px;
+  line-height: 1.5;
+  font-weight: 650;
+}
+.b-shell .c-form-panel.c-group-decision[data-mode="review"] > .wf-panel-head,
+.b-shell .c-form-panel.c-group-decision[data-mode="audit"] > .wf-panel-head {
+  background: #eaf5f4;
+  border-left: 4px solid #148583;
+}
+.b-shell .c-form-panel[data-mode="monitor"] > .wf-panel-head {
+  background: #eef2f6;
+}
+.b-shell .wf-field > label,
+.b-shell .wf-table th {
+  font-size: 12px;
+  color: #3d5d72;
+  line-height: 1.7;
+}
+.b-shell .wf-note,
+.b-shell .wf-subtitle,
+.b-shell .wf-help {
+  font-size: 12px;
+  color: #526c80;
+  line-height: 1.7;
+}
+.b-shell .wf-panel .wf-body {
+  padding: 20px;
+}
+.b-shell .wf-field input,
+.b-shell .wf-field textarea,
+.b-shell .wf-field select {
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 43px;
+}
+.c-stage-layout[data-mode="monitor"] .wf-field input:disabled,
+.c-stage-layout[data-mode="monitor"] .wf-field select:disabled,
+.c-stage-layout[data-mode="monitor"] .wf-field textarea:disabled {
+  background: #f3f6f8;
+  color: #36596e;
+  border-color: #e0e8ee;
+  opacity: 1;
+}
+.b-shell .wf-table td {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.b-stage-outline nav button {
+  font-size: 12px;
+  line-height: 1.6;
+  min-height: 44px;
+}
+.b-stage-outline {
+  background: #fff;
+  border: 1px solid var(--c-line);
+  border-radius: 10px;
+}
+.b-stage-outline > details > summary {
+  font-size: 12px;
+  min-height: 48px;
+}
+.b-stage-outline > details > summary > span {
+  font-size: 11px;
+}
+.c-map-caption {
+  position: absolute;
+  top: 16px;
+  left: 18px;
+  z-index: 450;
+  font-size: 17px;
+  font-weight: 650;
+  line-height: 1.5;
+  color: #2b5f70;
+  pointer-events: none;
+}
+.c-map-caption small {
+  display: block;
+  font-size: 11px;
+  font-weight: 400;
+  color: #526f7a;
+}
+.b-map-leaflet.leaflet-container {
+  background: #eaf3f5 !important;
+}
+.b-map-canvas {
+  border-color: #c9dfe4;
+  background: #eaf3f5;
+  height: 300px;
+}
+.b-map-controls {
+  display: flex;
+  flex-direction: column;
+  right: 14px;
+  top: 14px;
+}
+.b-map-controls button {
+  width: 40px;
+  height: 40px;
+  border-color: #c7dce4;
+  box-shadow: 0 2px 6px #153e5010;
+}
+.b-map-state {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  font-size: 12px;
+  color: #526d7e;
+  line-height: 1.7;
+}
+.b-map-selection {
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 16px;
+}
+.b-map-selection > label {
+  font-size: 12px;
+  color: #426378;
+}
+.b-map-selection select {
+  font-size: 13px;
+  min-height: 44px;
+  border-color: #c6dce5;
+}
+.b-map-selection .b-map-layer {
+  font-size: 11px;
+}
+.c-map-shortcuts {
+  margin: 0;
+}
+.c-map-shortcuts > summary {
+  font-size: 12px;
+  min-height: 44px;
+  cursor: pointer;
+  color: #2b687d;
+  display: flex;
+  align-items: center;
+}
+.b-map-balai-buttons > button {
+  font-size: 12px;
+  min-height: 44px;
+}
+.b-map-balai-buttons > button > span {
+  font-size: 11px;
+}
+.b-geography {
+  gap: 12px;
+}
+.b-map-attribution {
+  font-size: 9px;
+}
+.b-region-distribution {
+  margin-top: 12px;
+}
+.b-region-distribution .ds-ranking-toolbar {
+  font-size: 12px;
+}
+.b-geography .b-note > p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #526d7e;
+  padding: 0 14px 14px;
+  margin: 0;
+}
+@media (max-width: 780px) {
+  .c-stage-views {
+    gap: 6px;
+    padding-bottom: 12px;
+  }
+  .c-stage-views button {
+    font-size: 11px;
+    padding: 8px 10px;
+    flex: 1 0 auto;
+  }
+  .c-stage-context {
+    padding: 13px 14px;
+    display: block;
+  }
+  .c-stage-context .stage-task-summary {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 8px;
+  }
+  .c-stage-context .stage-task-summary strong {
+    font-size: 15px;
+  }
+  .c-stage-context .stage-task-summary small {
+    font-size: 11px;
+  }
+  .c-stage-context details summary {
+    min-height: 44px;
+    font-size: 12px;
+  }
+  .c-stage-context .stage-task-blockers {
+    margin-top: 12px;
+  }
+  .c-stage-context .stage-task-blockers ul {
+    font-size: 12px;
+    line-height: 1.8;
+  }
+  .c-panel-context {
+    justify-content: flex-start;
+  }
+  .c-panel-intent {
+    font-size: 10px;
+  }
+  .b-shell .c-form-panel > .wf-panel-head {
+    padding: 14px;
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 7px;
+  }
+  .b-shell .c-form-panel > .wf-panel-head h3 {
+    font-size: 15px;
+  }
+  .b-shell .wf-panel .wf-body {
+    padding: 15px;
+  }
+  .b-shell .wf-field > label {
+    font-size: 12px;
+  }
+  .b-shell .wf-field input,
+  .b-shell .wf-field select,
+  .b-shell .wf-field textarea {
+    font-size: 16px;
+    min-height: 46px;
+  }
+  .b-shell .wf-note,
+  .b-shell .wf-subtitle,
+  .b-shell .wf-help {
+    font-size: 12px;
+  }
+  .b-shell .wf-table td,
+  .b-shell .wf-table th {
+    font-size: 12px;
+  }
+  .b-stage-outline {
+    margin-bottom: 12px;
+  }
+  .b-stage-outline > details > summary {
+    min-height: 44px;
+  }
+  .b-stage-outline nav button {
+    font-size: 12px;
+  }
+  .b-map-canvas {
+    height: 230px;
+  }
+  .b-map-controls button {
+    width: 44px;
+    height: 44px;
+  }
+  .b-map-selection {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+  .b-map-selection select {
+    font-size: 16px;
+    min-height: 46px;
+  }
+  .b-map-selection .b-map-layer {
+    font-size: 12px;
+  }
+  .b-map-attribution {
+    font-size: 8px;
+  }
+  .c-map-caption {
+    font-size: 15px;
+    top: 12px;
+    left: 12px;
+  }
+  .c-map-caption small {
+    font-size: 10px;
+  }
+  .b-map-state {
+    font-size: 11px;
+    line-height: 1.7;
+  }
+  .b-geography {
+    gap: 10px;
+  }
+  .b-map-balai-buttons > button {
+    font-size: 11px;
+  }
+  .b-map-balai-buttons > button > span {
+    font-size: 10px;
+  }
+}
+/* Lists, documents, decisions and supporting modules share readable densities. */
+.b-shell .dr-record {
+  padding: 18px;
+  gap: 16px;
+}
+.b-shell .dr-record strong,
+.b-shell .dr-record h3 {
+  font-size: 14px;
+  line-height: 1.6;
+}
+.b-shell .dr-record p,
+.b-shell .dr-record span,
+.b-shell .dr-record small {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #526b7d;
+}
+.b-shell .dr-record .dr-record-status {
+  color: #235c68;
+}
+.b-shell .dr-summary-strip {
+  font-size: 12px;
+}
+.b-shell .dr-intro,
+.b-shell .rv-header p,
+.b-shell .cm-intro {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.b-shell .ba-status-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 7px;
+  margin-bottom: 14px;
+}
+.b-shell .ba-status-strip > span {
+  flex: 0 1 auto;
+  border: 1px solid #d8e5eb;
+  background: #f4f8fa;
+  padding: 7px 10px;
+  border-radius: 6px;
+  font-size: 12px;
+  line-height: 1.6;
+}
+.b-shell .b-ba-editor > .wf-panel-head {
+  padding: 16px 20px;
+  background: #f0f7f8;
+  color: #17455b;
+  border-bottom: 1px solid #cee1e8;
+}
+.b-shell .b-ba-editor > .wf-panel-head h2 {
+  font-size: 19px;
+  line-height: 1.5;
+}
+.b-shell .document-summary-grid {
+  gap: 12px;
+}
+.b-shell .document-summary-grid dl {
+  background: #fff;
+  border: 0;
+  border-left: 2px solid #d5e5e9;
+  border-radius: 0;
+  padding: 8px 14px;
+}
+.b-shell .document-summary-grid dt {
+  font-size: 11px;
+  color: #526d7d;
+}
+.b-shell .document-summary-grid dd {
+  font-size: 13px;
+  line-height: 1.75;
+  color: #31566b;
+}
+.b-shell .document-summary-grid small {
+  font-size: 12px;
+}
+.b-shell .ba-field-row {
+  padding: 14px 16px;
+}
+.b-shell .ba-field-row label {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #315b70;
+}
+.b-shell .admin-detail-dialog,
+.b-shell .data-modal {
+  border-radius: 14px;
+}
+.b-shell .admin-detail-dialog h2 {
+  font-size: 22px;
+}
+.b-shell .admin-detail-dialog p,
+.b-shell .admin-detail-dialog li {
+  font-size: 13px;
+  line-height: 1.8;
+  color: #46677b;
+}
+.b-shell .admin-detail-dialog small {
+  font-size: 12px;
+  color: #526d7f;
+}
+.b-shell .admin-detail-dialog label {
+  font-size: 13px;
+}
+.b-shell .b-responsive-table td,
+.b-shell .b-responsive-table th,
+.b-shell .corr-table td,
+.b-shell .corr-table th {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.b-shell .c-access-actions {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-top: 18px;
+}
+.b-shell .rv-card {
+  padding: 18px 20px;
+}
+.b-shell .rv-card h3 {
+  font-size: 16px;
+  line-height: 1.5;
+}
+.b-shell .rv-card p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.b-shell .rv-card > p {
+  max-width: 720px;
+}
+.b-shell .notif-row-body h3 {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.b-shell .notif-row-body p {
+  font-size: 13px;
+  line-height: 1.7;
+  color: #47667a;
+}
+.b-shell .notif-row-body small {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #526d7d;
+}
+.b-shell .notif-row-actions button {
+  font-size: 12px;
+  min-height: 44px;
+}
+.b-shell .notif-row-pill {
+  font-size: 11px;
+}
+.b-shell .balai-review-card h3,
+.b-shell .b-audit-card h3 {
+  font-size: 15px;
+  line-height: 1.6;
+}
+.b-shell .balai-review-card p,
+.b-shell .b-audit-card p {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.b-shell .balai-review-card small,
+.b-shell .b-audit-card small {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.b-shell .subtle {
+  color: #526c7e;
+  font-size: 12px;
+  line-height: 1.7;
+}
+.b-shell .b-catalog-card h2 {
+  font-size: 17px;
+}
+.b-shell .b-catalog-meta {
+  font-size: 12px;
+}
+.b-shell .corr-inspector p,
+.b-shell .corr-inspector dd {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.b-shell .notice {
+  font-size: 13px;
+  line-height: 1.7;
+}
+.b-shell .rv-admin-access {
+  max-width: 720px;
+  padding: 20px;
+  border-left: 3px solid #25818a;
+  background: #f1f7f8;
+}
+.b-shell .wf-callout {
+  font-size: 12px;
+  line-height: 1.7;
+}
+.b-shell :focus-visible {
+  outline: 3px solid #a16e18;
+  outline-offset: 3px;
+}
+.b-shell .c-stage-main:has([data-view]) {
+  min-width: 0;
+}
+@media (max-width: 780px) {
+  .b-shell .dr-record {
+    padding: 14px;
+    gap: 12px;
+  }
+  .b-shell .dr-record strong,
+  .b-shell .dr-record h3 {
+    font-size: 13px;
+  }
+  .b-shell .dr-record p,
+  .b-shell .dr-record span,
+  .b-shell .dr-record small {
+    font-size: 11px;
+  }
+  .b-shell .document-summary-grid {
+    grid-template-columns: 1fr;
+    gap: 8px;
+  }
+  .b-shell .document-summary-grid dl {
+    padding: 8px 12px;
+  }
+  .b-shell .document-summary-grid dt {
+    font-size: 11px;
+  }
+  .b-shell .document-summary-grid dd {
+    font-size: 12px;
+  }
+  .b-shell .b-ba-editor > .wf-panel-head {
+    padding: 14px;
+  }
+  .b-shell .b-ba-editor > .wf-panel-head h2 {
+    font-size: 17px;
+  }
+  .b-shell .ba-status-strip > span {
+    font-size: 11px;
+    padding: 6px 8px;
+  }
+  .b-shell .admin-detail-dialog {
+    padding: 18px;
+    max-height: 90dvh;
+  }
+  .b-shell .admin-detail-dialog h2 {
+    font-size: 19px;
+  }
+  .b-shell .admin-detail-dialog p,
+  .b-shell .admin-detail-dialog li {
+    font-size: 12px;
+  }
+  .b-shell .ba-field-row label {
+    font-size: 12px;
+  }
+  .b-shell .notif-row-body h3 {
+    font-size: 14px;
+  }
+  .b-shell .notif-row-body p {
+    font-size: 12px;
+  }
+  .b-shell .notif-row-body small {
+    font-size: 11px;
+  }
+  .b-shell .notif-row-actions {
+    gap: 6px;
+  }
+  .b-shell .notif-row-actions button {
+    font-size: 11px;
+  }
+  .b-shell .b-responsive-table td,
+  .b-shell .corr-table td {
+    font-size: 12px;
+  }
+  .b-shell .balai-review-card p,
+  .b-shell .b-audit-card p {
+    font-size: 12px;
+  }
+  .b-shell .balai-review-card small,
+  .b-shell .b-audit-card small {
+    font-size: 11px;
+  }
+  .b-shell .rv-card {
+    padding: 15px;
+  }
+  .b-shell .rv-card p {
+    font-size: 12px;
+  }
+  .b-shell .subtle {
+    font-size: 12px;
+  }
+  .b-shell .notice {
+    font-size: 12px;
+  }
+}
+.b-map-selection {
+  grid-template-columns: 1fr;
+}
+.c-map-options {
+  border: 1px solid var(--c-line);
+  border-radius: 9px;
+  background: #fff;
+}
+.c-map-options > summary {
+  min-height: 44px;
+  padding: 12px 15px;
+  cursor: pointer;
+  font-size: 12px;
+  color: #365e75;
+}
+.c-map-options-body {
+  padding: 0 15px 15px;
+  display: grid;
+  gap: 12px;
+}
+.c-map-options h3 {
+  font-size: 12px;
+  margin: 0 0 8px;
+  color: #31596e;
+}
+.c-map-options p {
+  font-size: 12px;
+  line-height: 1.7;
+  color: #526d7e;
+  margin: 0;
+}
+.c-map-options .b-map-layer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 44px;
+  font-size: 12px;
+}
+.b-shell .wf-head .wf-title {
+  font-size: 23px;
+  line-height: 1.4;
+}
+.b-shell .wf-head .wf-eyebrow {
+  font-size: 10px;
+  letter-spacing: 1px;
+  color: #527286;
+}
+.b-shell .stage-context-help summary {
+  font-size: 12px;
+  min-height: 44px;
+}
+.b-shell .stage-context-help p {
+  font-size: 13px;
+  line-height: 1.8;
+}
+@media (max-width: 780px) {
+  .b-shell .wf-head .wf-title {
+    font-size: 20px;
+  }
+  .c-map-options > summary {
+    font-size: 12px;
+  }
+  .c-map-options p {
+    font-size: 12px;
+  }
+  .c-map-options .b-map-layer {
+    min-height: 44px;
+  }
+  .b-shell .stage-context-help p {
+    font-size: 12px;
+  }
+}
+@media(max-width:780px){.b-shell .topbar{display:flex;flex-wrap:nowrap;align-items:center;gap:8px}.b-shell .topbar .top-left{flex:1 1 auto;min-width:0;align-items:center;gap:8px}.b-shell .topbar .top-left>div{min-width:0}.b-shell .topbar .global-filters{width:auto!important;flex:0 0 auto;gap:0}.b-shell .page-title{max-width:170px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.5}.b-shell .topbar .jm-account{flex-wrap:nowrap;min-width:0;width:auto!important;gap:8px}}
+/* Legacy ui09 switches the header to a column on package/document/correction pages. */
+@media(max-width:780px){.b-shell .main-area>.topbar{flex-direction:row;align-items:center;flex-wrap:nowrap}.b-shell .topbar .top-left{width:auto}.b-shell .topbar .top-left>div{flex:1 1 auto}}

@@ -1,0 +1,22 @@
+npm warn Unknown env config "http-proxy". This will stop working in the next major version of npm.
+
+> jala-mutu-frontend@0.0.0 test:documents
+> node --import tsx --test src/workflow/documents/documentCatalog.test.ts
+
+✔ catalog enumerates existing package identities, does not create false drafts or leak other packages (6.76671ms)
+✔ catalog uses actual versions and flags stale data without changing history (4.555593ms)
+✔ explicit draft checkpoints retain legacy keys; Admin and wrong audit owner cannot save (1.223531ms)
+✔ four document menus use unique live list filters and preserve historical periods (0.695637ms)
+✔ attachment locations expose package/document identity without leaking storage key into UI (1.178964ms)
+✔ document dates are not fabricated from the package simulation clock (1.932919ms)
+✔ all seven BA map to existing operational routes and retain typed periodic scope (5.751658ms)
+✔ survey-specific template sections never block an unrelated survey draft (3.332563ms)
+✔ list completeness respects submitted snapshot rather than silently refreshing from source (1.925286ms)
+ℹ tests 9
+ℹ suites 0
+ℹ pass 9
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 403.158469

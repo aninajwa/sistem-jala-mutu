@@ -1,3 +1,6 @@
+import { Stage6MonitoringOverview } from "./Stage6MonitoringOverview";
+import { finalAcceptanceBlockers } from '../acceptanceReadiness';
+import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {SourceDocumentChecklist} from '../SourceDocumentChecklist';
 import {useWorkflowReconciliation} from '../../hooks/useWorkflowReconciliation';
@@ -32,7 +35,6 @@ import {
   evaluateProductionTest,
   SurveyType,
 } from "../model";
-import { STAGE6_ROLE_GUIDANCE } from "../workflowConfig";
 
 import type { WorkflowStageProps } from "./stageSupport";
 import {
@@ -236,18 +238,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
   const acceptanceCriteriaReady = ACCEPTANCE_CRITERIA.every(
     (item) => !!acceptanceCriteria[item],
   );
-  const finalReady = !formIssues.length &&
-    state.acceptance.terms.every(
-      (t) =>
-        t.complete &&
-        state.acceptance.partialReceipts.includes(`BA penerimaan ${t.id}`),
-    ) &&
-    !semesterErrors.length &&
-    (!semesterTwoApplies(state)||state.acceptance.semesterTwoRevalidation) &&
-    state.acceptance.finalReport &&
-    allAuditsPassed &&
-    !state.corrections.some((item) => item.status !== "Ditutup") &&
-    acceptanceCriteriaReady;
+  const finalReady = finalAcceptanceBlockers(state).length === 0;
   const updateAcceptanceCriterion = (
     criterion: AcceptanceCriterion,
     checked: boolean,
@@ -355,7 +346,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
     }
     const decision = (draft.acceptanceDecision ??
       state.acceptance.acceptanceDecision ??
-      "Belum Diperiksa") as "Belum Diperiksa" | "Diterima" | "Ditolak";
+      "Belum Diperiksa") as "Belum Diperiksa" | "Diterima" | "Diterima dengan Catatan" | "Ditolak";
     const rejectionReason =
       draft.acceptanceRejectionReason ??
       state.acceptance.acceptanceRejectionReason ??
@@ -381,14 +372,19 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
-    if (decision !== "Diterima") {
+    const reviewNote = (draft.acceptanceReviewNote ?? state.acceptance.acceptanceReviewNote ?? '').trim();
+    if (decision === 'Diterima dengan Catatan' && !reviewNote) {setNotice('Catatan penerimaan wajib diisi untuk Diterima dengan Catatan.');return;}
+    if (decision !== "Diterima" && decision !== 'Diterima dengan Catatan') {
       setNotice("Pilih keputusan Diterima atau Ditolak.");
       return;
     }
     const pendingForms=workflowFormIssues(state);if(pendingForms.length){setNotice(`Penerimaan tertahan: ${pendingForms.slice(0,3).map(issue=>issue.message).join(" ")}`);return;}
+    if (!(draft.finalAcceptanceBa ?? state.acceptance.finalAcceptanceBa ?? '').trim()) {
+      setNotice('Referensi BA penerimaan nyata wajib diisi; sistem tidak membuat nomor BA otomatis.'); return;
+    }
     if (!finalReady) {
       setNotice(
-        "Penerimaan akhir tertahan oleh kriteria penerimaan, termin, BA, audit, revalidasi, laporan akhir, atau kasus koreksi terbuka.",
+        finalAcceptanceBlockers(state).slice(0, 3).join(" · "), "error",
       );
       return;
     }
@@ -399,18 +395,25 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
         ...s,
         acceptance: {
           ...s.acceptance,
-          acceptanceDecision: "Diterima",
+          acceptanceDecision: decision,
+          acceptanceReviewNote: reviewNote,
           acceptanceRejectionReason: "",
           finalAcceptance: true,
           finalAcceptanceBa:
             draft.finalAcceptanceBa ||
             s.acceptance.finalAcceptanceBa ||
-            `BA-AKHIR-${s.simulationDate}`,
+            "",
         },
       }),
       "Penerimaan akhir dan referensi BA dicatat.",
     );
   };
+  // Direktorat monitors this stage; Admin sees only the administrative trail.
+  // Neither role can write acceptance decisions or provider term progress.
+  if (state.role === "Direktorat / Pusat" || state.role === "Admin") {
+    return <Stage6MonitoringOverview state={state} onNavigate={onNavigate} />;
+  }
+
   return (
     <>
       {heading(
@@ -419,10 +422,6 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
         "Catat penerimaan parsial dan progres T1–T4. Penerimaan akhir menunggu seluruh termin, audit berjenjang, revalidasi Semester II dan laporan akhir.",
       )}
 
-      <div className="wf-callout" style={{ marginBottom: 12 }}>
-        <strong>{state.role}:</strong> {STAGE6_ROLE_GUIDANCE[state.role]}
-      </div>
-
       {state.project.surveyTypes.includes('Lendutan')&&<RoleWorkSection primary={state.role==='PIC Balai / Pengguna Jasa'} title="Pemeriksaan penerimaan Lendutan"><SourceDocumentChecklist packageId={state.project.id} phase="acceptance" surveyTypes={['Lendutan']} role={state.role} editableRoles={['PIC Balai / Pengguna Jasa']} projectInfo={state.project} hideSurveySelector/></RoleWorkSection>}
       <Panel title="Dokumen & Lampiran Penerimaan" icon={FileText}>
         <div className="stage-evidence-grid">
@@ -430,12 +429,6 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
           <DocumentAttachments title="BA penerimaan · Balai" scope={`${state.project.id}:stage6-acceptance`} categories={['Berita Acara Penerimaan']} legacyEvidenceIds={['stage6-final-acceptance-ba']} editable={state.role==='PIC Balai / Pengguna Jasa'}/>
         </div>
 
-        {state.role === "Direktorat / Pusat" && (
-          <div className="wf-note" style={{ marginTop: 8 }}>
-            Direktorat / Pusat memonitor hasil audit dan penerimaan secara
-            read-only.
-          </div>
-        )}
       </Panel>
       <div className="wf-kpis">
         <div className="wf-kpi">
@@ -573,16 +566,19 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
           </div>
         )}
       </Panel>}
-      <RoleWorkSection primary={state.role==="Penyedia Jasa / Ketua Tim"} title="Laporan akhir Penyedia"><Panel title="Laporan akhir" icon={FileText}><Field label="Referensi laporan akhir"><input data-testid="input-semester-two-finalReportReference" disabled={state.role!=="Penyedia Jasa / Ketua Tim"} value={semesterEvidence.finalReportReference} onChange={e=>updateSemesterEvidence({finalReportReference:e.target.value})}/></Field>            <CheckRow
+      {state.role === "Penyedia Jasa / Ketua Tim" ? <RoleWorkSection primary title="Laporan akhir Penyedia"><Panel title="Laporan akhir" icon={FileText}><Field label="Referensi laporan akhir"><input data-testid="input-semester-two-finalReportReference" value={semesterEvidence.finalReportReference} onChange={e=>updateSemesterEvidence({finalReportReference:e.target.value})}/></Field>            <CheckRow
               id="acceptance-final-report"
               label="Laporan akhir tersedia"
               disabled={state.role !== "Penyedia Jasa / Ketua Tim"}
               checked={state.acceptance.finalReport}
               onChange={toggleFinalReport}
             />
-</Panel></RoleWorkSection>
+</Panel></RoleWorkSection> : <Panel title="Laporan akhir Penyedia" icon={FileText}>
+        <dl className="v2-decision-facts"><dt>Referensi laporan</dt><dd>{semesterEvidence.finalReportReference || "Belum tercatat"}</dd>
+        <dt>Ketersediaan</dt><dd>{state.acceptance.finalReport ? "Tercatat tersedia" : "Belum tercatat"}</dd></dl>
+      </Panel>}
       <div className={`wf-grid ${state.role==="PIC Balai / Pengguna Jasa"?'acceptance-review-first':''}`}>
-        <RoleWorkSection primary={state.role==="Penyedia Jasa / Ketua Tim"} title="Termin dan progres Penyedia"><Panel title="Termin kontrak TA 2027" icon={FileCheck2}>
+        {state.role === "Penyedia Jasa / Ketua Tim" ? <RoleWorkSection primary title="Termin dan progres Penyedia"><Panel title="Termin kontrak TA 2027" icon={FileCheck2}>
           <div className="wf-table">
             <table data-testid="table-acceptance-terms">
               <thead>
@@ -700,20 +696,27 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
               </tbody>
             </table>
           </div>
-        </Panel></RoleWorkSection>
-        <RoleWorkSection primary={state.role==="PIC Balai / Pengguna Jasa"} title="Pemeriksaan dan keputusan penerimaan Balai"><div>
+        </Panel></RoleWorkSection> : <Panel title="Termin Penyedia · hasil tercatat" icon={FileCheck2}>
+          <div className="wf-table"><table data-testid="table-acceptance-terms"><thead><tr>
+            <th>Termin</th><th>Milestone</th><th>Bobot</th><th>Jatuh tempo</th><th>Progres</th><th>Status</th>
+          </tr></thead><tbody>{state.acceptance.terms.map((term) => <tr key={term.id} data-testid={`row-term-${term.id}`}>
+            <td>{term.id}</td><td>{term.milestone}{term.note && <small className="wf-note"> · {term.note}</small>}</td>
+            <td>{term.percentage}%</td><td>{term.dueDate || "Belum ditetapkan"}</td>
+            <td>{term.complete ? 100 : (term.progress ?? 0)}%</td><td>{term.complete ? "Selesai" : "Berjalan"}</td>
+          </tr>)}</tbody></table></div>
+        </Panel>}
+        {state.role === "PIC Balai / Pengguna Jasa" ? <section aria-label="Pemeriksaan penerimaan Balai">
           <Panel title="Kriteria penerimaan data" icon={ClipboardCheck}>
             <AcceptanceCriteriaPanel
               values={acceptanceCriteria}
-              readOnly={state.role !== "PIC Balai / Pengguna Jasa"}
+              readOnly={false}
               onChange={updateAcceptanceCriterion}
             />
           </Panel>
-          <Panel title="BA penerimaan parsial / bertahap" icon={ClipboardCheck}>
+          <Panel title="Referensi BA penerimaan tercatat" icon={ClipboardCheck}>
             <div className="wf-callout">
-              PIC Balai / Pengguna Jasa mencatat BA penerimaan secara
-              parsial/bertahap sesuai data yang telah selesai diperiksa dan
-              diterima.
+              Catat BA berdasarkan data yang telah diperiksa dan diterima.
+              Referensi T1–T4 di bawah mengikuti konfigurasi paket saat ini.
             </div>
             {[
               "BA penerimaan T1",
@@ -725,7 +728,6 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
                 key={r}
                 id={`receipt-${testId(r)}`}
                 label={r}
-                disabled={state.role !== "PIC Balai / Pengguna Jasa"}
                 checked={state.acceptance.partialReceipts.includes(r)}
                 onChange={(v) => toggleReceipt(r, v)}
               />
@@ -736,7 +738,6 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
             {semesterTwoApplies(state)&&<CheckRow
               id="acceptance-semester-two"
               label="Revalidasi IRI Semester II selesai"
-              disabled={state.role !== "PIC Balai / Pengguna Jasa"}
               checked={state.acceptance.semesterTwoRevalidation}
               onChange={toggleSemesterTwo}
             />}
@@ -748,15 +749,14 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
                   state.acceptance.acceptanceDecision ??
                   "Belum Diperiksa"
                 }
-                options={["Belum Diperiksa", "Diterima", "Ditolak"]}
-                disabled={state.role !== "PIC Balai / Pengguna Jasa"}
+                options={["Belum Diperiksa", "Diterima", "Diterima dengan Catatan", "Ditolak"]}
                 onChange={(v) => saveText("acceptanceDecision", v)}
               />
             </Field>
+            <Field label="Catatan penerimaan (bukan otomatis temuan)" full><textarea data-testid="input-acceptance-review-note" value={draft.acceptanceReviewNote??state.acceptance.acceptanceReviewNote??''} onChange={e=>saveText('acceptanceReviewNote',e.target.value)} placeholder="Wajib untuk Diterima dengan Catatan."/></Field>
             <Field label="Alasan penolakan (wajib bila Ditolak)" full>
               <textarea
                 data-testid="input-acceptance-rejection"
-                disabled={state.role !== "PIC Balai / Pengguna Jasa"}
                 value={
                   draft.acceptanceRejectionReason ??
                   state.acceptance.acceptanceRejectionReason ??
@@ -771,7 +771,6 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
             <Field label="Nomor / referensi BA penerimaan akhir">
               <input
                 data-testid="input-final-acceptance-ba"
-                disabled={state.role !== "PIC Balai / Pengguna Jasa"}
                 value={
                   draft.finalAcceptanceBa ??
                   state.acceptance.finalAcceptanceBa ??
@@ -792,17 +791,9 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
               }{" "}
               · penerbit BA: PIC Balai / Pengguna Jasa
             </div>
-            {state.role === "Direktorat / Pusat" && (
-              <div className="wf-callout" style={{ marginTop: 8 }}>
-                Direktorat / Pusat memonitor hasil Audit Tingkat 3 dan status
-                penerimaan. Keputusan penerimaan/BA dicatat oleh PIC Balai /
-                Pengguna Jasa.
-              </div>
-            )}
             <Button
               id="button-final-acceptance"
               kind="primary"
-              disabled={state.role !== "PIC Balai / Pengguna Jasa"}
               onClick={saveAcceptanceDecision}
             >
               {state.acceptance.finalAcceptance&&!formIssues.length
@@ -810,7 +801,22 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
                 : "Simpan keputusan penerimaan"}
             </Button>
           </Panel>
-        </div></RoleWorkSection>
+        </section> : (
+          <Panel title="Hasil penerimaan Balai" icon={BadgeCheck}>
+            <dl className="v2-decision-facts">
+              <dt>Keputusan</dt>
+              <dd>{state.acceptance.acceptanceDecision || "Belum diperiksa"}</dd>
+              <dt>Referensi BA akhir</dt>
+              <dd>{state.acceptance.finalAcceptanceBa || "Belum tercatat"}</dd>
+              <dt>Referensi penerimaan yang tercatat</dt>
+              <dd>{state.acceptance.partialReceipts.join(", ") || "Belum tercatat"}</dd>
+              {semesterTwoApplies(state) && <>
+                <dt>Revalidasi IRI Semester II</dt>
+                <dd>{state.acceptance.semesterTwoRevalidation ? "Tercatat selesai" : "Belum selesai"}</dd>
+              </>}
+            </dl>
+          </Panel>
+        )}
       </div>
       <details className="stage-document-details"><summary>Dokumen hasil pemeriksaan · Berita Acara Penerimaan Data</summary>
       <Panel title="Berita Acara Penerimaan Data" icon={FileText}>
@@ -821,6 +827,9 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
         {baAccess("penerimaan", "Susun BA Penerimaan")}
       </Panel>
       </details>
+      {state.acceptance.acceptanceReviewNote&&<div className="review-note"><strong>Catatan penerimaan tersimpan</strong><p>{state.acceptance.acceptanceReviewNote}</p></div>}
+      {state.acceptance.acceptanceRejectionReason&&<div className="review-note important"><strong>Alasan / hasil review penerimaan tersimpan</strong><p>{state.acceptance.acceptanceRejectionReason}</p><button type="button" className="wf-button" onClick={()=>onNavigate('/actions:Koreksi berbukti')}>Lihat tindak lanjut</button></div>}
+      <BalaiDecisionHistory state={state} stage="Tahap 6"/>
     </>
   );
 }

@@ -1,3 +1,7 @@
+import {Stage0StepForm} from '../Stage0StepForm';
+import '../stage0Workspace.css';
+import { canEditPreparationChecklist } from '../preparationChecklistLock';
+import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import {
@@ -22,52 +26,95 @@ import {
   PREPARATION_SOURCE_REVIEWS,
   SurveyType,
 } from "../model";
-import { GateSummary } from "../WorkflowComponents";
 
 import type { WorkflowStageProps } from "./stageSupport";
 import { Badge, Button, Field, Panel, resetAuditLevels } from "./stageSupport";
 import { useWorkflowStage } from "./useWorkflowStage";
 
+import { preparationSubmissionEligibility } from '../preparationSubmissionPolicy';
 export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
   const { selection, state, onUpdate, setNotice, onNavigate } = props;
   const { commit, setPreparation, setCheck, heading, renderChecklist } =
     useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:Stage0PreparationWorkspace`,{});
+  const server = props.serverPreparation;
+  if (props.serverReadOnly && !server) {
+    return <section className="wf-panel" data-testid="dirah-stage0-server-readonly"><div className="wf-panel-head"><h2>Survei Pendahuluan & Persiapan QA/QC</h2></div><div className="wf-body"><p className="wf-note">{props.serverStatusNote || 'Belum terhubung ke server. Checklist dan tindakan persiapan dinyahaktifkan.'}</p></div></section>;
+  }
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
 
   const prep = state.project.preparation;
   const canPrepareInput = state.role === "Penyedia Jasa / Ketua Tim";
   const canReviewPreparation = state.role === "PIC Balai / Pengguna Jasa";
+  // Server mode maps server status/answers into the vocabulary the Dirah screen already renders.
+  const serverChecklistStatus = server?.checklist?.pengisian.status;
+  const serverSubmissionStatus = server?.submission?.status;
+  const approval: ApprovalState = server ? serverApprovalState(serverSubmissionStatus) : prep.reportApproval;
+  const reviewerNote = server ? (server.submission?.review?.catatan ?? '') : prep.reviewerNote;
+  const triStateForSection = (section: string) => server ? Object.fromEntries(
+    (section === 'Telaah data awal' ? PREPARATION_SOURCE_REVIEWS : section === 'Rencana lapangan' ? PREPARATION_FIELD_PLAN : section === 'Koordinasi' ? PREPARATION_COORDINATION : PREPARATION_DOCUMENTS)
+      .map(label => {
+        const mapped = server.mappedItems.find(item => item.section === section && item.label === label);
+        return [label, mapped
+          ? { answer: server.answers[mapped.itemId]?.jawaban ?? null, note: server.answers[mapped.itemId]?.keterangan ?? '' }
+          : { answer: null, disabled: true, note: 'Item ini tidak mempunyai padanan server yang disahkan.' }];
+      }),
+  ) : undefined;
+  const onServerAnswer = (section: string, label: string, answer: 'Ya' | 'Tidak' | null) => {
+    const mapped = server?.mappedItems.find(item => item.section === section && item.label === label);
+    if (mapped && server) server.onAnswer(mapped.itemId, answer, server.answers[mapped.itemId]?.keterangan ?? '');
+  };
+  const sectionAnswers = (section: string, local: Record<string, boolean>): Record<string, boolean> => {
+    const tri = triStateForSection(section);
+    return tri ? Object.fromEntries(Object.entries(tri).map(([label, value]) => [label, value.answer === 'Ya'])) : local;
+  };
+  const sourceAnswers = sectionAnswers('Telaah data awal', prep.sourceReviews);
+  const planAnswers = sectionAnswers('Rencana lapangan', prep.fieldPlan);
+  const coordinationAnswers = sectionAnswers('Koordinasi', prep.coordination);
+  const documentAnswers = sectionAnswers('Dokumen persiapan', prep.documents);
+  const canEditChecklist = server ? server.editable && !server.saving : canEditPreparationChecklist(state.role, prep.reportApproval);
   const allItems = [
     ...PREPARATION_SOURCE_REVIEWS.map((x) => prep.sourceReviews[x]),
     ...PREPARATION_FIELD_PLAN.map((x) => prep.fieldPlan[x]),
     ...PREPARATION_COORDINATION.map((x) => prep.coordination[x]),
     ...PREPARATION_DOCUMENTS.map((x) => prep.documents[x]),
   ];
-  const complete = allItems.filter(Boolean).length;
+  const complete = server
+    ? server.mappedItems.filter(item => server.answers[item.itemId]?.jawaban === 'Ya').length
+    : allItems.filter(Boolean).length;
+  const totalItems = server ? server.mappedItems.length : allItems.length;
   const approve = (status: ApprovalState) => {
+    if (server) {
+      if (status === 'Diajukan') server.onSubmit?.();
+      else if (status === 'Perlu Revisi') server.onReview('PERLU_REVISI');
+      else if (status === 'Disetujui') server.onReview('DISETUJUI');
+      return;
+    }
     if (status === "Diajukan" && state.role !== "Penyedia Jasa / Ketua Tim") {
       setNotice(
-        "Peran Penyedia Jasa / Ketua Tim diperlukan untuk mengajukan laporan.",
+        "Peran Penyedia Jasa / Ketua Tim diperlukan untuk mengajukan laporan.", "error",
       );
       return;
     }
     if (status !== "Diajukan" && state.role !== "PIC Balai / Pengguna Jasa") {
       setNotice(
-        "Peran PIC Balai / Pengguna Jasa diperlukan untuk meninjau laporan.",
+        "Peran PIC Balai / Pengguna Jasa diperlukan untuk meninjau laporan.", "error",
       );
       return;
     }
     if (status !== "Diajukan" && prep.reportApproval !== "Diajukan") {
       setNotice(
-        "Ajukan laporan terlebih dahulu sebelum revisi atau persetujuan.",
+        "Ajukan laporan terlebih dahulu sebelum revisi atau persetujuan.", "error",
       );
       return;
     }
-    if (status === "Diajukan" && complete !== allItems.length) {
-      setNotice("Checklist persiapan belum lengkap.");
-      return;
+    if (status === "Diajukan") {
+      const eligibility = preparationSubmissionEligibility(prep.reportApproval, complete, allItems.length);
+      if (!eligibility.allowed) { setNotice(eligibility.reason, "error"); return; }
+    }
+    if (status === 'Perlu Revisi' && !(draft.reviewerNote ?? prep.reviewerNote).trim()) {
+      setNotice('Alasan perbaikan persiapan wajib diisi.', 'error'); return;
     }
     setPreparation(
       (p) => ({
@@ -234,109 +281,94 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
       {heading(
         "Tahap 0 · persiapan",
         "Survei pendahuluan & persiapan QA/QC",
-        "Lengkapi telaah awal, rencana survei, koordinasi, dan dokumen pendahuluan sebelum paket masuk ke kalibrasi dan validasi awal.",
+        "",
       )}
-      <div className="workflow-data-origin">
-        <span className="origin-badge contract">DATA PAKET</span>
-        <div>
-          <strong>Informasi paket kontrak</strong>
-          <span>
-            Identitas, ruas, dan lingkup survei mengikuti data paket. Penyedia
-            tidak mengubah ruang lingkup kontrak dari halaman ini.
-          </span>
-        </div>
+      <div className="stage0-compact-status" role="status">
+        <span><strong>Status</strong> {approval}</span>
+        <span><strong>Persiapan</strong> {complete}/{totalItems}</span>
+
       </div>
-
-      <GateSummary
-        title="Kesiapan menuju Kalibrasi & Validasi Awal"
-        items={[
-          {
-            label: "Checklist survei pendahuluan lengkap",
-            ready: complete === allItems.length,
-            detail: `${complete}/${allItems.length} item`,
-          },
-          {
-            label: "Review PIC Balai selesai",
-            ready: prep.reportApproval === "Disetujui",
-            detail: prep.reportApproval,
-          },
-        ]}
-      />
-
+      {server && <details className="ui09-server-diagnostics">
+        <summary>Rincian status persiapan</summary>
+        <div role={server.error ? 'alert' : 'status'}>
+          {server.error || (server.loading ? 'Memuat status persiapan…' : `Checklist: ${serverChecklistStatus ?? 'belum tersedia'} · pengajuan: ${serverSubmissionStatus ?? 'belum tersedia'} · versi ${server.checklist?.pengisian.versi ?? '—'}.`)}
+          {server.message && <span> {server.message}</span>}
+          {server.error && <button type="button" className="wf-button" onClick={server.onReload}>Coba muat ulang</button>}
+          {server.mappingGaps.length > 0 && <span> Item belum dipetakan: {server.mappingGaps.join(' ')}</span>}
+        </div>
+      </details>}
+      <div id="stage0-role-work" />
       {state.role === "Penyedia Jasa / Ketua Tim" ? (
         <div className="workflow-role-block provider">
-          <div className="workflow-data-origin">
-            <span className="origin-badge provider">INPUT PENYEDIA</span>
-            <div>
-              <strong>Kelengkapan persiapan</strong>
-              <span>
-                Lengkapi kegiatan dan dokumen yang menjadi tanggung jawab
-                Penyedia sebelum diajukan ke PIC Balai.
-              </span>
-            </div>
-          </div>
 
 
 
-          <div className="wf-grid equal">
-            {renderChecklist(
+
+          {!canEditChecklist && <div className="stage0-status-message" role="status">{approval === 'Diajukan' ? 'Menunggu pemeriksaan Balai.' : 'Persiapan telah disetujui.'}</div>}
+          <Stage0StepForm locked={!canEditChecklist} status={approval} steps={[
+              {id:'source',title:'Telaah data awal',complete:PREPARATION_SOURCE_REVIEWS.filter(item=>!!sourceAnswers[item]).length,total:PREPARATION_SOURCE_REVIEWS.length,content:renderChecklist(
               "Telaah data awal",
               BookOpen,
               PREPARATION_SOURCE_REVIEWS,
-              prep.sourceReviews,
+              sourceAnswers,
               (k, v) => setCheck("sourceReviews", k, v),
-              !canPrepareInput,
-            )}
-
-            {renderChecklist(
+              !canEditChecklist,
+              triStateForSection('Telaah data awal'),
+              (label, answer) => onServerAnswer('Telaah data awal', label, answer),
+            )},
+              {id:'plan',title:'Rencana survei lapangan',complete:PREPARATION_FIELD_PLAN.filter(item=>!!planAnswers[item]).length,total:PREPARATION_FIELD_PLAN.length,content:renderChecklist(
               "Rencana survei lapangan",
               MapPinned,
               PREPARATION_FIELD_PLAN,
-              prep.fieldPlan,
+              planAnswers,
               (k, v) => setCheck("fieldPlan", k, v),
-              !canPrepareInput,
-            )}
-
-            {renderChecklist(
+              !canEditChecklist,
+              triStateForSection('Rencana lapangan'),
+              (label, answer) => onServerAnswer('Rencana lapangan', label, answer),
+            )},
+              {id:'coordination',title:'Koordinasi & uji kesiapan',complete:PREPARATION_COORDINATION.filter(item=>!!coordinationAnswers[item]).length,total:PREPARATION_COORDINATION.length,content:renderChecklist(
               "Koordinasi & uji kesiapan",
               Activity,
               PREPARATION_COORDINATION,
-              prep.coordination,
+              coordinationAnswers,
               (k, v) => setCheck("coordination", k, v),
-              !canPrepareInput,
-            )}
-
-            {renderChecklist(
+              !canEditChecklist,
+              triStateForSection('Koordinasi'),
+              (label, answer) => onServerAnswer('Koordinasi', label, answer),
+            )},
+              {id:'documents',title:'Dokumen pendahuluan',complete:PREPARATION_DOCUMENTS.filter(item=>!!documentAnswers[item]).length,total:PREPARATION_DOCUMENTS.length,content:renderChecklist(
               "Dokumen pendahuluan",
               FileCheck2,
               PREPARATION_DOCUMENTS,
-              prep.documents,
+              documentAnswers,
               (k, v) => setCheck("documents", k, v),
-              !canPrepareInput,
+              !canEditChecklist,
+              triStateForSection('Dokumen persiapan'),
+              (label, answer) => onServerAnswer('Dokumen persiapan', label, answer),
             )}
-          </div>
+            ]} />
+          {server && <div className="wf-toolbar" style={{ marginTop: 12 }}>
+            <Button id="button-prep-save-server" kind="primary" disabled={!server.editable || server.saving || !server.mappedItems.length} onClick={server.onSave}>
+              {server.saving ? 'Menyimpan…' : 'Simpan checklist'}
+            </Button>
+          </div>}
 
-          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-rmllp','stage0-koordinasi']} editable={canPrepareInput}/>
+          <section id="stage0-attachments" className="stage0-section-anchor"><h3>Dokumen pendukung</h3>
 
+          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-rmllp','stage0-koordinasi']} editable={canEditChecklist} server={server ? {packageId:String(server.checklist?.paket_id ?? state.project.id),checklist:server.checklist,documents:server.documents,loading:server.documentLoading,error:server.documentError,busy:server.documentBusy,editable:server.editable,onUpload:server.onDocumentUpload,onReuse:server.onDocumentReuse,onChanged:server.onDocumentsChanged} : undefined}/>
+
+          </section>
+          <div id="stage0-decision" className="stage0-section-anchor" />
           <Panel title="Pengajuan ke PIC Balai" icon={ArrowRight}>
             <div className="workflow-action-copy">
-              <strong>
-                {complete === allItems.length
-                  ? "Persiapan lengkap dan siap diajukan"
-                  : "Persiapan belum lengkap"}
-              </strong>
-              <span>
-                {complete === allItems.length
-                  ? "Setelah diajukan, isian Penyedia menjadi bahan review PIC Balai."
-                  : `Masih ada ${allItems.length - complete} item yang perlu dilengkapi.`}
-              </span>
+              <strong>{complete === totalItems ? 'Checklist lengkap' : `${totalItems - complete} butir belum lengkap`}</strong>
             </div>
 
-            {prep.reportApproval === "Perlu Revisi" && prep.reviewerNote && (
+            {reviewerNote && (
               <div className="review-note important">
                 <small>CATATAN PIC BALAI</small>
-                <strong>Perlu perbaikan</strong>
-                <p>{prep.reviewerNote}</p>
+                <strong>Hasil review: {approval}</strong>
+                <p>{reviewerNote}</p>
               </div>
             )}
 
@@ -344,147 +376,114 @@ export function Stage0PreparationWorkspace(props: WorkflowStageProps) {
               <Button
                 id="button-prep-submit"
                 kind="primary"
-                disabled={
-                  complete !== allItems.length ||
-                  prep.reportApproval === "Diajukan"
-                }
+                disabled={server ? !server.canSubmit || server.saving : !preparationSubmissionEligibility(approval, complete, totalItems).allowed}
                 onClick={() => approve("Diajukan")}
               >
                 <ArrowRight size={13} />
-                {prep.reportApproval === "Diajukan"
-                  ? "Menunggu Review"
-                  : "Ajukan untuk Review"}
+                {approval === "Disetujui"
+                   ? "Sudah Disetujui Balai"
+                   : approval === "Diajukan"
+                     ? "Menunggu Review"
+                     : "Ajukan untuk Review"}
               </Button>
             </div>
           </Panel>
         </div>
       ) : (
-        <div className="workflow-role-block reviewer">
-          <div className="workflow-data-origin">
-            <span className="origin-badge reviewer">{canReviewPreparation?"REVIEW PIC BALAI":"MONITORING PERSIAPAN"}</span>
-            <div>
-              <strong>Pemeriksaan pengajuan Penyedia</strong>
-              <span>
-                Data dan checklist Penyedia ditampilkan read-only. PIC Balai
-                memberi catatan dan keputusan review.
-              </span>
-            </div>
-          </div>
-
-          <Panel
-            title="Review Persiapan"
-            icon={ClipboardCheck}
-            extra={
-              <Badge
-                tone={
-                  prep.reportApproval === "Disetujui"
-                    ? "good"
-                    : prep.reportApproval === "Perlu Revisi"
-                      ? "bad"
-                      : "warn"
-                }
-              >
-                {prep.reportApproval}
-              </Badge>
-            }
-          >
-            <div className="wf-kpis">
-              <div className="wf-kpi">
-                <div className="wf-kpi-label">Kelengkapan Penyedia</div>
-                <div className="wf-kpi-value">
-                  {complete}/{allItems.length}
+        <div className="workflow-role-block reviewer" data-stage0-view={canReviewPreparation ? 'balai' : state.role === 'Direktorat / Pusat' ? 'direktorat' : 'admin'}>
+          <div id="stage0-decision" className="stage0-section-anchor" />
+          {canReviewPreparation ? (
+            <Panel title="Pemeriksaan persiapan" icon={ClipboardCheck}>
+              {approval !== 'Diajukan' ? (
+                <div className="stage0-status-message" role="status">
+                  {approval === 'Draft' ? 'Belum ada pengajuan Penyedia.' : `Status terakhir: ${approval}.`}
                 </div>
-              </div>
-              <div className="wf-kpi">
-                <div className="wf-kpi-label">Status</div>
-                <div className="wf-kpi-value" style={{ fontSize: 13 }}>
-                  {prep.reportApproval}
+              ) : (
+                <div className="stage0-review-summary">
+                  <strong>Pengajuan siap diperiksa</strong>
+                  <span>{complete}/{totalItems} butir persiapan tercatat</span>
                 </div>
+              )}
+              {approval === 'Diajukan' && (
+                <Field label="Hasil pemeriksaan" full>
+                  <textarea
+                    data-testid="input-prep-review-note"
+                    value={server ? server.reviewNote : draft.reviewerNote ?? reviewerNote}
+                    disabled={!!server?.saving}
+                    onChange={(e) => server ? server.onReviewNote(e.target.value) : saveText('reviewerNote', e.target.value)}
+                    placeholder="Catatan keputusan atau alasan perbaikan"
+                  />
+                </Field>
+              )}
+              {approval !== 'Diajukan' && reviewerNote && (
+                <div className="review-note"><strong>Hasil terakhir</strong><p>{reviewerNote}</p></div>
+              )}
+              <div className="wf-toolbar stage0-review-actions">
+                {!server && approval === 'Diajukan' && (
+                  <Button id="button-prep-save-note" onClick={() => setPreparation(p => ({...p, reviewerNote: draft.reviewerNote ?? p.reviewerNote}), 'Simpan catatan persiapan', state.project.id, 'Catatan tersimpan tanpa mengubah keputusan.')}>Simpan Catatan</Button>
+                )}
+                <Button id="button-prep-revise" kind="danger" disabled={approval !== 'Diajukan' || (!!server && (server.saving || !server.reviewNote.trim()))} onClick={() => approve('Perlu Revisi')}>Minta Perbaikan</Button>
+                <Button id="button-prep-approve" disabled={server ? approval !== 'Diajukan' || server.saving : complete !== totalItems || approval !== 'Diajukan'} onClick={() => approve('Disetujui')}><Check size={13} /> Setujui Persiapan</Button>
               </div>
+            </Panel>
+          ) : state.role === 'Direktorat / Pusat' ? (
+            <section className="stage0-monitor" aria-label="Pemantauan persiapan">
+              <h3>Hasil persiapan</h3>
+              <dl>
+                <div><dt>Paket</dt><dd>{state.project.packageName}</dd></div>
+                <div><dt>Hasil Balai</dt><dd>{approval}</dd></div>
+                <div><dt>Checklist tercatat</dt><dd>{complete}/{totalItems}</dd></div>
+              </dl>
+              {reviewerNote && <p className="stage0-review-result"><strong>Catatan Balai</strong> {reviewerNote}</p>}
+            </section>
+          ) : (
+            <section className="stage0-monitor" aria-label="Administrasi persiapan">
+              <h3>Administrasi paket</h3>
+              <dl>
+                <div><dt>Paket</dt><dd>{state.project.packageName}</dd></div>
+                <div><dt>Balai</dt><dd>{state.project.balai || 'Belum tercatat'}</dd></div>
+                <div><dt>SPMK</dt><dd>{state.project.spmkDate || 'Belum tercatat'}</dd></div>
+                <div><dt>Status persiapan</dt><dd>{approval}</dd></div>
+              </dl>
+            </section>
+          )}
+          {canReviewPreparation || state.role === 'Direktorat / Pusat' ? (
+            <section id="stage0-attachments" className="stage0-section-anchor">
+              <h3>Bukti persiapan</h3>
+              <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-rmllp','stage0-koordinasi']} editable={false} server={server ? {packageId:String(server.checklist?.paket_id ?? state.project.id),checklist:server.checklist,documents:server.documents,loading:server.documentLoading,error:server.documentError,busy:server.documentBusy,editable:false,onUpload:server.onDocumentUpload,onReuse:server.onDocumentReuse,onChanged:server.onDocumentsChanged} : undefined}/>
+            </section>
+          ) : null}
+          <details className="stage0-readonly-checklists">
+            <summary>Rincian persiapan ({complete}/{totalItems})</summary>
+            <div className="stage0-review-groups" aria-label="Rincian isian Penyedia">
+              {([
+                ['Telaah data awal', PREPARATION_SOURCE_REVIEWS, sourceAnswers],
+                ['Rencana survei lapangan', PREPARATION_FIELD_PLAN, planAnswers],
+                ['Koordinasi dan uji kesiapan', PREPARATION_COORDINATION, coordinationAnswers],
+                ['Dokumen pendahuluan', PREPARATION_DOCUMENTS, documentAnswers],
+              ] as const).map(([title, items, answers]) => (
+                <section key={title} className="stage0-review-group">
+                  <details className="stage0-review-group-detail">
+                    <summary><span>{title}</span><span className="stage0-group-count">{items.filter((item) => answers[item]).length}/{items.length} terisi</span></summary>
+                    <ul className="v2-checklist-results stage0-compact-results">
+                      {items.map((item) => <li key={item}><span>{item}</span><strong className={answers[item] ? 'is-complete' : 'is-pending'}>{answers[item] ? 'Terisi' : 'Belum'}</strong></li>)}
+                    </ul>
+                  </details>
+                </section>
+              ))}
             </div>
-
-            {canReviewPreparation?<Field label="Catatan PIC Balai" full>
-              <textarea
-                data-testid="input-prep-review-note"
-                disabled={!canReviewPreparation}
-                value={draft.reviewerNote ?? prep.reviewerNote}
-                onChange={(e) => saveText("reviewerNote", e.target.value)}
-                placeholder="Tuliskan catatan, klarifikasi, atau alasan perbaikan."
-              />
-            </Field>:<p className="stage-readonly-note">Catatan Balai: {prep.reviewerNote||"Belum ada catatan"}. Peran Anda memantau hasil; keputusan dilakukan PIC Balai.</p>}
-
-            {prep.reviewerNote && (
-              <div className="review-note">
-                <small>CATATAN REVIEW</small>
-                <p>{prep.reviewerNote}</p>
-              </div>
-            )}
-
-            {canReviewPreparation&&<div className="wf-toolbar" style={{ marginTop: 12 }}>
-              <Button
-                id="button-prep-revise"
-                kind="danger"
-                disabled={prep.reportApproval !== "Diajukan"}
-                onClick={() => approve("Perlu Revisi")}
-              >
-                Minta Perbaikan
-              </Button>
-
-              <Button
-                id="button-prep-approve"
-                disabled={
-                  complete !== allItems.length ||
-                  prep.reportApproval !== "Diajukan"
-                }
-                onClick={() => approve("Disetujui")}
-              >
-                <Check size={13} />
-                Setujui Persiapan
-              </Button>
-            </div>}
-          </Panel>
-
-          <DocumentAttachments scope={`${state.project.id}:stage0`} categories={['Laporan Pendahuluan','Program Mutu / Quality Management Plan','RMPK','RKK','RMLLP','Bukti Koordinasi']} legacyEvidenceIds={['stage0-laporan-pendahuluan','stage0-program-mutu','stage0-rmpk','stage0-rkk','stage0-rmllp','stage0-koordinasi']} editable={canPrepareInput}/>
-
-          <div className="wf-grid equal">
-            {renderChecklist(
-              "Telaah data awal",
-              BookOpen,
-              PREPARATION_SOURCE_REVIEWS,
-              prep.sourceReviews,
-              () => {},
-              true,
-            )}
-
-            {renderChecklist(
-              "Rencana survei lapangan",
-              MapPinned,
-              PREPARATION_FIELD_PLAN,
-              prep.fieldPlan,
-              () => {},
-              true,
-            )}
-
-            {renderChecklist(
-              "Koordinasi & uji kesiapan",
-              Activity,
-              PREPARATION_COORDINATION,
-              prep.coordination,
-              () => {},
-              true,
-            )}
-
-            {renderChecklist(
-              "Dokumen pendahuluan",
-              FileCheck2,
-              PREPARATION_DOCUMENTS,
-              prep.documents,
-              () => {},
-              true,
-            )}
-          </div>
+          </details>
         </div>
       )}
+      <BalaiDecisionHistory state={state} stage="Tahap 0"/>
     </>
   );
+}
+
+/** Maps the server preparation submission status into the Dirah approval vocabulary. */
+function serverApprovalState(status: string | undefined): ApprovalState {
+  if (status === 'DIAJUKAN') return 'Diajukan';
+  if (status === 'PERLU_REVISI') return 'Perlu Revisi';
+  if (status === 'DISETUJUI') return 'Disetujui';
+  return 'Draft';
 }

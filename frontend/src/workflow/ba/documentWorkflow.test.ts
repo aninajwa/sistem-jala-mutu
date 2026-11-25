@@ -1,8 +1,11 @@
+import {filledSourceFixture} from '../testing/sourceFixture';
+import {sourceDocumentKey} from '../sourceDocumentModel';
 import {STAGE3B_DOCX_CANDIDATES} from '../stage3bChecklistData.docx-candidate';
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDemoWorkflow} from '../demoScenario';
 import {documentActionErrors,documentFingerprint} from './documentWorkflow';
+import {baDecisionErrors} from './baRules';
 import {saveDocumentDraft,transitionDocument as rawTransitionDocument} from './documentService';
 import {documentRepository,type BaIdentity} from './documentRepository';
 const P='Penyedia Jasa / Ketua Tim' as const,B='PIC Balai / Pengguna Jasa' as const;
@@ -11,7 +14,7 @@ import {sourceDocument} from '../sourceDocumentModel';
 import {BA_TEMPLATES,fieldsFor} from './docxEngine';
 import type {SurveyType} from '../model';
 function transitionDocument(...args:Parameters<typeof rawTransitionDocument>){const template=BA_TEMPLATES.find(item=>item.id===args[1].kind)!;const filled=Object.fromEntries(fieldsFor(template,args[1].survey as SurveyType).map(field=>[field.id,field.choices?.[0]??'Isian pengujian terisolasi']));args[3]={...filled,...args[3]};return rawTransitionDocument(...args);}
-function setup(){const memory=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value),removeItem:(key:string)=>memory.delete(key)}});const state=createDemoWorkflow('complete');state.role=P;state.project.id=identity.packageId;return state;}
+function setup(){const memory=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value),removeItem:(key:string)=>memory.delete(key)}});const state=createDemoWorkflow('complete');state.role=P;state.project.id=identity.packageId;for(const phase of ['audit','calibration','consistency','internal','periodic14','staged']){const d=sourceDocument('IRI',phase)!;const scope=phase==='audit'?identity.packageId+'::audit-1':identity.packageId;localStorage.setItem(sourceDocumentKey(scope,d.id),JSON.stringify(filledSourceFixture(d)));}return state;}
 test('BA submit → revision → resubmit → review retains immutable history and never signs',()=>{
  const state=setup(),fields={name:'Uji'};saveDocumentDraft(state,identity,fields);
  transitionDocument(state,identity,'submit',fields,'hash',0,'',0);
@@ -53,7 +56,7 @@ test('editing linked source answers also makes a submitted BA stale without eras
  const state=setup(),joint={...identity,kind:'duaMingguan' as const,period:1};state.role=P;transitionDocument(state,joint,'submit',{},'hash',0,'',0);
  const old=documentRepository.read(joint).versions[0];globalThis.localStorage.setItem('jala-mutu-stage3b-docx-isolated-v1',JSON.stringify({[`isolated::${STAGE3B_DOCX_CANDIDATES.find(t=>t.survey==='IRI'&&t.phase==='periodic14')!.id}::test` ]:'changed'}));state.role=B;
  assert.ok(documentActionErrors(state,joint,'approve',old,0,'').some(text=>text.includes('berubah')));
- assert.deepEqual((old.sourceSnapshot as any).answers,{});
+ assert.ok(Object.keys((old.sourceSnapshot as any).answers).length>0,'Submitted source answers retained');assert.equal(Object.values((old.sourceSnapshot as any).answers).includes('changed'),false);
 });
 test('attachment replacement changes only the relevant period document fingerprint',()=>{
  const state=setup(),periodOne={...identity,kind:'duaMingguan' as const,period:1},periodTwo={...periodOne,period:2};
@@ -65,3 +68,36 @@ test('attachment replacement changes only the relevant period document fingerpri
 test('transaction rejects empty or foreign template answers even when caller reports zero missing',()=>{const state=setup();assert.throws(()=>rawTransitionDocument(state,identity,'submit',{},'hash',0,'',0),/isian/);const template=BA_TEMPLATES.find(item=>item.id===identity.kind)!;const fields=Object.fromEntries(fieldsFor(template,'IRI').map(field=>[field.id,field.choices?.[0]??'Uji']));const choice=fieldsFor(template,'IRI').find(field=>field.choices)!;fields[choice.id]='PILIHAN PALSU';assert.throws(()=>rawTransitionDocument(state,identity,'submit',fields,'hash',0,'',0),/isian/);});
 
 test('detached evidence no longer tracks unrelated later byte replacements while its history remains',()=>{const state=setup(),joint={...identity,kind:'duaMingguan' as const,period:1},doc=sourceDocument('IRI','periodic14')!,linkKey=`isolated:form-${doc.id}:documents:links`;const metadata=(digest:string)=>({'isolated:shared':{name:'proof.pdf',size:3,mimeType:'application/pdf',digest,updatedAt:'same'}});globalThis.localStorage.setItem('jala-local-attachment-index-v1',JSON.stringify(metadata('one')));globalThis.localStorage.setItem(linkKey,JSON.stringify({ref:{fileKey:'isolated:shared',category:'Foto',status:'Tersedia'}}));const active=documentFingerprint(state,joint);globalThis.localStorage.setItem('jala-local-attachment-index-v1',JSON.stringify(metadata('two')));assert.notEqual(documentFingerprint(state,joint),active);globalThis.localStorage.setItem(linkKey,JSON.stringify({ref:{fileKey:'isolated:shared',category:'Foto',status:'Tersedia',detached:true,history:[{action:'Lepaskan'}]}}));const detached=documentFingerprint(state,joint);globalThis.localStorage.setItem('jala-local-attachment-index-v1',JSON.stringify(metadata('three')));assert.equal(documentFingerprint(state,joint),detached);assert.equal(JSON.parse(globalThis.localStorage.getItem(linkKey)!).ref.history.length,1);});
+
+for(const kind of ['duaMingguan','bertahap'] as const){
+ test(`BA ${kind}: Penyedia mengajukan, Balai memeriksa, draft tetap kolaboratif`,()=>{
+  const state=setup(),joint={...identity,kind,period:kind==='bertahap'?0:1};
+  state.role=B;
+  assert.ok(documentActionErrors(state,joint,'submit',undefined,0,'').some(message=>message.includes('Penyedia')));
+  assert.throws(()=>transitionDocument(state,joint,'submit',{},'hash',0,'',0),/Penyedia/);
+  state.role=P;
+  transitionDocument(state,joint,'submit',{},'hash',0,'',0);
+  const submitted=documentRepository.read(joint).versions.at(-1)!;
+  assert.ok(documentActionErrors(state,joint,'approve',submitted,0,'').length);
+  state.role=B;
+  assert.deepEqual(documentActionErrors(state,joint,'revise',submitted,0,'Lengkapi bukti'),[]);
+ });
+}
+
+
+test('final acceptance BA draft readiness follows stage-5 audits, never final acceptance flag',()=>{
+ const state=setup(),acceptance={...identity,kind:'penerimaan' as const};
+ state.acceptance.finalAcceptance=false;
+ state.submission.validationStatus='VALID';
+ state.audits.forEach(a=>{a.status='Lulus';a.requiresReview=false;});
+ assert.deepEqual(baDecisionErrors(state,'penerimaan',1),[]);
+ state.audits[2].requiresReview=true;
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
+ assert.ok(documentActionErrors(state,acceptance,'submit',undefined,0,'').length>0);
+ state.audits[2].requiresReview=false;
+ state.audits[1].status='Dalam Review';
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
+ state.audits[1].status='Lulus';
+ state.submission.validationStatus='Draft';
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
+});

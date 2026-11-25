@@ -8,7 +8,8 @@ const officialOnly=/\b(tanda tangan|bertanda tangan|ditandatangani|paraf|nip\.?|
 export function baFieldRequiredForDraft(field:TemplateField,all:TemplateField[]){
  if(field.required===false)return false;
  if(officialOnly.test(`${field.section??''} ${field.label} ${field.context}`))return false;
- if(conditional.test(`${field.section??''} ${field.label} ${field.context}`))return false;
+ // Checklist dengan pilihan N/A tetap perlu dijawab: N/A adalah keputusan eksplisit, bukan kolom kosong.
+ if(conditional.test(`${field.section??''} ${field.label} ${field.context}`)&&!field.choices?.includes('N/A'))return false;
  if(field.required===true)return true;
  if(noteLike.test(field.label))return false;
  if(/^(diisi nomor dokumen|nomor ba|nomor:)$/i.test(field.label.trim()))return false;
@@ -20,10 +21,14 @@ export function baFieldRequiredForDraft(field:TemplateField,all:TemplateField[])
 export function baFieldErrors(kind:BaKind,survey:SurveyType,fields:Record<string,string>){
  const template=BA_TEMPLATES.find(item=>item.id===kind);if(!template)return ['Format BA tidak tersedia.'];
  const applicable=fieldsFor(template,survey);
- return applicable.flatMap(field=>{
+ return [...(kind==='penerimaan'&&!/^(19|20|21|22)\d{2}$/.test(fields.__year??'')?['Tahun pelaksanaan BA belum dilengkapi dengan empat digit.']:[]),...applicable.flatMap(field=>{
   const value=fields[field.id]?.trim()??'',required=baFieldRequiredForDraft(field,applicable);
-  if(required&&(!baValuePresent(value)||value===field.placeholder))return [`Isian ${field.label} belum dilengkapi.`];
+  if(required&&!baFieldComplete(field,value))return [`Isian ${field.label} belum dilengkapi.`];
   if(value&&field.choices&&!field.choices.includes(value))return [`Pilihan ${field.label} tidak sesuai formulir.`];
   return [];
- });
+ })];
+}
+
+export function baFieldComplete(field:TemplateField,value:string|undefined){
+ return baValuePresent(value)&&value?.trim()!==field.placeholder&&(!field.choices||field.choices.includes(value?.trim()??''));
 }

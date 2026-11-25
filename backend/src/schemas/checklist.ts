@@ -12,6 +12,23 @@ export const checklistDraftSchema = z.object({
   ),
 }).strict();
 
+const iriItemNumbers = [
+  ...Array.from({ length: 10 }, (_, index) => `IRI-CAL-2.${index + 1}`),
+  ...Array.from({ length: 10 }, (_, index) => `IRI-VAL-3.${index + 1}`),
+  ...Array.from({ length: 5 }, (_, index) => `IRI-GPS-4.${index + 1}`),
+  ...Array.from({ length: 5 }, (_, index) => `IRI-DOC-5.${index + 1}`),
+] as const;
+export const stage1IriAnswerSchema = z.object({
+  key: z.enum([...iriItemNumbers] as [string, ...string[]]),
+  value: z.enum(['Ya', 'Tidak']).nullable(),
+  note: z.string().trim().max(2000).nullable().optional(),
+}).strict();
+export const stage1IriDraftSchema = z.object({
+  template_id: z.number().int().positive().max(2147483647),
+  expected_version: z.number().int().min(0).max(2147483646),
+  answers: z.array(stage1IriAnswerSchema).min(1).max(30).refine(rows => new Set(rows.map(row => row.key)).size === rows.length, 'Satu item hanya boleh dihantar sekali'),
+}).strict();
+
 export const checklistEvidenceSchema = z.object({
   expected_version: z.number().int().min(0).max(2147483646),
   item_id: z.number().int().positive().max(2147483647),

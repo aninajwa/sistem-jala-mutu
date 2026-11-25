@@ -1,4 +1,4 @@
-export const titleFor:Record<string,string> = {'/':'Dashboard QA/QC Survei Kondisi Jalan','/data-master':'Data Master & Referensi','/packages':'Paket Kontrak','/entry':'Workspace Paket','/verification':'Verifikasi & Validasi Berjenjang','/actions':'Temuan & Tindakan Perbaikan','/compliance':'Analisis & Kepatuhan','/reports':'Dashboard & Pelaporan','/documents':'Manajemen Dokumen Mutu','/notifications':'Notifikasi & Pengingat','/audit':'Keamanan & Jejak Audit'};
+export const titleFor:Record<string,string> = {'/':'Dashboard QA/QC Survei Kondisi Jalan','/data-master':'Data Master & Referensi','/packages':'Paket Kontrak','/entry':'Workspace Paket','/verification':'Verifikasi & Review Balai','/actions':'Temuan & Tindakan Perbaikan','/compliance':'Analisis & Kepatuhan','/reports':'Dashboard & Pelaporan','/documents':'Manajemen Dokumen Mutu','/notifications':'Notifikasi & Pengingat','/audit':'Keamanan & Jejak Audit'};
 export const sectionTargets:Record<string,Record<string,string>>={
  '/':{'Kepatuhan per jenis survei':'dashboard-compliance'},
  '/data-master':{'Kelola data master':'master-data'},

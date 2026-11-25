@@ -1,0 +1,330 @@
+import type { WorkflowRole } from '../workflow/model';
+import type { PackageSurveyScopeRead, PackageSurveyScopeStatus } from '../workflow/packageSurveyScope';
+
+export type ServerContract = {
+  paket_id: number;
+  nama_paket: string;
+  nomor_kontrak: string | null;
+  balai_id: number | null;
+  tahun_anggaran: number | null;
+  status: string;
+  nama_ppk: string | null;
+  penyedia_id: number | null;
+  tgl_spmk: string | null;
+  tgl_selesai: string | null;
+  nilai_kontrak: number | string | null;
+  batas_lap_pendahuluan: string | null;
+  survey_scope?: PackageSurveyScopeRead;
+  survey_scope_read_status?: PackageSurveyScopeStatus;
+};
+
+export type ServerChecklistItem = {
+  item_id: number;
+  kode?: string;
+  bagian?: string;
+  uraian?: string;
+  wajib?: boolean | null;
+  jawaban: 'Ya' | 'Tidak' | null;
+  keterangan?: string | null;
+  bukti_dokumen_id?: number | null;
+};
+
+import { PREPARATION_COORDINATION, PREPARATION_DOCUMENTS, PREPARATION_FIELD_PLAN, PREPARATION_SOURCE_REVIEWS } from '../workflow/model';
+
+const DIRAH_CHECKLIST_GROUPS = [
+  { section: 'Telaah data awal', codes: ['AWAL-01', 'AWAL-02', 'AWAL-03', 'AWAL-04'], labels: PREPARATION_SOURCE_REVIEWS },
+  { section: 'Rencana lapangan', codes: ['LAP-01', 'LAP-02', 'LAP-03', 'LAP-04', 'LAP-05'], labels: PREPARATION_FIELD_PLAN },
+  { section: 'Koordinasi', codes: ['KOOR-01', 'KOOR-02', 'KOOR-03', 'KOOR-04', 'KOOR-05'], labels: PREPARATION_COORDINATION },
+  { section: 'Dokumen persiapan', codes: ['DOK-01', 'DOK-02', 'DOK-03', 'DOK-04', 'DOK-05', 'DOK-06', 'DOK-07', 'DOK-08', 'DOK-09', 'DOK-10', 'DOK-11'], labels: PREPARATION_DOCUMENTS },
+] as const;
+
+export type MappedPreparationItem = {
+  code: string;
+  itemId: number;
+  section: string;
+  label: string;
+  answer: ServerChecklistItem['jawaban'];
+  note: string;
+  evidenceId: number | null;
+};
+
+/** Exact code + section + label matching only; ambiguous/mismatched rows are never presented as mapped. */
+export function mapPreparationChecklist(items: ServerChecklistItem[]) {
+  const mapped: MappedPreparationItem[] = [];
+  const gaps: string[] = [];
+  const seen = new Set<string>();
+  for (const group of DIRAH_CHECKLIST_GROUPS) {
+    group.codes.forEach((code, index) => {
+      const matches = items.filter(item => item.kode === code);
+      const item = matches[0];
+      const expectedLabel = group.labels[index];
+      if (matches.length !== 1 || !item || item.bagian !== group.section || item.uraian !== expectedLabel ||
+          !Number.isSafeInteger(item.item_id) || item.item_id < 1 || seen.has(code)) {
+        gaps.push(`${code}: item tidak unik atau field bagian/uraian tidak sepadan.`);
+        return;
+      }
+      seen.add(code);
+      mapped.push({ code, itemId: item.item_id, section: group.section, label: expectedLabel, answer: item.jawaban, note: item.keterangan ?? '', evidenceId: item.bukti_dokumen_id ?? null });
+    });
+  }
+  const known = new Set<string>(DIRAH_CHECKLIST_GROUPS.flatMap(group => [...group.codes]));
+  for (const item of items) if (!item.kode || !known.has(item.kode)) gaps.push(`${item.kode || `item_id ${item.item_id}`}: tiada padanan Dirah yang disahkan.`);
+  return { mapped, gaps };
+}
+
+export type ServerChecklist = {
+  paket_id: number;
+  pengisian: { status: string; versi: number };
+  ringkasan: {
+    jumlah_item: number;
+    jumlah_terjawab: number;
+    persen_terisi?: number;
+    syarat_submit_aktif?: boolean;
+  };
+  items: ServerChecklistItem[];
+};
+
+export type ServerPreparationDocument = {
+  dokumen_id: number;
+  paket_id: number;
+  judul: string;
+  status: string;
+  versi_aktif: number;
+  jenis_dokumen?: { kode?: string; nama?: string } | null;
+  dokumen_versi?: Array<{
+    nama_file?: string;
+    ukuran_byte?: number;
+    versi_ke?: number;
+    mime_type?: string;
+    aktif?: boolean;
+  }>;
+};
+
+export type ServerPreparationSubmission = {
+  paket_id: number;
+  pengisian_id: number | null;
+  status: string;
+  versi: number;
+  pengajuan: {
+    pengajuan_id: number;
+    diajukan_oleh: number;
+    diajukan_pada: string;
+    snapshot?: unknown;
+  } | null;
+  review: {
+    persetujuan_id: number;
+    pengguna_id: number;
+    keputusan: string;
+    catatan: string | null;
+    waktu: string;
+    dokumen_id: number | null;
+    dok_versi_id: number | null;
+  } | null;
+  aturan: {
+    mode: string;
+    validasi_kelengkapan_resmi_aktif: boolean;
+  };
+};
+
+/** A submit/review is successful in the UI only when both fresh reads agree. */
+export function verifyPreparationTransitionReadback(
+  checklist: ServerChecklist,
+  submission: ServerPreparationSubmission,
+  expectedVersion: number,
+  expectedStatus: 'DIAJUKAN' | 'PERLU_REVISI' | 'DISETUJUI',
+  expectedDecision?: 'PERLU_REVISI' | 'DISETUJUI',
+) {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || expectedVersion >= 2147483647) {
+    throw new Error('Versi persiapan tidak valid. Muat semula status server.');
+  }
+  const nextVersion = expectedVersion + 1;
+  if (submission.status !== expectedStatus || submission.versi !== nextVersion ||
+      checklist.pengisian.status !== expectedStatus || checklist.pengisian.versi !== nextVersion) {
+    throw new Error(`Server belum mengesahkan status ${expectedStatus} dan versi persiapan yang baharu.`);
+  }
+  if (!submission.pengajuan?.pengajuan_id) {
+    throw new Error('Server belum mengesahkan rekod pengajuan persiapan.');
+  }
+  if (expectedDecision && submission.review?.keputusan !== expectedDecision) {
+    throw new Error(`Keputusan ${expectedDecision} belum disahkan oleh bacaan semula server.`);
+  }
+}
+
+export type ContractDraft = {
+  nama_paket: string;
+  nomor_kontrak: string;
+  tahun_anggaran: string;
+  nama_ppk: string;
+  tgl_spmk: string;
+};
+
+export type ChecklistDraft = Record<number, {
+  jawaban: 'Ya' | 'Tidak' | null;
+  keterangan: string;
+}>;
+
+export function contractDraft(contract: ServerContract): ContractDraft {
+  return {
+    nama_paket: contract.nama_paket ?? '',
+    nomor_kontrak: contract.nomor_kontrak ?? '',
+    tahun_anggaran: contract.tahun_anggaran === null ? '' : String(contract.tahun_anggaran),
+    nama_ppk: contract.nama_ppk ?? '',
+    tgl_spmk: contract.tgl_spmk ?? '',
+  };
+}
+
+function validCalendarDate(value: string): boolean {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value) || value.startsWith('0000')) return false;
+  const parsed = new Date(`${value}T00:00:00Z`);
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().slice(0, 10) === value;
+}
+
+export function buildContractPatch(contract: ServerContract, draft: ContractDraft) {
+  const namaPaket = draft.nama_paket.trim();
+  const nomorKontrak = draft.nomor_kontrak.trim();
+  const tahun = Number(draft.tahun_anggaran);
+  const namaPpk = draft.nama_ppk.trim();
+  const tglSpmk = draft.tgl_spmk.trim();
+
+  if (!namaPaket) throw new Error('Nama paket wajib diisi.');
+  if (!nomorKontrak) throw new Error('Nomor kontrak wajib diisi.');
+  if (!Number.isInteger(tahun) || tahun < 2000 || tahun > 2100) {
+    throw new Error('Tahun anggaran mesti antara 2000 hingga 2100.');
+  }
+  if (tglSpmk && !validCalendarDate(tglSpmk)) {
+    throw new Error('Tanggal SPMK tidak valid.');
+  }
+
+  const patch: Record<string, string | number | null> = {};
+  if (namaPaket !== contract.nama_paket) patch.nama_paket = namaPaket;
+  if (nomorKontrak !== (contract.nomor_kontrak ?? '')) patch.nomor_kontrak = nomorKontrak;
+  if (tahun !== contract.tahun_anggaran) patch.tahun_anggaran = tahun;
+  if (namaPpk !== (contract.nama_ppk ?? '')) patch.nama_ppk = namaPpk || null;
+  if (tglSpmk !== (contract.tgl_spmk ?? '')) patch.tgl_spmk = tglSpmk || null;
+  return patch;
+}
+
+export function checklistDraft(items: ServerChecklistItem[]): ChecklistDraft {
+  return Object.fromEntries(items.map(item => [item.item_id, {
+    jawaban: item.jawaban,
+    keterangan: item.keterangan ?? '',
+  }]));
+}
+
+export function groupChecklistItems(items: ServerChecklistItem[]) {
+  const groups = new Map<string, ServerChecklistItem[]>();
+  for (const item of items) {
+    const title = item.bagian?.trim() || 'Persiapan';
+    const group = groups.get(title);
+    if (group) group.push(item);
+    else groups.set(title, [item]);
+  }
+  return Array.from(groups, ([title, groupedItems]) => ({ title, items: groupedItems }));
+}
+
+export function validatePreparationPdf(file: { name: string; type: string; size: number }) {
+  if (!/\.pdf$/i.test(file.name) || file.type !== 'application/pdf') {
+    throw new Error('Fail Laporan Pendahuluan mesti berformat PDF.');
+  }
+  if (!Number.isSafeInteger(file.size) || file.size < 1) {
+    throw new Error('Fail PDF kosong atau tidak dapat dibaca.');
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    throw new Error('Saiz fail PDF tidak boleh melebihi 10 MB.');
+  }
+}
+
+export function buildChecklistPayload(items: ServerChecklistItem[], draft: ChecklistDraft) {
+  return items.map(item => {
+    const value = draft[item.item_id] ?? { jawaban: item.jawaban, keterangan: item.keterangan ?? '' };
+    const keterangan = value.keterangan.trim();
+    return {
+      item_id: item.item_id,
+      jawaban: value.jawaban,
+      ...(keterangan ? { keterangan } : {}),
+    };
+  });
+}
+
+/** Mutation is successful to the UI only after a fresh authoritative GET succeeds. */
+export async function patchChecklistThenRefetch<T>(
+  patch: () => Promise<unknown>,
+  refetch: () => Promise<T>,
+  verify?: (state: T) => void,
+): Promise<T> {
+  await patch();
+  const state = await refetch();
+  verify?.(state);
+  return state;
+}
+
+export function verifyChecklistReadback(
+  checklist: ServerChecklist,
+  expectedVersion: number,
+  expectedAnswers: Array<{ item_id: number; jawaban: 'Ya' | 'Tidak' | null }>,
+) {
+  if (!Number.isSafeInteger(expectedVersion) || checklist.pengisian.versi <= expectedVersion) {
+    throw new Error('Server belum mengesahkan versi checklist yang baharu. Muat semula sebelum menyimpan lagi.');
+  }
+  const saved = new Map(checklist.items.map(item => [item.item_id, item.jawaban]));
+  if (expectedAnswers.some(answer => !saved.has(answer.item_id) || saved.get(answer.item_id) !== answer.jawaban)) {
+    throw new Error('Jawapan checklist pada server belum sepadan dengan perubahan. Muat semula dan cuba lagi.');
+  }
+}
+
+export function canEditPreparation(role: WorkflowRole, contractStatus: string, checklistStatus?: string) {
+  return role === 'Penyedia Jasa / Ketua Tim'
+    && contractStatus === 'DRAFT'
+    && (!checklistStatus || checklistStatus === 'DRAFT' || checklistStatus === 'PERLU_REVISI');
+}
+
+export function canEditPackagePreparation(
+  role: WorkflowRole,
+  contractStatus: string,
+  preparationStatus: string | undefined,
+  preparationStatusLoaded: boolean,
+) {
+  return preparationStatusLoaded
+    && preparationStatus !== undefined
+    && canEditPreparation(role, contractStatus, preparationStatus);
+}
+
+export function canSubmitPreparation(
+  role: WorkflowRole,
+  contractStatus: string,
+  checklistStatus: string | undefined,
+  hasLinkedReport: boolean,
+) {
+  return role === 'Penyedia Jasa / Ketua Tim'
+    && contractStatus === 'DRAFT'
+    && (checklistStatus === 'DRAFT' || checklistStatus === 'PERLU_REVISI')
+    && hasLinkedReport;
+}
+
+export type PreparationReviewDecision = 'PERLU_REVISI' | 'DISETUJUI';
+
+export function canReviewPreparation(
+  role: WorkflowRole,
+  contractStatus: string,
+  preparationStatus: string | undefined,
+) {
+  return role === 'PIC Balai / Pengguna Jasa'
+    && contractStatus === 'DRAFT'
+    && preparationStatus === 'DIAJUKAN';
+}
+
+export function buildPreparationReviewPayload(
+  expectedVersion: number,
+  keputusan: PreparationReviewDecision,
+  catatan: string,
+) {
+  if (!Number.isSafeInteger(expectedVersion) || expectedVersion < 0 || expectedVersion > 2147483646) {
+    throw new Error('Versi pengajuan tidak valid.');
+  }
+  const note = catatan.trim();
+  if (note.length > 2000) throw new Error('Catatan semakan maksimum 2000 aksara.');
+  if (keputusan === 'PERLU_REVISI' && !note) {
+    throw new Error('Catatan wajib diisi apabila meminta revisi.');
+  }
+  return { expected_version: expectedVersion, keputusan, catatan: note };
+}

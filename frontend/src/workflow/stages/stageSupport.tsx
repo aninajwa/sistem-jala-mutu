@@ -1,9 +1,7 @@
 import { Activity } from "lucide-react";
 import { type ReactNode } from "react";
-import { markAuditsForReview } from "../workflowRevisions";
 
 import {
-  CorrectionCase,
   DailySurveyRecord,
   INITIAL_WORKFLOW,
   OperationalWorkflowState,
@@ -11,8 +9,10 @@ import {
   SurveyType,
 } from "../model";
 import { WORKFLOW_ROLE_OPTIONS, WORKFLOW_ROLE_SCOPE } from "../workflowConfig";
+import type { ChecklistDraft, MappedPreparationItem, ServerChecklist, ServerPreparationDocument, ServerPreparationSubmission } from "../../pages/serverPreparation";
 
 export type WorkflowStageProps = {
+  principalId?: string;
   selection: string;
   state: OperationalWorkflowState;
   onUpdate: (
@@ -20,9 +20,47 @@ export type WorkflowStageProps = {
     activity: string,
     object: string,
   ) => void;
-  setNotice: (message: string) => void;
+  setNotice: (message: string, tone?: "error") => void;
   onNavigate: (selection: string) => void;
+  /** Authenticated server-backed presentation; unsupported mutations stay disabled. */
+  serverReadOnly?: boolean;
+  serverStatusNote?: string;
+  serverPreparation?: {
+    checklist: ServerChecklist | null;
+    answers: ChecklistDraft;
+    mappedItems: MappedPreparationItem[];
+    mappingGaps: string[];
+    submission: ServerPreparationSubmission | null;
+    loading: boolean;
+    error: string;
+    saving: boolean;
+    editable: boolean;
+    message: string;
+    reviewNote: string;
+    onReviewNote: (value: string) => void;
+    onAnswer: (itemId: number, answer: 'Ya' | 'Tidak' | null, note: string) => void;
+    onSave: () => void;
+    onReload: () => void;
+    onReview: (decision: 'PERLU_REVISI' | 'DISETUJUI') => void;
+    canSubmit?: boolean;
+    onSubmit?: () => void;
+    documents: ServerPreparationDocument[];
+    documentLoading: boolean;
+    documentError: string;
+    documentBusy: boolean;
+    onDocumentUpload: (category: string, file: File) => Promise<void>;
+    onDocumentReuse: (category: string, documentId: number) => Promise<void>;
+    onDocumentsChanged: () => void;
+  };
+  serverAssignments?: Array<{ assignmentId: string; teamId: number; equipmentId: number; personId: number | null; qualificationIds: number[]; surveyType: SurveyType; teamName: string; equipment: string; serialNumber: string; personName: string }>;
 };
+export const SERVER_STAGE1_MUTATION_POLICY = {
+  calibrationWrite: false,
+  checklistWrite: false,
+  readinessNavigation: false,
+  approval: false,
+  localPersistence: false,
+} as const;
 export type NumericProductionKey = {
   [K in keyof ProductionTest]-?: NonNullable<ProductionTest[K]> extends number
     ? K
@@ -79,22 +117,7 @@ export const dailyEquipment: Record<SurveyType, string[]> = {
   "Lalu Lintas": ["Traffic Counter", "Kamera Survei", "Formulir Survei"],
   Drainase: ["Formulir Survei", "Kamera Survei"],
 };
-export const systemsByType: Record<SurveyType, string> = {
-  IRI: "SMD Jalan",
-  PCI: "SMD Jalan",
-  Lendutan: "SMD Jalan",
-  Jembatan: "INVI-J",
-  Lereng: "InSlope",
-  Drainase: "InDrain",
-  "Lalu Lintas": "SMD Jalan",
-  RNI: "SMD Jalan",
-};
-export const SYSTEM_TARGET_ORDER = [
-  "SMD Jalan",
-  "INVI-J",
-  "InSlope",
-  "InDrain",
-] as const;
+export { systemsByType, SYSTEM_TARGET_ORDER } from "../submissionReadiness";
 export const testId = (s: string) =>
   s
     .toLowerCase()
@@ -232,42 +255,7 @@ export const defaultDaily = (
   state: "Tercatat",
   technicalData: {},
 });
-export const defaultCase = (
-  state: OperationalWorkflowState,
-): CorrectionCase => ({
-  id: idNow("KOR"),
-  source: "Validasi produksi",
-  blockedStage: "Validasi produksi",
-  road: state.project.routes[0] || "",
-  stationing: "STA 0+000 – 0+100",
-  rejectionReason: "",
-  severity: "Mayor",
-  owner: "PIC survei",
-  dueDate: state.simulationDate,
-  rootCause: "",
-  fieldDataValid: "",
-  surveyType: "IRI",
-  actionType: "",
-  evidence: "",
-  proposedValue: "",
-  approval: "Draft",
-  retest: "Belum Diuji",
-  status: "Terbuka",
-  returnStage: "Validasi produksi",
-  originalValue:
-    state.dailyRecords.find(
-      (record) =>
-        record.surveyType === "IRI" &&
-        record.road === (state.project.routes[0] || ""),
-    )?.rawValue || "Belum ada nilai raw tertaut",
-  linkedRecordId: state.dailyRecords.find(
-    (record) =>
-      record.surveyType === "IRI" &&
-      record.road === (state.project.routes[0] || ""),
-  )?.id,
-  verification: { surveyor: false, teamLeader: false, balai: false },
-  reviewNote: "",
-});
+export {defaultCase} from '../correctionDefaults';
 export const invalidateTerm1 = (
   acceptance: OperationalWorkflowState["acceptance"],
 ) => ({
@@ -283,55 +271,8 @@ export const resetAuditLevels = (): OperationalWorkflowState["audits"] => [
   { ...INITIAL_WORKFLOW.audits[1], sampleIds: [] },
   { ...INITIAL_WORKFLOW.audits[2], sampleIds: [] },
 ];
-export const invalidateDependentStages = (
-  state: OperationalWorkflowState,
-  reason: string,
-): OperationalWorkflowState => ({
-  ...state,
-  productionApproval: "Draft",
-  productionApprovalBa: "",
-  bridgeInspectionPermit: false,
-  submission: {
-    ...state.submission,
-    validationStatus: "Draft",
-    validationMessage: reason,
-  },
-  audits: markAuditsForReview(state, reason),
-  acceptance: {
-    ...state.acceptance,
-    terms: state.acceptance.terms.map((term) =>
-      term.id === "T1" || term.id === "T3" || term.id === "T4"
-        ? { ...term, complete: false }
-        : term,
-    ),
-    semesterTwoRevalidation: false,
-    finalReport: false,
-    finalAcceptance: false,
-  },
-});
-export const invalidateVervalStages = (
-  state: OperationalWorkflowState,
-  reason: string,
-): OperationalWorkflowState => ({
-  ...state,
-  submission: {
-    ...state.submission,
-    validationStatus: "Draft",
-    validationMessage: reason,
-  },
-  audits: markAuditsForReview(state, reason),
-  acceptance: {
-    ...state.acceptance,
-    terms: state.acceptance.terms.map((term) =>
-      term.id === "T2" || term.id === "T3" || term.id === "T4"
-        ? { ...term, complete: false }
-        : term,
-    ),
-    semesterTwoRevalidation: false,
-    finalReport: false,
-    finalAcceptance: false,
-  },
-});
+export { invalidateDependentStages } from "../dependentStageInvalidation";
+export { invalidateVervalStages } from "../dependentStageInvalidation";
 export function Badge({
   children,
   tone = "info",
@@ -341,46 +282,7 @@ export function Badge({
 }) {
   return <span className={`wf-status ${tone}`}>{children}</span>;
 }
-export function Panel({
-  title,
-  icon: Icon = Activity,
-  extra,
-  children,
-}: {
-  title: string;
-  icon?: any;
-  extra?: any;
-  children: any;
-}) {
-  return (
-    <section className="wf-panel">
-      <div className="wf-panel-head">
-        <h3>
-          <Icon size={14} />
-          {title}
-        </h3>
-        {extra}
-      </div>
-      <div className="wf-body">{children}</div>
-    </section>
-  );
-}
-export function Field({
-  label,
-  children,
-  full = false,
-}: {
-  label: string;
-  children: any;
-  full?: boolean;
-}) {
-  return (
-    <div className={`wf-field ${full ? "full" : ""}`}>
-      <label>{label}</label>
-      {children}
-    </div>
-  );
-}
+export {FormPanel as Panel, FormField as Field} from '../../design/b/FormPatterns';
 export function Button({
   children,
   onClick,

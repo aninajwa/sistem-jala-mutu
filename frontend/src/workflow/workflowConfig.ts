@@ -66,8 +66,8 @@ export type FrontendCapability =
 export const ROLE_CAPABILITIES: Record<WorkflowRole, FrontendCapability[]> = {
   'Penyedia Jasa / Ketua Tim': ['enterSurvey', 'manageFindings'],
   'PIC Balai / Pengguna Jasa': ['reviewValidation', 'manageFindings'],
-  'Direktorat / Pusat': ['reviewValidation', 'viewNational'],
-  Admin: ['enterSurvey', 'reviewValidation', 'manageFindings', 'manageMaster', 'manageAccess', 'viewNational'],
+  'Direktorat / Pusat': ['viewNational'],
+  Admin: ['manageMaster', 'manageAccess', 'viewNational'],
 };
 
 export const ROLE_ROUTE_ACCESS: Record<WorkflowRole, string[]> = {

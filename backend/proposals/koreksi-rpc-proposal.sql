@@ -1,0 +1,133 @@
+-- RANCANGAN RPC KOREKSI — UNTUK REVIEW, BUKAN SQL SIAP JALAN.
+-- Jangan jalankan file ini. Kolom/constraint selain relasi yang disebut dalam
+-- permintaan belum diverifikasi; tidak ada nama kolom tambahan yang diasumsikan.
+-- Tidak mengusulkan tabel baru.
+
+-- RELASI TERVERIFIKASI:
+-- kasus_temuan.paket_id -> paket_kontrak.paket_id
+-- tindakan_perbaikan.kasus_id -> kasus_temuan.kasus_id
+-- koreksi_data.kasus_id -> kasus_temuan.kasus_id
+-- koreksi_data.data_id -> data_segmen.data_id
+-- uji_ulang.tindakan_id -> tindakan_perbaikan.tindakan_id
+-- verifikasi_koreksi.koreksi_id -> koreksi_data.koreksi_id
+-- riwayat_status_kasus.kasus_id -> kasus_temuan.kasus_id
+
+-- KONTRAK RPC (nama dan argumen mengikuti backend/src/routes/koreksi.ts):
+-- baca_senarai_koreksi(p_paket_id integer)
+-- buat_koreksi(p_paket_id integer, p_data jsonb)
+-- baca_koreksi(p_paket_id integer, p_koreksi_id integer)
+-- ubah_koreksi(p_paket_id integer, p_koreksi_id integer,
+--              p_expected_version integer, p_data jsonb)
+-- verifikasi_koreksi(p_paket_id integer, p_koreksi_id integer,
+--                    p_expected_version integer, p_tahap text, p_nilai boolean)
+-- ajukan_koreksi(p_paket_id integer, p_koreksi_id integer,
+--                p_expected_version integer)
+-- review_koreksi(p_paket_id integer, p_koreksi_id integer,
+--                p_expected_version integer, p_keputusan text, p_catatan text)
+-- laksana_koreksi(p_paket_id integer, p_koreksi_id integer,
+--                 p_expected_version integer, p_execution_reference text)
+-- uji_ulang_koreksi(p_paket_id integer, p_koreksi_id integer,
+--                   p_expected_version integer, p_hasil text,
+--                   p_retest_reference text)
+-- tutup_koreksi(p_paket_id integer, p_koreksi_id integer,
+--               p_expected_version integer)
+
+-- RANCANGAN PEMETAAN / PERILAKU:
+-- 1) baca_senarai_koreksi: kasus_temuan sebagai akar daftar paket; LEFT JOIN
+--    tindakan_perbaikan dan koreksi_data. Tambahkan hasil terkait uji_ulang,
+--    verifikasi_koreksi, dan riwayat_status_kasus sesuai kebutuhan respons.
+--    Batasi hasil pada p_paket_id dan caller berhak melihat paket itu.
+-- 2) buat_koreksi: satu transaksi membuat kasus_temuan, lalu tindakan_perbaikan
+--    dan koreksi_data memakai kasus_id yang dihasilkan; data_id hanya boleh
+--    diisi jika record data_segmen memang berada pada paket/konteks kasus.
+--    Catat status awal dalam riwayat_status_kasus.
+-- 3) baca_koreksi: mulai dari koreksi_data.koreksi_id, ikuti kasus_id ke
+--    kasus_temuan, pastikan paket cocok, lalu baca tindakan, verifikasi, uji
+--    ulang, serta riwayat tanpa membocorkan kasus lintas paket.
+-- 4) ubah_koreksi: kunci kasus terkait, validasi versi/status, dan ubah hanya
+--    medan usulan yang diizinkan schema. Jangan ubah identitas kasus, paket,
+--    data_id, keputusan review, atau aktor dari payload bebas.
+-- 5) verifikasi_koreksi: masukkan/catat verifikasi terhadap koreksi_id; tahap
+--    hanya surveyor -> team_leader sebelum ajukan, dan balai setelah pengajuan.
+--    Nilai false harus mengatur ulang verifikasi turunan sesuai kebijakan.
+-- 6) ajukan_koreksi: pastikan rencana lengkap, bukti memadai, verifikasi awal
+--    lengkap, dan tidak ada pengajuan aktif yang bertentangan; ubah status dan
+--    catat transisi.
+-- 7) review_koreksi: hanya PIC Balai yang ditugaskan ke balai/paket terkait;
+--    keputusan hanya Disetujui atau Perlu Revisi, catatan wajib untuk revisi.
+--    Revisi mengembalikan kasus ke status kerja dan mengulang verifikasi yang
+--    memang perlu diulang.
+-- 8) laksana_koreksi: hanya Penyedia Jasa yang berwenang atas paket; hanya
+--    setelah Disetujui. Rekam referensi pelaksanaan melalui struktur tindakan
+--    yang tersedia dan catat transisi.
+-- 9) uji_ulang_koreksi: pilih kewenangan menurut tahap kasus dan kebijakan
+--    terverifikasi; tautkan hasil ke tindakan_perbaikan.tindakan_id. Jangan
+--    membuat uji_ulang yatim atau menimpa catatan historis bila tabel mendukung
+--    beberapa percobaan.
+-- 10) tutup_koreksi: hanya pemilik peran sesuai tahap/policy, hasil uji ulang
+--     Lulus, verifikasi wajib lengkap, dan referensi/bukti yang dipersyaratkan
+--     ada; set status akhir dan catat di riwayat_status_kasus.
+
+-- ATURAN BERSAMA YANG DIREKOMENDASIKAN:
+-- * Jangan percaya role/id aktor dari JSON. Dapatkan aktor dari auth.uid(),
+--   public.pengguna, pengguna_peran, peran, serta scope penugasan.
+-- * Periksa hak paket lewat paket_kontrak: Penyedia harus memang berwenang pada
+--   paket; PIC harus cocok scope_balai_id dan scope_paket_id; Direktorat hanya
+--   pada tahap yang memang dialokasikan. Definisi ownership Penyedia dan scope
+--   Direktorat belum diketahui dari relasi yang diberikan.
+-- * Untuk mutasi, kunci baris kasus FOR UPDATE, validasi versi/status dan tulis
+--   semua tabel terkait + riwayat dalam satu transaksi. Gunakan optimistic
+--   version yang sudah dikirim route; sumber kolom versi belum diverifikasi.
+-- * Catat setiap transisi di riwayat_status_kasus atomik dengan perubahan utama.
+--   Kolom actor, waktu, status asal/tujuan dan catatan harus dikonfirmasi DDL.
+-- * Pertahankan arti error API: 42501 akses, P0002 tidak ada/tidak terlihat,
+--   40001 versi usang, 55000 transisi tidak sah, 22023 input/relasi tidak sah.
+-- * Fungsi yang memakai SECURITY DEFINER wajib menetapkan search_path tetap,
+--   mencabut EXECUTE dari PUBLIC/anon, dan hanya memberi hak kepada role
+--   authenticated; alternatif SECURITY INVOKER perlu diuji terhadap RLS.
+--
+-- DETAIL YANG MASIH DIPERLUKAN UNTUK MENULIS SQL IMPLEMENTASI:
+-- Jalankan hanya sebagai query baca di Supabase SQL Editor dan bagikan hasilnya:
+-- (Query 1) daftar kolom/default/nullability/type:
+-- SELECT table_name, ordinal_position, column_name, data_type, udt_name,
+--        is_nullable, column_default
+-- FROM information_schema.columns
+-- WHERE table_schema='public' AND table_name IN
+--   ('kasus_temuan','tindakan_perbaikan','koreksi_data','uji_ulang',
+--    'verifikasi_koreksi','riwayat_status_kasus','paket_kontrak','data_segmen')
+-- ORDER BY table_name, ordinal_position;
+-- (Query 2) constraint/FK/check/unique:
+-- SELECT rel.relname AS table_name, con.conname,
+--        pg_get_constraintdef(con.oid) AS definition
+-- FROM pg_constraint con JOIN pg_class rel ON rel.oid=con.conrelid
+-- JOIN pg_namespace ns ON ns.oid=rel.relnamespace
+-- WHERE ns.nspname='public' AND rel.relname IN
+--   ('kasus_temuan','tindakan_perbaikan','koreksi_data','uji_ulang',
+--    'verifikasi_koreksi','riwayat_status_kasus','paket_kontrak','data_segmen')
+-- ORDER BY rel.relname, con.conname;
+-- (Query 3) RLS dan policy:
+-- SELECT schemaname, tablename, policyname, permissive, roles, cmd, qual, with_check
+-- FROM pg_policies WHERE schemaname='public' AND tablename IN
+--   ('kasus_temuan','tindakan_perbaikan','koreksi_data','uji_ulang',
+--    'verifikasi_koreksi','riwayat_status_kasus','paket_kontrak','data_segmen')
+-- ORDER BY tablename, policyname;
+-- Sertakan juga hasil query read-only untuk trigger, grants, enum/domain dan
+-- definisi fungsi authorization yang dipanggil policy atau RPC lain.
+-- (A) DDL keenam tabel + paket_kontrak + data_segmen: tipe/PK/FK, semua kolom,
+--     default, NOT NULL, CHECK, UNIQUE, indeks, enum/domain, trigger.
+-- (B) RLS aktif/tidak, policies, grants, serta fungsi/helper authorization
+--     sedia ada (terutama akses paket Penyedia, PIC Balai, Direktorat).
+-- (C) Nilai status yang sah dan relasi mana yang satu-ke-satu atau satu-ke-banyak;
+--     identifikasi kolom versi/concurrency, created_by/updated_by, dan timestamp.
+-- (D) Bentuk yang diharapkan untuk source, blocked_stage, severity, owner,
+--     due_date, survey_type, keputusan, bukti/referensi, rule_* dan province_update_ba;
+--     pastikan setiap nilai bisa disimpan pada kolom yang benar.
+-- (E) Aturan siapa yang mewakili surveyor/team_leader, pihak yang boleh uji ulang
+--     dan menutup per tahap, serta apakah uji ulang menyimpan beberapa riwayat.
+-- (F) Response JSON yang dibutuhkan UI/client, dibandingkan dengan kontrak
+--     koreksiCreate/Patch/Verify/Review/Execute/Retest/CloseSchema.
+--
+-- Sesudah DDL tersedia, tulis CREATE FUNCTION sesuai kolom nyata, uji pada
+-- project database uji dengan role/scope sah dan tidak sah, baru ajukan review.
+-- Setelah persetujuan terpisah barulah SQL boleh diterapkan dan schema cache
+-- PostgREST direfresh. File ini tidak melakukan koneksi atau perubahan database.

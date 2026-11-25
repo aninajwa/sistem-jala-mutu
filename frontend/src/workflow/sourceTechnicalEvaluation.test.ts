@@ -1,3 +1,6 @@
+import { PRODUCTION_REFERENCE_CHECKS } from './surveyStandards';
+import { withProductionReferences, withSuitableCalibrationReviews } from './testing/productionFixture';
+import {filledSourceFixture} from './testing/sourceFixture';
 import test from 'node:test';import assert from 'node:assert/strict';
 import {sourceDocument} from './sourceDocumentModel';import {bridgeSamplingResult} from './sourceTechnicalEvaluation';import {switchPciMethod} from './pciMethods';import {createDemoWorkflow} from './demoScenario';import {evaluateStageGate} from './workflowGate';
 test('bridge sampling evaluates exact source level differences and never guesses missing input',()=>{
@@ -9,6 +12,18 @@ test('PCI method drafts are independent, recover previous values and AI cannot u
  const state=createDemoWorkflow('complete');state.role='Penyedia Jasa / Ketua Tim';state.productionTests.PCI.pciManual=true;state.productionTests.PCI.evidenceReference='MANUAL-REF';
  const ai=switchPciMethod(state,false);assert.equal(ai.productionTests.PCI.evidenceReference,'');ai.productionTests.PCI.evidenceReference='AI-REF';const manual=switchPciMethod(ai,true);assert.equal(manual.productionTests.PCI.evidenceReference,'MANUAL-REF');
  assert.equal(switchPciMethod(manual,false).productionTests.PCI.evidenceReference,'AI-REF');ai.productionApproval='Disetujui';assert.equal(evaluateStageGate(ai,'Tahap 3A').readyToComplete,false);
+ const verified = withProductionReferences(createDemoWorkflow('complete'));
+ verified.project.surveyTypes = ['PCI'];
+ verified.project.preparation.reportApproval = 'Disetujui';
+ verified.calibrationChecklist.PCI = true;
+ verified.calibrations = [{ ...verified.calibrations[0], surveyType: 'PCI', condition: 'Baik',
+   qualificationValid: true, trainingVerified: true, dueDate: '2099-01-01' }];
+ Object.assign(verified.productionTests.PCI, {
+   pciManual: false, pciBenchmarkBalanced: true, evidenceReference: 'HASIL-PCI-AI',
+   referenceChecks: Object.fromEntries(PRODUCTION_REFERENCE_CHECKS.PCI.map(check => [check, true])),
+ });
+ withSuitableCalibrationReviews(verified);
+ assert.equal(evaluateStageGate(verified, 'Tahap 2').readyToComplete, true);
  state.role='Admin';assert.equal(switchPciMethod(state,false),state);
 });
 
@@ -26,4 +41,4 @@ test('scalar source comparisons use exact row bounds and reject dimensions or mi
 
 import {workflowFormIssues} from './repository/workflowReconciliation';
 import {sourceDocumentKey,documentQuestions} from './sourceDocumentModel';
-test('legacy approval flags do not conceal missing current forms and reconciliation never resets history',()=>{const memory=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value)}});const state=createDemoWorkflow('start');state.project.surveyTypes=['RNI'];state.calibrationChecklist.RNI=true;const before=JSON.stringify(state);assert.ok(workflowFormIssues(state).some(issue=>issue.stage==='Tahap 1'));assert.equal(JSON.stringify(state),before);const doc=sourceDocument('RNI','calibration')!;memory.set(sourceDocumentKey(state.project.id,doc.id),JSON.stringify(Object.fromEntries(documentQuestions(doc).map(question=>[question.id,question.multiple?JSON.stringify(question.options):question.options[0]]))));assert.equal(workflowFormIssues(state).some(issue=>issue.stage==='Tahap 1'),false);assert.equal(JSON.stringify(state),before);});
+test('legacy approval flags do not conceal missing current forms and reconciliation never resets history',()=>{const memory=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value)}});const state=createDemoWorkflow('start');state.project.surveyTypes=['RNI'];state.calibrationChecklist.RNI=true;const before=JSON.stringify(state);assert.ok(workflowFormIssues(state).some(issue=>issue.stage==='Tahap 1'));assert.equal(JSON.stringify(state),before);const doc=sourceDocument('RNI','calibration')!;memory.set(sourceDocumentKey(state.project.id,doc.id),JSON.stringify(filledSourceFixture(doc)));assert.equal(workflowFormIssues(state).some(issue=>issue.stage==='Tahap 1'),false);assert.equal(JSON.stringify(state),before);});

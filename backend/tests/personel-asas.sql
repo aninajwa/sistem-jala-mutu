@@ -4,7 +4,7 @@ do $$
 declare provider_auth uuid; provider_user integer; pid integer; balai_a integer; balai_b integer; tpl integer; org integer; team integer; team2 integer; team_b integer; person integer; person_b integer; orphan integer; qualification integer; state jsonb; r record; expected_a boolean; expected_b boolean; n integer; initial_person_count integer;
 begin
  select u.pengguna_id,u.auth_user_id into provider_user,provider_auth from public.pengguna u join public.pengguna_peran pp using(pengguna_id) join public.peran pr using(peran_id) where pr.nama='penyedia_jasa' and not coalesce(u.terkunci,false) limit 1;
- select t.tim_id,p.paket_id,p.balai_id,p.penyedia_id,q.template_id into team,pid,balai_a,org,tpl from public.tim_survei t join public.paket_kontrak p using(paket_id) join public.checklist_pengisian q using(paket_id) join public.checklist_template ct using(template_id) where q.status='DISETUJUI' and ct.no_dokumen='JM-PERSIAPAN-TAHAP0' order by p.paket_id,t.tim_id limit 1;
+ select t.tim_id,p.paket_id,p.balai_id,p.penyedia_id,q.template_id into team,pid,balai_a,org,tpl from public.tim_survei t join public.paket_kontrak p using(paket_id) join public.checklist_pengisian q using(paket_id) join public.checklist_template ct using(template_id) where q.status='DISETUJUI' and ct.no_dokumen='JM-PERSIAPAN-TAHAP0' and p.created_by=provider_user order by p.paket_id,t.tim_id limit 1;
  if team is null or org is null then raise exception 'Need an existing team on approved preparation';end if;
  select min(scope_balai_id) into balai_b from public.pengguna_peran where scope_balai_id<>balai_a;
  select count(*) into initial_person_count from public.personel;
@@ -53,7 +53,7 @@ begin
  begin perform public.daftar_kualifikasi_personel(pid,team,person,'{"jenis":"SKA","nomor":"ROLLBACK-AUDIT-QUAL"}');raise exception 'Qualification audit not enforced';exception when check_violation then null;end;
  execute 'reset role';alter table public.audit_trail drop constraint test_qualification_audit_failure;
  if exists(select 1 from public.kualifikasi_personel where nomor='ROLLBACK-AUDIT-QUAL') then raise exception 'Failed audit left qualification';end if;
- insert into public.paket_kontrak(paket_id,balai_id,penyedia_id,nama_paket,status) overriding system value values(2100000012,balai_b,org,'Rollback personnel package B','DRAFT');
+ insert into public.paket_kontrak(paket_id,balai_id,penyedia_id,nama_paket,status,created_by) overriding system value values(2100000012,balai_b,org,'Rollback personnel package B','DRAFT',provider_user);
  insert into public.checklist_pengisian(paket_id,template_id,status) values(2100000012,tpl,'DRAFT');
  insert into public.tim_survei(paket_id,jenis_survei_id,nama_tim) select 2100000012,jenis_survei_id,'Rollback personnel team B' from public.tim_survei where tim_id=team returning tim_id into team_b;
  execute 'set local role authenticated';

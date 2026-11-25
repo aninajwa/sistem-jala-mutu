@@ -1,4 +1,4 @@
-import { recordDailyChange, markAuditsForReview } from './workflowRevisions';
+import { markAuditsForReview } from './workflowRevisions';
 import { DEFAULT_SEMESTER_TWO, INITIAL_WORKFLOW, evaluateProductionTest, type OperationalWorkflowState, type CorrectionCase } from './model';
 
 export const AUDIT_REVIEW_CHECKS: Record<number,string[]> = {
@@ -21,7 +21,7 @@ export function fieldReadiness(state:OperationalWorkflowState): string[] {
     c.userReview!=='Sesuai'?'Pemeriksaan proses/hasil verval oleh Pengguna Jasa belum sesuai':'',
     state.project.surveyTypes.includes('Jembatan')&&(!c.bridgeFieldValidation||(c.bridgeValidatedPercent??0)<10||!c.bridgeValidationReport?.trim())?'Validasi lapangan jembatan ≥10% dan referensi laporan wajib':'',
     !c.finalPeriodValidation||!c.finalValidationLocation?.trim()||!c.finalToolUnchanged?'Uji lokasi validasi akhir dan konfirmasi alat tidak berubah wajib':'',
-    state.corrections.some(item=>item.status!=='Ditutup'&&!item.source.startsWith('Notifikasi H+0'))?'Kasus mutu masih terbuka':'',
+    pendingQualityCases(state).length?'Kasus mutu masih terbuka':'',
   ].filter(Boolean);
 }
 
@@ -47,13 +47,21 @@ export function semesterTwoReadiness(state:OperationalWorkflowState):string[] {
   ].filter(Boolean);
 }
 
+/** Only substantive open corrective cases block downstream gates.
+ * H+0 reminders are notifications, not QA/QC findings. */
+export function pendingQualityCases(state:OperationalWorkflowState):CorrectionCase[] {
+  return state.corrections.filter(item=>item.status!=='Ditutup'&&!item.source.startsWith('Notifikasi H+0'));
+}
+
 export function canMarkFinalReport(state:OperationalWorkflowState):boolean {
-  return state.acceptance.terms.filter(t=>t.id!=='T4').every(t=>t.complete)
+  return pendingQualityCases(state).length===0
+    &&state.acceptance.terms.filter(t=>t.id!=='T4').every(t=>t.complete)
     &&state.audits.every(a=>a.status==='Lulus'&&!a.requiresReview)
     &&!!state.acceptance.semesterTwoEvidence?.finalReportReference.trim();
 }
 
 export function termReadiness(state:OperationalWorkflowState,id:string):string[] {
+  if(['T2','T3','T4'].includes(id)&&pendingQualityCases(state).length)return ['Kasus tindakan perbaikan masih terbuka; seluruh temuan terkait harus ditutup dan gate asal diperiksa ulang'];
   if(id==='T1')return state.project.preparation.reportApproval==='Disetujui'&&state.productionApproval==='Disetujui'&&state.calibrations.length>0&&state.calibrations.every(c=>c.dueDate>=state.simulationDate&&c.condition==='Baik'&&c.qualificationValid&&c.trainingVerified)&&state.project.surveyTypes.every(t=>state.calibrationChecklist[t]&&evaluateProductionTest(t,state.productionTests[t]).passed)?[]:['Persiapan, kalibrasi, metode dan uji produksi belum disetujui'];
   if(id==='T2'&&(state.cycle.requiresReview||Object.values(state.cycleHistory??{}).some(c=>c.requiresReview)))return ['Pemeriksaan ulang periode belum selesai'];
   if(id==='T3'&&state.audits.some(a=>a.requiresReview))return ['Pemeriksaan ulang audit belum selesai'];
@@ -68,22 +76,25 @@ export function correctionClosureErrors(state:OperationalWorkflowState,c:Correct
     c.status!=='Verifikasi Ulang'||c.retest!=='Lulus'?'Uji ulang harus lulus':'',
     !c.verification?.surveyor||!c.verification?.teamLeader||!c.verification?.balai?'Verifikasi Surveyor → Team Leader → Balai belum lengkap':'',
     !c.evidence.trim()?'Bukti wajib tersedia':'',
-    c.fieldDataValid==='Ya'&&(!record||record.rawValue!==c.originalValue||!c.proposedValue.trim())?'Pilih rekaman raw asli yang sesuai dan usulan cleaned':'',
+    !c.executionReference?.trim()?'Hasil pelaksanaan belum ditautkan ke dokumen/rekaman sumber':'',
+    !c.retestReference?.trim()?'Hasil uji ulang tahap asal belum memiliki referensi pemeriksaan':'',
+    c.fieldDataValid==='Ya'&&(!record||record.rawValue!==c.originalValue||!c.proposedValue.trim())?'Referensi raw tidak cocok atau usulan hasil pemrosesan belum tersedia':'',
   ].filter(Boolean);
 }
 
 export function applyClosedCorrection(state:OperationalWorkflowState,c:CorrectionCase):OperationalWorkflowState {
   if(correctionClosureErrors(state,c).length)throw new Error('Kasus belum memenuhi syarat penutupan');
   const resetsProduction=['Kalibrasi','Validasi produksi'].includes(c.blockedStage);
-  const revised=c.fieldDataValid==='Ya'?state.dailyRecords.find(row=>row.id===c.linkedRecordId):undefined;
-  const affected=revised?recordDailyChange(state,{...revised,cleanedValue:c.proposedValue,cleaningReason:`${c.id}: ${c.evidence}`}):state;
+  // JALA MUTU memverifikasi hasil dari sistem sumber, bukan menulis ulang data survei.
+  // proposedValue hanyalah usulan/reference untuk pembandingan QA/QC.
+  // Penutupan kasus tidak memutasi rawValue maupun cleanedValue.
   return {
     ...state,
     ...(resetsProduction?{productionApproval:'Draft' as const,productionApprovalBa:'',bridgeInspectionPermit:false}:{}),
     corrections:state.corrections.map(item=>item.id===c.id?{...item,status:'Ditutup' as const}:item),
-    dailyRecords:state.dailyRecords.map(r=>r.id===c.linkedRecordId&&c.fieldDataValid==='Ya'?{...r,cleanedValue:c.proposedValue,cleaningReason:`${c.id}: ${c.reviewNote||c.rejectionReason} · ${c.evidence}`} :r),
-    cycleHistory:affected.cycleHistory,
-    cycle:c.blockedStage==='Verval 14 hari'&&!c.linkedRecordId?{...state.cycle,requiresReview:true,reviewReason:`Tindak lanjut ${c.id} selesai; periksa ulang periode terkait.`}:affected.cycle,
+    // Data survei tidak diubah; penerimaan versi baru harus berasal dari SMD/API.
+    // Keputusan tahapan tidak dibuat 'Sesuai' otomatis karena kasus ditutup.
+    cycle:c.blockedStage==='Verval 14 hari'?{...state.cycle,requiresReview:true,reviewReason:`Tindak lanjut ${c.id} selesai; periksa ulang periode terkait.`}:state.cycle,
     submission:{...state.submission,validationStatus:'Draft',validationMessage:'Koreksi selesai; penyerahan dan audit wajib diulang.'},
     audits:markAuditsForReview(state,`Tindak lanjut ${c.id} selesai; tinjau ulang data terkait.`),
     acceptance:{...state.acceptance,terms:state.acceptance.terms.map(t=>['T2','T3','T4'].includes(t.id)?{...t,complete:false}:t),finalReport:false,finalAcceptance:false,semesterTwoRevalidation:false},

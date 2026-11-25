@@ -1,20 +1,24 @@
+import {correctionReviewer} from '../checkpoint09Corrections';
 import {usePersistedDraft} from '../../hooks/usePersistedDraft';
 import {
   ArrowRight,
   ClipboardCheck,
-  LockKeyhole,
   Plus,
   TriangleAlert,
   Wrench,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useCorrectionSelection } from "./useCorrectionSelection";
+import { CorrectionEvidenceField } from "../CorrectionEvidenceField";
+import { CorrectionExecutionForm } from "./CorrectionExecutionForm";
+import { correctionCanOpenCase, correctionDefaultView, correctionVisibleViews, correctionViewLabel } from "./correctionJourney";
 
 import {
   RULE_CHECKS,
   RULE_NUMBERS,
   RULE_SCENARIOS,
   specialCorrectionErrors,
+  suggestedScenario,
 } from "../correctionRules";
 import { applyClosedCorrection, correctionClosureErrors } from "../flowRules";
 import {
@@ -25,6 +29,8 @@ import {
   SurveyType,
 } from "../model";
 
+import { matchingCorrectionRecords, correctionRecordLink } from "../correctionRecordLink";
+import { resetCorrectionAttempt } from "../correctionAttempt";
 import type { WorkflowStageProps } from "./stageSupport";
 import {
   Badge,
@@ -40,16 +46,45 @@ import { useWorkflowStage } from "./useWorkflowStage";
 
 export function CorrectionWorkspace(props: WorkflowStageProps) {
   const { selection, state, onUpdate, setNotice, onNavigate } = props;
+  const isPenyedia = state.role === "Penyedia Jasa / Ketua Tim";
+  const isBalai = state.role === "PIC Balai / Pengguna Jasa";
   const { commit, heading } = useWorkflowStage(props);
   const [draft,setDraft]=usePersistedDraft<Record<string,string>>(`jala-ui-draft:${state.project.id}:${state.role}:CorrectionWorkspace`,{});
+  const [editingDraft, setEditingDraft] = useState(true);
+  const [reviewDraft, setReviewDraft] = usePersistedDraft<Record<string, string>>(`jala-correction-review:${state.project.id}:${state.role}`, {});
+
+  const [view, setView] = useState<"finding" | "proposal" | "approval" | "execution" | "verification" | "history">();
   const [prodType, setProdType] = useState<SurveyType>("IRI");
   const [newCase, setNewCase] = useState<CorrectionCase>(() =>
-    defaultCase(state),
+    ({...defaultCase(state),dueDate:"",stationing:"",owner:"",surveyType:state.project.surveyTypes[0]??"IRI",linkedRecordId:undefined,originalValue:"Belum ada nilai raw tertaut"}),
   );
   const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
   const test = state.productionTests[prodType];
   const selectedCase =
-    state.corrections.find((c) => c.id === caseId) || state.corrections[0];
+  state.corrections.find((c) => c.id === caseId) ??
+  (!selection.startsWith("/actions:") ? state.corrections[0] : undefined);
+
+const isDirektorat = state.role === "Direktorat / Pusat";
+
+const correctionAuditLevel =
+  selectedCase?.blockedStage.match(/^Audit tingkat ([123])$/i)?.[1];
+
+const canVerifyCorrection = !!selectedCase && state.role===correctionReviewer(selectedCase);
+// Bind reviewer input to the current submission attempt, never reuse a previous
+// approval/rejection draft after the Penyedia resubmits a revised proposal.
+const reviewDraftKey = selectedCase
+  ? `${selectedCase.id}:submission-${state.events.filter(event =>
+      event.object === selectedCase.id && event.action === "Ajukan tindakan koreksi untuk persetujuan"
+    ).length}`
+  : "";
+
+const openedFromActions = selection.startsWith("/actions:");
+
+useEffect(() => {
+  setEditingDraft(selectedCase?.retest !== "Gagal");
+  setView(undefined);
+}, [selectedCase?.id, selectedCase?.retest]);
+useEffect(() => setView(undefined), [selectedCase?.status]);
   const saveText = (key: string, value: string) =>
     setDraft((old) => ({ ...old, [key]: value }));
 
@@ -57,46 +92,126 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
     setNewCase((current) => {
       const next = { ...current, ...patch };
       if ("road" in patch || "surveyType" in patch) {
-        const record = state.dailyRecords.find(
-          (record) =>
-            record.surveyType === next.surveyType && record.road === next.road,
-        );
-        next.originalValue = record?.rawValue || "Belum ada nilai raw tertaut";
-        next.linkedRecordId = record?.id;
+        // Never silently bind the first record: several records may share a route/type.
+        next.linkedRecordId = undefined;
+        next.originalValue = "Belum ada nilai raw tertaut";
+      }
+      if ("linkedRecordId" in patch) {
+        const link = correctionRecordLink(state.dailyRecords, next.road, next.surveyType, patch.linkedRecordId);
+        next.linkedRecordId = link?.id;
+        next.originalValue = link?.rawValue || "Belum ada nilai raw tertaut";
       }
       return next;
     });
-  const changeCaseType = (surveyType: SurveyType) => {
-    if (!selectedCase) return;
-    const raw =
-      state.dailyRecords.find(
-        (record) =>
-          record.surveyType === surveyType && record.road === selectedCase.road,
-      )?.rawValue || "Belum ada nilai raw tertaut";
-    updateCurrent(
-      {
-        surveyType,
-        originalValue: raw,
-        linkedRecordId: state.dailyRecords.find(
-          (record) =>
-            record.surveyType === surveyType &&
-            record.road === selectedCase.road,
-        )?.id,
-      },
-      "Ubah jenis survei dan tautan raw koreksi",
-    );
-  };
   const updateCurrent = (patch: Partial<CorrectionCase>, activity: string) => {
     if (!selectedCase) return;
-    if (
-      state.role !== "Penyedia Jasa / Ketua Tim" &&
-      state.role !== "PIC Balai / Pengguna Jasa"
-    ) {
-      setNotice("Peran aktif ini tidak dapat mengubah kasus koreksi.");
+    if (!isPenyedia && !isBalai &&
+        !(isDirektorat && correctionAuditLevel === "3")) {
+      setNotice("Peran tidak berwenang mengubah kasus.");
       return;
+    }
+
+    const changesRetest =
+      "retest" in patch || "retestReference" in patch;
+
+    // Clearing an old attempt during proposal submission/revision is not a retest decision.
+    // Actual Lulus/Gagal remains restricted to the source reviewer and the central transaction guard.
+    const resetsProposalAttempt = patch.retest === "Belum Diuji" &&
+      patch.retestReference === undefined && patch.retestFailureReason === undefined && patch.executionReference === undefined &&
+      ((isPenyedia && (selectedCase.status === "Terbuka" || selectedCase.status === "Verifikasi Ulang" && selectedCase.retest === "Gagal") && patch.status === "Menunggu Persetujuan" && patch.approval === "Diajukan") ||
+       (isBalai && selectedCase.status === "Menunggu Persetujuan" && patch.status === "Terbuka" && patch.approval === "Perlu Revisi"));
+    if (changesRetest && !canVerifyCorrection && !resetsProposalAttempt) {
+      setNotice("Pemeriksaan ulang bukan kewenangan peran ini.");
+      return;
+    }
+
+    if (isDirektorat) {
+      const allowed = new Set([
+        "status", "retest", "retestReference", "retestFailureReason",
+        "approval", "verification",
+      ]);
+
+      if (
+        correctionAuditLevel !== "3" ||
+        !["Dilaksanakan", "Verifikasi Ulang"].includes(
+          selectedCase.status
+        ) ||
+        !changesRetest ||
+        Object.keys(patch).some(key => !allowed.has(key)) ||
+        (patch.status === "Terbuka" && !(
+          patch.retest === "Gagal" &&
+          patch.approval === "Perlu Revisi" &&
+          !!patch.retestReference?.trim() &&
+          !!patch.retestFailureReason?.trim() &&
+          patch.verification?.surveyor === false &&
+          patch.verification?.teamLeader === false &&
+          patch.verification?.balai === false
+        )) ||
+        (patch.status === "Verifikasi Ulang" && patch.retest !== "Lulus")
+      ) {
+        setNotice(
+          "Direktorat hanya dapat memeriksa ulang Audit Tingkat 3."
+        );
+        return;
+      }
     }
     if (selectedCase.status === "Ditutup") {
       setNotice("Kasus yang sudah ditutup tidak dapat diubah.");
+      return;
+    }
+    // Identitas temuan ditetapkan oleh pemeriksaan asal, bukan form tindak lanjut.
+    const immutableFields = ["id", "source", "blockedStage", "road", "stationing", "surveyType", "severity", "rejectionReason"];
+    if (immutableFields.some(field => field in patch)) {
+      setNotice("Identitas temuan berasal dari pemeriksaan dan tidak dapat diganti dalam rencana tindakan.");
+      return;
+    }
+    if (isBalai) {
+  const allowedFields = new Set([
+    "reviewNote",
+    "verification",
+    "approval",
+    "status",
+    "retest",
+    "retestReference",
+    "retestFailureReason",
+  ]);
+
+  if (Object.keys(patch).some(key => !allowedFields.has(key))) {
+    setNotice(
+      "Rencana tindakan dan bukti hanya dapat diperbarui oleh Penyedia Jasa.",
+    );
+    return;
+  }
+}
+
+if (isPenyedia && "reviewNote" in patch) {
+  setNotice("Catatan keputusan merupakan kewenangan PIC Balai.");
+  return;
+}
+    // Field checks alone are insufficient: gate modifications by action status.
+
+const failedRetestReturn =
+  canVerifyCorrection &&
+  ["Dilaksanakan", "Verifikasi Ulang"].includes(selectedCase.status) &&
+  patch.status === "Terbuka" &&
+  patch.approval === "Perlu Revisi" &&
+  patch.retest === "Gagal" &&
+  typeof patch.retestReference === "string" &&
+  !!patch.retestReference.trim() &&
+  typeof patch.retestFailureReason === "string" &&
+  !!patch.retestFailureReason.trim();
+
+if (
+  isBalai &&
+  selectedCase.status !== "Menunggu Persetujuan" &&
+  !failedRetestReturn &&
+  (
+    "approval" in patch ||
+    "reviewNote" in patch ||
+    ("verification" in patch && patch.verification?.balai === true)
+  )
+) {
+      setNotice("Pemeriksaan Balai hanya dilakukan pada usulan yang sedang menunggu persetujuan.");
       return;
     }
     const changesProposal = [
@@ -104,6 +219,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       "fieldDataValid",
       "surveyType",
       "actionType",
+      "proposedPlan",
       "evidence",
       "originalValue",
       "proposedValue",
@@ -113,6 +229,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       "ruleChecks",
       "ruleNumbers",
       "provinceUpdateBa",
+      "owner", "dueDate",
     ].some((key) => key in patch);
     const safePatch = changesProposal
       ? {
@@ -120,7 +237,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
           verification: { surveyor: false, teamLeader: false, balai: false },
           approval: "Draft" as const,
           status: "Terbuka" as const,
-          retest: "Belum Diuji" as const,
+          ...resetCorrectionAttempt(),
         }
       : patch;
     commit(activity, selectedCase.id, (s) => ({
@@ -131,10 +248,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
     }));
   };
   const create = () => {
-    if (
-      state.role !== "Penyedia Jasa / Ketua Tim" &&
-      state.role !== "PIC Balai / Pengguna Jasa"
-    ) {
+    if (!correctionCanOpenCase(state.role)) {
       setNotice(
         "Pilih peran Penyedia Jasa atau Pengguna Jasa untuk membuka kasus.",
       );
@@ -144,6 +258,14 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       setNotice("Ruas dan alasan temuan diperlukan untuk membuka kasus.");
       return;
     }
+    if (newCase.linkedRecordId && !correctionRecordLink(state.dailyRecords, newCase.road, newCase.surveyType, newCase.linkedRecordId)) {
+      setNotice("Rekaman sumber tidak sesuai ruas/jenis survei. Pilih kembali rekaman yang benar.");
+      return;
+    }
+    if (state.corrections.some(c => c.status !== "Ditutup" && c.source === newCase.source && c.blockedStage === newCase.blockedStage && c.linkedRecordId && c.linkedRecordId === newCase.linkedRecordId)) {
+      setNotice("Kasus aktif untuk sumber dan rekaman tersebut sudah ada. Buka kasus yang tersedia.");
+      return;
+    }
     commit(
       "Buka kasus koreksi berbukti",
       newCase.id,
@@ -151,7 +273,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       "Kasus baru tercatat dan menahan tahap asal",
     );
     setCaseId(newCase.id);
-    setNewCase(defaultCase(state));
+    setNewCase({...defaultCase(state),dueDate:"",stationing:"",owner:"",surveyType:state.project.surveyTypes[0]??"IRI",linkedRecordId:undefined,originalValue:"Belum ada nilai raw tertaut"});
   };
   const submitAction = () => {
     if (!selectedCase) return;
@@ -171,13 +293,15 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       return;
     }
     if (
+      !selectedCase.owner.trim() ||
       !selectedCase.rootCause ||
       !selectedCase.fieldDataValid ||
       !selectedCase.actionType ||
+      !selectedCase.proposedPlan?.trim() ||
       !selectedCase.evidence.trim()
     ) {
       setNotice(
-        "Lengkapi akar masalah, validitas data lapangan, tindakan dan bukti terlebih dahulu.",
+        "Lengkapi penanggung jawab, akar masalah, validitas data, jenis tindakan, rencana kerja, dan bukti terlebih dahulu.",
       );
       return;
     }
@@ -283,12 +407,10 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       return;
     }
     updateCurrent(
-      { status: "Menunggu Persetujuan", approval: "Diajukan" },
+      { ...resetCorrectionAttempt(), status: "Menunggu Persetujuan", approval: "Diajukan" },
       "Ajukan tindakan koreksi untuk persetujuan",
     );
-    setNotice(
-      "Usulan terkirim pada alur tindak lanjut; menunggu persetujuan Pengguna Jasa.",
-    );
+    // The persisted status/next actor confirms submission; never mask a rejected transaction with a success notice.
   };
   const approve = () => {
     if (!selectedCase) return;
@@ -307,18 +429,19 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       );
       return;
     }
-    if (!selectedCase.verification?.balai || !selectedCase.reviewNote?.trim()) {
+    const decisionNote = (reviewDraft[reviewDraftKey] ?? "").trim();
+    if (!selectedCase.verification?.balai || !decisionNote) {
       setNotice(
         "Balai harus memverifikasi bukti dan mencatat dasar keputusan.",
       );
       return;
     }
     updateCurrent(
-      { approval: "Disetujui", status: "Disetujui" },
+      { reviewNote: decisionNote, approval: "Disetujui", status: "Disetujui" },
       "Setujui tindakan koreksi",
     );
   };
-  const executeAction = () => {
+  const executeAction = (submittedReference?: string) => {
     if (!selectedCase) return;
     if (state.role !== "Penyedia Jasa / Ketua Tim") {
       setNotice("Peran Penyedia Jasa diperlukan untuk melaksanakan tindakan.");
@@ -331,18 +454,20 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       setNotice("Tindakan belum memperoleh persetujuan Pengguna Jasa.");
       return;
     }
+    const executionReference = (submittedReference ?? draft[`execution-${selectedCase.id}`] ?? selectedCase.executionReference ?? '').trim();
+    if (!executionReference) {
+      setNotice('Catat referensi hasil tindakan nyata (ID rekaman baru / dokumen hasil survei ulang, kalibrasi, atau pemrosesan) sebelum menandai dilaksanakan.');
+      return;
+    }
     updateCurrent(
-      { status: "Dilaksanakan" },
-      "Tandai tindakan telah dilaksanakan",
+      { status: "Dilaksanakan", executionReference },
+      "Catat pelaksanaan tindakan dan referensi hasil",
     );
   };
   const runRetest = () => {
     if (!selectedCase) return;
-    if (
-      state.role !== "Penyedia Jasa / Ketua Tim" &&
-      state.role !== "PIC Balai / Pengguna Jasa"
-    ) {
-      setNotice("Penyedia atau PIC Balai mencatat/verifikasi hasil uji ulang.");
+    if (!canVerifyCorrection) {
+      setNotice(`Pemeriksaan ulang kasus ini menjadi kewenangan ${selectedCase?correctionReviewer(selectedCase):'pemeriksa tahap sumber'}.`);
       return;
     }
     if (
@@ -357,14 +482,53 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       setNotice("Pilih hasil uji ulang Lulus atau Gagal terlebih dahulu.");
       return;
     }
-    updateCurrent(
-      { status: "Verifikasi Ulang", retest: result },
-      "Catat / verifikasi hasil uji ulang",
-    );
+    const retestReference = (draft[`retest-reference-${selectedCase.id}`] ?? selectedCase.retestReference ?? '').trim();
+    if (!selectedCase.executionReference || !retestReference) {
+      setNotice('Hasil pelaksanaan dan referensi pemeriksaan ulang tahap asal harus tersedia.');
+      return;
+    }
+    const failureReason = (draft[`retest-failure-reason-${selectedCase.id}`] ?? "").trim();
+    if (result === "Gagal" && !failureReason) {
+      setNotice("Jelaskan alasan teknis hasil Gagal. Referensi pemeriksaan saja belum cukup.");
+      return;
+    }
+
+if (result === "Gagal") {
+  updateCurrent(
+    {
+      status: "Terbuka",
+      approval: "Perlu Revisi",
+      retest: "Gagal",
+      retestReference,
+      retestFailureReason: failureReason,
+      verification: {
+        surveyor: false,
+        teamLeader: false,
+        balai: false,
+      },
+    },
+    `Uji ulang gagal; ${failureReason}. Referensi: ${retestReference}`,
+  );
+
+  setNotice(
+    "Hasil pemeriksaan gagal. Kasus dikembalikan ke Penyedia " +
+    "untuk diperbaiki dan diajukan kembali.",
+  );
+  return;
+}
+
+updateCurrent(
+  {
+    status: "Verifikasi Ulang",
+    retest: result,
+    retestReference,
+  },
+  "Catat hasil pemeriksaan ulang lulus dengan referensi",
+);
   };
   const closeCase = () => {
     if (!selectedCase) return;
-    if (state.role !== "PIC Balai / Pengguna Jasa") {
+    if (!canVerifyCorrection) {
       setNotice(
         "PIC Balai / Pengguna Jasa menutup kasus setelah pemeriksaan uji ulang.",
       );
@@ -384,7 +548,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       return;
     }
     commit(
-      "Tutup kasus dan terapkan cleaned tanpa menimpa raw",
+      "Tutup kasus setelah verifikasi hasil pada sistem sumber",
       selectedCase.id,
       (s) => applyClosedCorrection(s, selectedCase),
     );
@@ -401,7 +565,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
     if (destinations[selectedCase.returnStage])
       onNavigate(destinations[selectedCase.returnStage]);
     setNotice(
-      "Kasus ditutup; cleaned diterapkan bila tertaut, raw tetap utuh. Validasi dan audit terkait wajib diulang.",
+      "Kasus ditutup tanpa mengubah hasil survei. Pemeriksaan tahap terkait dan gate harus ditinjau ulang.",
     );
   };
   const verifyStep = (
@@ -415,6 +579,10 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
         : "Penyedia Jasa / Ketua Tim";
     if (state.role !== expected) {
       setNotice(`Langkah ini memerlukan peran ${expected}.`);
+      return;
+    }
+    if (key === "balai" && selectedCase.status !== "Menunggu Persetujuan") {
+      setNotice("Verifikasi Balai hanya tersedia untuk usulan yang telah diajukan.");
       return;
     }
     if (
@@ -438,7 +606,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
     updateCurrent(
       {
         verification,
-        ...(!value
+        ...(!value && key!=="balai"
           ? { approval: "Draft" as const, status: "Terbuka" as const }
           : {}),
       },
@@ -451,12 +619,18 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
       setNotice("Pengguna Jasa mengembalikan usulan.");
       return;
     }
-    if (!selectedCase.reviewNote?.trim()) {
-      setNotice("Catatan revisi wajib diisi.");
+    if (selectedCase.status !== "Menunggu Persetujuan") {
+      setNotice("Hanya usulan yang menunggu pemeriksaan dapat dikembalikan untuk revisi.");
+      return;
+    }
+    const decisionNote = (reviewDraft[reviewDraftKey] ?? "").trim();
+    if (!decisionNote) {
+      setNotice("Alasan pengembalian wajib diisi.");
       return;
     }
     updateCurrent(
       {
+        reviewNote: decisionNote,
         approval: "Perlu Revisi",
         status: "Terbuka",
         retest: "Belum Diuji",
@@ -466,7 +640,9 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
     );
   };
   const compatibleActions =
-    selectedCase?.fieldDataValid === "Ya"
+    selectedCase?.calibrationFinding
+      ? ["Kalibrasi ulang alat", "Pelatihan ulang personel", "Penggantian komponen alat", "Penggantian personel", "Ambil ulang foto/video"]
+      : selectedCase?.fieldDataValid === "Ya"
       ? ["Koreksi pemrosesan dengan bukti"]
       : selectedCase?.fieldDataValid === "Tidak"
         ? CORRECTION_ACTIONS.filter(
@@ -475,16 +651,17 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
         : selectedCase?.fieldDataValid === "Tidak Berlaku"
           ? ["Investigasi keterlambatan dan rencana tindak lanjut"]
           : CORRECTION_ACTIONS;
+  const availableViews = selectedCase ? correctionVisibleViews(state.role, selectedCase) : [];
+  const defaultView = selectedCase ? correctionDefaultView(state.role, selectedCase) : "finding";
+  const activeView = view && availableViews.includes(view) ? view : defaultView;
+  const sections = availableViews.map((key) => [key, correctionViewLabel(state.role, selectedCase!, key)] as const);
   return (
     <>
-      {heading(
-        "Lintas tahap · koreksi",
-        "Koreksi berbukti",
-        "Telusuri tahap tertahan, akar masalah dan cabang validitas lapangan. Raw asli tidak dapat diubah; setiap koreksi membutuhkan bukti, persetujuan dan uji ulang.",
-      )}
-      <div className="wf-grid">
-        <Panel
-          title="Kasus koreksi terbuka"
+      {!openedFromActions && heading("Kasus perbaikan", "Tindakan Perbaikan", "")}
+      {!openedFromActions && (
+  <div className="wf-grid">
+    <Panel
+      title="Kasus koreksi terbuka"
           icon={TriangleAlert}
           extra={
             <Badge tone="warn">
@@ -510,7 +687,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                     <tr key={c.id} data-testid={`row-correction-${c.id}`}>
                       <td>
                         <strong>{c.id}</strong>
-                        <div className="wf-note">{c.source}</div>
+                        <div className="wf-note">{c.source}{c.calibrationFinding ? ` · ${c.calibrationFinding.surveyType} / ${c.calibrationFinding.subject}` : ""}</div>
                       </td>
                       <td>
                         {c.road}
@@ -554,7 +731,12 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
             </div>
           )}
         </Panel>
-        <Panel title="Buka kasus baru" icon={Plus}>
+        {correctionCanOpenCase(state.role) && <details className="correction-new-case">
+  <summary>
+    <Plus size={15} />
+    Buka temuan baru
+  </summary>
+  <Panel title="Identitas temuan baru" icon={Plus}>
           <div className="wf-fields">
             <Field label="Sumber kasus">
               <Select
@@ -607,6 +789,22 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                 onChange={(v) => patchNew({ surveyType: v as SurveyType })}
               />
             </Field>
+            <Field label="Rekaman sumber (opsional)">
+              <select
+                className="wf-input"
+                data-testid="select-new-case-record"
+                value={newCase.linkedRecordId ?? ""}
+                onChange={(e) => patchNew({ linkedRecordId: e.target.value || undefined })}
+              >
+                <option value="">Tanpa tautan rekaman — temuan administratif/checklist</option>
+                {matchingCorrectionRecords(state.dailyRecords, newCase.road, newCase.surveyType).map(record => (
+                  <option key={record.id} value={record.id}>
+                    {record.id} · {record.date} · {record.rawValue || "Nilai raw kosong"}
+                  </option>
+                ))}
+              </select>
+              <small>Jika temuan berasal dari hasil survei, pilih ID rekaman yang benar; jangan menebak dari ruas.</small>
+            </Field>
             <Field label="STA">
               <input
                 data-testid="input-case-stationing"
@@ -658,35 +856,92 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
             </div>
           </div>
         </Panel>
+        </details>}
       </div>
+      )}
+      {!selectedCase && openedFromActions && (
+        <div className="wf-callout warn">Kasus yang dipilih tidak ditemukan. Kembali ke Tindakan Perbaikan dan pilih kasus kembali.</div>
+      )}
       {selectedCase && (
-        <div className="wf-grid">
+  <div className="wf-grid correction-case-work">
+    <header className="correction-case-identity" aria-label="Konteks kasus aktif">
+      <div className="correction-case-identity-main">
+        <span className="correction-case-id">{selectedCase.id}</span>
+        <strong>{selectedCase.surveyType} · {selectedCase.road}</strong>
+        <span>{selectedCase.blockedStage}</span>
+      </div>
+      <div className="correction-case-identity-status">
+        <Badge tone={selectedCase.status === "Ditutup" ? "good" : selectedCase.retest === "Gagal" ? "bad" : "warn"}>
+          {selectedCase.status === "Terbuka" && selectedCase.retest === "Gagal" ? "Pemeriksaan gagal — perlu revisi" : selectedCase.status}
+        </Badge>
+        {selectedCase.dueDate && <span>Tenggat: {selectedCase.dueDate}</span>}
+      </div>
+    </header>
+    <nav className="correction-work-nav" aria-label="Bagian kasus">
+      {sections.map(([key, label]) => (
+        <button type="button" key={key} className="wf-button" aria-current={activeView === key ? "step" : undefined}
+          onClick={() => setView(key)}>{label}</button>
+      ))}
+    </nav>
+    {activeView === "finding" && (
+      <Panel title="Temuan dan bukti sumber" icon={TriangleAlert}>
+        <dl className="v2-decision-facts">
+          <dt>Sumber temuan</dt><dd>{selectedCase.source} · {selectedCase.blockedStage}</dd>
+          <dt>Lingkup</dt><dd>{selectedCase.surveyType} · {selectedCase.road} · {selectedCase.stationing || "STA belum tercatat"}</dd>
+          {selectedCase.cyclePeriod && <><dt>Periode data</dt><dd>{selectedCase.cyclePeriod}</dd></>}
+          <dt>Uraian temuan</dt><dd>{selectedCase.rejectionReason || "Belum tercatat"}</dd>
+          <dt>Rekaman sumber</dt><dd>{selectedCase.linkedRecordId || "Belum tertaut"}</dd>
+          <dt>Penanggung jawab</dt><dd>{selectedCase.owner || "Belum ditetapkan"}</dd>
+          {selectedCase.dueDate && <><dt>Tenggat</dt><dd>{selectedCase.dueDate}</dd></>}
+        </dl>
+      </Panel>
+    )}
+    {activeView === "proposal" && (
+      <>
+{isPenyedia && selectedCase.status === "Terbuka" && selectedCase.retest === "Gagal" && (
+  <section className="wf-panel" aria-label="Keputusan pemeriksaan terakhir">
+    <div className="wf-panel-head"><h3>Hasil pemeriksaan: Gagal</h3><Badge tone="bad">Gagal</Badge></div>
+    <div className="wf-body">
+      <div className="correction-review-summary">
+        <div className="full"><small>Alasan pemeriksa</small><strong>{selectedCase.retestFailureReason || "Keputusan lama: alasan belum dicatat; periksa dokumen sumber"}</strong></div>
+        <div className="full"><small>Referensi hasil pemeriksaan</small><strong>{selectedCase.retestReference || "Belum tersedia"}</strong></div>
+      </div>
+      {!editingDraft ? (
+        <button type="button" className="wf-button" onClick={() => {
+          setEditingDraft(true);
+          setView("proposal");
+        }}>Mulai perbaikan</button>
+      ) : null}
+    </div>
+  </section>
+)}
+
+
+{isPenyedia&&editingDraft&&selectedCase.status==='Terbuka'&&<div className="wf-fields"><label className="wf-field">Penanggung jawab pelaksanaan<input aria-label="Penanggung jawab pelaksanaan" value={selectedCase.owner} onChange={e=>updateCurrent({owner:e.target.value},'Tetapkan penanggung jawab tindakan')}/></label><label className="wf-field">Tenggat rencana · opsional sesuai penugasan<input type="date" aria-label="Tenggat rencana tindakan" value={selectedCase.dueDate} onChange={e=>updateCurrent({dueDate:e.target.value},'Catat tenggat sesuai penugasan')}/></label></div>}
+    {(isPenyedia || isBalai || (isDirektorat && correctionAuditLevel === "3")) && !(isPenyedia && selectedCase.status === "Terbuka" && selectedCase.retest === "Gagal" && !editingDraft) && (<>
+          {isPenyedia && !editingDraft && selectedCase.status === "Terbuka" && (
+            <section className="wf-panel correction-draft-summary">
+              <div className="wf-panel-head"><h3>Draft rencana tindakan</h3><Badge tone="info">Tersimpan</Badge></div>
+              <div className="wf-body">
+                <div className="correction-summary-grid">
+                  <div><small>Akar masalah</small><strong>{selectedCase.rootCause || "Belum diisi"}</strong></div>
+                  <div><small>Tindakan</small><strong>{selectedCase.actionType || "Belum dipilih"}</strong></div>
+                  <div className="full"><small>Rencana kerja</small><p>{selectedCase.proposedPlan || "Belum diisi"}</p></div>
+                  <div className="full"><small>Catatan bukti</small><p>{selectedCase.evidence || "Belum ada catatan"}</p></div>
+                </div>
+                <div className="wf-toolbar"><button type="button" className="wf-button" onClick={() => setEditingDraft(true)}>Edit draft</button></div>
+              </div>
+            </section>
+          )}
+
+{isPenyedia && selectedCase.status === "Terbuka" && editingDraft && (
+          <fieldset className="correction-proposal">
           <Panel
-            title={`Rencana tindakan · ${selectedCase.id}`}
+            title="Rencana tindakan dan bukti"
             icon={Wrench}
-            extra={
-              <Badge
-                tone={
-                  selectedCase.status === "Ditutup"
-                    ? "good"
-                    : selectedCase.status === "Terbuka"
-                      ? "warn"
-                      : "info"
-                }
-              >
-                {selectedCase.status}
-              </Badge>
-            }
           >
-            <div className="wf-callout danger">
-              Tahap tertahan: <strong>{selectedCase.blockedStage}</strong> ·{" "}
-              {selectedCase.road} · {selectedCase.stationing} ·{" "}
-              {selectedCase.rejectionReason}
-            </div>
-            <div className="wf-immutable">
-              <LockKeyhole size={14} />
-              Raw asli bersifat immutable. Perubahan hanya pada proposed value
-              dengan alasan dan bukti verifikasi.
+            <div className="wf-callout" style={{marginBottom:10}}>
+              {selectedCase.blockedStage} · {selectedCase.road}{selectedCase.calibrationFinding ? ` · ${selectedCase.calibrationFinding.surveyType} / ${selectedCase.calibrationFinding.subject}` : ` · ${selectedCase.stationing}`}
             </div>
             <div className="wf-fields" style={{ marginTop: 11 }}>
               <Field label="Akar masalah">
@@ -709,14 +964,13 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                   }
                 />
               </Field>
-              <Field label="Data lapangan valid?">
+              <Field label={selectedCase.calibrationFinding ? "Bukti kalibrasi memenuhi persyaratan?" : "Data lapangan valid?"}>
                 <Select
                   id={`select-case-valid-${selectedCase.id}`}
                   value={selectedCase.fieldDataValid}
                   options={[
                     "",
-                    "Ya",
-                    "Tidak",
+                    ...(selectedCase.calibrationFinding ? ["Tidak"] : ["Ya", "Tidak"]),
                     ...(selectedCase.source.startsWith("Notifikasi H+0")
                       ? ["Tidak Berlaku"]
                       : []),
@@ -730,11 +984,11 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                 />
               </Field>
               <Field label="Jenis survei">
-                <Select
-                  id={`select-case-type-${selectedCase.id}`}
+                <input
                   value={selectedCase.surveyType}
-                  options={[...SURVEY_TYPES]}
-                  onChange={(v) => changeCaseType(v as SurveyType)}
+                  readOnly
+                  aria-readonly="true"
+                  title="Jenis survei ditentukan pada pemeriksaan asal"
                 />
               </Field>
               <Field label="Tindakan">
@@ -747,7 +1001,16 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                   }
                 />
               </Field>
-              <Field label="Nilai raw asli (terkunci)">
+              <Field label="Rencana tindakan dan cara pembuktian *" full>
+                <textarea
+                  rows={3}
+                  data-testid={`input-case-proposed-plan-${selectedCase.id}`}
+                  value={selectedCase.proposedPlan ?? ""}
+                  onChange={(event) => updateCurrent({ proposedPlan: event.target.value }, "Catat rencana tindakan")}
+                  placeholder="Uraikan tindakan yang akan dilakukan, cakupan objek, dan bukti yang akan dihasilkan"
+                />
+              </Field>
+              <Field label="Nilai raw asli">
                 <input
                   data-testid={`input-case-original-${selectedCase.id}`}
                   value={selectedCase.originalValue}
@@ -755,39 +1018,20 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                   aria-readonly="true"
                 />
               </Field>
-              <Field label="Rekaman lapangan tertaut">
-                <select
-                  data-testid="select-correction-record"
-                  value={selectedCase.linkedRecordId ?? ""}
-                  onChange={(e) => {
-                    const r = state.dailyRecords.find(
-                      (r) => r.id === e.target.value,
-                    );
-                    updateCurrent(
-                      {
-                        linkedRecordId: r?.id,
-                        originalValue:
-                          r?.rawValue || "Belum ada nilai raw tertaut",
-                      },
-                      "Tautkan rekaman koreksi",
-                    );
-                  }}
-                >
-                  <option value="">Pilih rekaman</option>
-                  {state.dailyRecords
-                    .filter(
-                      (r) =>
-                        r.road === selectedCase.road &&
-                        r.surveyType === selectedCase.surveyType,
-                    )
-                    .map((r) => (
-                      <option key={r.id} value={r.id}>
-                        {r.id} · {r.date} · raw {r.rawValue}
-                      </option>
-                    ))}
-                </select>
+              <Field label="Rekaman lapangan">
+                <input
+                  data-testid="input-correction-linked-record"
+                  readOnly
+                  value={(() => {
+                    const linked = state.dailyRecords.find(r => r.id === selectedCase.linkedRecordId);
+                    return linked
+                      ? `${linked.id} · ${linked.date} · raw ${linked.rawValue}`
+                      : selectedCase.linkedRecordId || "Belum ada rekaman terkait";
+                  })()}
+                />
               </Field>
-              <Field label="Usulan nilai cleaned">
+              {selectedCase.fieldDataValid === "Ya" && (
+              <Field label="Usulan nilai hasil pemrosesan">
                 <input
                   data-testid={`input-case-proposed-${selectedCase.id}`}
                   value={
@@ -799,55 +1043,61 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                   }
                 />
               </Field>
-              <Field label="Bukti foto/video / referensi posisi" full>
-                <textarea
-                  data-testid={`input-case-evidence-${selectedCase.id}`}
-                  value={
-                    draft[`evidence-${selectedCase.id}`] ??
-                    selectedCase.evidence
-                  }
-                  onChange={(e) =>
-                    saveText(`evidence-${selectedCase.id}`, e.target.value)
-                  }
-                  placeholder="Deskripsikan bukti dan lokasi. Jangan unggah file nyata."
-                />
-              </Field>
+              )}
+              <div className="wf-field full">
+                <CorrectionEvidenceField
+  key={`${state.project.id}:${selectedCase.id}`}
+  scope={`${state.project.id}::correction::${selectedCase.id}`}
+  editable={selectedCase.status === "Terbuka"}
+  note={draft[`evidence-${selectedCase.id}`] ?? selectedCase.evidence}
+  onNoteChange={(value) =>
+    saveText(`evidence-${selectedCase.id}`, value)
+  }
+  noFile={false}
+  allowNoFile={false}
+  onChanged={() => {
+    if (selectedCase.status === "Terbuka") {
+      updateCurrent(
+        { evidence: selectedCase.evidence },
+        "Perbarui lampiran bukti kasus"
+      );
+    }
+  }}
+/>
+              </div>
               <div className="wf-field full">
                 <Button
                   id={`button-save-case-evidence-${selectedCase.id}`}
-                  onClick={() =>
+                  onClick={() => {
                     updateCurrent(
                       {
-                        proposedValue:
-                          draft[`proposed-${selectedCase.id}`] ??
-                          selectedCase.proposedValue,
-                        evidence:
-                          draft[`evidence-${selectedCase.id}`] ??
-                          selectedCase.evidence,
+                        proposedValue: draft[`proposed-${selectedCase.id}`] ?? selectedCase.proposedValue,
+                        evidence: draft[`evidence-${selectedCase.id}`] ?? selectedCase.evidence,
                       },
-                      "Simpan usulan nilai dan bukti",
-                    )
-                  }
+                      "Simpan draft rencana tindakan",
+                    );
+                    setEditingDraft(false);
+                    setView("approval");
+                  }}
                 >
-                  Simpan usulan & bukti
+                  Simpan draft
                 </Button>
               </div>
             </div>
-            <div className="wf-callout" style={{ marginTop: 11 }}>
-              {selectedCase.fieldDataValid === "Ya"
-                ? "Cabang koreksi penyajian/pemrosesan: raw tetap utuh dan penyesuaian wajib berbasis bukti."
-                : selectedCase.fieldDataValid === "Tidak"
-                  ? "Cabang tindakan lapangan: pilih survei ulang, re-rating, pelatihan, kalibrasi atau penggantian."
-                  : "Tentukan validitas data lapangan untuk mengaktifkan cabang tindakan."}
-            </div>
+            <details className="correction-technical-guide">
+              <summary>Panduan teknis {selectedCase.surveyType}</summary>
             <div className="wf-callout warn" style={{ marginTop: 9 }}>
-              <strong>Panduan khusus {selectedCase.surveyType}</strong>
+              <strong>Ketentuan pemeriksaan</strong>
               <ul>
                 {CORRECTION_GUIDANCE[selectedCase.surveyType].map((rule) => (
                   <li key={rule}>{rule}</li>
                 ))}
               </ul>
             </div>
+            </details>
+            <details key={`${selectedCase.id}:${selectedCase.ruleScenario || "Umum"}`} className="correction-technical-guide">
+              <summary>{suggestedScenario(selectedCase.surveyType, selectedCase.rejectionReason) !== "Umum" ? "Pemeriksaan teknis temuan — perlu dilengkapi" : "Pemeriksaan teknis sesuai butir temuan (jika relevan)"}</summary>
+            <p className="wf-note">Pilih skenario hanya jika cocok dengan ketidaksesuaian pada pemeriksaan asal. Isian dan bukti tidak berlaku untuk semua jenis survei.</p>
             <Field label="Skenario aturan koreksi">
               <Select
                 id="select-correction-scenario"
@@ -925,17 +1175,68 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                 />
               </Field>
             )}
+            </details>
           </Panel>
-          <Panel
-            title="Persetujuan, pelaksanaan & retest"
+          </fieldset>
+)}
+
+
+{(!isPenyedia || selectedCase.status !== "Terbuka") && (
+  <Panel title="Rencana dan bukti usulan" icon={ClipboardCheck}>
+    <CorrectionEvidenceField
+      key={`balai:${state.project.id}:${selectedCase.id}`}
+      scope={`${state.project.id}::correction::${selectedCase.id}`}
+      editable={false}
+      note={selectedCase.evidence}
+    />
+    <div className="correction-review-summary">
+      <div>
+        <small>Akar masalah</small>
+        <strong>{selectedCase.rootCause || "Belum dilengkapi"}</strong>
+      </div>
+      <div>
+        <small>Validitas data lapangan</small>
+        <strong>{selectedCase.fieldDataValid || "Belum ditentukan"}</strong>
+      </div>
+      <div>
+        <small>Jenis tindakan</small>
+        <strong>{selectedCase.actionType || "Belum dipilih"}</strong>
+      </div>
+      <div className="full">
+        <small>Rencana tindakan</small>
+        <p>{selectedCase.proposedPlan || "Belum dicatat"}</p>
+      </div>
+      <div>
+        <small>Rekaman sumber</small>
+        <strong>{selectedCase.linkedRecordId || "Belum tertaut"}</strong>
+      </div>
+      <div className="full">
+        <small>Hasil pemeriksaan internal</small>
+        <p>
+          Surveyor: {selectedCase.verification?.surveyor ? "Sudah" : "Belum"}
+          {" · "}
+          Ketua Tim: {selectedCase.verification?.teamLeader ? "Sudah" : "Belum"}
+        </p>
+      </div>
+    </div>
+  </Panel>
+)}
+</>)}
+      </>
+    )}
+    {activeView === "approval" && (
+<Panel
+            title={isBalai ? "Keputusan pemeriksaan Balai" : selectedCase.status === "Terbuka" && isPenyedia ? "Verifikasi internal dan pengajuan" : "Status pemeriksaan usulan"}
             icon={ClipboardCheck}
           >
-            <div className="wf-callout">
-              Verifikasi berlapis merupakan langkah yang dicatat, bukan hanya
-              panduan. Mengubah bukti mengembalikan seluruh verifikasi dan
-              persetujuan.
-            </div>
-            {(["surveyor", "teamLeader", "balai"] as const).map((key) => (
+
+            {(
+  isPenyedia && selectedCase.status === "Terbuka"
+    ? (["surveyor", "teamLeader"] as const)
+    : isBalai && selectedCase.status === "Menunggu Persetujuan"
+      ? (["balai"] as const)
+      : ([] as const)
+).map((key) => (
               <CheckRow
                 key={key}
                 id={`correction-verify-${key}`}
@@ -951,18 +1252,22 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                 onChange={(v) => verifyStep(key, v)}
               />
             ))}
-            <Field label="Catatan persetujuan / alasan revisi">
+            {isBalai && selectedCase.status === "Menunggu Persetujuan" && (
+            <Field label="Dasar keputusan atau alasan pengembalian *">
               <textarea
                 data-testid="input-case-review-note"
-                value={selectedCase.reviewNote ?? ""}
-                onChange={(e) =>
-                  updateCurrent(
-                    { reviewNote: e.target.value },
-                    "Catat keputusan Balai",
-                  )
-                }
+                value={reviewDraft[reviewDraftKey] ?? ""}
+                onChange={(e) => setReviewDraft((old) => ({ ...old, [reviewDraftKey]: e.target.value }))}
               />
             </Field>
+            )}
+            {isPenyedia && selectedCase.reviewNote && (
+              <div className="wf-callout" data-testid="correction-provider-review-result">
+                <strong>{selectedCase.approval === "Perlu Revisi" ? "Alasan pengembalian" : selectedCase.status === "Menunggu Persetujuan" ? "Catatan keputusan sebelumnya" : "Catatan pemeriksa"}</strong>
+                <p className="wf-note">{selectedCase.reviewNote}</p>
+              </div>
+            )}
+            {isBalai && selectedCase.status === "Menunggu Persetujuan" && (
             <Button
               id="button-case-request-revision"
               kind="danger"
@@ -971,6 +1276,7 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
             >
               Kembalikan untuk revisi
             </Button>
+            )}
             <div className="wf-stage">
               <span className="wf-stage-num">1</span>
               <div>
@@ -981,14 +1287,14 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
                 </small>
               </div>
               <Badge tone={selectedCase.evidence ? "good" : "warn"}>
-                {selectedCase.evidence ? "Bukti tercatat" : "Menunggu bukti"}
+                {selectedCase.evidence ? "Catatan tercatat" : "Catatan belum ada"}
               </Badge>
             </div>
             <div className="wf-stage">
               <span className="wf-stage-num">2</span>
               <div>
                 <strong>Persetujuan Pengguna Jasa</strong>
-                <small>Peran aktif saat ini: {state.role}</small>
+                <small>{selectedCase.reviewNote || "Belum ada catatan keputusan"}</small>
               </div>
               <Badge
                 tone={selectedCase.approval === "Disetujui" ? "good" : "warn"}
@@ -997,20 +1303,17 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
               </Badge>
             </div>
             <div className="wf-toolbar" style={{ margin: "10px 0" }}>
+              {isPenyedia && (selectedCase.status === "Terbuka" || selectedCase.status === "Verifikasi Ulang") && (
               <Button
                 id={`button-submit-case-${selectedCase.id}`}
                 kind="primary"
                 onClick={submitAction}
-                disabled={
-                  selectedCase.status === "Ditutup" ||
-                  selectedCase.status === "Menunggu Persetujuan" ||
-                  selectedCase.status === "Disetujui" ||
-                  selectedCase.status === "Dilaksanakan"
-                }
               >
                 <ArrowRight size={13} />
                 Ajukan usulan
               </Button>
+              )}
+              {isBalai && selectedCase.status === "Menunggu Persetujuan" && (
               <Button
                 id={`button-approve-case-${selectedCase.id}`}
                 onClick={approve}
@@ -1021,74 +1324,190 @@ export function CorrectionWorkspace(props: WorkflowStageProps) {
               >
                 Setujui usulan
               </Button>
-              <Button
-                id={`button-execute-case-${selectedCase.id}`}
-                onClick={executeAction}
-                disabled={
-                  selectedCase.status !== "Disetujui" ||
-                  selectedCase.approval !== "Disetujui"
-                }
-              >
-                Tandai dilaksanakan
-              </Button>
+              )}
+
             </div>
-            <Field label="Hasil uji ulang">
-              <Select
-                id={`select-retest-${selectedCase.id}`}
-                value={
-                  draft[`retest-${selectedCase.id}`] ?? selectedCase.retest
-                }
-                options={["Belum Diuji", "Lulus", "Gagal"]}
-                onChange={(v) => saveText(`retest-${selectedCase.id}`, v)}
+</Panel>
+    )}
+{activeView === "execution" && (
+  selectedCase.status === "Disetujui" ||
+  selectedCase.status === "Dilaksanakan" ||
+  selectedCase.status === "Verifikasi Ulang" ||
+  selectedCase.status === "Ditutup"
+) && (isPenyedia && selectedCase.status === "Disetujui" ? (
+  <CorrectionExecutionForm
+    key={selectedCase.id}
+    correction={selectedCase}
+    projectId={state.project.id}
+    editable
+    onSubmit={(reference) => executeAction(reference)}
+  />
+) : (
+  <Panel title="Hasil pelaksanaan" icon={Wrench}>
+    <dl className="v2-decision-facts" data-testid="correction-execution-summary">
+      <dt>Jenis tindakan</dt><dd>{selectedCase.actionType || "Belum ditetapkan"}</dd>
+      <dt>Pelaksana</dt><dd>{selectedCase.owner || "Belum ditetapkan"}</dd>
+      <dt>Status</dt><dd>{selectedCase.status}</dd>
+      <dt>Referensi hasil</dt><dd style={{whiteSpace: "pre-wrap", overflowWrap: "anywhere"}}>{selectedCase.executionReference || "Belum diserahkan"}</dd>
+    </dl>
+  </Panel>
+))}
+
+{activeView === "verification" && <Panel title="Pemeriksaan ulang hasil perbaikan" icon={ClipboardCheck}>
+  {selectedCase.status === "Terbuka" ||
+   selectedCase.status === "Menunggu Persetujuan" ||
+   selectedCase.status === "Disetujui" ? (
+    <div className="wf-note">
+      Menunggu Penyedia Jasa menyelesaikan dan menyerahkan hasil perbaikan.
+    </div>
+  ) : (
+    <div style={{ display: "grid", gap: 12 }}>
+      <div className="wf-callout">
+        <strong>Tahap pemeriksaan: </strong>
+        {selectedCase.returnStage}
+        <div className="wf-note">
+          Referensi hasil: {selectedCase.executionReference || "Belum tersedia"}
+        </div>
+      </div>
+
+      {canVerifyCorrection && selectedCase.status !== "Ditutup" ? (
+        <>
+          <Field label="Referensi pemeriksaan ulang" full>
+            <textarea
+              rows={3}
+              style={{ width: "100%", boxSizing: "border-box" }}
+              value={
+                draft[`retest-reference-${selectedCase.id}`] ??
+                selectedCase.retestReference ??
+                ""
+              }
+              onChange={(e) =>
+                saveText(`retest-reference-${selectedCase.id}`, e.target.value)
+              }
+              placeholder="Nomor BA atau referensi pemeriksaan tahap asal"
+            />
+          </Field>
+
+          <Field label="Hasil pemeriksaan ulang">
+            <Select
+              id={`select-retest-${selectedCase.id}`}
+              value={
+                draft[`retest-${selectedCase.id}`] ??
+                selectedCase.retest
+              }
+              options={["Belum Diuji", "Lulus", "Gagal"]}
+              onChange={(v) => saveText(`retest-${selectedCase.id}`, v)}
+            />
+          </Field>
+
+          {(draft[`retest-${selectedCase.id}`] ?? selectedCase.retest) === "Gagal" && (
+            <Field label="Alasan teknis hasil Gagal (wajib)" full>
+              <textarea
+                data-testid={`input-retest-failure-reason-${selectedCase.id}`}
+                rows={3}
+                style={{ width: "100%", boxSizing: "border-box" }}
+                value={draft[`retest-failure-reason-${selectedCase.id}`] ?? ""}
+                onChange={event => saveText(`retest-failure-reason-${selectedCase.id}`, event.target.value)}
+                placeholder="Butir pemeriksaan yang tidak memenuhi dan tindakan yang perlu diperbaiki"
               />
             </Field>
-            <div className="wf-toolbar" style={{ marginTop: 9 }}>
-              <Button
-                id={`button-retest-case-${selectedCase.id}`}
-                onClick={runRetest}
-                disabled={
-                  selectedCase.status !== "Dilaksanakan" &&
-                  selectedCase.status !== "Verifikasi Ulang"
-                }
-              >
-                Catat retest
-              </Button>
-              <Button
-                id={`button-close-case-${selectedCase.id}`}
-                kind="primary"
-                onClick={closeCase}
-                disabled={
-                  selectedCase.status !== "Verifikasi Ulang" ||
-                  selectedCase.retest !== "Lulus"
-                }
-              >
-                Tutup kasus & kembali ke tahap
-              </Button>
-            </div>
-            <Field label="Kembali ke tahap" full>
-              <Select
-                id={`select-return-stage-${selectedCase.id}`}
-                value={selectedCase.returnStage}
-                options={[
-                  "Kalibrasi",
-                  "Validasi produksi",
-                  "Verval 14 hari",
-                  "Gerbang RNI/LRS",
-                  "Audit tingkat 1",
-                  "Audit tingkat 2",
-                  "Audit tingkat 3",
-                  "Penerimaan & termin",
-                ]}
-                onChange={(v) =>
-                  updateCurrent({ returnStage: v }, "Tentukan tahap kembali")
-                }
-              />
-            </Field>
-            <div className="wf-callout warn" style={{ marginTop: 10 }}>
-              Rantai: surveyor → team leader → Balai. Kasus ditutup hanya
-              setelah uji ulang lulus; objek raw tidak pernah ditimpa.
-            </div>
-          </Panel>
+          )}
+          <div className="wf-toolbar">
+            <Button
+              id={`button-retest-case-${selectedCase.id}`}
+              onClick={runRetest}
+            >
+              Simpan hasil pemeriksaan
+            </Button>
+
+            {selectedCase.status === "Verifikasi Ulang" &&
+              selectedCase.retest === "Lulus" && (
+                <Button
+                  id={`button-close-case-${selectedCase.id}`}
+                  kind="primary"
+                  onClick={closeCase}
+                >
+                  Tutup kasus
+                </Button>
+              )}
+          </div>
+        </>
+      ) : (
+        <div className="wf-note">
+          Hasil pemeriksaan: {selectedCase.retest}
+          <p>
+            Referensi: {selectedCase.retestReference || "Belum tersedia"}
+          </p>
+        </div>
+      )}
+    </div>
+  )}
+</Panel>}
+{activeView === "history" && <section className="wf-panel">
+  <div className="wf-panel-head">
+    <h3>Riwayat kasus</h3>
+  </div>
+    <div className="wf-body">
+      <p className="wf-note">Kronologi aktivitas kasus berdasarkan event yang tersimpan pada paket, terbaru lebih dahulu.</p>
+      <div className="correction-review-summary">
+        {state.events.filter(event => event.object === selectedCase.id).length === 0 ? (
+          <div className="full"><small>Belum ada aktivitas kasus yang tercatat.</small></div>
+        ) : state.events.filter(event => event.object === selectedCase.id).map(event => (
+          <div className="full" key={event.id}>
+            <small>{event.date} · {event.actor}</small>
+            <strong>{event.action}</strong>
+            <p className="wf-note">{event.newValue && event.newValue !== "Tidak ada perubahan nilai" ? event.newValue : "Perubahan tercatat di log paket"}</p>
+          </div>
+        ))}
+      </div>
+
+      <div className="correction-review-summary">
+        <div>
+          <small>Nomor kasus</small>
+          <strong>{selectedCase.id}</strong>
+        </div>
+        <div>
+          <small>Status terakhir</small>
+          <strong>{selectedCase.status}</strong>
+        </div>
+        <div>
+          <small>Tahap asal</small>
+          <strong>{selectedCase.blockedStage}</strong>
+        </div>
+        <div>
+          <small>Jenis survei</small>
+          <strong>{selectedCase.surveyType}</strong>
+        </div>
+        <div>
+          <small>Keputusan usulan</small>
+          <strong>{selectedCase.approval}</strong>
+        </div>
+        <div>
+          <small>Hasil pemeriksaan ulang</small>
+          <strong>{selectedCase.retest}</strong>
+        </div>
+        <div className="full">
+          <small>Alasan temuan</small>
+          <p>{selectedCase.rejectionReason || "Belum tersedia"}</p>
+        </div>
+        <div className="full">
+          <small>Catatan keputusan</small>
+          <p>{selectedCase.reviewNote || "Belum tersedia"}</p>
+        </div>
+        <div className="full">
+          <small>Referensi hasil pelaksanaan</small>
+          <p style={{ whiteSpace: "pre-wrap" }}>
+            {selectedCase.executionReference || "Belum diserahkan"}
+          </p>
+        </div>
+        <div className="full">
+          <small>Referensi pemeriksaan ulang</small>
+          <p>{selectedCase.retestReference || "Belum tersedia"}</p>
+        </div>
+      </div>
+
+    </div>
+</section>}
         </div>
       )}
     </>

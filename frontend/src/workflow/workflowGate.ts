@@ -1,3 +1,5 @@
+import { evaluateProductionTest } from './model';
+import { calibrationReviewIsSuitable } from './calibrationReview';
 
 import type {
   OperationalWorkflowState,
@@ -62,6 +64,23 @@ function calibrationReady(
   );
 }
 
+/** A recorded decision remains in history but must not unlock dependent work
+ * when its prerequisites are no longer fulfilled. */
+export function effectiveProductionApproval(state: OperationalWorkflowState): boolean {
+  if (state.productionApproval !== 'Disetujui' || !state.productionApprovalBa.trim()) return false;
+  if (state.project.preparation.reportApproval !== 'Disetujui' || !calibrationReady(state)) return false;
+  if (!state.project.surveyTypes.length) return false;
+  if (state.project.surveyTypes.some(type =>
+    !calibrationReviewIsSuitable(state, type) ||
+    !evaluateProductionTest(type, state.productionTests[type]).passed
+  )) return false;
+  return !state.corrections.some(item =>
+    item.status !== 'Ditutup' && state.project.surveyTypes.includes(item.surveyType) &&
+    (item.calibrationFinding != null || item.source === 'Uji coba gagal' ||
+     item.blockedStage === 'Kalibrasi' || item.blockedStage === 'Validasi produksi')
+  );
+}
+
 export function evaluateStageGate(
   state: OperationalWorkflowState,
   stage: WorkflowStage,
@@ -74,8 +93,7 @@ export function evaluateStageGate(
 
   const calibrationApproved = calibrationReady(state);
 
-  const productionApproved =
-    state.productionApproval === 'Disetujui' && !(state.project.surveyTypes.includes('PCI') && state.productionTests.PCI.pciManual === false);
+  const productionApproved = effectiveProductionApproval(state);
 
   const dailyRecorded =
     state.project.surveyTypes.length > 0 &&
@@ -88,8 +106,11 @@ export function evaluateStageGate(
       ),
     );
 
-  const hasOpenCorrections = state.corrections.some(
-    correction => correction.status !== 'Ditutup',
+  const hasOpenPeriodicCorrections = state.corrections.some(
+    correction => correction.status !== 'Ditutup' &&
+      (correction.blockedStage === 'Verval 14 hari' ||
+       correction.source === 'Konsistensi gagal' ||
+       correction.source === 'Temuan proses verval'),
   );
 
   const periodicReviewed =
@@ -101,7 +122,7 @@ export function evaluateStageGate(
     state.cycle.userReview === 'Sesuai' &&
     Boolean(state.cycle.certificateId?.trim()) &&
     state.cycle.heldRecordIds.length === 0 &&
-    !hasOpenCorrections;
+    !hasOpenPeriodicCorrections;
 
   const submissionValid =
     state.submission.validationStatus === 'VALID';

@@ -1,0 +1,10 @@
+-- SUPERSEDED / DO NOT EXECUTE.
+-- This older label-only deployment script assumed trail_id bigint in the
+-- RETURNS TABLE contract. The approved local candidate now returns trail_id as
+-- decimal text to preserve PostgreSQL bigint precision in JSON/JavaScript.
+-- PostgreSQL cannot change a function's return type with CREATE OR REPLACE.
+-- After the read RPC has been reviewed and installed, prepare a separately
+-- reviewed migration that safely replaces the function and restores its exact
+-- owner/EXECUTE ACL. Do not use this file to deploy labels or change permissions.
+-- Current role action labels are already present in
+-- backend/proposals/admin-audit-trail-read-rpc.sql.

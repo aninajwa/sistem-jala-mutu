@@ -1,0 +1,45 @@
+{
+  "results": [
+    {
+      "role": "Penyedia Jasa / Ketua Tim",
+      "width": 1440,
+      "status": "pass"
+    },
+    {
+      "role": "Penyedia Jasa / Ketua Tim",
+      "width": 390,
+      "status": "pass"
+    },
+    {
+      "role": "PIC Balai / Pengguna Jasa",
+      "width": 1440,
+      "status": "pass"
+    },
+    {
+      "role": "PIC Balai / Pengguna Jasa",
+      "width": 390,
+      "status": "pass"
+    },
+    {
+      "role": "Direktorat / Pusat",
+      "width": 1440,
+      "status": "pass"
+    },
+    {
+      "role": "Direktorat / Pusat",
+      "width": 390,
+      "status": "pass"
+    },
+    {
+      "role": "Admin",
+      "width": 1440,
+      "status": "pass"
+    },
+    {
+      "role": "Admin",
+      "width": 390,
+      "status": "pass"
+    }
+  ],
+  "errors": []
+}

@@ -136,7 +136,7 @@ export function technicalFields(template:BaTemplate,state:OperationalWorkflowSta
     const choice=state.project.semester==='Semester I'?'Penerimaan Data Semester I':'Penerimaan Data Semester II dan menjadi salah satu syarat pembayaran tagihan PIHAK KEDUA untuk periode waktu yang sesuai.';
     if(field.choices?.includes(choice))value=choice;
    }
-   if(/^Nomor:/i.test(context)&&state.acceptance.finalAcceptanceBa)value=state.acceptance.finalAcceptanceBa;
+   if(/^Nomor:/i.test(context)&&state.acceptance.finalAcceptance&&state.acceptance.finalAcceptanceBa)value=state.acceptance.finalAcceptanceBa;
    if(/^Nama\s*:/i.test(context)&&/Perusahaan\s*:/i.test(context)&&field.match===2)value=state.project.contractor;
   }
 

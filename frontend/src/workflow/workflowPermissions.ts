@@ -6,6 +6,7 @@ export type WorkflowAction =
   | 'preparation.submit'
   | 'preparation.review'
   | 'calibration.edit'
+  | 'calibration.review'
   | 'production.edit'
   | 'production.submit'
   | 'production.review'
@@ -41,6 +42,7 @@ const PERMISSIONS: Record<
   'preparation.review': [BALAI],
 
   'calibration.edit': [PROVIDER],
+  'calibration.review': [BALAI],
 
   'production.edit': [PROVIDER],
   'production.submit': [PROVIDER],

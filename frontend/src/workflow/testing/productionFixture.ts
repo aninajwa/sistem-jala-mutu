@@ -1,4 +1,5 @@
 import type {OperationalWorkflowState} from '../model';
+import {CALIBRATION_REVIEW_SUBJECTS,calibrationSourceSignature} from '../calibrationReview';
 /** Isolated test input only. Never loaded into the operational package list. */
 export function withProductionReferences(state:OperationalWorkflowState){
  const common={road:state.project.routes[0]||'Ruas uji',staStart:'0+000',staEnd:'5+000',coordinates:'98.0, 3.0',methodEquipmentCompliant:true,dataProcessed:true,secondRaterChecked:true};
@@ -9,5 +10,19 @@ export function withProductionReferences(state:OperationalWorkflowState){
  Object.assign(state.productionTests.Drainase,{productionDetails:{...common,segmentId:'DR-UJI-1',channelType:'Terbuka',material:'Beton',widthM:'0.5',depthM:'0.5',conditionClass:'Baik',obstructionSediment:'Tidak ada',flowCondition:'Lancar',outletCondition:'Baik',inDrainReference:'INDRAIN-UJI',inspectionReference:'INSPEKSI-UJI'}});
  Object.assign(state.productionTests['Lalu Lintas'],{productionDetails:{...common,tcId:'TC-UJI-01',direction:'Normal',lane:'L1',method:'Manual',motorcycleCount:10,lightVehicleCount:10,busCount:0,truckCount:0,otherVehicleCount:0,recapReference:'REKAP-UJI'}});
  Object.assign(state.productionTests.RNI,{productionDetails:{...common,linkDescription:'LINK-UJI',lrpReference:'LRP-UJI',crossSectionInventory:'FORM-PENAMPANG',inventoryAttributes:'FORM-42-PARAMETER',gpsReference:'GNSS-UJI',rawDataReference:'RAW-UJI'}});
+ return state;
+}
+
+/**
+ * Isolated test input only: records the four PIC calibration-review sections as
+ * 'Sesuai' for every survey type in the package, bound to the current calibration
+ * material. Stage 2+ gates require this since the dirah-fe calibration review rule.
+ * Call it after calibrations/checklist are final; editing them later invalidates it.
+ */
+export function withSuitableCalibrationReviews(state:OperationalWorkflowState){
+ for(const type of state.project.surveyTypes){
+  const section={result:'Sesuai' as const,note:'Kalibrasi diperiksa Balai (fixture uji).',evidenceReference:`BA-KAL-${type}-UJI`,reviewedAt:state.simulationDate,reviewer:'PIC Balai / Pengguna Jasa' as const,sourceSignature:calibrationSourceSignature(state,type)};
+  state.calibrationReviews={...state.calibrationReviews,[type]:{...section,subject:'Alat dan personel',sections:Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject=>[subject,{...section}]))}};
+ }
  return state;
 }

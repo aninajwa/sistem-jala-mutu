@@ -93,7 +93,7 @@ export function getNextWorkflowAction(
   const role = state.role;
   const stage = derivePackageStage(state);
   const missing=workflowFormIssues(state).sort((a,b)=>PACKAGE_WORKFLOW_ITEMS.findIndex(item=>item.code===a.stage)-PACKAGE_WORKFLOW_ITEMS.findIndex(item=>item.code===b.stage))[0];
-  if(missing&&role!=='Admin'){const item=PACKAGE_WORKFLOW_ITEMS.find(item=>item.code===missing.stage);if(item)return {stage:item.code,selection:item.selection,title:'Periksa ulang kelengkapan formulir',detail:missing.message};}
+  if(missing&&role==='Penyedia Jasa / Ketua Tim'){const item=PACKAGE_WORKFLOW_ITEMS.find(item=>item.code===missing.stage);if(item)return {stage:item.code,selection:item.selection,title:'Periksa ulang kelengkapan formulir',detail:missing.message};}
 
   if (role === 'Penyedia Jasa / Ketua Tim') {
     return PROVIDER_ACTIONS[stage] ??
@@ -111,8 +111,7 @@ export function getNextWorkflowAction(
     }
 
     if (
-      state.productionApproval === 'Diajukan' ||
-      state.productionApproval === 'Perlu Revisi'
+      state.productionApproval === 'Diajukan'
     ) {
       return {
         stage: 'Tahap 2',
@@ -156,9 +155,7 @@ export function getNextWorkflowAction(
       stage,
       title: 'Pantau paket dan pemeriksaan yang menunggu review',
       detail: 'Buka tahap yang relevan untuk melihat progres serta hasil pemeriksaan.',
-      selection:
-        PROVIDER_ACTIONS[stage]?.selection ??
-        '/packages:Ringkasan Paket',
+      selection: '/packages:Ringkasan Paket',
     };
   }
 
@@ -176,7 +173,7 @@ export function getNextWorkflowAction(
     title: 'Pantau konfigurasi dan integritas sistem',
     detail:
       'Kelola referensi dan konfigurasi tanpa mengambil alih keputusan teknis.',
-    selection: '/audit:Peran & backup',
+    selection: '/audit:Pengguna',
   };
 }
 

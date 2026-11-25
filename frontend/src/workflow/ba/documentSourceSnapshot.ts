@@ -6,7 +6,7 @@ import type {BaIdentity} from './documentRepository';
 import {sourceDocument,sourceDocumentKey} from '../sourceDocumentModel';
 import {readLocal} from '../repository/localPersistence';
 export function documentSourceSnapshot(state:OperationalWorkflowState,identity:BaIdentity){
- const phase=identity.kind==='audit'?'audit':identity.kind==='bertahap'?'staged':identity.kind==='kalibrasi'?'calibration':identity.kind==='duaMingguan'?'periodic14':identity.kind==='internal'?'internal':identity.kind==='konsistensi'?'consistency':undefined;
+ const phase=identity.kind==='audit'?'audit':identity.kind==='bertahap'?'staged':identity.kind==='kalibrasi'?'calibration':identity.kind==='duaMingguan'?'periodic14':identity.kind==='internal'?'internal':identity.kind==='konsistensi'?'consistency':identity.kind==='penerimaan'?'acceptance':undefined;
  const document=phase?sourceDocument(identity.survey,phase,state.productionTests.PCI.pciManual!==false,identity.auditLevel):undefined;
  const scope=identity.kind==='audit'?`${identity.packageId}::audit-${identity.auditLevel}`:identity.packageId;
  const periodScope=identity.period===1?identity.packageId:`${identity.packageId}::period-${identity.period}`;

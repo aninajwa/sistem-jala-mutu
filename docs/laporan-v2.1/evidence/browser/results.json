@@ -1,0 +1,329 @@
+{
+  "browser": "156.0.8078.4",
+  "base": "http://jala-http.test:5184",
+  "baseline": false,
+  "results": [
+    {
+      "role": "Penyedia Jasa / Ketua Tim",
+      "width": 1440,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Penyedia Jasa / Ketua Tim",
+      "width": 768,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Penyedia Jasa / Ketua Tim",
+      "width": 390,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Penyedia Jasa / Ketua Tim",
+      "width": 360,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "PIC Balai / Pengguna Jasa",
+      "width": 1440,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "PIC Balai / Pengguna Jasa",
+      "width": 768,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "PIC Balai / Pengguna Jasa",
+      "width": 390,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "PIC Balai / Pengguna Jasa",
+      "width": 360,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Direktorat / Pusat",
+      "width": 1440,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Direktorat / Pusat",
+      "width": 768,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Direktorat / Pusat",
+      "width": 390,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Direktorat / Pusat",
+      "width": 360,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "checks": [
+        "role charts",
+        "tooltip hover/touch",
+        "empty state",
+        "filters preserved",
+        "search",
+        "pagination",
+        "CSV",
+        "internal table scroll",
+        "draft HTTP",
+        "permissions",
+        "no overflow"
+      ],
+      "status": "pass"
+    },
+    {
+      "role": "Admin",
+      "width": 1440,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "status": "pass"
+    },
+    {
+      "role": "Admin",
+      "width": 768,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "status": "pass"
+    },
+    {
+      "role": "Admin",
+      "width": 390,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "status": "pass"
+    },
+    {
+      "role": "Admin",
+      "width": 360,
+      "capabilities": {
+        "secure": false,
+        "randomUUID": "undefined",
+        "getRandomValues": "function"
+      },
+      "status": "pass"
+    },
+    {
+      "check": "four report types save/export with distinct identities; crypto absent safe; corrupt history retained; quota rejected",
+      "width": 360,
+      "status": "pass"
+    }
+  ],
+  "errors": []
+}
