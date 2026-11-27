@@ -17,14 +17,14 @@
 .v2-shell .content :is(.b-dashboard-header,.b-hero,.workspace-heading,.stage-action-context) {
   border-radius: 8px;
 }
-.v2-provider .content :is(.dr-metrics,.b-metrics) {
+.v2-provider .content :is(.dr-metrics,.b-metrics):not([aria-label="Empat KPI Penyedia"]) {
   gap: 1px;
   border: 1px solid var(--v2-line);
   background: var(--v2-line);
   border-radius: 8px;
   overflow: hidden;
 }
-.v2-provider .content :is(.dr-metric,.b-metric) {
+.v2-provider .content :is(.dr-metric,.b-metric):not([aria-label="Empat KPI Penyedia"] > .b-metric) {
   border: 0;
   border-radius: 0;
   box-shadow: none;
