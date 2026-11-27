@@ -5,22 +5,22 @@ import {correctionReviewer,correctionNextStep,correctionMutationError} from './c
 import {documentIdentityErrors,documentReviewContext} from './ba/documentContext09';
 import {documentActors} from './ba/documentWorkflow';
 import {documentInsights} from './documents/DocumentInsights09';
-import {BA_TEMPLATES} from './ba/docxEngine';
+import {BA_TEMPLATES} from './ba/baTemplateModel';
 import type {WorkflowRole,CorrectionCase} from './model';
 const roles:WorkflowRole[]=['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat','Admin'];
 function fixture(role:WorkflowRole=roles[0]){const s=createDemoWorkflow('verval-finding');s.role=role;return s;}
 function mutate(role:WorkflowRole,old:Partial<CorrectionCase>,patch:Partial<CorrectionCase>){const s=fixture(role);s.corrections=[{...s.corrections[0],...old}];return correctionMutationError(s,{...s,corrections:[{...s.corrections[0],...patch}]});}
 for(const [level,actor] of [roles[0],roles[1],roles[2]].entries()){
  test(`09 audit ${level+1}: hanya pemeriksa tingkat sumber melakukan retest`,()=>{
-  const old={blockedStage:`Audit tingkat ${level+1}`,status:'Dilaksanakan' as const,executionReference:'EXEC-09'};
+  const old={blockedStage:`Audit tingkat ${level+1}`,status:'Dilaksanakan' as const,approval:'Disetujui' as const,executionReference:'EXEC-09'};
   for(const role of roles){const error=mutate(role,old,{status:'Verifikasi Ulang',retest:'Lulus',retestReference:'RETEST-09'});assert.equal(!error,role===actor,error);}
  });
  test(`09 audit ${level+1}: gagal kembali ke Penyedia dengan alasan, bukan dead end`,()=>{
   const s=fixture(actor),c={...s.corrections[0],blockedStage:`Audit tingkat ${level+1}`};assert.equal(correctionReviewer(c),actor);
   const patch={status:'Terbuka' as const,approval:'Perlu Revisi' as const,retest:'Gagal' as const,retestReference:'R-09',retestFailureReason:'Hasil belum sesuai',verification:{surveyor:false,teamLeader:false,balai:false}};
-  assert.equal(mutate(actor,{...c,status:'Dilaksanakan',executionReference:'E-09'},patch),undefined);
+  assert.equal(mutate(actor,{...c,status:'Dilaksanakan',approval:'Disetujui',executionReference:'E-09'},patch),undefined);
   assert.equal(correctionNextStep({...c,...patch}).actor,roles[0]);
-  assert.ok(mutate(actor,{...c,status:'Dilaksanakan',executionReference:'E-09'},{...patch,retestFailureReason:''}));
+  assert.ok(mutate(actor,{...c,status:'Dilaksanakan',approval:'Disetujui',executionReference:'E-09'},{...patch,retestFailureReason:''}));
  });
 }
 test('09 penutupan tidak boleh melewati uji, mengubah bukti, atau menghapus kasus',()=>{
@@ -33,7 +33,9 @@ test('09 usulan perlu penanggung jawab, bukti, dan verifikasi internal; Admin ti
  const old={status:'Terbuka' as const,approval:'Draft' as const,rootCause:'Metode',evidence:'REF',owner:'Ketua Tim',fieldDataValid:'Tidak' as const,actionType:'Survei ulang sebagian ruas',proposedPlan:'Lakukan survei ulang dengan pembuktian sesuai temuan.',verification:{surveyor:true,teamLeader:true,balai:false}};
  assert.equal(mutate(roles[0],old,{status:'Menunggu Persetujuan',approval:'Diajukan'}),undefined);
  assert.ok(mutate(roles[0],{...old,owner:''},{status:'Menunggu Persetujuan',approval:'Diajukan'}));
- assert.ok(mutate(roles[3],old,{owner:'Admin'}));assert.equal(mutate(roles[0],{...old,status:'Verifikasi Ulang',retest:'Gagal'},{status:'Terbuka',approval:'Draft',owner:'PIC revisi'}),undefined);
+ assert.ok(mutate(roles[3],old,{owner:'Admin'}));const failed={...old,status:'Verifikasi Ulang' as const,retest:'Gagal' as const};
+ assert.ok(mutate(roles[0],failed,{status:'Terbuka',approval:'Draft',owner:'PIC revisi'}));
+ assert.equal(mutate(roles[0],failed,{status:'Terbuka',approval:'Draft',owner:'PIC revisi',verification:{surveyor:false,teamLeader:false,balai:false},verificationEvidence:{},retest:'Belum Diuji',retestReference:'',retestFailureReason:'',executionReference:'',executionResult:undefined}),undefined);
  assert.ok(mutate(roles[0],old,{verification:{surveyor:true,teamLeader:true,balai:true}}));
 });
 test('09 revisi Balai menyimpan alasan dan membuka kembali usulan',()=>{

@@ -17,7 +17,7 @@ test('closed corrections and H+0 reminders do not create a new gate blocker',()=
   const state=createDemoWorkflow('complete');
   const example=state.corrections[0];
   assert.ok(example);
-  state.corrections=[{...example,id:'CLOSED',status:'Ditutup'},{...example,id:'REMINDER',status:'Terbuka',source:'Notifikasi H+0: pengingat'}];
+  state.corrections=[{...example,id:'CLOSED',status:'Ditutup'},{...example,id:'REMINDER',status:'Terbuka',source:'Notifikasi H+0: pengingat'},{...example,id:'LEGACY',status:'Terbuka',source:'Pengingat H+0 terlewat'}];
   assert.deepEqual(pendingQualityCases(state),[]);
   for(const id of ['T2','T3','T4'])assert.ok(!termReadiness(state,id).some(message=>message.includes('Kasus tindakan perbaikan')),id);
 });

@@ -1,3 +1,4 @@
+import { correctionExecutionSummary } from "./correctionFormEngine";
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {createDemoWorkflow} from './demoScenario';
@@ -34,7 +35,8 @@ function approve(s:OperationalWorkflowState):OperationalWorkflowState {
   return transact(s,B,{status:'Disetujui',approval:'Disetujui'});
 }
 function execute(s:OperationalWorkflowState):OperationalWorkflowState {
-  return transact(s,P,{status:'Dilaksanakan',executionReference:'SRC-IRI-ULANG-001 | laporan dan bukti pelaksanaan'});
+  const c=s.corrections[0];
+  return transact(s,P,{status:'Dilaksanakan',executionReference:'SRC-IRI-ULANG-001 | laporan dan bukti pelaksanaan',executionResult:{date:s.simulationDate,summary:'Survei ulang',sourceReference:'SRC-IRI-ULANG-001',period:String(c.cyclePeriod??1),lane:'1 / A',equipment:'IRI-1',verificationReference:'CONS-001',actionFields:{coverage:c.stationing,newRecord:'SRC-IRI-ULANG-001'},evidenceKeys:[`${s.project.id}::correction::${c.id}::execution:documents:1`],evidenceNote:''}});
 }
 
 test('perjalanan lengkap: usulan → review Balai → pelaksanaan → uji ulang → penutupan',()=>{
@@ -80,7 +82,7 @@ test('uji ulang gagal: referensi dan alasan wajib; siklus koreksi terbuka kembal
   s=transact(s,B,{status:'Terbuka',approval:'Perlu Revisi',retest:'Gagal',retestReference:'BA-FAIL-001',retestFailureReason:'Ketidaksesuaian pada pengukuran ulang',verification:{surveyor:false,teamLeader:false,balai:false}});
   assert.equal(s.corrections[0].status,'Terbuka');
   blocked(s,P,{status:'Ditutup'});
-  s=transact(s,P,{rootCause:'Alat',verification:{surveyor:false,teamLeader:false,balai:false},approval:'Draft',retest:'Belum Diuji',retestReference:undefined,retestFailureReason:undefined,executionReference:undefined});
+  s=transact(s,P,{rootCause:'Alat',verification:{surveyor:false,teamLeader:false,balai:false},approval:'Draft',retest:'Belum Diuji',retestReference:undefined,retestFailureReason:undefined,executionReference:undefined,executionResult:undefined});
   s=transact(s,P,{verification:{surveyor:true,teamLeader:true,balai:false}});
   s=submit(s);
   assert.equal(s.corrections[0].approval,'Diajukan');
@@ -96,8 +98,27 @@ test('audit 3: hanya Direktorat boleh uji ulang; Admin dan Balai tidak mengganti
   assert.equal(s.corrections[0].status,'Verifikasi Ulang');
 });
 
-test('approval Balai ditolak bila pemeriksaan internal belum dilakukan',()=>{
+test('approval Balai untuk koreksi pemrosesan ditolak bila pemeriksaan internal belum dilakukan',()=>{
   let s=submit(start());
-  s={...s,corrections:[{...s.corrections[0],verification:{surveyor:false,teamLeader:false,balai:false}}]};
+  s={...s,corrections:[{...s.corrections[0],actionType:'Koreksi pemrosesan dengan bukti',verification:{surveyor:false,teamLeader:false,balai:false}}]};
   blocked(s,B,{status:'Disetujui',approval:'Disetujui',verification:{surveyor:false,teamLeader:false,balai:true}});
+});
+
+ test('hasil lulus terkunci sebelum penutupan dan tidak dapat diganti diam-diam',()=>{
+  let s=execute(approve(submit(start())));
+  blocked(s,B,{status:'Verifikasi Ulang',retest:'Lulus',retestReference:'BA-001',retestFailureReason:'Alasan gagal yang bertentangan'});
+  s=transact(s,B,{status:'Verifikasi Ulang',retest:'Lulus',retestReference:'BA-001'});
+  blocked(s,B,{retestReference:'BA-002'});
+  blocked(s,B,{status:'Terbuka',approval:'Perlu Revisi',retest:'Gagal',retestReference:'BA-002',retestFailureReason:'Keputusan lain',verification:{surveyor:false,teamLeader:false,balai:false}});
+  assert.equal(s.corrections[0].retestReference,'BA-001');
+  assert.equal(correctionMutationError({...s,role:B},applyClosedCorrection({...s,role:B},s.corrections[0])),undefined);
+});
+
+test('ringkasan hasil menggunakan label teknis yang dikenal tanpa path lampiran',()=>{
+ const s=execute(approve(submit(start()))),c=s.corrections[0];
+ const result=correctionExecutionSummary(c);
+ assert.ok(result.some(r=>r.label==='ID rekaman survei ulang' && r.value==='SRC-IRI-ULANG-001'));
+ assert.ok(result.some(r=>r.label==='Referensi lampiran tercatat' && r.value==='1'));
+ assert.ok(!JSON.stringify(result).includes('::correction::'));
+ assert.deepEqual(correctionExecutionSummary({...c,executionResult:undefined}),[]);
 });

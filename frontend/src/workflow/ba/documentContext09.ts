@@ -3,6 +3,7 @@ import type {BaIdentity} from './documentRepository';
 export function documentIdentityErrors(state:OperationalWorkflowState,id:BaIdentity){
  const periodic=['konsistensi','internal','duaMingguan'].includes(id.kind);
  const errors=[];
+ if(!['kalibrasi','konsistensi','internal','duaMingguan','bertahap','audit','penerimaan'].includes(id.kind))errors.push('Format BA tidak tersedia.');
  if(id.packageId!==state.project.id)errors.push('Identitas BA tidak sesuai paket aktif.');
  if(!state.project.surveyTypes.includes(id.survey as never))errors.push('Jenis survei BA berada di luar lingkup paket saat ini; arsip hanya dibaca.');
  if(![1,2,3].includes(id.auditLevel)||id.kind!=='audit'&&id.auditLevel!==1)errors.push('Tingkat audit BA tidak valid.');

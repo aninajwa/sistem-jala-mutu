@@ -118,7 +118,8 @@ export function AppTopbar({
           location !== "/verification" &&
           location !== "/compliance" &&
           location !== "/data-master" &&
-          location !== "/audit" && (
+          location !== "/audit" &&
+          location !== "/actions" && (
             <>
               <div className="filter-wrap">
                 <label>Balai:</label>

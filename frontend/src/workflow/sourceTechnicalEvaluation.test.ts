@@ -110,6 +110,8 @@ test('Tahap 5: audit Balai dapat dimulai dengan referensi penyerahan lokal tanpa
  assert.equal(auditReviewEligibility(handed,2,true).canStart,true);
  assert.equal(auditReviewEligibility(handed,3,true).canStart,false);
  handed.audits[1].status='Lulus';
+ assert.equal(auditReviewEligibility(handed,3,true).canStart,false);
+ handed.submission.validationStatus='VALID';
  assert.equal(auditReviewEligibility(handed,3,true).canStart,true);
  assert.equal(auditReviewEligibility(handed,3,false).canStart,false);
 });

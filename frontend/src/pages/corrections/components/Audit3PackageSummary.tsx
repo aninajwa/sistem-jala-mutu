@@ -49,6 +49,7 @@ export default function Audit3PackageSummary({ packages }: Props) {
   return (
     <section className="corr-panel">
       <h3>Monitoring Audit Tingkat 3 per Paket</h3>
+      <p className="corr-footnote">Ringkasan audit mengikuti filter paket dan Balai.</p>
 
       <div className="corr-audit-summary">
         <article>

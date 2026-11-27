@@ -37,7 +37,7 @@ export function RoleSidebar({
     const activeItem = navigation.find((item) => {
       if (item.path === "/packages") {
         return (
-          location === "/packages" || (!!activePackageId && isPackageWorkspace)
+          location === "/packages" || (!!activePackageId && isPackageWorkspace && location !== "/actions")
         );
       }
 
@@ -75,7 +75,7 @@ export function RoleSidebar({
         const Icon = item.icon;
 
         const packageActive =
-          item.path === "/packages" && !!activePackageId && isPackageWorkspace;
+          item.path === "/packages" && !!activePackageId && isPackageWorkspace && location !== "/actions";
 
         const active = location === item.path || packageActive;
 

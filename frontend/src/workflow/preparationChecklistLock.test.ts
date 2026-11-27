@@ -26,5 +26,6 @@ test('Semua checklist Tahap 0 menggunakan guard status, bukan sekadar pengecekan
   const src=readFileSync(fileURLToPath(new URL('./stages/Stage0PreparationWorkspace.tsx',import.meta.url)),'utf8');
   assert.match(src,/canEditPreparationChecklist\(state\.role,\s*prep\.reportApproval\)/);
   assert.equal((src.match(/!canEditChecklist\s*,/g)??[]).length,4);
-  assert.match(src,/Checklist persiapan dikunci/);
+  assert.match(src,/<Stage0StepForm locked=\{!canEditChecklist\}/);
+  assert.match(src,/!canEditChecklist && <div[^>]*role="status"/);
 });

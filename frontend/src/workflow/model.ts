@@ -1,3 +1,4 @@
+import { isAdministrativeReminder } from './correctionSourcePolicy';
 import { localPersistence } from './repository/localPersistence';
 import { productionFields, PRODUCTION_REFERENCE_CHECKS } from './surveyStandards';
 
@@ -280,9 +281,13 @@ export type AcceptanceTerm = {
 };
 
 export type CorrectionCase = {
+  /** Method captured from the failed production test; absent on legacy cases. */
+  originPciMethod?: "Manual" | "AI";
   /** Exact origin of a formal calibration finding; immutable after creation. */
   calibrationFinding?: { surveyType: SurveyType; subject: CalibrationReviewSubject; sourceSignature: string; reviewedAt: string };
   cyclePeriod?: number;
+  /** Referensi bukti pemeriksaan asal, berbeda dari bukti usulan/pelaksanaan. */
+  originReference?: string;
   id: string;
   source: string;
   blockedStage: string;
@@ -308,11 +313,14 @@ export type CorrectionCase = {
   linkedRecordId?: string;
   /** Referensi tindakan nyata pada sistem sumber / rekaman lapangan setelah disetujui. */
   executionReference?: string;
+  executionResult?: import("./correctionFormEngine").CorrectionExecution;
   /** Referensi hasil pemeriksaan ulang oleh Pengguna Jasa pada tahap sumber. */
   retestReference?: string;
   /** Alasan ketidaklulusan hasil uji ulang, ditulis oleh pemeriksa. */
   retestFailureReason?: string;
+  /** Legacy review checklist; not evidence of individual electronic approval. */
   verification?: { surveyor: boolean; teamLeader: boolean; balai: boolean };
+  verificationEvidence?: import("./correctionVerificationEvidence").CorrectionVerificationEvidenceMap;
   reviewNote?: string;
   ruleScenario?: string;
   ruleChecks?: Record<string,boolean>;
@@ -370,6 +378,7 @@ export type ReviewActivity = {
 };
 
 export type OperationalWorkflowState = {
+  correctionRevisionHistory?: import("./correctionRevisionHistory").CorrectionRevisionEntry[];
   reviewActivityHistory?: ReviewActivity[];
   balaiDecisionHistory?: Array<{stage:'Tahap 0'|'Tahap 2'|'Tahap 6'; recordedAt:string; actor:WorkflowRole; previousDecision:string; decision:string; previousNote:string; note:string; previousReference?:string; reference?:string}>;
   pciMethodDrafts?: Partial<Record<"manual" | "ai", ProductionTest>>;
@@ -1678,7 +1687,7 @@ export function notificationsFor(state: OperationalWorkflowState) {
       object: state.project.packageName,
     }]),
     ...state.acceptance.terms.filter(term => !term.complete).map(term => ({ id: `term-${term.id}`, title: `Termin ${term.id} (${term.percentage}%)`, due: term.dueDate, object: term.milestone })),
-    ...state.corrections.filter(item=>item.status!=='Ditutup'&&!item.source.startsWith('Notifikasi H+0')).map(item=>({id:`correction-${item.id}`,title:'Tindak lanjut kasus koreksi',due:item.dueDate,object:`${item.id} · ${item.owner}`})),
+    ...state.corrections.filter(item=>item.status!=='Ditutup'&&!isAdministrativeReminder(item.source)).map(item=>({id:`correction-${item.id}`,title:'Tindak lanjut kasus koreksi',due:item.dueDate,object:`${item.id} · ${item.owner}`})),
     ...(!state.acceptance.terms.find(term=>term.id==='T3')?.complete ? [
       ...(!state.submission||state.submission.validationStatus!=='VALID'?[{id:'semester-one-upload',title:'Upload Semester I (minggu ke-1 Juni)',due:'2027-06-07',object:state.project.packageName}]:[]),
       ...(!state.audits.every(a=>a.status==='Lulus')?[{id:'semester-one-objections',title:'Sanggah Semester I (minggu ke-2 Juni)',due:'2027-06-14',object:state.project.packageName}]:[]),

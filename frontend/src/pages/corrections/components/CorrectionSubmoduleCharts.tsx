@@ -1,7 +1,7 @@
 import {useState} from 'react';
 import type {WorkflowRole} from '../../../workflow/model';
 import type {CorrectionRow} from '../correctionViewModel';
-import {STATUS_LABEL,STATUS_ORDER,isOverdue,dueInSevenDays} from '../correctionViewModel';
+import {correctionStatusCounts,isOverdue,dueInSevenDays} from '../correctionViewModel';
 import './CorrectionSubmoduleCharts.css';
 
 type Datum={label:string;value:number};
@@ -12,7 +12,7 @@ const counts=(rows:CorrectionRow[],fn:(r:CorrectionRow)=>string):Datum[]=>{
  rows.forEach(r=>{const key=fn(r)?.trim()||'Belum ditentukan';map.set(key,(map.get(key)??0)+1)});
  return [...map].map(([label,value])=>({label,value})).sort((a,b)=>b.value-a.value).slice(0,8);
 };
-const status=(rows:CorrectionRow[])=>STATUS_ORDER.map(s=>({label:STATUS_LABEL[s],value:rows.filter(r=>r.status===s).length})).filter(x=>x.value>0);
+const status=correctionStatusCounts;
 function chartSpec(role:WorkflowRole,tab:string,rows:CorrectionRow[]):Spec[]{
  const priority=()=>counts(rows,r=>r.severity),actions=()=>counts(rows,r=>r.actionType),balai=()=>counts(rows,r=>r.balai);
  if(role==='Penyedia Jasa / Ketua Tim'){
@@ -33,7 +33,7 @@ function chartSpec(role:WorkflowRole,tab:string,rows:CorrectionRow[]):Spec[]{
   return [];
  }
  if(tab==='Monitoring Kasus')return [{title:'Status seluruh kasus',kind:'donut',data:status(rows)},{title:'Prioritas kasus',kind:'bars',data:priority()}];
- if(tab==='Notifikasi & SLA')return [{title:'Kondisi tenggat',kind:'donut',data:[{label:'Terlambat',value:rows.filter(isOverdue).length},{label:'≤ 7 hari',value:rows.filter(r=>!isOverdue(r)&&dueInSevenDays(r)).length}].filter(x=>x.value>0)}];
+ if(tab==='Pemantauan Tenggat')return [{title:'Kondisi tenggat',kind:'donut',data:[{label:'Terlambat',value:rows.filter(item => isOverdue(item)).length},{label:'≤ 7 hari',value:rows.filter(r=>!isOverdue(r)&&dueInSevenDays(r)).length}].filter(x=>x.value>0)}];
  return [];
 }
 function Card({spec}:{spec:Spec}){

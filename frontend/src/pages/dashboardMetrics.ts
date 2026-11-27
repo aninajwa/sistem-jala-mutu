@@ -57,7 +57,7 @@ export function aggregateDashboard(packages: Record<string, DashboardPackage>, r
     appendReviews('V&V bertahap',p.submission?.stagedReviews);
     const open = p.corrections.filter(c=>c.status!=='Ditutup').length;
     const closed = p.corrections.length-open;
-    const pending = p.corrections.filter(c=>c.status==='Menunggu Persetujuan'||c.status==='Verifikasi Ulang').length;
+    const pending = p.corrections.filter(c=>c.status==='Menunggu Persetujuan'||(['Dilaksanakan','Verifikasi Ulang'].includes(c.status)&&c.retest!=='Gagal')).length;
     const audits = p.audits.filter(a=>a && (a.status==='Dalam Review'||a.status==='Klarifikasi')).length;
     correctionsOpen+=open; correctionsClosed+=closed; awaitingReview+=pending; auditPending+=audits;
     if (p.acceptance.finalAcceptance && packageStatus(p) === 'Diterima') accepted++;

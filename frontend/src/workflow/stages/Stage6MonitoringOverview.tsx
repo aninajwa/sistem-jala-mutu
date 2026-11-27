@@ -56,7 +56,7 @@ export function Stage6MonitoringOverview({state,onNavigate,principalId}:{state:O
         <div><strong>Tingkat {i+1} · {['Penyedia','Balai','Direktorat'][i]}</strong><span>{audit.requiresReview?'Perlu pemeriksaan ulang':audit.status}</span></div>
         <span>{audit.sampleUnits?.length??audit.sampleIds.length} unit sampel</span>
       </div>)}</div>
-      <div className="stage6-details-grid"><div><span>Jenis survei dalam paket</span><strong>{project.surveyTypes.join(', ')||'Belum ditentukan'}</strong></div><div><span>Data SMD</span><strong>{state.submission.validationStatus||'Belum tercatat'}</strong></div></div>
+      <div className="stage6-details-grid"><div><span>Jenis survei dalam paket</span><strong>{project.surveyTypes.join(', ')||'Belum ditentukan'}</strong></div><div><span>Status validasi sistem sumber (paket)</span><strong>{state.submission.validationStatus==='Draft'?'Belum tersedia':state.submission.validationStatus||'Belum tercatat'}</strong></div></div>
       <div className="stage6-actions">{nav('Buka pemeriksaan Audit Tingkat 3','/verification:Audit tingkat 1–3')}</div>
     </div>}
     {directorate && activeTab==='notes' && <Stage6DirectorateNotes packageId={project.id} role={state.role} principalId={principalId}/>}

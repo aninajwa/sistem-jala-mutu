@@ -1,17 +1,20 @@
+import { correctionEvidenceDigest } from "../correctionSubmittedEvidence";
 
+import { RULE_CHECKS, RULE_NUMBERS, requiresNewScenarioEvidence } from "../correctionRules";
 import { useState } from "react";
 import { usePersistedDraft } from "../../hooks/usePersistedDraft";
 import type { CorrectionCase } from "../model";
 import { CorrectionEvidenceField } from "../CorrectionEvidenceField";
 import { attachmentRepository } from "../repository/attachmentRepository";
 import { readEvidenceLinks } from "../repository/evidenceLinks";
-import { resolveCorrectionForm, validateCorrectionExecutionFields } from "../correctionFormEngine";
+import { resolveCorrectionForm, validateCorrectionExecutionFields, correctionExecutionContext, correctionExecutionErrors, type CorrectionExecution } from "../correctionFormEngine";
 
 type Props = {
   correction: CorrectionCase;
   projectId: string;
+  attempt?: number;
   editable: boolean;
-  onSubmit: (reference: string) => void;
+  onSubmit: (reference: string, result: CorrectionExecution) => void;
 };
 
 type ExecutionDraft = {
@@ -28,6 +31,8 @@ type ExecutionDraft = {
   changeDetail: string;
   resultEvaluation: string;
   actionFields?: Record<string, string>;
+  scenarioChecks?: Record<string, boolean>;
+  scenarioNumbers?: Record<string, number>;
 };
 
 const emptyDraft: ExecutionDraft = {
@@ -49,6 +54,7 @@ const emptyDraft: ExecutionDraft = {
 export function CorrectionExecutionForm({
   correction,
   projectId,
+  attempt = 0,
   editable,
   onSubmit,
 }: Props) {
@@ -57,7 +63,7 @@ export function CorrectionExecutionForm({
   const [submitting, setSubmitting] = useState(false);
 
   const [storedDraft, setDraft] = usePersistedDraft<ExecutionDraft>(
-    `jala-correction-execution:${projectId}:${correction.id}`,
+    `jala-correction-execution:${projectId}:${correction.id}${attempt > 1 ? `:submission-${attempt}` : ""}`,
     {
       ...emptyDraft,
       location: correction.stationing || "",
@@ -82,8 +88,15 @@ export function CorrectionExecutionForm({
     setError("");
   };
 
-  const actionSpec = resolveCorrectionForm(correction);
-  const actionValues = draft.actionFields || {};
+  const actionValues = {...(draft.actionFields || {})};
+  if (correction.originPciMethod && correction.surveyType === "PCI") {
+    if (actionValues.pciMethod !== correction.originPciMethod) {
+      delete actionValues.pciRaterReference;
+      delete actionValues.pciDetectionReference;
+    }
+    actionValues.pciMethod = correction.originPciMethod;
+  }
+  const actionSpec = resolveCorrectionForm(correction, actionValues);
   // Reuse the action-specific evidence reference; avoid asking twice for the same ID.
   const actionReferenceKeys = ["newRecord", "comparison", "mediaReference", "trainingEvaluation", "calibrationEvidence", "postReplacement", "competence", "cleanedReference", "investigation"];
   const actionReference = actionReferenceKeys.map(key => actionValues[key]?.trim()).find(Boolean) || "";
@@ -91,6 +104,7 @@ export function CorrectionExecutionForm({
   const action = (correction.actionType || "").toLowerCase();
   const stage = `${correction.source} ${correction.blockedStage}`.toLowerCase();
 
+  const context = correctionExecutionContext(correction);
   const isResurvey = action.includes("survei ulang");
   const isPhoto = action.includes("foto") || action.includes("video");
   const isCalibration =
@@ -117,7 +131,7 @@ export function CorrectionExecutionForm({
     isResurvey || isPhoto || isCalibration || isProcessing;
 
   const evidenceScope =
-    `${projectId}::correction::${correction.id}::execution`;
+    `${projectId}::correction::${correction.id}::execution${attempt > 1 ? `::submission-${attempt}` : ""}`;
 
   const evidencePrefix = `${evidenceScope}:documents:`;
 
@@ -162,10 +176,9 @@ export function CorrectionExecutionForm({
       return;
     }
 
-    if (isResurvey &&
-        (!draft.lane.trim() || !(draft.equipment.trim() || actionValues.instrumentId?.trim()))) {
+    if ((context.lane && !draft.lane.trim()) || (context.equipment && !draft.equipment.trim())) {
       setError(
-        "Survei ulang memerlukan lajur/arah dan identitas alat."
+        "Lengkapi lajur/arah atau identitas alat sesuai jenis survei."
       );
       return;
     }
@@ -221,11 +234,12 @@ export function CorrectionExecutionForm({
           const record = await attachmentRepository
             .get(actualKey)
             .catch(() => null);
-          return Boolean(record);
+          return record ? await correctionEvidenceDigest(record.file) : null;
         })
       );
 
       const hasFile = availableFiles.some(Boolean);
+      if (availableFiles.some(digest => !digest)) { setError("Ada lampiran yang tidak dapat dibuka. Lepaskan atau unggah ulang sebelum mengajukan hasil."); return; }
 
       if (requiresFile && !hasFile) {
         setError(
@@ -266,10 +280,12 @@ export function CorrectionExecutionForm({
           : "",
         `Uraian pelaksanaan: ${draft.summary.trim()}`,
         ...actionSpec.fields.map(f => `${f.label}: ${actionValues[f.id] || ""}`),
+        ...(requiresNewScenarioEvidence(correction) ? (RULE_CHECKS[correction.ruleScenario || ""] || []).map(k => `${k}: ${draft.scenarioChecks?.[k] ? "Ya" : "Tidak"}`) : []),
+        ...(requiresNewScenarioEvidence(correction) ? (RULE_NUMBERS[correction.ruleScenario || ""] || []).map(k => `${k}: ${draft.scenarioNumbers?.[k] ?? ""}`) : []),
         draft.changeDetail.trim() ? `Lingkup atau rincian tindakan: ${draft.changeDetail.trim()}` : "",
         draft.resultEvaluation.trim() ? `Hasil evaluasi tindakan: ${draft.resultEvaluation.trim()}` : "",
         `Lampiran tersedia pada perangkat ini: ${hasFile ? "Ada" : "Tidak ada"}`,
-        "Bukti file belum dikirim atau diverifikasi pada server; rujukan dokumen sumber wajib dapat diperiksa oleh pemeriksa.",
+        
         draft.evidenceNote.trim()
           ? `Catatan bukti: ${draft.evidenceNote.trim()}`
           : "",
@@ -278,7 +294,16 @@ export function CorrectionExecutionForm({
         .join("\n");
 
       // Mencatat referensi pelaksanaan, bukan mengedit raw/cleaned SMD.
-      onSubmit(reference);
+      const result: CorrectionExecution = {
+        date: draft.date, summary: draft.summary, sourceReference: effectiveSourceReference,
+        period: draft.period, lane: context.lane ? draft.lane : "", equipment: context.equipment ? draft.equipment : "",
+        verificationReference: draft.verificationReference, actionFields: {...actionValues},
+        scenarioChecks: draft.scenarioChecks, scenarioNumbers: draft.scenarioNumbers,
+        evidenceKeys: keys.filter((_, i) => availableFiles[i]), evidenceDigests: Object.fromEntries(keys.flatMap((key, i): [string, string][] => { const digest = availableFiles[i]; return digest ? [[key, digest]] : []; })), evidenceNote: draft.evidenceNote,
+      };
+      const errors = correctionExecutionErrors(correction, result, projectId, attempt);
+      if (errors.length) { setError(errors.join(" · ")); return; }
+      onSubmit(reference, result);
     } catch (cause) {
       console.error("Gagal mencatat hasil pelaksanaan perbaikan", cause);
       setError("Hasil pelaksanaan belum tercatat. Periksa lampiran lokal dan coba kembali.");
@@ -300,7 +325,7 @@ export function CorrectionExecutionForm({
   return (
     <section className="wf-panel">
       <div className="wf-panel-head">
-        <h3>3. Pelaksanaan perbaikan</h3>
+        <h3>Pelaksanaan perbaikan</h3>
         <button
           type="button"
           className="wf-button"
@@ -320,8 +345,7 @@ export function CorrectionExecutionForm({
               {correction.road}
             </p>
             <p className="wf-note">
-              Pelaksanaan dicatat sebagai tindak lanjut QA/QC.
-              Hasil survei pada sistem sumber tidak diubah di sini.
+              Catat hasil aktual dan bukti pelaksanaan.
             </p>
           </div>
 
@@ -384,15 +408,34 @@ export function CorrectionExecutionForm({
                 <label htmlFor={`correction-action-${correction.id}-${item.id}`}>
                   {item.label}{item.required ? " *" : ""}
                 </label>
-                <input
+                {item.choices ? <select
+                  id={`correction-action-${correction.id}-${item.id}`}
+                  value={actionValues[item.id] || ""}
+                  disabled={!editable || !!item.fixedValue}
+                  onChange={event => {
+                    const next = {...actionValues, [item.id]: event.target.value};
+                    delete next.pciRaterReference;
+                    delete next.pciDetectionReference;
+                    setValue("actionFields", next);
+                  }}>
+                  <option value="">Pilih metode</option>
+                  {item.choices.map(choice => <option key={choice} value={choice}>{choice}</option>)}
+                </select> : <input
                   id={`correction-action-${correction.id}-${item.id}`}
                   value={actionValues[item.id] || ""}
                   disabled={!editable}
                   onChange={event => setValue("actionFields", {...actionValues, [item.id]: event.target.value})}
                   placeholder={item.label}
-                />
+                />}
               </div>
             ))}
+            {requiresNewScenarioEvidence(correction) && <div className="wf-field full">
+              <strong>Hasil pemeriksaan teknis</strong>
+              {(RULE_NUMBERS[correction.ruleScenario || ""] || []).map(k => <div className="wf-field" key={k}>
+                <label>{k}<input type="number" min="0" step={k.startsWith("Jumlah ") ? "1" : "any"} disabled={!editable} value={draft.scenarioNumbers?.[k] ?? ""} onChange={e => { const next = {...draft.scenarioNumbers}; if (e.target.value === "") delete next[k]; else next[k] = Number(e.target.value); setValue("scenarioNumbers", next); }}/></label>
+              </div>)}
+              {(RULE_CHECKS[correction.ruleScenario || ""] || []).map(k => <label key={k} className="wf-field"><span><input type="checkbox" disabled={!editable} checked={!!draft.scenarioChecks?.[k]} onChange={e => setValue("scenarioChecks", {...draft.scenarioChecks, [k]: e.target.checked})}/> {k}</span></label>)}
+            </div>}
             <div className="wf-field">
               <label htmlFor={`execution-date-${correction.id}`}>
                 Tanggal pelaksanaan *
@@ -426,7 +469,7 @@ export function CorrectionExecutionForm({
                 isResurvey || isPhoto
               )}
 
-            {isResurvey &&
+            {context.lane &&
               field(
                 "Lajur dan arah pengukuran",
                 "lane",
@@ -434,7 +477,7 @@ export function CorrectionExecutionForm({
                 "Lajur dan arah survei ulang"
               )}
 
-            {(isResurvey || (isCalibration && !actionSpec.fields.length)) &&
+            {(context.equipment || (isCalibration && !actionSpec.fields.length)) &&
               field(
                 "Identitas alat",
                 "equipment",
@@ -527,9 +570,10 @@ export function CorrectionExecutionForm({
 
             {error && (
               <div className="wf-field full">
-                <p role="alert" className="wf-note">
-                  {error}
-                </p>
+                <div role="alert" className="wf-callout danger">
+                  <strong>Hasil belum dapat dikirim</strong>
+                  <div>{error}</div>
+                </div>
               </div>
             )}
 
@@ -537,7 +581,7 @@ export function CorrectionExecutionForm({
               <div className="wf-field full">
                 <button
                   type="button"
-                  className="wf-button"
+                  className="wf-button primary"
                   disabled={submitting}
                   onClick={() => { void submit(); }}
                 >

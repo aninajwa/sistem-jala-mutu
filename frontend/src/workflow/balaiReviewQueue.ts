@@ -4,6 +4,7 @@ import {productionReviewBlockers} from './reviewReadiness';
 import {sourceInspectionStatus} from './repository/sourceChecklistRepository';
 import {stagedSurveyReviewMode} from './stagedReviewPolicy';
 import {PACKAGE_WORKFLOW_ITEMS} from './roleNavigation';
+import {auditReviewEligibility} from './auditReviewEligibility';
 
 export const REVIEW_STATUSES = ['Perlu Review','Menunggu','Perlu Perbaikan','Selesai/Lulus'] as const;
 export type ReviewStatus = typeof REVIEW_STATUSES[number];
@@ -40,11 +41,11 @@ export function balaiReviewQueue(packages:Record<string,OperationalWorkflowState
   const stagedFinding=Object.values(state.submission.stagedReviews??{}).some(review=>review?.decision==='Temuan');
   const prepared=!!state.submission.rawFileName.trim()&&!!state.submission.cleanedFileName.trim();
   add('Tahap 4','V&V bertahap sebelum audit',stagedFinding?'Perlu Perbaikan':stagedReady?'Selesai/Lulus':prepared?'Perlu Review':'Menunggu',stagedFinding?'Ada temuan review bertahap yang perlu diperbaiki.':stagedReady?'Pemeriksaan bertahap tercatat; penyerahan tetap mengikuti gerbang RNI/LRS dan Audit Tingkat 1.':prepared?'Data telah disiapkan; pemeriksaan bertahap Balai diperlukan.':'Menunggu data dan bukti penyerahan Penyedia.',Object.entries(state.submission.stagedReviews??{}).map(([type,review])=>`${type}: ${review?.note??''}`).join(' · '));
-  const a=state.audits[1], previous=state.audits[0];
-  const ready=previous.status==='Lulus'&&!previous.requiresReview&&state.submission.validationStatus==='VALID';
+  const a=state.audits[1];
+  const ready=auditReviewEligibility(state,2,true).canStart;
   const auditResubmitted=state.corrections.some(c=>c.source==='Penolakan audit tingkat 2'&&['Menunggu Persetujuan','Verifikasi Ulang'].includes(c.status));
   const status:ReviewStatus=auditResubmitted?'Perlu Review':a.status==='Ditolak'?'Perlu Perbaikan':a.requiresReview?'Perlu Review':a.status==='Lulus'&&ready?'Selesai/Lulus':a.status==='Klarifikasi'?'Menunggu':ready?'Perlu Review':'Menunggu';
-  add('Tahap 5','Audit tingkat 2',status,a.reviewReason||(auditResubmitted?'Tindak lanjut audit diajukan kepada Balai; periksa usulan atau hasil uji ulang.':a.status==='Ditolak'?'Temuan audit memerlukan perbaikan dan pemeriksaan ulang.':a.status==='Klarifikasi'?'Menunggu klarifikasi; catatan bukan otomatis temuan.':!ready?'Menunggu Audit Tingkat 1 lulus dan penyerahan VALID.':a.status==='Lulus'?'Audit Balai lulus.':'Audit Balai siap diperiksa.'),a.decisionNote,{auditLevel:2});
+  add('Tahap 5','Audit tingkat 2',status,a.reviewReason||(auditResubmitted?'Tindak lanjut audit diajukan kepada Balai; periksa usulan atau hasil uji ulang.':a.status==='Ditolak'?'Temuan audit memerlukan perbaikan dan pemeriksaan ulang.':a.status==='Klarifikasi'?'Menunggu klarifikasi; catatan bukan otomatis temuan.':!ready?'Menunggu Audit Tingkat 1 lulus dan referensi serah pemeriksaan atau status VALID sumber.':a.status==='Lulus'?'Audit Balai lulus.':'Audit Balai siap diperiksa.'),a.decisionNote,{auditLevel:2});
   const acceptance=state.acceptance;
   const auditsReady=state.audits.every(a=>a.status==='Lulus'&&!a.requiresReview);
   const criteriaReady=evaluateStageGate(state,'Tahap 6').blockers;

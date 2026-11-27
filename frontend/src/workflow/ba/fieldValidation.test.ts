@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {BA_TEMPLATES} from './docxEngine';import {baFieldErrors,baFieldRequiredForDraft} from './fieldValidation';
+import {BA_TEMPLATES} from './baTemplateModel';import {baFieldErrors,baFieldRequiredForDraft} from './fieldValidation';
 test('nomor resmi, NIP, tanda tangan dan field kondisional tidak dipaksa pada draft lokal',()=>{
  for(const template of BA_TEMPLATES){const fields=template.fields;
   for(const field of fields.filter(f=>/tanda tangan|nip|dibuat di/i.test(`${f.label} ${f.context}`)))assert.equal(baFieldRequiredForDraft(field,fields),false);

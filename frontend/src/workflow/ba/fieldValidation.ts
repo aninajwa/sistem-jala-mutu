@@ -1,4 +1,4 @@
-import {BA_TEMPLATES,fieldsFor,type BaKind,type TemplateField} from './docxEngine';
+import {BA_TEMPLATES,fieldsFor,type BaKind,type TemplateField} from './baTemplateModel';
 import type {SurveyType} from '../model';
 export function baValuePresent(value:string|undefined){const text=value?.trim()??'';return !!text&&!/^(?:\[?BELUM DIISI\]?|[._]{3,})$/i.test(text);}
 const conditional=/\b(bila|jika|apabila)\b.*\b(ada|dilakukan|diperlukan|digunakan|berlaku)|\bopsional\b/i;

@@ -1,3 +1,4 @@
+import {isAuditRejectionCascade} from "./access/auditRejectionCascade";
 import { submitPeriodicResults } from './periodicSubmission';
 import {isBalaiVervalCascade,isBalaiPeriodDecision} from './access/balaiVervalCascade';
 import {balaiDecisionError} from './balaiDecisionPolicy';
@@ -14,6 +15,7 @@ export function workflowMutationError(
   after: OperationalWorkflowState,
   selection: string,
 ): string | undefined {
+  if (before.submission.validationStatus !== after.submission.validationStatus && after.submission.validationStatus === 'VALID') return 'Status VALID hanya berasal dari sistem sumber; perubahan lokal ditolak.';
   const decisionError = balaiDecisionError(before,after);
   if(decisionError)return decisionError;
   const role = before.role;
@@ -22,6 +24,7 @@ export function workflowMutationError(
   if (selection === "/audit:Peran & backup")
     return allow("administration.manage") ? undefined : denied;
   if (role === "Admin") return denied;
+  if (isAuditRejectionCascade(before,after)) return undefined;
   if (selection === "/verification:Verval 14 hari") {
     const submission = submitPeriodicResults(before);
     if (submission !== before && !changed(submission, after)) return undefined;

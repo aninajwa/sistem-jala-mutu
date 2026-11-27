@@ -2,7 +2,6 @@ import { FilterPanel } from "../../design/b/FilterPanel";
 import {
   WorkspaceHeading,
   MetricTile,
-  StatePill,
 } from "../../design/b/Patterns";
 import { correctionNextStep } from "../../workflow/checkpoint09Corrections";
 
@@ -11,8 +10,6 @@ import {
   CheckCircle2,
   ClipboardList,
   Clock3,
-  FileText,
-  FolderOpen,
   Search,
   ShieldCheck,
 } from "lucide-react";
@@ -22,19 +19,17 @@ import {
   correctionDisplayStatus,
   providerCorrectionAction,
   sortProviderCorrections,
-  STATUS_LABEL,
-  STATUS_ORDER,
+  filterCorrectionRows,
   ROLE_TABS,
   collectCorrections,
   correctionMetrics,
-  matchesRoleTab,
+  correctionTabRows,
+  correctionFilterCount,
   isOverdue,
   dueInSevenDays,
 } from "./correctionViewModel";
 import "./corrections.css";
 import CorrectionSubmodule from "./components/CorrectionSubmodule";
-import CorrectionSubmoduleCharts from "./components/CorrectionSubmoduleCharts";
-import Audit3PackageSummary from "./components/Audit3PackageSummary";
 
 type Metric = ReturnType<typeof correctionMetrics>[number];
 
@@ -47,13 +42,14 @@ function SummaryCard({ item, index }: { item: Metric; index: number }) {
       icon={Icon}
       label={item.label}
       value={item.value}
-      note="Kasus dalam cakupan akses"
-      tone={item.tone === "amber" ? "amber" : "teal"}
+      tone={item.tone === "purple" ? "violet" : item.tone === "red" ? "amber" : item.tone === "green" ? "teal" : item.tone}
     />
   );
 }
 
-function ProviderCaseQueue({ rows, tab, onOpen }: {
+function ProviderCaseQueue({ rows, tab, onOpen, filtered, onReset }: {
+  filtered: boolean;
+  onReset: () => void;
   rows: CorrectionRow[];
   tab: string;
   onOpen: (packageId: string, correctionId: string) => void;
@@ -64,7 +60,7 @@ function ProviderCaseQueue({ rows, tab, onOpen }: {
       : tab === "Riwayat"
         ? "Belum ada kasus yang ditutup dalam pilihan ini."
         : "Tidak ada kasus yang memerlukan tindakan Anda pada pilihan ini.";
-    return <p className="wf-empty" role="status">{empty}</p>;
+    return <div className="wf-empty"><p role="status">{filtered ? "Tidak ada kasus yang cocok dengan filter." : empty}</p>{filtered && <button type="button" className="wf-button" onClick={onReset}>Hapus filter</button>}</div>;
   }
 
   return <ul className="provider-case-queue" aria-label={`Kasus ${tab}`}>
@@ -103,7 +99,7 @@ function ProviderCaseQueue({ rows, tab, onOpen }: {
             <time dateTime={item.dueDate} className={isOverdue(item) ? "corr-late" : ""}>
               Tenggat {item.dueDate}
             </time>}
-          <button type="button" className="wf-button" onClick={() => onOpen(item.packageId, item.id)}>
+          <button type="button" className="wf-button" aria-label={`${action.label} ${item.id} — ${item.packageName}`} onClick={() => onOpen(item.packageId, item.id)}>
             {action.label}
           </button>
         </div>
@@ -112,99 +108,11 @@ function ProviderCaseQueue({ rows, tab, onOpen }: {
   </ul>;
 }
 
-function CaseDetail({
-  item,
-  role,
-  onOpenCorrection,
-}: {
-  item: CorrectionRow | undefined;
-  role: CorrectionPageProps["workflow"]["role"];
-  onOpenCorrection: (packageId: string, correctionId: string) => void;
-}) {
-  if (!item) {
-    return (
-      <aside className="corr-panel corr-detail">
-        <h3>Ringkasan Kasus Terpilih</h3>
-        <div className="corr-empty-detail">
-          <FolderOpen size={28} />
-          <strong>Belum ada kasus dipilih</strong>
-          <p>Pilih temuan untuk melihat tindakan dan paket terkait.</p>
-        </div>
-      </aside>
-    );
-  }
-
-  const actionLabel =
-    role === "Penyedia Jasa / Ketua Tim"
-      ? item.status === "Ditutup"
-        ? "Lihat Riwayat Koreksi"
-        : item.status === "Menunggu Persetujuan"
-          ? "Lihat Status Usulan"
-          : "Lengkapi Tindak Lanjut"
-      : role === "PIC Balai / Pengguna Jasa"
-        ? "Periksa Kasus & Bukti"
-        : role === "Direktorat / Pusat"
-          ? "Lihat Kasus & Riwayat"
-          : "Lihat Detail Kasus";
-
-  const next = correctionNextStep(item);
-  return (
-    <aside className="corr-panel corr-detail b-case-inspector">
-      <div className="b-case-inspector-head">
-        <FileText size={22} />
-        <span>RINCIAN TEMUAN</span>
-      </div>
-      <div className="b-case-inspector-body">
-        <small>{item.packageName}</small>
-        <h3>{item.id}</h3>
-        <StatePill tone={item.status === "Ditutup" ? "teal" : "amber"}>
-          {correctionDisplayStatus(item)}
-        </StatePill>
-        <p className="b-case-reason">
-          {item.rejectionReason || "Uraian temuan belum tersedia."}
-        </p>
-        <dl className="b-case-dl">
-          <div>
-            <dt>Sumber temuan</dt>
-            <dd>{item.source}</dd>
-          </div>
-          <div>
-            <dt>Pemilik tindakan</dt>
-            <dd>{item.owner || "Belum ditentukan"}</dd>
-          </div>
-          <div>
-            <dt>Langkah berikutnya</dt>
-            <dd>
-              {next.actor} · {next.label}
-            </dd>
-          </div>
-          <div>
-            <dt>Jenis tindakan</dt>
-            <dd>{item.actionType || "Belum ditetapkan"}</dd>
-          </div>
-          <div>
-            <dt>Tenggat</dt>
-            <dd>{item.dueDate || "Belum ditentukan"}</dd>
-          </div>
-          <div>
-            <dt>Referensi bukti</dt>
-            <dd>{item.evidence || "Belum tersedia"}</dd>
-          </div>
-        </dl>
-        <button
-          type="button"
-          className="corr-primary"
-          onClick={() => onOpenCorrection(item.packageId, item.id)}
-        >
-          <FolderOpen size={16} />
-          {actionLabel}
-        </button>
-      </div>
-    </aside>
-  );
+export default function CorrectionDashboard(p: CorrectionPageProps) {
+  return <CorrectionDashboardContent key={`${p.workflow.role}:${p.activeTab}`} {...p} />;
 }
 
-export default function CorrectionDashboard(p: CorrectionPageProps) {
+function CorrectionDashboardContent(p: CorrectionPageProps) {
   const role = p.workflow.role;
   const tabs = ROLE_TABS[role];
   const currentTab = tabs.includes(p.activeTab) ? p.activeTab : tabs[0];
@@ -219,41 +127,21 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
   const [surveyFilter, setSurveyFilter] = useState("");
   const [priorityFilter, setPriorityFilter] = useState("");
   const [statusFilter, setStatusFilter] = useState("");
-  const [selectedKey, setSelectedKey] = useState("");
+  const [balaiFilter, setBalaiFilter] = useState("");
 
-  const packageOptions = [
-    ...new Map(rows.map((r) => [r.packageId, r.packageName])).entries(),
-  ];
-  const surveyOptions = [
-    "IRI",
-    "PCI",
-    "RNI",
-    "Lendutan",
-    "Jembatan",
-    "Drainase",
-    "Lereng",
-    "Lalu Lintas",
-  ];
+  const { available, visible: filtered } = correctionTabRows(rows, role, currentTab, { packageId: packageFilter, survey: surveyFilter, priority: priorityFilter, status: statusFilter, balai: balaiFilter, query });
+  const activeCount = correctionFilterCount({ packageId: packageFilter, survey: surveyFilter, priority: priorityFilter, status: statusFilter, balai: balaiFilter, query });
+  const resetFilters = () => {
+    setPackageFilter(""); setSurveyFilter(""); setPriorityFilter("");
+    setStatusFilter(""); setBalaiFilter(""); setQuery("");
+  };
+  const packageOptions = Object.entries(p.packages).map(([id, state]) => [id, state.project.packageName || id]);
+  const surveyOptions = [...new Set(available.map(r => r.surveyType))].sort();
 
-  const filtered = rows.filter((item) => {
-    if (!matchesRoleTab(item, role, currentTab)) return false;
-    if (packageFilter && item.packageId !== packageFilter) return false;
-    if (surveyFilter && item.surveyType !== surveyFilter) return false;
-    if (priorityFilter && item.severity !== priorityFilter) return false;
-    if (statusFilter && item.status !== statusFilter) return false;
-    return [
-      item.id,
-      item.packageName,
-      item.road,
-      item.source,
-      item.rejectionReason,
-      item.actionType,
-      item.owner,
-    ]
-      .join(" ")
-      .toLowerCase()
-      .includes(query.toLowerCase());
-  });
+  const statusOptions = [...new Set(available.map(correctionDisplayStatus))];
+  const scopedRows = filterCorrectionRows(rows, { packageId: packageFilter, survey: surveyFilter,
+    priority: priorityFilter, status: statusFilter, balai: balaiFilter, query });
+
 
   const overviewTab = [
     "Tugas Saya",
@@ -261,12 +149,8 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
     "Monitoring Kasus",
     "Tindak Lanjut Paket",
   ].includes(currentTab);
-  const hasCaseMetrics = currentTab !== "Data Referensi";
-  const selected = filtered.find((r) => r.key === selectedKey);
-  const metrics = useMemo(
-    () => correctionMetrics(filtered, role),
-    [filtered, role],
-  );
+
+  const metrics = correctionMetrics(scopedRows, role);
 
   const compactMetrics = overviewTab
     ? metrics
@@ -282,7 +166,7 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
             }
           : {
               label: "Mendekati tenggat",
-              value: filtered.filter(dueInSevenDays).length,
+              value: filtered.filter(item => dueInSevenDays(item)).length,
               tone: "amber",
             },
         currentTab === "Riwayat"
@@ -293,7 +177,7 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
             }
           : {
               label: "Melewati tenggat",
-              value: filtered.filter(isOverdue).length,
+              value: filtered.filter(item => isOverdue(item)).length,
               tone: "purple",
             },
       ];
@@ -309,8 +193,6 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
       "Monitoring kasus, status tindak lanjut, dan ketepatan penyelesaian.",
   };
 
-  const tableTitle =
-    currentTab === "Tugas Saya" ? "Daftar Tindak Lanjut Saya" : currentTab;
   const tabDescriptions: Record<string, string> = {
     "Tugas Saya": "Kerjakan temuan terbuka dan lengkapi bukti pada paket Anda.",
     "Menunggu Verifikasi":
@@ -322,16 +204,15 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
       "Pantau status dan prioritas tindak lanjut per paket dalam kewenangan Balai.",
     "Verifikasi Ulang":
       role === "Direktorat / Pusat"
-        ? "Pantau pemeriksaan ulang lintas Balai tanpa mengambil keputusan Balai."
+        ? "Periksa hasil tindak lanjut Audit Tingkat 3."
         : "Periksa hasil dan bukti uji ulang yang diajukan Penyedia.",
     "Temuan Lintas Paket":
       "Lihat sebaran temuan lintas Balai dan paket yang memerlukan perhatian.",
-    "Audit Tingkat 3": "Telusuri temuan yang terkait audit pusat pada Tahap 5.",
+    "Tindak Lanjut Audit 3": "Pantau tindak lanjut Audit Tingkat 3 sebelum pemeriksaan hasil.",
     "Monitoring Kasus":
       "Pantau status kasus, tanggung jawab, dan tenggat tanpa mengubah keputusan.",
-    "Notifikasi & SLA": "Fokus kasus terlambat dan mendekati tenggat.",
-    "Data Referensi":
-      "Lihat kategori tindakan dan sumber temuan yang benar-benar tercatat.",
+    "Pemantauan Tenggat": "Fokus kasus terlambat dan mendekati tenggat.",
+    
   };
 
   return (
@@ -340,37 +221,15 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
         eyebrow="TINDAKAN PERBAIKAN"
         title={currentTab}
         description={tabDescriptions[currentTab] ?? headingByRole[role]}
+        action={<details className="corr-mode-local"><summary>Mode lokal</summary><p>Data dan lampiran tersimpan di perangkat ini, belum dikirim ke server atau pemeriksa lain.</p></details>}
       />
-      {role !== "Penyedia Jasa / Ketua Tim" && (
-      <nav className="b-view-tabs" aria-label="Kategori Tindakan Perbaikan">
-        {tabs.map((tab) => (
-          <button
-            key={tab}
-            aria-current={currentTab === tab ? "page" : undefined}
-            onClick={() => {
-              p.setActiveTab(tab);
-              setSelectedKey("");
-            }}
-          >
-            {tab}
-          </button>
-        ))}
-      </nav>
-      )}
-      {currentTab !== "Data Referensi" && (
+
+      {(
         <FilterPanel
           title="Filter kasus"
-          activeCount={
-            [packageFilter, surveyFilter, priorityFilter, statusFilter].filter(
-              Boolean,
-            ).length
-          }
-          onReset={() => {
-            setPackageFilter("");
-            setSurveyFilter("");
-            setPriorityFilter("");
-            setStatusFilter("");
-          }}
+          initiallyOpen={false}
+          activeCount={activeCount}
+          onReset={resetFilters}
         >
           <div className="corr-filters">
             <label>
@@ -420,24 +279,37 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
                 onChange={(e) => setStatusFilter(e.target.value)}
               >
                 <option value="">Semua status</option>
-                {STATUS_ORDER.map((s) => (
+                {statusOptions.map((s) => (
                   <option value={s} key={s}>
-                    {STATUS_LABEL[s]}
+                    {s}
                   </option>
                 ))}
               </select>
             </label>
+            {(role === "Direktorat / Pusat" || role === "Admin") && <label>Balai
+              <select value={balaiFilter} onChange={e=>setBalaiFilter(e.target.value)}>
+                <option value="">Semua Balai</option>
+                {[...new Set(Object.values(p.packages).map(state=>state.project.balai || "Belum ditentukan"))].sort().map(b=><option key={b}>{b}</option>)}
+              </select>
+            </label>}
           </div>
         </FilterPanel>
       )}
 
       {role === "Penyedia Jasa / Ketua Tim" ? (
-        <section aria-label="Daftar kasus">
-          <label className="corr-search">Cari kasus<input type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID, ruas, paket atau temuan" /></label>
-          <ProviderCaseQueue rows={filtered} tab={currentTab} onOpen={p.onOpenCorrection} />
+        <section aria-label="Daftar kasus" className="provider-correction-worklist">
+          <div className="corr-metrics">{(currentTab === "Tugas Saya" ? [
+            { label: "Tugas pada halaman", value: filtered.length, tone: "teal" },
+            { label: "Perlu revisi", value: filtered.filter(r => r.approval === "Perlu Revisi" || r.retest === "Gagal").length, tone: "amber" },
+            { label: "Siap dilaksanakan", value: filtered.filter(r => r.status === "Disetujui").length, tone: "teal" },
+            { label: "Melewati tenggat", value: filtered.filter(item => isOverdue(item)).length, tone: "amber" },
+          ] : compactMetrics).map((item,index) => <SummaryCard key={item.label} item={item} index={index} />)}</div>
+          <label className="corr-search provider-case-search"><Search size={16}/><span className="sr-only">Cari kasus</span><input aria-label="Cari kasus" type="search" value={query} onChange={(event) => setQuery(event.target.value)} placeholder="ID, ruas, paket atau temuan" /></label>
+          <ProviderCaseQueue rows={filtered} tab={currentTab} onOpen={p.onOpenCorrection} filtered={activeCount > 0} onReset={resetFilters} />
         </section>
       ) : <>
-      {hasCaseMetrics && (
+      {overviewTab && <h2 className="corr-metric-scope">Ringkasan seluruh kasus sesuai filter</h2>}
+      {(
         <div className="corr-metrics">
           {compactMetrics.map((item, index) => (
             <SummaryCard key={item.label} item={item} index={index} />
@@ -445,193 +317,14 @@ export default function CorrectionDashboard(p: CorrectionPageProps) {
         </div>
       )}
 
-      {role === "Direktorat / Pusat" && currentTab === "Audit Tingkat 3" && (
-        <Audit3PackageSummary
-          packages={Object.fromEntries(
-            Object.entries(p.packages).filter(
-              ([id]) => !packageFilter || id === packageFilter,
-            ),
-          )}
+      <div className="corr-main-grid corr-main-grid-full">
+        <CorrectionSubmodule
+          role={role} tab={currentTab} rows={filtered} query={query}
+          onQuery={setQuery}
+          hasFilters={activeCount > 0} onReset={resetFilters}
+          onOpen={p.onOpenCorrection}
         />
-      )}
-
-      <details className="ui09-case-charts">
-        <summary>Grafik temuan & tindak lanjut</summary>
-        <CorrectionSubmoduleCharts
-          role={role}
-          tab={currentTab}
-          rows={filtered}
-        />
-      </details>
-
-      {!overviewTab ? (
-        <>
-          <div
-            className={
-              currentTab === "Data Referensi"
-                ? "corr-reference-layout"
-                : "corr-main-grid"
-            }
-            style={
-              currentTab === "Data Referensi"
-                ? { display: "block", width: "100%" }
-                : undefined
-            }
-          >
-            <CorrectionSubmodule
-              role={role}
-              tab={currentTab}
-              rows={filtered}
-              selectedKey={selectedKey}
-              onSelect={setSelectedKey}
-              onOpen={p.onOpenCorrection}
-            />
-
-            {currentTab !== "Data Referensi" && (
-              <CaseDetail
-                item={selected}
-                role={role}
-                onOpenCorrection={p.onOpenCorrection}
-              />
-            )}
-          </div>
-        </>
-      ) : (
-        <div className="corr-main-grid">
-          <section className="corr-panel corr-list">
-            <div className="corr-list-header">
-              <h3>
-                {tableTitle} ({filtered.length})
-              </h3>
-              <div className="corr-search">
-                <Search size={15} />
-                <input
-                  value={query}
-                  onChange={(e) => setQuery(e.target.value)}
-                  placeholder="Cari temuan, paket, atau ruas..."
-                />
-              </div>
-            </div>
-
-            <div className="corr-table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th>ID Temuan</th>
-                    <th>Paket / Ruas</th>
-                    <th>Sumber</th>
-                    <th>Jenis Temuan</th>
-                    <th>Prioritas</th>
-                    <th>Status</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((item) => (
-                    <tr
-                      key={item.key}
-                      className={selected?.key === item.key ? "selected" : ""}
-                      onClick={() =>
-                        setSelectedKey((current) =>
-                          current === item.key ? "" : item.key,
-                        )
-                      }
-                      style={{ cursor: "pointer" }}
-                      aria-selected={selected?.key === item.key}
-                    >
-                      <td data-label="ID temuan">
-                        <strong>{item.id}</strong>
-                      </td>
-
-                      <td data-label="Paket / ruas">
-                        <strong>{item.packageName}</strong>
-                        <small>{item.road}</small>
-                      </td>
-
-                      <td data-label="Sumber">
-                        <span className="corr-source-tag">{item.source}</span>
-                      </td>
-
-                      <td data-label="Jenis temuan">{item.rejectionReason}</td>
-
-                      <td data-label="Prioritas">
-                        <span className={`corr-severity sev-${item.severity}`}>
-                          {item.severity}
-                        </span>
-                      </td>
-
-                      <td data-label="Status">
-                        <span className="corr-status">
-                          {correctionDisplayStatus(item)}
-                        </span>
-                        {isOverdue(item) && (
-                          <small className="corr-late">Melewati tenggat</small>
-                        )}
-                      </td>
-
-                      <td data-label="Aksi">
-                        <div className="corr-row-actions">
-                          <button
-                            type="button"
-                            className="corr-preview-button"
-                            onClick={(event) => {
-                              event.stopPropagation();
-                              setSelectedKey((old) =>
-                                old === item.key ? "" : item.key,
-                              );
-                            }}
-                          >
-                            {selectedKey === item.key ? "Batal pilih" : "Pilih"}
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-              {filtered.length === 0 && (
-                <div className="corr-table-empty">
-                  <CheckCircle2 size={25} />
-                  <strong>
-                    {rows.length === 0
-                      ? "Belum ada kasus koreksi tercatat"
-                      : "Tidak ada kasus pada filter ini"}
-                  </strong>
-                  <span>
-                    {rows.length === 0
-                      ? "Kasus akan muncul dari workflow paket yang menjadi kewenangan Anda."
-                      : "Ubah filter untuk melihat kasus lain."}
-                  </span>
-                </div>
-              )}
-            </div>
-          </section>
-
-          <CaseDetail
-            item={selected}
-            role={role}
-            onOpenCorrection={p.onOpenCorrection}
-          />
-        </div>
-      )}
-      {role === "Direktorat / Pusat" && (
-        <p className="corr-footnote">
-          Pemeriksaan Audit Tingkat 3 dan keputusan resminya tetap dilakukan
-          melalui Tahap 5 pada paket terkait.
-        </p>
-      )}
-      {role === "Admin" && (
-        <p className="corr-footnote">
-          Admin hanya memantau. Persetujuan, verifikasi, dan penutupan teknis
-          dilakukan oleh peran yang berwenang.
-        </p>
-      )}
-      {role === "PIC Balai / Pengguna Jasa" && (
-        <p className="corr-footnote">
-          Persetujuan usulan dan penutupan kasus memerlukan pemeriksaan serta
-          bukti yang memenuhi ketentuan workflow.
-        </p>
-      )}
+      </div>
       </>}
     </div>
   );

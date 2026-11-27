@@ -313,6 +313,7 @@ export function Select({
   id,
   disabled = false,
   disabledOptions = {},
+  placeholder,
 }: {
   value: string;
   onChange: (v: string) => void;
@@ -320,6 +321,7 @@ export function Select({
   id: string;
   disabled?: boolean;
   disabledOptions?:Record<string,string>;
+  placeholder?: string;
 }) {
   return (
     <select
@@ -331,7 +333,7 @@ export function Select({
       {!options.includes(value)&&<option value={value} disabled>{options.length?'Nilai tersimpan perlu ditinjau':'Belum ada pilihan tersedia'}</option>}
       {options.map((o) => (
         <option key={o} value={o} disabled={!!disabledOptions[o]}>
-          {o==='Sinkronisasi sistem sumber'?'Data lokal tersimpan (API belum tersambung)':o==='Input manual fallback'?'Pencatatan manual':o}{disabledOptions[o]?` · ${disabledOptions[o]}`:''}
+          {o==='' && placeholder ? placeholder : o==='Sinkronisasi sistem sumber'?'Data lokal tersimpan (API belum tersambung)':o==='Input manual fallback'?'Pencatatan manual':o}{disabledOptions[o]?` · ${disabledOptions[o]}`:''}
         </option>
       ))}
     </select>

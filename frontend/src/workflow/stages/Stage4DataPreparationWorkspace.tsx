@@ -6,7 +6,6 @@ import {RoleWorkSection} from '../RoleWorkSection';
 import {stagedFallbackReviewReady,stagedSurveyReviewMode} from '../stagedReviewPolicy';
 import {
   Archive,
-  ArrowRight,
   BookOpen,
   Check,
   ClipboardCheck,
@@ -148,9 +147,6 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     c.blockedStage = "Gerbang RNI/LRS";
     c.returnStage = "Gerbang RNI/LRS";
     c.surveyType = surveyType;
-    c.originalValue =
-      state.dailyRecords.find((record) => record.surveyType === surveyType)
-        ?.rawValue || "Belum ada nilai sumber tertaut";
     c.rejectionReason =
       lrs.checks
         .filter((check) => !check.pass)
@@ -272,7 +268,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     </div>
   ));
   const tabs: {id: Stage4Tab; label: string}[] = canPrepare
-    ? [{id:'paket',label:'Paket Data'},{id:'mutu',label:'Pemeriksaan Mutu'},{id:'dokumen',label:'Dokumen & Bukti'},{id:'penyerahan',label:'Penyerahan'}]
+    ? [{id:'paket',label:'Paket Data'},{id:'mutu',label:'Pemeriksaan Mutu'},{id:'dokumen',label:'Dokumen & Bukti'},{id:'penyerahan',label:'Kesiapan & Status Data'}]
     : isBalaiReview
       ? [{id:'hasil',label:'Hasil Penyedia'},{id:'bertahap',label:'V&V Bertahap'},{id:'keputusan',label:'Hasil Pemeriksaan'},{id:'ba',label:'BA'}]
       : state.role === 'Direktorat / Pusat'
@@ -291,10 +287,10 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
       <Panel title="Pemeriksaan dokumen sebelumnya" icon={BookOpen}>
         <div className="stage4-document-source" aria-label="Referensi dokumen dari tahap sebelumnya">
           {workflowDocumentReferences(state).filter(item =>
-            /Kalibrasi|Alat|Verval|Koreksi|Validasi|Persetujuan/.test(item.name)
+            /Kalibrasi|Alat|Verval|Koreksi|Validasi|Persetujuan|tindakan perbaikan/.test(item.name)
           ).map((item,index)=><div className="stage4-summary-row" key={`${item.name}-${index}`}>
             <span>{item.name}<small>{item.reference}</small></span>
-            <Badge tone="good">Tercatat</Badge>
+            <Badge tone={["Disetujui","Lulus","Konsisten","Terverifikasi","Tercatat"].includes(item.status)?"good":"warn"}>{item.status}</Badge>
           </div>)}
         </div>
         <details className="stage4-document-verification">
@@ -353,6 +349,15 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
       <div className="stage4-summary-row"><span>Bukti visual</span><strong>{state.submission.videoLink||'Belum tercatat'}</strong></div>
     </Panel>
   );
+  const sourceStatus = (
+    <Panel title="Status Data Sistem Sumber" icon={Archive}>
+      {targetAssignments.length ? targetAssignments.map(({system,types})=><div className="stage4-summary-row" key={system}><span>{system}<small>{types.join(' · ')}</small></span></div>) : <p>Belum ada jenis survei pada paket.</p>}
+      <div className="stage4-summary-row"><span>Status validasi tercatat (paket)</span><Badge tone={state.submission.validationStatus==='VALID'?'good':'warn'}>{state.submission.validationStatus==='Draft'?'Belum tersedia':state.submission.validationStatus}</Badge></div>
+      <div className="stage4-summary-row"><span>Kesiapan lokal</span><span>{state.submission.localReadinessConfirmed?'Tercatat':'Belum tercatat'}</span></div>
+      <div className="stage4-summary-row"><span>Referensi serah untuk pemeriksaan Balai</span><span>{state.submission.reviewHandoverReference?.trim()||'Belum tercatat'}</span></div>
+      <p className="stage4-feedback">Unggahan dan validasi berlangsung pada sistem terkait. Catatan lokal bukan status validasi sumber.</p>
+    </Panel>
+  );
   return (
     <section className="stage4-workspace" data-testid="stage4-workspace">
       <div className="stage4-header">
@@ -401,6 +406,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
           {documentReview}
         </>}
         {canPrepare && tab==='penyerahan' && <>
+          {sourceStatus}
           <Panel title="Kesiapan penyerahan" icon={ShieldCheck}>
             {summary('Kesiapan penyerahan',readinessItems)}
             <div className="stage4-steps">
@@ -427,6 +433,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
           </Panel>
         </>}
         {isBalaiReview && tab==='hasil' && <>
+          {sourceStatus}
           <Panel title="Hasil Penyiapan Penyedia" icon={ClipboardCheck}>
             {summary('Kesiapan',readinessItems)}
             {qualityChecks.map((item,i)=><div className="stage4-summary-row" key={item.label} data-testid={`stage4-review-quality-${i}`}><span>{item.label}</span><Badge tone={item.ready?'good':'warn'}>{item.ready?'Siap':'Perlu tindak lanjut'}</Badge></div>)}
@@ -448,6 +455,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
         </>}
         {isBalaiReview && tab==='ba' && <Panel title="Berita Acara V&V Bertahap" icon={FileText}>{baAccess('bertahap','Susun BA V&V Bertahap')}</Panel>}
         {state.role==='Direktorat / Pusat' && tab==='monitor' && <>
+          {sourceStatus}
           {stagedResultsSummary}
           <details className="stage4-prior-evidence"><summary>Detail formulir V&V bertahap</summary>
             {stagedSourceTypes.length > 0 && <SourceAlignmentChecklist pciManual={pciManual} projectInfo={state.project} packageId={state.project.id} phase="staged" surveyTypes={stagedSourceTypes} role={state.role} editableRoles={["PIC Balai / Pengguna Jasa"]} title="Hasil pemeriksaan Balai" />}
@@ -460,7 +468,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
         </>}
         {state.role==='Admin' && tab==='administrasi' && <>
           <Panel title="Status Paket" icon={ClipboardCheck}>{summary('Kelengkapan',readinessItems)}{summary('Audit',auditGateItems)}</Panel>
-          <Panel title="Sistem Tujuan" icon={ArrowRight}>{targetAssignments.length ? targetAssignments.map(({system,types})=><div className="stage4-summary-row" key={system}><span>{system}</span><span>{types.join(' · ')}</span></div>) : <span>Belum tersedia</span>}</Panel>
+          {sourceStatus}
         </>}
         {tab==='dokumen' && <>
           {documentReview}

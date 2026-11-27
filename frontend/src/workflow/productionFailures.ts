@@ -1,5 +1,10 @@
 import { evaluateProductionTest, type OperationalWorkflowState, type SurveyType } from './model';
 
+export function productionPciMethod(state: OperationalWorkflowState): "Manual" | "AI" | undefined {
+  const manual = state.productionTests.PCI.pciManual;
+  return manual === true ? "Manual" : manual === false ? "AI" : undefined;
+}
+
 export function productionFailureKey(state: OperationalWorkflowState, type: SurveyType) {
   if (type !== 'PCI') return type;
   return state.productionTests.PCI.pciManual === false ? 'PCI AI' : 'PCI Manual';

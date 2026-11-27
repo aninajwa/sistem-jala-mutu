@@ -1,3 +1,4 @@
+import {CALIBRATION_REVIEW_SUBJECTS,calibrationSourceSignature} from '../calibrationReview';
 import {filledSourceFixture} from '../testing/sourceFixture';
 import {sourceDocumentKey} from '../sourceDocumentModel';
 import {STAGE3B_DOCX_CANDIDATES} from '../stage3bChecklistData.docx-candidate';
@@ -6,12 +7,12 @@ import assert from 'node:assert/strict';
 import {createDemoWorkflow} from '../demoScenario';
 import {documentActionErrors,documentFingerprint} from './documentWorkflow';
 import {baDecisionErrors} from './baRules';
-import {saveDocumentDraft,transitionDocument as rawTransitionDocument} from './documentService';
+import {saveDraftVersion,saveDocumentDraft,transitionDocument as rawTransitionDocument} from './documentService';
 import {documentRepository,type BaIdentity} from './documentRepository';
 const P='Penyedia Jasa / Ketua Tim' as const,B='PIC Balai / Pengguna Jasa' as const;
 const identity:BaIdentity={packageId:'isolated',kind:'audit',period:0,survey:'IRI',auditLevel:1};
 import {sourceDocument} from '../sourceDocumentModel';
-import {BA_TEMPLATES,fieldsFor} from './docxEngine';
+import {BA_TEMPLATES,fieldsFor} from './baTemplateModel';
 import type {SurveyType} from '../model';
 function transitionDocument(...args:Parameters<typeof rawTransitionDocument>){const template=BA_TEMPLATES.find(item=>item.id===args[1].kind)!;const filled=Object.fromEntries(fieldsFor(template,args[1].survey as SurveyType).map(field=>[field.id,field.choices?.[0]??'Isian pengujian terisolasi']));args[3]={...filled,...args[3]};return rawTransitionDocument(...args);}
 function setup(){const memory=new Map<string,string>();Object.defineProperty(globalThis,'localStorage',{configurable:true,value:{getItem:(key:string)=>memory.get(key)??null,setItem:(key:string,value:string)=>memory.set(key,value),removeItem:(key:string)=>memory.delete(key)}});const state=createDemoWorkflow('complete');state.role=P;state.project.id=identity.packageId;for(const phase of ['audit','calibration','consistency','internal','periodic14','staged']){const d=sourceDocument('IRI',phase)!;const scope=phase==='audit'?identity.packageId+'::audit-1':identity.packageId;localStorage.setItem(sourceDocumentKey(scope,d.id),JSON.stringify(filledSourceFixture(d)));}return state;}
@@ -87,10 +88,17 @@ for(const kind of ['duaMingguan','bertahap'] as const){
 
 test('final acceptance BA draft readiness follows stage-5 audits, never final acceptance flag',()=>{
  const state=setup(),acceptance={...identity,kind:'penerimaan' as const};
+ // Synthetic single-survey acceptance fixture: preserve the real production guard.
+ state.project.surveyTypes=['IRI'];
+ const review={result:'Sesuai' as const,note:'Pemeriksaan uji',evidenceReference:'BA-UJI',reviewedAt:state.simulationDate,reviewer:B,sourceSignature:calibrationSourceSignature(state,'IRI')};
+ state.calibrationReviews={IRI:{...review,subject:'Hasil kalibrasi',sections:Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject=>[subject,review]))}};
  state.acceptance.finalAcceptance=false;
  state.submission.validationStatus='VALID';
  state.audits.forEach(a=>{a.status='Lulus';a.requiresReview=false;});
  assert.deepEqual(baDecisionErrors(state,'penerimaan',1),[]);
+ const savedReviews=state.calibrationReviews;state.calibrationReviews={};
+ assert.ok(baDecisionErrors(state,'penerimaan',1).length>0,'Missing calibration review blocks acceptance');
+ state.calibrationReviews=savedReviews;
  state.audits[2].requiresReview=true;
  assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
  assert.ok(documentActionErrors(state,acceptance,'submit',undefined,0,'').length>0);
@@ -101,3 +109,20 @@ test('final acceptance BA draft readiness follows stage-5 audits, never final ac
  state.submission.validationStatus='Draft';
  assert.ok(baDecisionErrors(state,'penerimaan',1).length>0);
 });
+
+ test('explicit draft checkpoint persists the exact saved fields',()=>{
+ const state=setup();saveDocumentDraft(state,identity,{name:'lama'});
+ const saved=saveDraftVersion(state,identity,{name:'baru'},'hash',0);
+ assert.deepEqual(documentRepository.read(identity).draft,saved.fields);
+ });
+ test('review cannot silently substitute the submitted template or source fingerprint',()=>{
+ const state=setup();const submitted=transitionDocument(state,identity,'submit',{},'hash',0,'',0);
+ assert.throws(()=>transitionDocument(state,identity,'approve',{},'different',0,'',1),/Template BA berubah/);
+ state.productionTests.IRI.coefficientVariation=20;
+ const rejected=transitionDocument(state,identity,'reject',{},'different',0,'Data berubah',1);
+ assert.equal(rejected.templateHash,submitted.templateHash);assert.equal(rejected.sourceFingerprint,submitted.sourceFingerprint);assert.deepEqual(rejected.sourceSnapshot,JSON.parse(JSON.stringify(submitted.sourceSnapshot)));
+ });
+ test('unknown BA identity cannot save a draft',()=>{
+ const state=setup();const invalid={...identity,kind:'unknown'} as unknown as BaIdentity;
+ assert.throws(()=>saveDocumentDraft(state,invalid,{}),/Format BA/);
+ });

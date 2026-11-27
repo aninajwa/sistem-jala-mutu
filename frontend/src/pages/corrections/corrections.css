@@ -779,3 +779,63 @@
 .provider-case-facts dd { margin: 3px 0 0; overflow-wrap: anywhere; }
 .provider-case-action time { font-size: 12px; }
 @media(max-width: 640px) { .provider-case-facts { grid-template-columns: 1fr; } .provider-case-action { width: 100%; } }
+
+/* Compact work cards; same tokens and visual language as the package workspace. */
+.corr-dashboard .provider-case-queue { display:grid; gap:12px; background:transparent; border:0; margin:12px 0; }
+.corr-dashboard .provider-case-queue li { background:#fff; border:1px solid var(--v2-line,#d6e4e8); border-left:4px solid #16818a; border-radius:12px; padding:14px 16px; box-shadow:0 2px 8px #173d4910; }
+.corr-dashboard .provider-case-queue li + li { border-top:1px solid var(--v2-line,#d6e4e8); }
+.corr-dashboard .provider-case-facts { display:flex; flex-wrap:wrap; gap:8px 24px; margin:8px 0 0; }
+.corr-dashboard .provider-case-action { justify-items:end; align-self:center; }
+.corr-dashboard .provider-case-action .wf-button { background:#e4f3f2; color:#126c72; border-color:#b3d9d5; font-weight:650; }
+.corr-dashboard .provider-case-search { display:flex; align-items:center; gap:8px; margin-top:12px; }
+.corr-dashboard .provider-case-search input { flex:1; min-width:0; }
+.correction-case-work { max-width:none; }
+@media(max-width:640px) { .corr-dashboard .provider-case-action { justify-items:start; } }
+
+.corr-local-status { margin:0; color:#6b5735; font-size:12px; }
+
+/* Case cards use available workspace width without changing global package styles. */
+@media (min-width: 1180px) {
+  .corr-dashboard .provider-case-queue { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .corr-dashboard .provider-case-queue li { grid-template-columns: minmax(0, 1fr); gap: 10px; }
+  .corr-dashboard .provider-case-action { display: flex; align-items: center; justify-content: space-between; flex-wrap: wrap; border-top: 1px solid var(--v2-line,#d6e4e8); padding-top: 10px; }
+  .corr-dashboard .provider-case-action .wf-button { margin-left: auto; }
+}
+
+/* Keep the list full width until a case is selected. */
+.corr-dashboard .corr-main-grid.corr-main-grid-full { grid-template-columns: minmax(0, 1fr); }
+.corr-dashboard .corr-submodule { min-width: 0; }
+.corr-dashboard .corr-submodule .corr-table-scroll td { overflow-wrap: anywhere; }
+.corr-dashboard .corr-row-actions button:focus-visible { outline: 2px solid #147b83; outline-offset: 2px; }
+
+.corr-metric-scope { font-size: 0.875rem; font-weight: 600; margin: 0; }
+
+/* Submitted attachments are part of the execution/retest panel, not a nested card. */
+.corr-evidence.corr-evidence-submitted { border:0; border-radius:0; background:transparent; padding:12px 0 0; border-top:1px solid var(--v2-line,#d6e4e8); gap:8px; }
+.corr-evidence-submitted .corr-evidence-head { border:0; padding:0; flex-wrap:wrap; gap:6px; }
+.corr-evidence-submitted .corr-evidence-list { max-height:none; overflow:visible; gap:0; }
+.corr-evidence-submitted .corr-evidence-item { border:0; border-radius:0; padding:10px 0; background:transparent; min-width:0; }
+.corr-evidence-submitted .corr-evidence-item + .corr-evidence-item { border-top:1px solid var(--v2-line,#d6e4e8); }
+.corr-evidence-submitted .corr-evidence-file { flex:1; }
+.corr-evidence-submitted .corr-evidence-file strong { font-size:13px; }
+.corr-evidence-submitted .corr-evidence-file small { font-size:12px; }
+@media (max-width:650px) { .corr-evidence-submitted .corr-evidence-item { flex-direction:row; align-items:center; gap:8px; } .corr-evidence-submitted .corr-evidence-item .wf-button { flex-shrink:0; } }
+
+/* Final correction polish; empty-state rules remain unchanged. */
+.corr-mode-local { font-size:12px; color:#526e79; max-width:320px; }
+.corr-mode-local summary { cursor:pointer; width:max-content; border:1px solid #cddfe1; border-radius:6px; background:#f0f7f7; padding:4px 9px; font-weight:600; }
+.corr-mode-local p { margin:6px 0 0; line-height:1.5; }
+.b-shell .corr-dashboard .provider-correction-worklist .b-metric { border:1px solid #d5e4e8; border-radius:10px; background:#f0f8f7; }
+.b-shell .corr-dashboard .provider-correction-worklist .b-metric.tone-amber { background:#fff8ec; border-color:#ecdcbf; }
+.b-shell .corr-dashboard .provider-correction-worklist .b-metric.tone-blue { background:#eff5fc; border-color:#d6e4f5; }
+.b-shell .corr-dashboard .provider-correction-worklist .b-metric.tone-violet { background:#f5f1fc; border-color:#e4d9f4; }
+.ui09-workspace .correction-case-work .c-panel-intent { display:none; }
+.corr-readonly-layout { max-width:none; width:100%; grid-template-columns:repeat(2,minmax(0,1fr)); align-items:start; }
+.corr-readonly-layout > * { min-width:0; }
+.corr-readonly-layout .corr-readonly-panel { padding:18px; }
+.corr-readonly-layout .corr-readonly-stat-row { grid-template-columns:repeat(auto-fit,minmax(105px,1fr)); }
+.corr-readonly-layout .corr-readonly-grid { gap:8px 14px; }
+.b-shell .corr-readonly-layout .corr-readonly-item { padding:9px 0; background:transparent; border:0; border-bottom:1px solid #e0e9ed; border-radius:0; }
+.corr-case-history .correction-review-summary > div { background:transparent; border:0; border-bottom:1px solid #dce7eb; border-radius:0; padding:10px 4px; }
+@media(max-width:1050px) { .corr-readonly-layout { grid-template-columns:1fr; } }
+@media(max-width:600px) { .corr-readonly-layout .corr-readonly-stat-row,.corr-readonly-layout .corr-readonly-grid { grid-template-columns:1fr; } .corr-mode-local { max-width:100%; } }

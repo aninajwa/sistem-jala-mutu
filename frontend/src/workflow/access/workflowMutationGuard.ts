@@ -1,3 +1,6 @@
+import {applySubmissionEdit} from "../submissionEdit";
+import {stagedSurveyReviewMode} from "../stagedReviewPolicy";
+import {isAuditRejectionCascade} from "./auditRejectionCascade";
 import { submittedPeriodicRecords } from '../periodicRecords';
 import { PERIOD_SUBMISSION_ACTION, submitPeriodicResults } from '../periodicSubmission';
 import { matchesJournaledTransition } from './providerChecklistCascade';
@@ -6,8 +9,8 @@ import {isBalaiVervalCascade,isBalaiPeriodDecision} from './balaiVervalCascade';
 import { balaiDecisionError } from '../balaiDecisionPolicy';
 import { productionReviewBlockers } from '../reviewReadiness';
 import { canOpenProductionCorrection } from '../productionFailures';
-import { evaluateSubmissionReadiness } from '../submissionReadiness';
 import { isProviderUpstreamTransition } from './providerUpstreamTransition';
+import { termReadiness } from '../flowRules';
 import { finalAcceptanceBlockers } from '../acceptanceReadiness';
 import { isProviderChecklistCascade, preparationChecklistChanged } from './providerChecklistCascade';
 import type {OperationalWorkflowState,WorkflowRole} from '../model';
@@ -43,6 +46,8 @@ function isOnlyPropagatedAuditFlag(old:OperationalWorkflowState['audits'][number
 export function workflowMutationError(before:OperationalWorkflowState,after:OperationalWorkflowState,role:WorkflowRole):string|undefined {
  const forbidden='Perubahan ditolak: tindakan tidak sesuai kewenangan peran aktif.';
  if(before.project.id!==after.project.id||before.role!==after.role||after.role!==role)return 'Identitas paket atau peran berubah dalam tindakan QA/QC.';
+ // External validation cannot be authored by any interactive QA/QC role.
+ if(before.submission.validationStatus!==after.submission.validationStatus && after.submission.validationStatus==='VALID')return 'Status VALID hanya berasal dari sistem sumber; perubahan lokal ditolak.';
  // Administrative monitoring must never write operational QA/QC, including history.
  if(role==='Admin') {
    const {role:_a,backups:_oldBackups,backupSchedule:_oldSchedule,events:_oldEvents,...oldState}=before;
@@ -76,6 +81,7 @@ export function workflowMutationError(before:OperationalWorkflowState,after:Oper
  }
  if (isProviderUpstreamTransition(before, after)) return;
  if (isCorrectionClosureCascade(before,after)) return;
+  if (isAuditRejectionCascade(before,after)) return undefined;
  if (isBalaiVervalCascade(before, after)||isBalaiPeriodDecision(before,after)) return;
  const periodReviewKeys = [
    'userReview', 'surveyReviews', 'certificateId', 'bridgeFieldValidation',
@@ -85,6 +91,26 @@ export function workflowMutationError(before:OperationalWorkflowState,after:Oper
  if (role === B && periodReviewKeys.some(key => differs(before.cycle[key], after.cycle[key])) &&
      (before.cycle.providerResubmissionRequired || !submittedPeriodicRecords(before).confirmed)) {
    return 'Pemeriksaan Balai menunggu daftar penyerahan periode yang terkonfirmasi.';
+ }
+ // A staged Balai review may invalidate later audits, but cannot decide them.
+ if (role === B && differs(before.submission.stagedReviews, after.submission.stagedReviews)) {
+   const old = before.submission.stagedReviews ?? {};
+   const next = after.submission.stagedReviews ?? {};
+   const keys = [...new Set([...Object.keys(old), ...Object.keys(next)])] as import('../model').SurveyType[];
+   const changed = keys.filter(type => differs(old[type], next[type]));
+   if (changed.length !== 1) return forbidden;
+   const type = changed[0], review = next[type], previous = old[type];
+   if (!before.project.surveyTypes.includes(type) || stagedSurveyReviewMode(type, before.productionTests.PCI.pciManual !== false) !== 'generic-review' ||
+       !review || !['Belum Diperiksa','Sesuai','Temuan'].includes(review.decision) || typeof review.note !== 'string' ||
+       Object.keys(review).some(key => !['decision','note','reviewedAt'].includes(key)) ||
+       (review.decision === 'Temuan' && !review.note.trim()) || typeof review.reviewedAt !== 'string') return forbidden;
+   // Editing a note must retain the recorded decision date, even after the clock changes.
+   const reviewDate = previous?.decision === review.decision ? previous.reviewedAt :
+     review.decision === 'Belum Diperiksa' ? '' : before.simulationDate;
+   if (review.reviewedAt !== reviewDate) return forbidden;
+   const expected = applySubmissionEdit(before, {stagedReviews: next});
+   return matchesJournaledTransition(before, expected, after, [`Review V&V bertahap ${type}`, `Catatan V&V bertahap ${type}`], before.project.packageName)
+     ? undefined : forbidden;
  }
  const decisionError = balaiDecisionError(before, after);
  if (decisionError) return decisionError;
@@ -133,17 +159,23 @@ export function workflowMutationError(before:OperationalWorkflowState,after:Oper
       after.acceptance.finalAcceptance!==false||after.acceptance.finalReport!==false||
       after.acceptance.semesterTwoRevalidation!==false)return forbidden;
  }
- if (before.submission.validationStatus !== 'VALID' && after.submission.validationStatus === 'VALID') {
-   const { ready, requiredTargets } = evaluateSubmissionReadiness(after);
-   if (role !== 'Penyedia Jasa / Ketua Tim' || !ready || differs(requiredTargets, after.submission.targetSystems) ||
-       before.audits[0].status !== 'Lulus' || before.audits[0].requiresReview) {
-     return 'Penyerahan tertahan. Pemeriksaan data, dokumen mutu, audit internal, atau tujuan sistem belum sesuai.';
-   }
- }
  // A lower level cannot enter an acceptance decision or change its documentation.
  const {terms:oldTerms,finalReport:oldReport,semesterTwoEvidence:oldEvidence,...oldDecision}=before.acceptance;
  const {terms:newTerms,finalReport:newReport,semesterTwoEvidence:newEvidence,...newDecision}=after.acceptance;
  if(differs(oldDecision,newDecision)&&role!==B)return forbidden;
+ // A partial acceptance or completed term must not bypass the same readiness
+ // checks used by the workspace. Old receipts remain as historical references.
+ for (const receipt of after.acceptance.partialReceipts.filter(r=>!before.acceptance.partialReceipts.includes(r))) {
+   const id = /^BA penerimaan (T[1-4])$/.exec(receipt)?.[1];
+   if (role!==B || !id) return 'Penerimaan parsial hanya oleh Balai untuk termin yang sah.';
+   const errors = [...termReadiness(before,id),...termReadiness(after,id)];
+   if(errors.length) return `Penerimaan parsial tertahan. ${errors[0]}`;
+ }
+ for(const term of newTerms.filter(t=>t.complete&&!oldTerms.find(old=>old.id===t.id)?.complete)) {
+   if(role!=='Penyedia Jasa / Ketua Tim' || !before.acceptance.partialReceipts.includes(`BA penerimaan ${term.id}`) || !after.acceptance.partialReceipts.includes(`BA penerimaan ${term.id}`)) return 'Penyelesaian termin memerlukan BA penerimaan parsial yang sudah tercatat.';
+   const errors = [...termReadiness(before,term.id),...termReadiness(after,term.id)];
+   if(errors.length) return `Termin tertahan. ${errors[0]}`;
+ }
  // Preconditions must already hold before the decision and remain valid afterward.
  const accepted = after.acceptance.acceptanceDecision === 'Diterima' ||
    after.acceptance.acceptanceDecision === 'Diterima dengan Catatan';

@@ -19,7 +19,8 @@ test('Pengguna dapat memilih langkah, navigasi berikutnya/sebelumnya dan melihat
 });
 test('Reviewer tetap dapat membuka checklist tanpa formulir edit',()=>{
  assert.match(stage,/<details className="stage0-readonly-checklists">/);
- assert.match(stage,/Lihat rincian checklist Penyedia/);
+ assert.match(stage,/<summary>Rincian persiapan \(\{complete\}\/\{allItems\.length\}\)<\/summary>/);
+ assert.match(stage,/aria-label="Rincian isian Penyedia"/);
 });
 test('Mobile mendukung 2 kolom navigasi dan tombol tetap terlihat',()=>{
  assert.match(style,/@media\(max-width:540px\)/);assert.match(style,/grid-template-columns:repeat\(2,minmax\(0,1fr\)\)/);

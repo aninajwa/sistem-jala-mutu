@@ -1,4 +1,6 @@
+import { validDate } from "../workflow/operationalCalendar";
 import { correctionNextStep } from "../workflow/checkpoint09Corrections";
+import { correctionDisplayStatus } from "./corrections/correctionViewModel";
 import type { OperationalWorkflowState } from "../workflow/model";
 
 export type ProviderCaseTask = {
@@ -31,8 +33,8 @@ export function providerCaseTasks(
           survey: item.surveyType,
           stage: item.blockedStage,
           period: item.cyclePeriod,
-          status: item.status,
-          dueDate: item.dueDate || undefined,
+          status: correctionDisplayStatus(item),
+          dueDate: validDate(item.dueDate) ? item.dueDate : undefined,
           nextAction: next.label,
           owner: next.actor === "Penyedia Jasa / Ketua Tim" ? "provider" as const : "reviewer" as const,
         };

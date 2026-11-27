@@ -1,4 +1,5 @@
 import type { CorrectionCase, WorkflowRole } from "../model";
+import { correctionReviewer } from "../checkpoint09Corrections";
 
 export type CorrectionView =
   | "finding"
@@ -19,17 +20,22 @@ export const CORRECTION_VIEW_LABELS: Record<CorrectionView, string> = {
 
 // This is presentation availability, not a mutation permission policy. Actual
 // transactions remain guarded by the workflow/reviewer rules in the workspace.
+type JourneyCase = Pick<CorrectionCase, "status" | "blockedStage"> & Partial<Pick<CorrectionCase, "retest">>;
+export function correctionProposalEditable(item: JourneyCase): boolean {
+  return item.status === "Terbuka" || (item.status === "Verifikasi Ulang" && item.retest === "Gagal");
+}
 export function correctionVisibleViews(
   role: WorkflowRole,
-  item: Pick<CorrectionCase, "status" | "blockedStage">,
+  item: JourneyCase,
 ): CorrectionView[] {
   const isProvider = role === "Penyedia Jasa / Ketua Tim";
   const isBalai = role === "PIC Balai / Pengguna Jasa";
   const isAudit3Reviewer = role === "Direktorat / Pusat" &&
     /^Audit tingkat 3$/i.test(item.blockedStage);
-  const hasProposal = item.status !== "Terbuka";
-  const hasExecution = ["Disetujui", "Dilaksanakan", "Verifikasi Ulang", "Ditutup"].includes(item.status);
-  const hasRetest = ["Dilaksanakan", "Verifikasi Ulang", "Ditutup"].includes(item.status);
+  const draft = correctionProposalEditable(item);
+  const hasProposal = !draft;
+  const hasExecution = !draft && ["Disetujui", "Dilaksanakan", "Verifikasi Ulang", "Ditutup"].includes(item.status);
+  const hasRetest = !draft && ["Dilaksanakan", "Verifikasi Ulang", "Ditutup"].includes(item.status);
   const views: CorrectionView[] = ["finding"];
 
   // Reviewers can inspect the submitted plan. No provider editing form is
@@ -46,17 +52,17 @@ export function correctionVisibleViews(
 
 export function correctionDefaultView(
   role: WorkflowRole,
-  item: Pick<CorrectionCase, "status" | "blockedStage">,
+  item: JourneyCase,
 ): CorrectionView {
   const views = correctionVisibleViews(role, item);
   const isProvider = role === "Penyedia Jasa / Ketua Tim";
   const isBalai = role === "PIC Balai / Pengguna Jasa";
   const audit3 = role === "Direktorat / Pusat" && /^Audit tingkat 3$/i.test(item.blockedStage);
   const desired: CorrectionView = item.status === "Ditutup" ? "history"
-    : item.status === "Terbuka" ? (isProvider ? "proposal" : "finding")
+    : correctionProposalEditable(item) ? (isProvider ? "proposal" : "finding")
       : item.status === "Menunggu Persetujuan" ? (isBalai || isProvider ? "approval" : "finding")
         : item.status === "Disetujui" ? (isProvider ? "execution" : "finding")
-          : (isBalai || audit3) ? "verification" : "history";
+          : (isBalai || audit3 || isProvider) ? "verification" : "history";
   return views.includes(desired) ? desired : "finding";
 }
 
@@ -69,12 +75,20 @@ export function correctionCanOpenCase(role: WorkflowRole): boolean {
 /** A section label describes the current actor's work, not another role's decision. */
 export function correctionViewLabel(
   role: WorkflowRole,
-  item: Pick<CorrectionCase, "status" | "blockedStage">,
+  item: JourneyCase,
   view: CorrectionView,
 ): string {
+  if (view === "proposal" && role === "Penyedia Jasa / Ketua Tim" && correctionProposalEditable(item)) return "Rencana tindakan";
+  if (view === "execution") return role === "Penyedia Jasa / Ketua Tim" && item.status === "Disetujui" ? "Laksanakan tindakan" : "Hasil pelaksanaan";
+  if (view === "verification") {
+    const reviewer = correctionReviewer(item);
+    if (role === reviewer && item.status === "Dilaksanakan") return "Periksa hasil";
+    if (role === reviewer && item.status === "Verifikasi Ulang" && item.retest === "Lulus") return "Penutupan kasus";
+    return "Hasil pemeriksaan ulang";
+  }
   if (view !== "approval") return CORRECTION_VIEW_LABELS[view];
   if (role === "Penyedia Jasa / Ketua Tim") {
-    return item.status === "Terbuka" ? "Verifikasi internal & ajukan" : "Status pengajuan";
+    return correctionProposalEditable(item) ? "Verifikasi internal & ajukan" : "Status pengajuan";
   }
   if (role === "PIC Balai / Pengguna Jasa") {
     return item.status === "Menunggu Persetujuan" ? "Periksa usulan" : "Hasil pemeriksaan";

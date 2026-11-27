@@ -6,9 +6,11 @@ import { canEditPreparationChecklist } from './preparationChecklistLock';
 const stage=fs.readFileSync(new URL('./stages/Stage0PreparationWorkspace.tsx',import.meta.url),'utf8');
 const attachments=[...stage.matchAll(/<DocumentAttachments\b[^>]*\bscope=\{`\$\{state\.project\.id\}:stage0`\}[^>]*\/>/g)].map(m=>m[0]);
 
-test('dua area lampiran Tahap 0 memakai guard status yang sama dengan checklist',()=>{
+test('lampiran Penyedia mengikuti guard status; lampiran pemeriksa selalu baca saja',()=>{
  assert.equal(attachments.length,2);
- for(const attachment of attachments){assert.match(attachment,/editable=\{canEditChecklist\}/);assert.doesNotMatch(attachment,/editable=\{canPrepareInput\}/)}
+ assert.match(attachments[0],/editable=\{canEditChecklist\}/);
+ assert.match(attachments[1],/editable=\{false\}/);
+ for(const attachment of attachments)assert.doesNotMatch(attachment,/editable=\{canPrepareInput\}/);
  assert.match(stage,/const canEditChecklist = canEditPreparationChecklist\(state\.role, prep\.reportApproval\)/);
 });
 test('Penyedia dapat melengkapi bukti pada Draft atau Perlu Revisi',()=>{

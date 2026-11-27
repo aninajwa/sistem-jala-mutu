@@ -30,3 +30,8 @@ test("dashboard Penyedia: hasil pemeriksaan Audit 3 tetap menunggu Direktorat, b
   assert.equal(tasks[0].owner, "reviewer");
   assert.match(tasks[0].nextAction, /Periksa ulang/);
 });
+
+test('dashboard Penyedia: tanggal tidak sah bukan tenggat terjadwal',()=>{
+ const tasks=providerCaseTasks({a:sample([makeCase('BAD','Terbuka','2026-02-30'),makeCase('OK','Terbuka','2026-11-25')],'Paket')});
+ assert.deepEqual(tasks.map(t=>[t.caseId,t.dueDate]),[['OK','2026-11-25'],['BAD',undefined]]);
+});

@@ -1,3 +1,4 @@
+import { retainCorrectionRevisionHistory } from "../workflow/correctionRevisionHistory";
 import {INITIAL_WORKFLOW} from '../workflow/model';
 import {workflowMutationError} from '../workflow/access/workflowMutationGuard';
 import {packageRepository} from '../workflow/repository/packageRepository';
@@ -120,7 +121,7 @@ export function usePackageStore() {
         queueMicrotask(() => setMutationError("Perubahan tidak disimpan. " + violation));
         return current;
       }
-      return {...current,activePackageId:id,packages:{...current.packages,[id]:proposed}};
+      return {...current,activePackageId:id,packages:{...current.packages,[id]:retainCorrectionRevisionHistory(previous, proposed, _activity)}};
     });
   };
 

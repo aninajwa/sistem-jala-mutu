@@ -5090,3 +5090,25 @@
     grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
   }
 }
+
+/* Final visual: readable compact package context on narrow screens. */
+@media (max-width: 780px) {
+  .b-shell .ui09-workspace .ui09-package-header {
+    gap: 6px; padding: 12px !important; margin-bottom: 12px;
+  }
+  .b-shell .ui09-workspace .ui09-package-title { gap: 8px; }
+  .b-shell .ui09-workspace .ui09-package-title h1 { font-size: 17px !important; line-height: 1.4; }
+  .b-shell .ui09-workspace .ui09-package-title .wf-button,
+  .b-shell .ui09-workspace .ui09-package-title .wf-status { font-size: 12px !important; }
+  .b-shell .ui09-workspace .ui09-package-title .wf-status { max-width: 100%; overflow-wrap: anywhere; }
+  .b-shell .ui09-workspace .b-stage-menu { margin-top: 4px; padding-top: 2px; }
+  .b-shell .ui09-workspace .b-stage-menu > summary { font-size: 12px; }
+  .b-shell .ui09-workspace .ui09-package-compact { margin-top: 2px !important; padding-top: 2px !important; align-items: center; }
+  .b-shell .ui09-workspace .ui09-package-position,
+  .b-shell .ui09-workspace .ui09-package-info > summary { font-size: 12px !important; line-height: 1.5; }
+  .b-shell .ui09-workspace .ui09-package-info > summary { min-height: 44px; }
+  .b-shell .ui09-workspace .ui09-package-info[open] .package-context-grid strong {
+    white-space: normal; overflow-wrap: anywhere; font-size: 12px; line-height: 1.5;
+  }
+  .b-shell .ui09-workspace .ui09-package-info[open] .package-context-grid small { font-size: 11px; }
+}

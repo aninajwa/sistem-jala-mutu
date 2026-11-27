@@ -17,7 +17,9 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
   const result = Object.entries(packages).map(([id, state]): DashboardQueueItem => {
     const name = state.project.packageName || id;
     const balai = state.project.balai || 'Balai belum ditentukan';
-    const open = (state.corrections || []).filter(item => item.status !== 'Ditutup').length;
+    const pending = (state.corrections || []).filter(item => item.status !== 'Ditutup');
+    const open = pending.length;
+    const own = pending.filter(entry => correctionNextStep(entry).actor === role);
     const preparation = state.project.preparation.reportApproval;
     const production = state.productionApproval;
     const productionNeedsReview = production === 'Disetujui' && !effectiveProductionApproval(state);
@@ -28,8 +30,6 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
 
     if (role === 'Admin') return item('monitor', 'Pantau paket', 'Lihat status dan referensi paket; keputusan teknis berada pada pemeriksa berwenang.');
     if (role === 'Penyedia Jasa / Ketua Tim') {
-      const pending = (state.corrections || []).filter(entry => entry.status !== 'Ditutup');
-      const own = pending.filter(entry => !entry.blockedStage || correctionNextStep(entry).actor === role);
       if (own.length) return item('action', 'Tindak lanjuti koreksi', `${own.length} kasus perlu tindakan Anda.`);
       if (pending.length) return item('waiting', 'Menunggu pemeriksaan koreksi', `${pending.length} kasus menunggu pemeriksa.`);
       if (productionNeedsReview) return item('action', 'Periksa validasi produksi', 'Persetujuan sebelumnya perlu pemeriksaan ulang sebelum pekerjaan berikutnya.');
@@ -41,6 +41,7 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
       return item('action', 'Lanjutkan pekerjaan paket', 'Buka paket untuk melihat tahapan, formulir, dan persyaratan yang belum lengkap.');
     }
     if (role === 'PIC Balai / Pengguna Jasa') {
+      if (own.length) return item('action', 'Periksa tindakan perbaikan', `${own.length} kasus memerlukan keputusan Balai.`);
       if (productionNeedsReview) return item('action', 'Periksa ulang validasi', 'Syarat persetujuan alat dan metode berubah; periksa bukti dan keputusan sebelumnya.');
       if (preparation === 'Diajukan' || production === 'Diajukan' || (cycle?.periodCompleted && cycle?.userReview !== 'Sesuai') || audits[1]?.status === 'Dalam Review' || audits[1]?.status === 'Klarifikasi')
         return item('action', 'Perlu pemeriksaan Balai', 'Periksa antrean dan bukti sebelum mencatat keputusan sesuai kewenangan.');
@@ -50,6 +51,8 @@ export function dashboardWorkQueue(packages: Record<string, OperationalWorkflowS
       if (accepted) return item('complete', 'Penerimaan tercatat', 'Periksa dokumen dan catatan penerimaan akhir.');
       return item('monitor', 'Pantau paket', 'Tidak ada pengajuan pada indikator antrean ringkas ini.');
     }
+    // Existing Audit 3 findings remain actionable even if the audit gate has reopened.
+    if (own.length) return item('action', 'Periksa hasil Audit Tingkat 3', `${own.length} kasus memerlukan pemeriksaan atau penutupan Direktorat.`);
     // Directorate can decide level 3 only, and this summary never grants that permission.
     if (audits[1]?.status === 'Lulus' && (audits[2]?.status === 'Dalam Review' || audits[2]?.status === 'Klarifikasi'))
       return item('action', 'Audit pusat dalam proses', 'Buka Audit & Assurance untuk memeriksa bukti dan tindak lanjut audit tingkat 3.');

@@ -86,14 +86,14 @@ test("Balai: persetujuan dan verifikasi ulang terpisah", () => {
   ]);
   assert.deepEqual(
     visible(balai, "Tindak Lanjut Paket"),
-    statuses,
+    ["Terbuka", "Disetujui"],
   );
 });
 
 test("Direktorat: pemantauan verifikasi ulang", () => {
-  assert.deepEqual(visible(pusat, "Verifikasi Ulang"), [
-    "Dilaksanakan", "Verifikasi Ulang",
-  ]);
+  assert.deepEqual(visible(pusat, "Verifikasi Ulang"), []);
+  assert.equal(matchesRoleTab({...rows[3], blockedStage: "Audit tingkat 3"}, pusat, "Verifikasi Ulang"), true);
+  assert.equal(matchesRoleTab({...rows[3], blockedStage: "Audit tingkat 3"}, balai, "Verifikasi Ulang"), false);
   assert.deepEqual(visible(pusat, "Riwayat"), [
     "Ditutup",
   ]);

@@ -28,6 +28,7 @@ import { DEMO_SESSION_KEY } from "./lib/demoData";
 import { isInPeriod } from "./lib/periods";
 
 import ActionsPage from "./pages/ActionsPage";
+import { collectCorrections, correctionReturnTab, ROLE_TABS } from "./pages/corrections/correctionViewModel";
 import AuditPage from "./pages/AuditPage";
 import CompliancePage from "./pages/CompliancePage";
 const DashboardPage = lazy(() => import("./pages/DashboardPage"));
@@ -154,7 +155,8 @@ function App() {
         : "Semua",
     );
 
-    const requestedTab = new URLSearchParams(window.location.search).get("tab");
+    const rawTab = new URLSearchParams(window.location.search).get("tab");
+    const requestedTab = location === "/actions" && rawTab === "Audit Tingkat 3" ? "Tindak Lanjut Audit 3" : rawTab;
     if (
       requestedTab &&
       visibleNav
@@ -318,7 +320,18 @@ function App() {
       return;
     }
 
-    navigateSubmodule("/actions:Koreksi berbukti");
+    // Carry only queue context, not query parameters from unrelated modules.
+    const params = new URLSearchParams();
+    params.set("submodule", "/actions:Koreksi berbukti");
+    if (location === "/actions" && !selectedSubmodule) {
+      if (ROLE_TABS[principal.role].includes(activeTab)) params.set("tab", activeTab);
+      const filter = new URLSearchParams(window.location.search).get("package");
+      if (filter === packageId) params.set("package", filter);
+    }
+    if (isRoleTestMode()) params.set("testRoles", "1");
+    setSelectedSubmodule("/actions:Koreksi berbukti");
+    setLocation(`/actions?${params}`);
+    setMobileOpen(false);
   };
 
   const openNotificationTarget = (target: Target, notificationId?: string) => {
@@ -404,9 +417,24 @@ function App() {
   };
 
   const returnToCorrections = () => {
+    const params = new URLSearchParams();
+    const fromCase = selectedSubmodule === "/actions:Koreksi berbukti";
+    const origin = new URLSearchParams(window.location.search);
+    let item;
+    if (fromCase && activePackageId && scopedPackages[activePackageId]) {
+      try {
+        const id = localPersistence.getItem(`jala-correction-selection:${activePackageId}`);
+        item = collectCorrections({ [activePackageId]: scopedPackages[activePackageId] }).find(row => row.id === id);
+      } catch { /* Queue navigation remains available without local selection. */ }
+    }
+    const tab = correctionReturnTab(principal.role, fromCase ? origin.get("tab") ?? "" : "", item);
+    params.set("tab", tab);
+    const filter = origin.get("package");
+    if (fromCase && filter && filter === activePackageId && Object.hasOwn(scopedPackages, filter)) params.set("package", filter);
+    if (isRoleTestMode()) params.set("testRoles", "1");
     setSelectedSubmodule("");
-    setActiveTab("Semua");
-    setLocation(isRoleTestMode() ? "/actions?testRoles=1" : "/actions");
+    setActiveTab(tab);
+    setLocation(`/actions?${params}`);
   };
 
   const backToPackages = () => {
@@ -497,7 +525,8 @@ function App() {
           <AppTopbar
             isPackageWorkspace={
               isPackageWorkspace &&
-              selectedSubmodule !== "/documents:BA & dokumen workflow"
+              selectedSubmodule !== "/documents:BA & dokumen workflow" &&
+              selectedSubmodule !== "/actions:Koreksi berbukti"
             }
             packageName={activePackage?.project.packageName}
             location={location}
@@ -525,7 +554,7 @@ function App() {
                   {mutationError}
                 </div>
               ) : (
-                notice && (
+                notice && !(location === "/actions" && notice === "Workspace paket dibuka.") && (
                   <div
                     className={
                       noticeTone === "error" ? "notice notice-error" : "notice"

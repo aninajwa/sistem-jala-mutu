@@ -23,8 +23,9 @@ allowNoFile = true}: Props) {
   const prefix = `${scope}:documents:`;
 
   useEffect(() => {
-    let live = true;
+    let live = true, generation = 0;
     const load = async () => {
+      const request = ++generation;
       const links = readEvidenceLinks(scope);
       const metadata = attachmentRepository.metadata();
       const keys = [...new Set([...Object.keys(metadata).filter(key => key.startsWith(prefix)), ...Object.keys(links)])]
@@ -36,7 +37,7 @@ allowNoFile = true}: Props) {
         const record = await attachmentRepository.get(fileKey).catch(() => null);
         return { key, name: meta.name, size: meta.size, record };
       }));
-      if (live) setFiles(results.filter((item): item is EvidenceFile => item !== null));
+      if (live && request === generation) setFiles(results.filter((item): item is EvidenceFile => item !== null));
     };
     void load();
     const changed = () => { void load(); };
@@ -48,10 +49,13 @@ allowNoFile = true}: Props) {
     if (!editable || busy || !selected?.length) return;
     setBusy(true);
     try {
-      for (const file of Array.from(selected)) {
+      const selectedFiles = Array.from(selected);
+      for (const file of selectedFiles) {
         if (file.size > 25 * 1024 * 1024) throw new Error('Maksimum 25 MB per file.');
         const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp'];
         if (!allowed.includes(file.type)) throw new Error('Gunakan PDF, JPG, PNG, atau WEBP.');
+      }
+      for (const file of selectedFiles) {
         const key = prefix + crypto.randomUUID();
         await attachmentRepository.put(key, file);
         updateEvidenceLink(scope, key, { category: 'Bukti foto/video', categories: ['Bukti foto/video'], status: 'Tersedia' }, 'Tambahkan bukti koreksi');
@@ -97,7 +101,7 @@ allowNoFile = true}: Props) {
 )}
     </div>}
     {files.length === 0 && <small className="corr-evidence-muted">{editable ? "Belum ada lampiran. Tambahkan file jika diperlukan untuk jenis tindakan ini." : "Belum ada lampiran yang tersedia pada perangkat ini."}</small>}
-    <small className="corr-evidence-muted">Bukti saat ini tersimpan lokal; belum otomatis tersedia untuk pemeriksa di perangkat lain.</small>
+
     {notice && <p role="status" className="corr-evidence-notice">{notice}</p>}
   </section>;
 }

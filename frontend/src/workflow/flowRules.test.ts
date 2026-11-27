@@ -1,3 +1,4 @@
+import { correctionVerificationMetadataFor } from "./correctionVerificationEvidence";
 import {withProductionReferences} from './testing/productionFixture';
 import test from 'node:test';
 import assert from 'node:assert/strict';
@@ -142,7 +143,14 @@ test('bukti Semester II ditopang kalibrasi, uji baru dan rekaman',()=>{
 });
 test('penutupan koreksi tidak mengubah nilai survei sumber; persetujuan lama ditinjau ulang',()=>{
   const s=fresh();s.dailyRecords=[structuredClone(record)];s.corrections=[{...correction,executionReference:'SMD-RESURVEY-TEST',retestReference:'BA-RETEST-TEST'}];s.submission.validationStatus='VALID';s.acceptance.finalAcceptance=true;
-  assert.deepEqual(correctionClosureErrors(s,s.corrections[0]),[]);
+  assert.ok(correctionClosureErrors(s,s.corrections[0]).some(reason=>reason.includes('Surveyor')));
+  const testCase = s.corrections[0];
+  testCase.verificationEvidence = {
+    surveyor: correctionVerificationMetadataFor(testCase, 'surveyor', 1, {reviewerIdentity:'Surveyor uji',reviewedAt:'2027-06-10T08:00:00+07:00',dataVersionReference:'CLEANED-UJI',evidenceReference:'DOK-S-UJI'}),
+    teamLeader: correctionVerificationMetadataFor(testCase, 'teamLeader', 1, {reviewerIdentity:'Ketua Tim uji',reviewedAt:'2027-06-10T09:00:00+07:00',dataVersionReference:'CLEANED-UJI',evidenceReference:'DOK-TL-UJI'}),
+    balai: correctionVerificationMetadataFor(testCase, 'balai', 1, {reviewerIdentity:'Balai uji',reviewedAt:'2027-06-10T10:00:00+07:00',dataVersionReference:'CLEANED-UJI',evidenceReference:'DOK-B-UJI'}),
+  };
+  assert.deepEqual(correctionClosureErrors(s,testCase),[]);
   const next=applyClosedCorrection(s,s.corrections[0]);
   assert.equal(next.dailyRecords[0].rawValue,'4.5');assert.equal(next.dailyRecords[0].cleanedValue,'4.5');
   assert.equal(s.dailyRecords[0].cleanedValue,'4.5');assert.equal(next.submission.validationStatus,'Draft');assert.equal(next.acceptance.finalAcceptance,false);
@@ -179,4 +187,76 @@ test('pengingat kasus dan milestone semester; referensi dokumen mengikuti status
   assert.ok(notificationsFor(s).some(n=>n.id===`correction-${correction.id}`));assert.ok(notificationsFor(s).some(n=>n.id==='semester-one-upload'));
   s.simulationDate='2027-11-14';assert.ok(notificationsFor(s).some(n=>n.id==='semester-two-upload'));
   s.productionApproval='Draft';assert.equal(workflowDocumentReferences(s).find(r=>r.name==='BA Persetujuan Alat & Metode')?.status,'Draft');
+});
+
+test('referensi BA lama tidak dianggap lulus saat pemeriksaan ulang diperlukan',()=>{
+  const s=fresh(); s.cycle.certificateId='BA-VERVAL';s.cycle.requiresReview=true;
+  s.audits[1].baNumber='BA-AUDIT';s.audits[1].status='Lulus';s.audits[1].requiresReview=true;
+  const rows=workflowDocumentReferences(s);
+  assert.equal(rows.find(r=>r.reference==='BA-VERVAL')?.status,'Perlu pemeriksaan ulang');
+  assert.equal(rows.find(r=>r.reference==='BA-AUDIT')?.status,'Perlu pemeriksaan ulang');
+});
+test('dokumen kasus selesai memisahkan bukti usulan, pelaksanaan dan pemeriksaan ulang',()=>{
+  const s=fresh();s.corrections=[{...correction,status:'Ditutup',executionReference:'HASIL-01',retestReference:'UJI-01'},{...correction,id:'LEGACY',status:'Ditutup',executionReference:'',retestReference:''}];
+  const rows=workflowDocumentReferences(s);
+  assert.equal(rows.find(r=>r.reference==='TEST-CASE · HASIL-01')?.name,'Hasil pelaksanaan tindakan perbaikan');
+  assert.equal(rows.find(r=>r.reference==='TEST-CASE · UJI-01')?.status,'Lulus');
+  assert.equal(rows.filter(r=>r.reference.startsWith('LEGACY ·')).length,1);
+});
+
+ test('referensi periode arsip tetap tersedia dan tidak mengikuti keputusan periode aktif',()=>{
+ const s=fresh(); s.activeCyclePeriod=2; s.cycle.certificateId='BA-P2'; s.cycle.consistency='Konsisten'; s.cycle.requiresReview=false;
+ s.cycleHistory={'1':{...s.cycle,certificateId:'BA-P1',requiresReview:true},'2':{...s.cycle,certificateId:'BA-P2-OLD',requiresReview:true}};
+ const rows=workflowDocumentReferences(s);
+ assert.equal(rows.find(r=>r.reference==='BA-P1')?.status,'Perlu pemeriksaan ulang');
+ assert.equal(rows.find(r=>r.reference==='BA-P2')?.status,'Konsisten');
+ assert.ok(!rows.some(r=>r.reference==='BA-P2-OLD'));
+ });
+ test('BA penerimaan parsial lama tidak tampak berlaku ketika termin dibuka kembali',()=>{
+ const s=fresh(); s.acceptance.partialReceipts=['BA penerimaan T1','BA penerimaan T2'];
+ s.acceptance.terms=s.acceptance.terms.map(t=>({...t,complete:t.id==='T1'}));
+ const rows=workflowDocumentReferences(s);
+ assert.equal(rows.find(r=>r.reference==='BA penerimaan T1')?.status,'Tercatat');
+ assert.equal(rows.find(r=>r.reference==='BA penerimaan T2')?.status,'Perlu pemeriksaan ulang');
+ });
+
+test('laporan validasi jembatan arsip mengikuti periode asal',()=>{
+ const s=fresh();s.activeCyclePeriod=2;s.cycle.bridgeValidationReport='J-P2';s.cycle.bridgeFieldValidation=true;s.cycle.requiresReview=false;
+ s.cycleHistory={'1':{...s.cycle,bridgeValidationReport:'J-P1',requiresReview:true},'2':{...s.cycle,bridgeValidationReport:'J-P2-OLD'}};
+ const rows=workflowDocumentReferences(s);assert.equal(rows.find(r=>r.reference==='J-P1')?.status,'Perlu pemeriksaan ulang');assert.equal(rows.find(r=>r.reference==='J-P2')?.status,'Terverifikasi');assert.ok(!rows.some(r=>r.reference==='J-P2-OLD'));
+});
+
+test('Termin I blocks active upstream quality findings but not unrelated later audit findings',()=>{
+ const s=fresh();
+ for(const blockedStage of ['Persiapan','Kalibrasi','Validasi produksi']) {
+  const c={...correction,blockedStage,status:'Terbuka' as const};
+  assert.match(termReadiness({...s,corrections:[c]},'T1').join(' '),/Temuan persiapan/);
+  assert.deepEqual(termReadiness({...s,corrections:[{...c,status:'Ditutup'}]},'T1'),termReadiness({...s,corrections:[]},'T1'));
+ }
+ assert.deepEqual(termReadiness({...s,corrections:[{...correction,status:'Terbuka'}]},'T1'),termReadiness({...s,corrections:[]},'T1'));
+});
+
+ test('penutupan kasus persiapan mengembalikan laporan pendahuluan dan Termin I untuk evaluasi',()=>{
+ const s=fresh();
+ s.acceptance.terms=s.acceptance.terms.map(t=>({...t,complete:true}));
+ const c:CorrectionCase={...correction,source:'Persiapan',blockedStage:'Persiapan',returnStage:'Persiapan',linkedRecordId:undefined,fieldDataValid:'Tidak Berlaku',actionType:'Pelatihan ulang',executionReference:'DOK-PELAKSANAAN',retestReference:'DOK-UJI'};
+ s.corrections=[c];
+ assert.deepEqual(correctionClosureErrors(s,c),[]);
+ const next=applyClosedCorrection(s,c);
+ assert.equal(next.project.preparation.reportApproval,'Perlu Revisi');
+ assert.equal(next.acceptance.terms.find(t=>t.id==='T1')?.complete,false);
+ assert.equal(next.productionApproval,s.productionApproval);
+ assert.equal(next.corrections[0].status,'Ditutup');
+ assert.ok(termReadiness(next,'T1').length);
+ assert.equal(s.project.preparation.reportApproval,'Disetujui');
+ });
+
+test('penutupan pengingat administratif historis tidak mengubah kesiapan mutu',()=>{
+ const s=fresh();
+ for (const source of ['Notifikasi H+0: pengingat','Pengingat H+0 terlewat']) {
+  const c:CorrectionCase={...correction,source,linkedRecordId:undefined,fieldDataValid:'Tidak Berlaku',actionType:'Investigasi keterlambatan dan rencana tindak lanjut',executionReference:'DOK-PELAKSANAAN',retestReference:'DOK-UJI'};
+  const before={...s,corrections:[c]};
+  assert.deepEqual(correctionClosureErrors(before,c),[]);
+  assert.deepEqual(applyClosedCorrection(before,c),{...before,corrections:[{...c,status:'Ditutup'}]});
+ }
 });

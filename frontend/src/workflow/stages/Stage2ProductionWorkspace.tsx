@@ -1,4 +1,4 @@
-import { canOpenProductionCorrection, productionFailureKey, recordProductionFailure } from '../productionFailures';
+import { canOpenProductionCorrection, productionFailureKey, productionPciMethod, recordProductionFailure } from '../productionFailures';
 import {BalaiDecisionHistory} from '../BalaiDecisionHistory';
 import { readLocal, writeLocal } from '../repository/localPersistence';
 import { Stage2RoleOverview } from '../Stage2RoleOverview';
@@ -841,7 +841,10 @@ export function Stage2ProductionWorkspace(props: WorkflowStageProps) {
                     c.source = "Uji coba gagal";
                     c.blockedStage = "Validasi produksi";
                     c.surveyType = prodType;
+                    if (prodType === "PCI") c.originPciMethod = productionPciMethod(state);
                     c.rejectionReason = `Belum memenuhi hasil evaluasi ${prodType}`;
+                    c.originReference = failures.map(f=>`${f.date} · ${f.reference}`).join("; ");
+                    c.owner = ""; c.dueDate = "";
 
                     commit(
                       "Buka kasus dari uji produksi",

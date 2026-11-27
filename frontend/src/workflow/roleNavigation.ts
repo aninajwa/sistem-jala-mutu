@@ -406,9 +406,9 @@ export function buildRoleNavigation(
             tab: "Temuan Lintas Paket",
           },
           {
-            label: "Audit Tingkat 3",
+            label: "Tindak Lanjut Audit 3",
             href: "/actions",
-            tab: "Audit Tingkat 3",
+            tab: "Tindak Lanjut Audit 3",
           },
           {
             label: "Verifikasi Ulang",
@@ -542,11 +542,11 @@ export function buildRoleNavigation(
           tab: "Monitoring Kasus",
         },
         {
-          label: "Notifikasi & SLA",
+          label: "Pemantauan Tenggat",
           href: "/actions",
-          tab: "Notifikasi & SLA",
+          tab: "Pemantauan Tenggat",
         },
-        { label: "Data Referensi", href: "/actions", tab: "Data Referensi" },
+        { label: "Riwayat", href: "/actions", tab: "Riwayat" },
       ],
     },
     {

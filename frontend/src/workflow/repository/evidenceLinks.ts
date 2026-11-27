@@ -1,4 +1,5 @@
 import {readLocal,writeLocal} from './localPersistence';
+export const EVIDENCE_LINK_CHANGED='jala-evidence-link-changed';
 export type EvidenceLink={category:string;categories?:string[];items?:string[];status:string;fileKey?:string;detached?:boolean;history?:EvidenceLinkChange[]};
 export type EvidenceLinkChange={at:string;action:string;before:{categories:string[];items:string[];status:string};after:{categories:string[];items:string[];status:string}};
 export const evidenceCategories=(link?:EvidenceLink)=>[...new Set(link?.categories??(link?.category?[link.category]:[]))];
@@ -11,5 +12,7 @@ export function updateEvidenceLink(scope:string,key:string,patch:Partial<Evidenc
  if(patch.categories){next.categories=[...new Set(patch.categories)];next.category=next.categories[0]??old.category;}
  const snapshot=(value:EvidenceLink)=>({categories:evidenceCategories(value),items:value.items??[],status:value.status});
  next.history=[...(old.history??[]),{at:new Date().toISOString(),action,before:snapshot(old),after:snapshot(next)}];
- writeLocal(evidenceLinksKey(scope),{...links,[key]:next});return next;
+ writeLocal(evidenceLinksKey(scope),{...links,[key]:next});
+ if(typeof window!=='undefined')window.dispatchEvent(new CustomEvent(EVIDENCE_LINK_CHANGED,{detail:{scope,key}}));
+ return next;
 }

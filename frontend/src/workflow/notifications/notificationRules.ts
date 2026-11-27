@@ -34,7 +34,7 @@ export function workflowEvents(old:Projection,next:OperationalWorkflowState,revi
    emit('acceptance.recorded','Keputusan penerimaan akhir dicatat',subject,PROVIDER,'lead',now.acceptance,target,false);
   }
  }
- function auditReady(level:number,p:Projection){return p.submission==='VALID'&&p.audits[level-2]?.status==='Lulus'&&!p.audits[level-2]?.requiresReview&&(p.audits[level-1]?.requiresReview||!['Lulus','Ditolak'].includes(p.audits[level-1]?.status));}
+ function auditReady(level:number,p:Projection){return (p.submission==='VALID'||(level===2&&p.reviewHandoverReady===true))&&p.audits[level-2]?.status==='Lulus'&&!p.audits[level-2]?.requiresReview&&(p.audits[level-1]?.requiresReview||!['Lulus','Ditolak'].includes(p.audits[level-1]?.status));}
  for(const level of [2,3])if(!auditReady(level,old)&&auditReady(level,now))emit('audit.ready',`Audit tingkat ${level} siap diperiksa`,{kind:'audit',id:String(level),auditLevel:level},level===2?BALAI:CENTRE,'audit','ready',{module:'workflow',packageId:pkg,selection:SELECTION.audit,auditLevel:level});
  for(const [index,a] of now.audits.entries())if(a.status==='Ditolak'&&old.audits[index]?.status!=='Ditolak')emit('audit.returned',`Audit tingkat ${index+1} ditolak; tinjau alasan`,{kind:'audit',id:String(index+1),auditLevel:index+1},index===2?BALAI:PROVIDER,index===2?'supervise':'lead','Ditolak',{module:'workflow',packageId:pkg,selection:SELECTION.audit,auditLevel:index+1},index!==2);
  for(const c of next.corrections){const prev=old.corrections[c.id];if(prev&&prev.status===c.status&&prev.approval===c.approval&&prev.retest===c.retest)continue;const subject:Subject={kind:'correction',id:c.id},target:Target={module:'correction',packageId:pkg,caseId:c.id};
@@ -57,7 +57,7 @@ export function stateMatches(e:NoticeEvent,s:OperationalWorkflowState,latestDocu
  const p=projectWorkflow(s),a=e.subject;
  if(a.kind==='document')return !!latestDocument&&latestDocument.status===e.expectedState&&String(latestDocument.version)===e.sourceVersion;
  if(a.kind==='correction'){const c=s.corrections.find(c=>c.id===a.id);return !!c&&(e.type==='correction.returned'?`${c.status}:${c.approval}:${c.retest}`===e.expectedState:c.status===e.expectedState);}
- if(a.kind==='audit'){const level=a.auditLevel!;return e.expectedState==='ready'?p.submission==='VALID'&&p.audits[level-2]?.status==='Lulus'&&!p.audits[level-2]?.requiresReview&&(p.audits[level-1]?.requiresReview||!['Lulus','Ditolak'].includes(p.audits[level-1]?.status)):p.audits[level-1]?.status===e.expectedState;}
+ if(a.kind==='audit'){const level=a.auditLevel!;return e.expectedState==='ready'?(p.submission==='VALID'||(level===2&&p.reviewHandoverReady===true))&&p.audits[level-2]?.status==='Lulus'&&!p.audits[level-2]?.requiresReview&&(p.audits[level-1]?.requiresReview||!['Lulus','Ditolak'].includes(p.audits[level-1]?.status)):p.audits[level-1]?.status===e.expectedState;}
  if(a.kind==='period'){const c=p.periods[String(a.period)];return !!c&&(e.expectedState==='submitted'?c.submitted&&c.review!=='Sesuai':c.review===e.expectedState);}
  return p[a.kind]===e.expectedState;
 }

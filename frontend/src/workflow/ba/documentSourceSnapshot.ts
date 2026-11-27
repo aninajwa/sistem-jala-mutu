@@ -11,7 +11,7 @@ export function documentSourceSnapshot(state:OperationalWorkflowState,identity:B
  const scope=identity.kind==='audit'?`${identity.packageId}::audit-${identity.auditLevel}`:identity.packageId;
  const periodScope=identity.period===1?identity.packageId:`${identity.packageId}::period-${identity.period}`;
  const phase3b=identity.kind==='duaMingguan'?'periodic14':identity.kind==='internal'?'internal':'consistency';
- const template=STAGE3B_DOCX_CANDIDATES.find(item=>item.survey===(identity.survey==='PCI'?'PCI Manual':identity.survey)&&item.phase===phase3b);
+ const template=STAGE3B_DOCX_CANDIDATES.find(item=>item.survey===(identity.survey==='PCI'?(state.productionTests.PCI.pciManual!==false?'PCI Manual':'PCI AI'):identity.survey)&&item.phase===phase3b);
  const periodAnswers=identity.period>0?readLocal<Record<string,string>>(`jala-mutu-stage3b-docx-${periodScope}-v1`,{}):{};
  const documentScope=['periodic14','internal','consistency'].includes(phase??'')?periodScope:scope;
  const answers=document?readLocal(sourceDocumentKey(documentScope,document.id),document.derivedFrom?readLocal(sourceDocumentKey(documentScope,document.derivedFrom),{}):{}):Object.fromEntries(Object.entries(periodAnswers).filter(([key])=>template&&key.includes(`::${template.id}::`)));

@@ -42,3 +42,14 @@ test("label pemeriksaan mengikuti pekerjaan role, bukan keputusan role lain", ()
   assert.equal(correctionViewLabel(balai, mk("Menunggu Persetujuan"), "approval"), "Periksa usulan");
   assert.equal(correctionViewLabel(directorate, mk("Menunggu Persetujuan", "Audit tingkat 3"), "approval"), "Hasil pemeriksaan");
 });
+
+ test("Label tindakan mengikuti fase dan pemeriksa hasil yang berwenang", () => {
+  assert.equal(correctionViewLabel(provider, mk("Terbuka"), "proposal"), "Rencana tindakan");
+  assert.equal(correctionViewLabel(provider, mk("Disetujui"), "execution"), "Laksanakan tindakan");
+  assert.equal(correctionViewLabel(balai, mk("Disetujui"), "execution"), "Hasil pelaksanaan");
+  assert.equal(correctionViewLabel(balai, mk("Dilaksanakan", "Audit tingkat 3"), "verification"), "Hasil pemeriksaan ulang");
+  assert.equal(correctionViewLabel(directorate, mk("Dilaksanakan", "Audit tingkat 3"), "verification"), "Periksa hasil");
+  assert.equal(correctionViewLabel(provider, mk("Dilaksanakan", "Audit tingkat 1"), "verification"), "Periksa hasil");
+  assert.equal(correctionViewLabel(directorate, {...mk("Verifikasi Ulang", "Audit tingkat 3"), retest: "Lulus"}, "verification"), "Penutupan kasus");
+  assert.equal(correctionViewLabel("Admin", mk("Dilaksanakan"), "verification"), "Hasil pemeriksaan ulang");
+});

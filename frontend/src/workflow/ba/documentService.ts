@@ -7,12 +7,15 @@ import {documentRepository,type BaIdentity} from './documentRepository';
 import {documentActors,documentActionErrors,documentFingerprint,type DocumentAction} from './documentWorkflow';
 /** Frontend-only transaction boundary. Every transition checks actor, state, version and gate again. */
 export function transitionDocument(state:OperationalWorkflowState,identity:BaIdentity,action:DocumentAction,fields:Record<string,string>,templateHash:string,missing:number,note:string,expectedVersion:number){
+ const identityErrors=documentIdentityErrors(state,identity);if(identityErrors.length)throw new Error(identityErrors.join(' '));
  const stored=documentRepository.read(identity),latest=stored.versions.at(-1);
  if((latest?.version??0)!==expectedVersion)throw new Error('Dokumen berubah di tab lain. Muat ulang sebelum melanjutkan.');
  const schemaErrors=action==='submit'?baFieldErrors(identity.kind,identity.survey as SurveyType,fields):action==='approve'?baFieldErrors(identity.kind,identity.survey as SurveyType,latest?.fields??{}):[];
  const errors=documentActionErrors(state,identity,action,latest,Math.max(missing,schemaErrors.length),note);if(errors.length)throw new Error(errors.join(' '));
  const status=({submit:'submitted-local',revise:'revision-requested-local',reject:'rejected-local',approve:'reviewed-local',reopen:'local-draft'} as const)[action];
- return documentRepository.addVersion(identity,{actor:state.role,templateHash,status,fields:action==='submit'||action==='reopen'?fields:latest!.fields,sourceFingerprint:documentFingerprint(state,identity),sourceSnapshot:action==='submit'||action==='reopen'?documentSourceSnapshot(state,identity):latest?.sourceSnapshot,reviewNote:note.trim(),basedOnVersion:latest?.version});
+ const newDraft=action==='submit'||action==='reopen';
+ if(action==='approve'&&latest?.templateHash!==templateHash)throw new Error('Template BA berubah setelah pengajuan; minta revisi dan ajukan ulang.');
+ return documentRepository.addVersion(identity,{actor:state.role,templateHash:newDraft?templateHash:latest!.templateHash,status,fields:newDraft?fields:latest!.fields,sourceFingerprint:newDraft?documentFingerprint(state,identity):latest?.sourceFingerprint,sourceSnapshot:newDraft?documentSourceSnapshot(state,identity):latest?.sourceSnapshot,reviewNote:note.trim(),basedOnVersion:latest?.version});
 }
 export function saveDocumentDraft(state:OperationalWorkflowState,identity:BaIdentity,fields:Record<string,string>){
  const errors=documentIdentityErrors(state,identity);if(errors.length)throw new Error(errors.join(' '));
@@ -26,6 +29,6 @@ export function saveDocumentDraft(state:OperationalWorkflowState,identity:BaIden
 export function saveDraftVersion(state:OperationalWorkflowState,identity:BaIdentity,fields:Record<string,string>,templateHash:string,expectedVersion:number){
  const latest=documentRepository.read(identity).versions.at(-1);
  if((latest?.version??0)!==expectedVersion)throw new Error('Dokumen berubah di tab lain. Muat ulang sebelum melanjutkan.');
- saveDocumentDraft(state,identity,documentRepository.read(identity).draft);
+ saveDocumentDraft(state,identity,fields);
  return documentRepository.addVersion(identity,{actor:state.role,templateHash,status:'local-draft',fields,sourceFingerprint:documentFingerprint(state,identity),sourceSnapshot:documentSourceSnapshot(state,identity)});
 }

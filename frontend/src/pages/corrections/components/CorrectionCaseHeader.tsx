@@ -1,10 +1,8 @@
-import { STATUS_ORDER, correctionDisplayStatus } from "../correctionViewModel";
+import { correctionDisplayStatus, correctionHasPendingWork } from "../../../workflow/correctionPresentation";
+import { correctionNextStep } from "../../../workflow/checkpoint09Corrections";
 
 import {
   ArrowLeft,
-  AlertCircle,
-  ClipboardCheck,
-  ShieldCheck,
 } from "lucide-react";
 import type {
   CorrectionCase,
@@ -49,22 +47,13 @@ export default function CorrectionCaseHeader({ workflow, onBack }: Props) {
             {item?.surveyType ?? "—"}
           </p>
         </div>
-        <span className="case-status">{item?.status ?? "Belum dipilih"}</span>
+        <span className="case-status">{item ? correctionDisplayStatus(item) : "Belum dipilih"}</span>
       </div>
-      <div
-        className="b-case-lifecycle"
-        aria-label="Status kasus"
-      >
-        {STATUS_ORDER.map((status) => (
-          <div
-            key={status}
-            aria-current={item?.status === status ? "step" : undefined}
-          >
-            <span />
-            {status}
-          </div>
-        ))}
-      </div>
+      {item && <div className="case-role-info" aria-label="Langkah berikutnya">
+        <div><strong>{correctionHasPendingWork(item) ? `${workflow.role === correctionNextStep(item).actor ? "Tugas Anda" : "Penanggung jawab berikutnya"}: ${correctionNextStep(item).actor}` : "Kasus selesai"}</strong>
+          <p>{correctionNextStep(item).label}</p></div>
+      </div>}
+      <details className="corr-mode-local"><summary>Mode lokal</summary><p>Data dan lampiran tersimpan di perangkat ini, belum dikirim ke server atau pemeriksa lain.</p></details>
       <details className="ui09-case-context">
         <summary>Asal temuan</summary>
         <p>

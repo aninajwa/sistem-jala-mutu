@@ -18,6 +18,7 @@ import { auditSampleIntegrity } from "../auditSampleIntegrity";
 import { reviseAuditSampleUnit } from "../auditSampleRevisions";
 import { auditReviewEligibility } from "../auditReviewEligibility";
 import { resolveAuditRejectionRecords, hasOpenAuditRejectionCase } from "../auditRejectionCases";
+import {applyAuditRejection,auditRejectionAction} from "../auditRejectionTransition";
 import { buildAuditSamplePlan, buildDirectorateScopePlan } from "../auditSamplePlan";
 import {buildAuditPopulation} from "../auditSampleUnits";
 import { EvidenceAttachment } from "../EvidenceAttachment";
@@ -26,7 +27,6 @@ import { auditChecksForScope, auditStatusForDisplay } from "../auditChecklistPol
 import {
   AuditLevel,
   AuditSampleUnit,
-  CorrectionCase,
   evaluateLrsGate,
   OperationalWorkflowState,
   samplingRule,
@@ -34,6 +34,7 @@ import {
   WorkflowRole,
 } from "../model";
 import { SourceAlignmentChecklist } from "../SourceAlignmentChecklist";
+import sourceCatalog from "../sourceChecklistCatalog.json";
 import { GateSummary } from "../WorkflowComponents";
 import { AUDIT_LEVEL_PRESENTATION } from "../workflowConfig";
 
@@ -42,7 +43,6 @@ import {
   Badge,
   Button,
   CheckRow,
-  defaultCase,
   Field,
   Panel,
   Select,
@@ -111,12 +111,12 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
     ...(auditLevel > 1
       ? [
           {
-            label: "Referensi serah berkas untuk pemeriksaan",
+            label: auditLevel === 3 ? "Status validasi sistem sumber" : "Referensi serah berkas untuk pemeriksaan",
             ready: uploadReady,
             detail:
               state.submission.validationStatus === "VALID"
                 ? "VALID dari sistem sumber"
-                : state.submission.reviewHandoverReference?.trim() ? "Referensi penyerahan tercatat (lokal)" : "Belum tercatat",
+                : auditLevel === 2 && state.submission.reviewHandoverReference?.trim() ? "Referensi penyerahan tercatat (lokal)" : "Belum tercatat",
           },
         ]
       : []),
@@ -137,7 +137,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       setNotice(
         auditLevel === 1
           ? "Audit Tingkat 1 menunggu Tahap 4 lengkap dan gerbang RNI/LRS lulus."
-          : "Audit memerlukan audit sebelumnya lulus, paket siap, dan referensi penyerahan pemeriksaan atau status VALID dari sistem sumber.",
+          : auditLevel === 3 ? "Audit Tingkat 3 menunggu Audit Tingkat 2 lulus dan status VALID dari sistem sumber." : "Audit Tingkat 2 memerlukan audit internal lulus, paket siap, dan referensi penyerahan pemeriksaan atau status VALID dari sistem sumber.",
       );
       return;
     }
@@ -326,35 +326,16 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       setNotice(rejectionResolution.error);
       return;
     }
-    const recordIds = patch.status === "Ditolak" ? rejectionResolution.recordIds : [];
-    const rejectionCases: CorrectionCase[] = [];
     if (patch.status === "Ditolak") {
-      for (const recordId of recordIds) {
-        if (hasOpenAuditRejectionCase({
-          cases: state.corrections,
-          source: rejectionSource,
-          surveyType: rejectionType as typeof scopedTypes[number],
-          recordId,
-        })) continue;
-        const rejectionCase = defaultCase(state);
-        rejectionCase.source = rejectionSource;
-        rejectionCase.blockedStage = `Audit tingkat ${auditLevel}`;
-        rejectionCase.returnStage = `Audit tingkat ${auditLevel}`;
-        rejectionCase.owner = auditLevel === 3
-          ? "PIC Balai / Pengguna Jasa"
-          : "Penyedia Jasa / Ketua Tim";
-        rejectionCase.surveyType = rejectionType as typeof scopedTypes[number];
-        const auditRecord = state.dailyRecords.find(record =>
-          record.id === recordId && record.surveyType === rejectionType,
-        );
-        rejectionCase.originalValue = auditRecord?.rawValue || "Belum ada nilai raw tertaut";
-        rejectionCase.rejectionReason = (draft[`audit-rejection-${auditLevel}`] ?? "").trim();
-        rejectionCase.linkedRecordId = auditRecord?.id;
-        rejectionCase.severity = auditLevel === 3 ? "Kritis" : "Mayor";
-        rejectionCases.push(rejectionCase);
-      }
+      const surveyType = rejectionType as typeof scopedTypes[number];
+      const recordIds = rejectionResolution.recordIds.filter(recordId => !hasOpenAuditRejectionCase({cases:state.corrections,source:rejectionSource,surveyType,recordId}));
+      const input = {level:auditLevel,surveyType,note:(draft[`audit-rejection-${auditLevel}`]??"").trim(),baNumber:patch.baNumber,caseIds:recordIds.map((_,i)=>`KOR-AUD${auditLevel}-${Date.now()}-${i}`)};
+      const result=applyAuditRejection(state,input);
+      if (!result.next) {setNotice(result.error||"Penolakan audit tidak dapat dicatat.");return;}
+      commit(auditRejectionAction(auditLevel),`Audit tingkat ${auditLevel}`,current=>applyAuditRejection(current,input).next??current);
+      if(result.caseId)setCaseId(result.caseId);
+      return;
     }
-    if (patch.status === "Ditolak") patch = { ...patch, decisionNote: (draft[`audit-rejection-${auditLevel}`] ?? "").trim() };
     const invalidates =
       audit.status === "Lulus" &&
       ((patch.status !== undefined && patch.status !== "Lulus") ||
@@ -376,11 +357,8 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             ? x.status === "Belum Dimulai" ? x : { ...x, requiresReview: true, reviewReason: `Audit tingkat ${auditLevel} berubah; periksa kembali keterkaitan keputusan.` }
             : x,
       ) as OperationalWorkflowState["audits"],
-      corrections: rejectionCases.length
-        ? [...rejectionCases, ...s.corrections]
-        : s.corrections,
       acceptance:
-        invalidates || patch.status === "Ditolak"
+        invalidates
           ? {
               ...s.acceptance,
               finalReport: false,
@@ -391,21 +369,7 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
             }
           : s.acceptance,
     }));
-    if (patch.status === "Ditolak") {
-      if (rejectionCases.length) {
-        setCaseId(rejectionCases[0].id);
-      } else {
-        const existingCase = state.corrections.find(item =>
-          recordIds.some(recordId =>
-            item.source === rejectionSource &&
-            item.surveyType === rejectionType &&
-            item.status !== "Ditutup" &&
-            item.linkedRecordId === recordId,
-          ),
-        );
-        if (existingCase) setCaseId(existingCase.id);
-      }
-    }
+
   };
   const levelLabels = ([1, 2, 3] as const).map(
     (level) => AUDIT_LEVEL_PRESENTATION[level].label,
@@ -482,6 +446,14 @@ export function Stage5AuditWorkspace(props: WorkflowStageProps) {
       )}
       {activeTab === "formulir" && (
         <section className="stage5-section" aria-label={`Formulir audit tingkat ${auditLevel}`}>
+      {state.project.surveyTypes.includes('Lendutan') && (()=>{
+        const reference=sourceCatalog.find(document=>document.id==='ba-audit-lendutan');
+        return reference ? <div className="wf-toolbar stage5-audit-reference">
+          <a className="wf-button" data-source-reference-id={reference.id} href={`${import.meta.env.BASE_URL}${reference.asset}`} download>
+            <FileText size={16} aria-hidden="true"/> Acuan checklist audit umum Lendutan (DOCX)
+          </a>
+        </div> : null;
+      })()}
       <SourceAlignmentChecklist pciManual={state.productionTests.PCI.pciManual!==false}
         projectInfo={state.project}
         key={`${state.project.id}:audit-${auditLevel}`}

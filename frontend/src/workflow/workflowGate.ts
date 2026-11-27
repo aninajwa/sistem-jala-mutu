@@ -1,5 +1,6 @@
 import { evaluateProductionTest } from './model';
 import { calibrationReviewIsSuitable } from './calibrationReview';
+import { pendingQualityCases } from './flowRules';
 
 import type {
   OperationalWorkflowState,
@@ -69,13 +70,14 @@ function calibrationReady(
 export function effectiveProductionApproval(state: OperationalWorkflowState): boolean {
   if (state.productionApproval !== 'Disetujui' || !state.productionApprovalBa.trim()) return false;
   if (state.project.preparation.reportApproval !== 'Disetujui' || !calibrationReady(state)) return false;
+  if (pendingQualityCases(state).some(c => ['Persiapan', 'Persiapan & SPMK'].includes(c.blockedStage))) return false;
   if (!state.project.surveyTypes.length) return false;
   if (state.project.surveyTypes.some(type =>
     !calibrationReviewIsSuitable(state, type) ||
     !evaluateProductionTest(type, state.productionTests[type]).passed
   )) return false;
-  return !state.corrections.some(item =>
-    item.status !== 'Ditutup' && state.project.surveyTypes.includes(item.surveyType) &&
+  return !pendingQualityCases(state).some(item =>
+    state.project.surveyTypes.includes(item.surveyType) &&
     (item.calibrationFinding != null || item.source === 'Uji coba gagal' ||
      item.blockedStage === 'Kalibrasi' || item.blockedStage === 'Validasi produksi')
   );
@@ -88,13 +90,17 @@ export function evaluateStageGate(
 ): StageGateResult {
   const blockers: string[] = [];
 
+  const openCases = pendingQualityCases(state);
+  const preparationFinding = openCases.some(c => ['Persiapan', 'Persiapan & SPMK'].includes(c.blockedStage));
+  const calibrationFinding = openCases.some(c => c.blockedStage === 'Kalibrasi' || c.calibrationFinding != null);
   const preparationApproved =
-    state.project.preparation.reportApproval === 'Disetujui';
+    state.project.preparation.reportApproval === 'Disetujui' && !preparationFinding;
 
-  const calibrationApproved = calibrationReady(state);
+  const calibrationApproved = calibrationReady(state) && !calibrationFinding;
 
-  const productionApproved = effectiveProductionApproval(state);
+  const productionApproved = preparationApproved && calibrationApproved && effectiveProductionApproval(state);
 
+  const dailyFinding = openCases.some(c => c.blockedStage === 'Survei harian');
   const dailyRecorded =
     state.project.surveyTypes.length > 0 &&
     state.project.surveyTypes.every(type =>
@@ -106,8 +112,8 @@ export function evaluateStageGate(
       ),
     );
 
-  const hasOpenPeriodicCorrections = state.corrections.some(
-    correction => correction.status !== 'Ditutup' &&
+  const hasOpenPeriodicCorrections = openCases.some(
+    correction =>
       (correction.blockedStage === 'Verval 14 hari' ||
        correction.source === 'Konsistensi gagal' ||
        correction.source === 'Temuan proses verval'),
@@ -196,7 +202,7 @@ export function evaluateStageGate(
 
       // Tidak ada approval Balai untuk setiap catatan harian.
       readyToComplete =
-        productionApproved && dailyRecorded;
+        productionApproved && dailyRecorded && !dailyFinding;
 
       if (!productionApproved) {
         blockers.push(
@@ -224,7 +230,7 @@ export function evaluateStageGate(
             : PROVIDER;
 
       readyToComplete =
-        productionApproved &&
+        productionApproved && !dailyFinding &&
         periodicReviewed;
 
       if (!productionApproved) {
@@ -245,11 +251,11 @@ export function evaluateStageGate(
       waitingFor = submissionValid ? '-' : PROVIDER;
 
       readyToComplete =
-        dailyRecorded &&
+        productionApproved && dailyRecorded &&
         periodicReviewed &&
-        submissionValid;
+        submissionValid && openCases.length === 0;
 
-      if (!dailyRecorded || !periodicReviewed) {
+      if (!productionApproved || !dailyRecorded || !periodicReviewed) {
         blockers.push(
           'Data pelaksanaan dan hasil pemeriksaan berkala belum siap.',
         );
@@ -273,7 +279,7 @@ export function evaluateStageGate(
         : 'Auditor sesuai tingkat kewenangan';
 
       readyToComplete =
-        submissionValid && auditsCompleted;
+        productionApproved && dailyRecorded && periodicReviewed && submissionValid && auditsCompleted && openCases.length === 0;
 
       if (!submissionValid) {
         blockers.push(
@@ -296,7 +302,7 @@ export function evaluateStageGate(
           : BALAI;
 
       readyToComplete =
-        auditsCompleted &&
+        productionApproved && dailyRecorded && periodicReviewed && submissionValid && auditsCompleted && openCases.length === 0 &&
         state.acceptance.finalAcceptance === true;
 
       if (!auditsCompleted) {
@@ -313,6 +319,12 @@ export function evaluateStageGate(
       break;
   }
 
+  if (stage === 'Tahap 0' && preparationFinding) blockers.push('Temuan persiapan masih terbuka.');
+  if (stage === 'Tahap 1' && calibrationFinding) blockers.push('Temuan kalibrasi atau personel masih terbuka.');
+  if (['Tahap 3A', 'Tahap 3B'].includes(stage) && dailyFinding) blockers.push('Temuan survei harian masih terbuka.');
+  if (['Tahap 4', 'Tahap 5', 'Tahap 6'].includes(stage) && openCases.length) blockers.push('Temuan mutu masih terbuka.');
+  if (['Tahap 5', 'Tahap 6'].includes(stage) && (!productionApproved || !dailyRecorded || !periodicReviewed)) blockers.push('Prasyarat produksi dan pemeriksaan lapangan belum lengkap.');
+  if (stage === 'Tahap 6' && !submissionValid) blockers.push('Penyerahan data belum VALID.');
   // Semua halaman boleh dipratinjau.
   // Ini BUKAN izin untuk mengubah data atau menyetujui hasil.
   return {

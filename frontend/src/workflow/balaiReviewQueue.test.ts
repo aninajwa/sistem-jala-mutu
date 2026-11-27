@@ -20,9 +20,11 @@ test('submission, revision and note search reflect actual persisted state',()=>{
  assert.equal(filterBalaiReviews(rows,'','Tahap 0','Selesai/Lulus').length,0);
  s.project.preparation.reportApproval='Perlu Revisi';assert.equal(queue(s)[0].status,'Perlu Perbaikan');
 });
-test('audit level 2 waits for level 1 and valid upload; clarification is not a finding',()=>{
+test('audit level 2 accepts local handover without claiming source VALID; clarification is not a finding',()=>{
  const s=fresh();s.audits[1].status='Belum Dimulai';s.audits[0].status='Belum Dimulai';s.submission.validationStatus='Draft';
- assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Menunggu');s.audits[0].status='Lulus';s.submission.validationStatus='VALID';
+ assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Menunggu');s.audits[0].status='Lulus';
+ s.submission.reviewHandoverReference='REF-LOKAL';assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Perlu Review');
+ s.submission.reviewHandoverReference='';assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Menunggu');s.submission.validationStatus='VALID';
  assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Perlu Review');s.audits[1].status='Klarifikasi';
  assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Menunggu');s.audits[1].status='Ditolak';
  assert.equal(queue(s).find(r=>r.auditLevel===2)?.status,'Perlu Perbaikan');

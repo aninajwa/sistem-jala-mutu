@@ -518,7 +518,7 @@ export function Stage6AcceptanceWorkspace(props: WorkflowStageProps) {
         })}</div>
         {state.project.surveyTypes.length===0 && <p className="stage6-empty">Belum ada jenis survei dalam paket.</p>}
         {state.project.surveyTypes.length>0 && <div className="stage6-panel stage6-survey-detail">
-          <div className="stage6-section-heading"><h3>{surveyFocus} · kesiapan penyerahan</h3><span>{state.submission.validationStatus==='VALID'?'Status VALID tercatat':'Belum VALID'}</span></div>
+          <div className="stage6-section-heading"><h3>{surveyFocus} · kesiapan penyerahan</h3><span>{state.submission.validationStatus==='VALID'?'Status paket: VALID tercatat':'Status paket: belum VALID'}</span></div>
           <div className="stage6-details-grid">
             <div><span>Rekaman yang tercatat</span><strong>{state.dailyRecords.filter(record=>record.surveyType===surveyFocus&&record.state==='Tercatat').length}</strong></div>
             <div><span>Audit Tingkat 1–3</span><strong>{allAuditsPassed?'Lulus':'Belum lengkap'}</strong></div>

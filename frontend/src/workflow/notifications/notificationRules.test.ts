@@ -2,7 +2,7 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {INITIAL_WORKFLOW,type OperationalWorkflowState} from '../model';
 import {PROVIDER,BALAI,CENTRE,emptyConfig,projectWorkflow,type NotificationConfig} from './notificationEvents';
-import {workflowEvents,documentEvents,recipients,SELECTION} from './notificationRules';
+import {workflowEvents,documentEvents,recipients,SELECTION,stateMatches} from './notificationRules';
 import {sourceObligations,obligationsFor,reminderEvents,validDate,jakartaDay} from './notificationSchedule';
 import {CONFIG_KEY,STORE_KEY,readNotificationStore,readConfig,saveConfig,markRead,validateConfig} from './notificationRepository';
 import {captureWorkflowCommit,reconcileNotifications,notificationView,accessibleAgenda,resolveNotification} from './notificationService';
@@ -72,4 +72,17 @@ test('H30 requires a confirmed effective start date; H7 remains available',()=>{
  assert.equal(reminderEvents({...o,effectiveFrom:'2026-11-10'},s,c,'2026-11-01',at).length,0);
  assert.equal(reminderEvents({...o,effectiveFrom:'2026-10-31'},s,c,'2026-11-01',at)[0].type,'H-30');
  assert.equal(reminderEvents({...o,effectiveFrom:'2026-10-31'},s,c,'2026-11-24',at)[0].type,'H-7');
+});
+
+test('local handover notifies only Balai and cannot open Directorate audit before source VALID',()=>{
+ const s=fixture();s.submission.validationStatus='Draft';s.submission.reviewHandoverReference='';
+ s.audits[0].status='Lulus';s.audits[0].requiresReview=false;s.audits[1].status='Belum Dimulai';s.audits[2].status='Belum Dimulai';
+ const old=projectWorkflow(s);s.submission.reviewHandoverReference='REF-LOKAL';
+ const notices=workflowEvents(old,s,1,at).filter(e=>e.type==='audit.ready');
+ assert.equal(notices.length,1);assert.equal(notices[0].recipientRole,BALAI);assert.equal(stateMatches(notices[0],s),true);
+ s.submission.reviewHandoverReference='';assert.equal(stateMatches(notices[0],s),false);
+ s.submission.reviewHandoverReference='REF-LOKAL';s.audits[1].status='Lulus';s.audits[1].requiresReview=false;
+ assert.equal(workflowEvents(old,s,2,at).some(e=>e.recipientRole===CENTRE),false);
+ const local=projectWorkflow(s);s.submission.validationStatus='VALID';
+ assert.equal(workflowEvents(local,s,3,at).find(e=>e.type==='audit.ready')?.recipientRole,CENTRE);
 });

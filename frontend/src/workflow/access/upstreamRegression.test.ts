@@ -33,7 +33,7 @@ test('destination assignment at confirmation preserves internal audit; invalid s
   });
   assert.equal(after.submission.validationStatus, 'VALID');
   assert.deepEqual(after.audits, before.audits);
-  assert.match(workflowMutationError(before, after, before.role) ?? '', /Penyerahan tertahan/);
+  assert.match(workflowMutationError(before, after, before.role) ?? '', /sistem sumber/);
 });
 
 test('spatial input edit retains historical audit and blocks acceptance', () => {

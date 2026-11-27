@@ -1,5 +1,5 @@
 import test from 'node:test';import assert from 'node:assert/strict';
-import {technicalFields} from './technicalMapping';import {BA_TEMPLATES,automaticFields} from './docxEngine';import {createDemoWorkflow} from '../demoScenario';
+import {technicalFields} from './technicalMapping';import {BA_TEMPLATES,automaticFields} from './baTemplateModel';import {createDemoWorkflow} from '../demoScenario';
 test('known IRI regression values populate source placeholders, never signature identities',()=>{
  const state=createDemoWorkflow('complete'),template=BA_TEMPLATES.find(t=>t.id==='kalibrasi')!;
  const mapped=technicalFields(template,state,'IRI',{start:'2027-01-01',end:'2027-01-14'});
