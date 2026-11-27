@@ -165,9 +165,8 @@ export function buildRoleNavigation(
         label: "Beranda Pekerjaan",
         icon: Gauge,
         children: [
-          { label: "Dashboard utama", href: "/", tab: "Semua" },
-          { label: "Hasil per survei", href: "/", tab: "Kepatuhan" },
-          { label: "Tren pencatatan", href: "/", tab: "Tren" },
+          { label: "Dashboard Pekerjaan", href: "/", tab: "Semua" },
+          { label: "Progres Survei", href: "/", tab: "Kepatuhan" },
         ],
       },
       packageNav,
@@ -187,13 +186,12 @@ export function buildRoleNavigation(
       },
       {
         path: "/reports",
-        label: "Dashboard & Laporan",
+        label: "Pelaporan",
         icon: TrendingUp,
         children: [
-          { label: "Dashboard Operasional", href: "/reports", tab: "Semua" },
           { label: "Rekap & Ekspor", href: "/reports", tab: "Rekap & Ekspor" },
           {
-            label: "Laporan periodik",
+            label: "Laporan Periodik",
             href: "/reports",
             tab: "Laporan periodik",
           },
@@ -241,9 +239,8 @@ export function buildRoleNavigation(
         label: "Beranda Balai",
         icon: Gauge,
         children: [
-          { label: "Dashboard utama", href: "/", tab: "Semua" },
-          { label: "Hasil per survei", href: "/", tab: "Kepatuhan" },
-          { label: "Tren pencatatan", href: "/", tab: "Tren" },
+          { label: "Dashboard Pengawasan", href: "/", tab: "Semua" },
+          { label: "Ringkasan Pemeriksaan", href: "/", tab: "Kepatuhan" },
         ],
       },
       packageNav,
@@ -304,13 +301,12 @@ export function buildRoleNavigation(
       },
       {
         path: "/reports",
-        label: "Dashboard & Laporan",
+        label: "Pelaporan",
         icon: TrendingUp,
         children: [
-          { label: "Dashboard Operasional", href: "/reports", tab: "Semua" },
           { label: "Rekap & Ekspor", href: "/reports", tab: "Rekap & Ekspor" },
           {
-            label: "Laporan periodik",
+            label: "Monitoring Laporan",
             href: "/reports",
             tab: "Laporan periodik",
           },
@@ -362,9 +358,8 @@ export function buildRoleNavigation(
         label: "Ringkasan Nasional",
         icon: Gauge,
         children: [
-          { label: "Dashboard nasional", href: "/", tab: "Semua" },
-          { label: "Paket perlu perhatian", href: "/", tab: "Perlu perhatian" },
-          { label: "Tren mutu nasional", href: "/", tab: "Tren" },
+          { label: "Dashboard Nasional", href: "/", tab: "Semua" },
+          { label: "Paket Perlu Perhatian", href: "/", tab: "Perlu perhatian" },
         ],
       },
       packageNav,
@@ -438,13 +433,12 @@ export function buildRoleNavigation(
       },
       {
         path: "/reports",
-        label: "Dashboard & Laporan",
+        label: "Pelaporan",
         icon: TrendingUp,
         children: [
-          { label: "Dashboard Operasional", href: "/reports", tab: "Semua" },
           { label: "Rekap & Ekspor", href: "/reports", tab: "Rekap & Ekspor" },
           {
-            label: "Laporan periodik",
+            label: "Monitoring Laporan",
             href: "/reports",
             tab: "Laporan periodik",
           },
@@ -495,8 +489,7 @@ export function buildRoleNavigation(
       label: "Ringkasan Sistem",
       icon: Gauge,
       children: [
-        { label: "Dashboard sistem", href: "/", tab: "Semua" },
-        { label: "Status workflow", href: "/", tab: "Workflow" },
+        { label: "Dashboard Sistem", href: "/", tab: "Semua" },
       ],
     },
     {

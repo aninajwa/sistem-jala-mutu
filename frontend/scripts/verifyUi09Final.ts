@@ -1,3 +1,9 @@
+import { CALIBRATION_REVIEW_SUBJECTS, calibrationSourceSignature } from '../src/workflow/calibrationReview';
+import { sourceDocument } from '../src/workflow/sourceDocumentModel';
+import { sourceFormFixture } from '../src/workflow/testing/sourceFormFixture';
+import { evaluateStageGate } from '../src/workflow/workflowGate';
+import { withCompleteDailyRecord } from '../src/workflow/testing/dailyRecordFixture';
+import { stagePresentation } from "../src/design/c/stagePresentation";
 import { openFilterPanels } from "./filterInteractions";
 import { PACKAGE_WORKFLOW_ITEMS } from "../src/workflow/roleNavigation";
 import { prepareIriPeriod } from "./sourceFormInteractions";
@@ -5,6 +11,8 @@ import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
 import fs from "node:fs";
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
+import { checklistCoverageFixture } from "./checklistCoverageFixture";
 import { createDemoWorkflow } from "../src/workflow/demoScenario";
 import { withProductionReferences } from "../src/workflow/testing/productionFixture";
 import { PACKAGE_STORE_KEY } from "../src/workflow/packageStore";
@@ -25,6 +33,46 @@ const server = await createServer({
   server: { host: "127.0.0.1", port: 5173, strictPort: true },
 });
 await server.listen();
+try {
+  const response = await fetch("http://127.0.0.1:5173", {signal: AbortSignal.timeout(15000)});
+  assert.ok(response.ok && (await response.text()).includes('id="root"'), "Vite entry point unavailable");
+  console.log("Vite HTTP ready");
+} catch (error) {
+  fs.writeFileSync(output + "/startup-error.txt", String(error));
+  await server.close();
+  throw error;
+}
+async function navigateReady(page: import("playwright").Page, url: string) {
+  const expected = new URL(url);
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const response = await page.goto(url, { waitUntil: 'domcontentloaded', timeout: 60000 });
+      assert.ok(response?.ok(), `Navigation HTTP status: ${response?.status()}`);
+      await page.locator('.app-shell .topbar').waitFor({ state: 'visible', timeout: 60000 });
+      await page.locator('.jm-loading').waitFor({ state: 'detached', timeout: 60000 });
+      const actual = new URL(page.url());
+      assert.equal(actual.pathname, expected.pathname, 'Unexpected navigation route');
+      console.log(`READY ${expected.pathname} (attempt ${attempt})`);
+      return;
+    } catch (error) {
+      console.error(`Navigation attempt ${attempt}: ${url}`, String(error));
+      const prefix = `${output}/navigation-${Date.now()}-${attempt}`;
+      fs.writeFileSync(prefix + '.txt', `${url}\n${page.url()}\n${String(error)}`);
+      try { await page.screenshot({path: prefix + '.png', timeout: 5000}); } catch {}
+      try { fs.writeFileSync(prefix + '-dom.txt', await page.locator('body').innerText({timeout: 3000})); } catch {}
+      if (attempt === 2) throw error;
+    }
+  }
+}
+async function reloadReady(page: import("playwright").Page) {
+  const url = page.url();
+  // Refresh must retain localStorage and use actual reload semantics.
+  await page.reload({waitUntil: 'domcontentloaded', timeout: 60000});
+  await page.locator('.app-shell .topbar').waitFor({state:'visible', timeout:60000});
+  await page.locator('.jm-loading').waitFor({state:'detached', timeout:60000});
+  assert.equal(new URL(page.url()).pathname, new URL(url).pathname);
+}
+
 const browser = await chromium.launch({
   headless: true,
   ...(process.env.CHROMIUM_EXECUTABLE
@@ -50,6 +98,8 @@ const selections = [
 ];
 const results: any[] = [],
   errors: string[] = [];
+const pending:string[]=[];
+const failures:{scope:string,error:string}[]=[];
 const fixture = withProductionReferences(createDemoWorkflow("complete"));
 fixture.project.surveyTypes = [...SURVEY_TYPES];
 fixture.project.id = "CP09-TEST";
@@ -59,12 +109,12 @@ fixture.project.surveyEndDate = "2027-05-28";
 fixture.productionTests.PCI.pciManual = true;
 fixture.corrections = [];
 const navigate = async (page: any, selection: string) => {
-  await page.goto(
+  await navigateReady(page, 
     `http://127.0.0.1:5173${selection.split(":")[0]}?testRoles=1&submodule=${encodeURIComponent(selection)}`,
   );
   await openFilterPanels(page);
   await page
-    .locator(selection.startsWith("/actions:") ? "main" : ".wf-title")
+    .locator(selection.startsWith("/actions:") ? "main" : selection.includes("Survei harian") ? ".stage3a-title h1" : selection.includes("Audit tingkat") ? ".stage5-header h2" : ".wf-title")
     .first()
     .waitFor({ timeout: 30000 });
 };
@@ -98,7 +148,7 @@ async function noOverflow(page: any, label: string) {
   }
   assert.equal(bad, false, label);
 }
-async function setup(role: WorkflowRole, custom = fixture) {
+async function setup(role: WorkflowRole, custom = fixture, sourceAnswers:Record<string,string> = {}) {
   const state = { ...structuredClone(custom), role };
   if (custom === fixture) {
     const sample = structuredClone(
@@ -140,7 +190,7 @@ async function setup(role: WorkflowRole, custom = fixture) {
     acceptDownloads: true,
   });
   await context.addInitScript(
-    ({ key, state, role }) => {
+    ({ key, state, role, sourceAnswers }) => {
       if (
         location.origin !== "http://127.0.0.1:5173" ||
         sessionStorage.getItem("cp09seed")
@@ -152,19 +202,64 @@ async function setup(role: WorkflowRole, custom = fixture) {
         JSON.stringify({
           activePackageId: state.project.id,
           activeRole: role,
-          packages: { [state.project.id]: state },
+          packages: Object.fromEntries([state.project.id,"PAKET-DEMO-003","PAKET-DEMO-004"].map(id=>{const copy=structuredClone(state);copy.project.id=id;if(id!==state.project.id)copy.corrections=[];return [id,copy];})),
         }),
       );
       localStorage.setItem("jala-mutu-demo-session-v1", "active");
+      for (const [key,value] of Object.entries(sourceAnswers)) localStorage.setItem(key,value);
     },
-    { key: PACKAGE_STORE_KEY, state, role },
+    { key: PACKAGE_STORE_KEY, state, role, sourceAnswers },
   );
   const page = await context.newPage();
   page.setDefaultTimeout(15000);
+  page.setDefaultNavigationTimeout(60000);
   page.on("pageerror", (e: any) => errors.push(e.message));
   return { page, context };
 }
+async function openCase(page: import('playwright').Page, role: WorkflowRole, id: string, tab: string) {
+ const width=page.viewportSize()?.width??1440;
+ if(width<780&&!(await page.locator('.sidebar.open').count()))await page.locator('.mobile-toggle').click();
+ const module=page.locator('.nav-module-button').filter({hasText:'Tindakan Perbaikan'});
+ if(await module.getAttribute('aria-expanded')!=='true')await module.click();
+ await module.locator('..').getByRole('button',{name:tab,exact:true}).click();
+ const dashboard=page.locator('.corr-dashboard');await dashboard.getByRole('heading',{name:tab,exact:true}).waitFor();
+ const row=(role===roles[0]?dashboard.locator('.provider-case-queue > li'):dashboard.locator('.corr-submodule tbody tr')).filter({has:page.getByText(id,{exact:true})});
+ assert.equal(await row.count(),1,id);
+ await (role===roles[0]?row.locator('.provider-case-action button'):row.locator('.corr-row-actions button')).click();
+ await page.locator('.case-detail-header').getByRole('heading',{name:id,exact:true}).waitFor();
+}
+async function openCalibrationForm(page: import('playwright').Page) {
+ const form=page.locator('.source-exact-checklist').first();await form.waitFor({state:'attached'});
+ await form.evaluate(element=>{for(let p=element.parentElement;p;p=p.parentElement)if(p instanceof HTMLDetailsElement)p.open=true;for(const d of element.querySelectorAll('details'))d.open=true;});
+ return form;
+}
+// The redesigned BA editor mounts only one section at a time.
+async function visitBaSections(page: import('playwright').Page, visit: () => Promise<boolean>) {
+  const picker = page.getByRole('combobox', {name:'Bagian formulir',exact:true});
+  await picker.waitFor();
+  const sections = await picker.locator('option').evaluateAll(options => options.map(o => (o as HTMLOptionElement).value));
+  assert.ok(sections.length && sections.every(Boolean), 'BA section list missing');
+  for (const section of sections) {
+    await picker.selectOption(section);
+    await page.locator('.ba-form-section').getByRole('heading',{name:section,exact:true}).waitFor();
+    if (await visit()) return true;
+  }
+  return false;
+}
+const baHistoryOnly = process.argv.includes("--ba-history-only") || process.env.JALA_UI09_BA_HISTORY_ONLY === "1";
+const sourceCoverageOnly = process.argv.includes("--source-coverage-only") || process.env.JALA_UI09_SOURCE_COVERAGE_ONLY === "1";
+assert.ok(!(sourceCoverageOnly && baHistoryOnly), "Choose only one scoped suite");
+const runScope = sourceCoverageOnly ? "source-coverage-only" : baHistoryOnly ? "ba-decision-history-only" : "full";
+const executedGroups:string[]=[];
+async function group(scope:string,run:()=>Promise<void>){
+ if(baHistoryOnly && scope!=="ba-decision-history")return;
+ if(sourceCoverageOnly && !scope.startsWith("source-"))return;
+ executedGroups.push(scope);
+ console.log('RUN',scope);
+ try{await run();console.log('DONE',scope);}catch(error){failures.push({scope,error:String(error)});console.error('FAIL',scope,String(error));for(const ctx of browser.contexts())for(const p of ctx.pages()){try{await p.screenshot({path:`${output}/failure-${scope}.png`,timeout:5000});fs.writeFileSync(`${output}/failure-${scope}-dom.txt`,await p.locator('body').innerText({timeout:3000}));}catch{}}}finally{for(const ctx of browser.contexts())await ctx.close();fs.writeFileSync(output+'/results.json',JSON.stringify({scope:runScope,executedGroups,results,errors,failures,pending},null,2));}
+}
 try {
+  await group("stage-layout",async()=>{
   if (!process.env.CP09_INTERACTIONS_ONLY)
     for (let r = 0; r < roles.length; r++) {
       console.log("ROLE", r);
@@ -195,12 +290,9 @@ try {
               .getAttribute("aria-current"),
             "step",
           );
-          if ([1, 4, 5, 6, 7].includes(i)) {
-            await page.locator(".cp09-checklists > summary").click();
-            assert.ok(
-              (await page.locator(".cp09-checklist-list article").count()) > 0,
-            );
-          }
+          // The removed generic source index is no longer a stage workspace.
+          // Check the actual role-specific scene; source forms are checked separately below.
+          assert.equal(await page.locator('.v2-stage-scene').getAttribute('data-mode'), stagePresentation(roles[r], PACKAGE_WORKFLOW_ITEMS[i].code).mode);
           if (
             await page.evaluate(
               () => document.documentElement.scrollWidth > innerWidth + 2,
@@ -252,7 +344,7 @@ try {
             stage: selections[i],
             width,
             result: "pass",
-            check: "stage navigation, source index, responsive page",
+            check: "stage navigation, actual role scene, responsive page",
           });
         }
         for (const index of [7, 0]) {
@@ -277,7 +369,7 @@ try {
           check:
             "keyboard contextual stepper Enter navigates acceptance and preparation",
         });
-        await page.goto("http://127.0.0.1:5173/documents?testRoles=1");
+        await navigateReady(page, "http://127.0.0.1:5173/documents?testRoles=1");
         await openFilterPanels(page);
         await page
           .getByText("Grafik status & cakupan dokumen", { exact: true })
@@ -298,7 +390,7 @@ try {
           result: "pass",
           check: "Dokumen Mutu empty denominator and responsive",
         });
-        await page.goto("http://127.0.0.1:5173/actions?testRoles=1");
+        await navigateReady(page, "http://127.0.0.1:5173/actions?testRoles=1");
         await openFilterPanels(page);
         await page.locator(".corr-dashboard").waitFor();
         assert.equal(
@@ -316,19 +408,7 @@ try {
           result: "pass",
           check: "correction role entry, responsive",
         });
-        await page
-          .locator("tbody tr")
-          .filter({ hasText: "UI09-CASE" })
-          .first()
-          .getByRole("button")
-          .first()
-          .click();
-        await page
-          .getByRole("button", {
-            name: /^(Lengkapi Tindak Lanjut|Periksa Kasus & Bukti|Lihat Kasus & Riwayat|Lihat Detail Kasus)$/,
-          })
-          .click();
-        await page.locator(".case-detail-header").waitFor();
+        await openCase(page,roles[r],"UI09-CASE",["Tugas Saya","Antrian Verifikasi","Verifikasi Ulang","Monitoring Kasus"][r]);
         await noOverflow(page, "detail-" + r + "-" + width);
         await page.screenshot({
           path: `${output}/screenshots/correction-detail-r${r}-${width}.png`,
@@ -361,27 +441,29 @@ try {
       }
       await context.close();
     }
+
+  });
+  await group("sidebar-links",async()=>{
   // The package links must reach real module lists rather than an unselected correction detail.
   for (const role of roles) {
     const { page, context } = await setup(role);
     await page.setViewportSize({ width: 360, height: 844 });
     await navigate(page, selections[0]);
-    await page.locator(".mobile-toggle").click();
-    await page
-      .locator(".nav-module-button")
-      .filter({ hasText: "Tindakan Perbaikan" })
-      .click();
-    await page.locator(".mobile-toggle").click();
-    await page.locator(".corr-dashboard").waitFor();
-    assert.equal(await page.locator(".case-detail-header").count(), 0);
+    async function chooseModule(label: string, child: string, route: string) {
+      if (!(await page.locator('.sidebar.open').count())) await page.locator('.mobile-toggle').click();
+      const module = page.locator('.nav-module-button').filter({hasText: label});
+      if (await module.getAttribute('aria-expanded') !== 'true') await module.click();
+      await module.locator('..').getByRole('button', {name: child, exact: true}).click();
+      await page.locator('.sidebar.open').waitFor({state:'detached'});
+      assert.equal(new URL(page.url()).pathname, route);
+    }
+    const index = roles.indexOf(role);
+    await chooseModule('Tindakan Perbaikan', ['Tugas Saya','Antrian Verifikasi','Temuan Lintas Paket','Monitoring Kasus'][index], '/actions');
+    await page.locator('.corr-dashboard').waitFor();
+    assert.equal(await page.locator('.case-detail-header').count(), 0);
     await navigate(page, selections[0]);
-    await page.locator(".mobile-toggle").click();
-    await page
-      .locator(".nav-module-button")
-      .filter({ hasText: "Dokumen Mutu" })
-      .click();
-    await page.locator(".mobile-toggle").click();
-    await page.locator(".documents-page").waitFor();
+    await chooseModule('Dokumen Mutu', ['Tugas Dokumen','Antrian Pemeriksaan','Audit & Dokumen Pusat','Monitoring Dokumen'][index], '/documents');
+    await page.locator('.documents-page').waitFor();
     results.push({
       role,
       result: "pass",
@@ -391,37 +473,29 @@ try {
     await context.close();
   }
 
+
+  });
+  await group("proposal-review",async()=>{
   // Real proposal/review controls remain operable after the compact layout changes.
   for (const width of [1440, 360, 390])
     for (const role of roles.slice(0, 2)) {
       const { page, context } = await setup(role);
       await page.setViewportSize({ width, height: 844 });
-      await page.goto("http://127.0.0.1:5173/actions?testRoles=1");
+      await navigateReady(page, "http://127.0.0.1:5173/actions?testRoles=1");
       await openFilterPanels(page);
-      await page
-        .locator("tbody tr")
-        .filter({ hasText: "UI09-CASE" })
-        .first()
-        .getByRole("button")
-        .first()
-        .click();
-      await page
-        .getByRole("button", {
-          name: /^(Lengkapi Tindak Lanjut|Periksa Kasus & Bukti)$/,
-        })
-        .click();
-      await page.locator(".case-detail-header").waitFor();
+      await openCase(page,role,"UI09-CASE",role===roles[0]?"Tugas Saya":"Antrian Verifikasi");
       assert.equal(await page.evaluate(() => window.scrollY), 0);
       if (role === roles[0]) {
-        await page
-          .getByLabel("Penanggung jawab pelaksanaan", { exact: true })
-          .fill("PIC UI final");
-        await page.getByTestId("check-correction-verify-surveyor").check();
-        await page.getByTestId("check-correction-verify-teamLeader").check();
-        await page
-          .getByRole("button", { name: "Ajukan usulan", exact: true })
-          .click();
+        const plan=page.getByTestId('input-case-proposed-plan-UI09-CASE');
+        if(!await plan.isVisible()){const edit=page.getByRole('button',{name:'Mulai perbaikan',exact:true});if(await edit.isVisible())await edit.click();else await page.getByRole('button',{name:'Edit draft',exact:true}).click();}
+        await page.getByLabel('Penanggung jawab pelaksanaan',{exact:true}).fill('PIC UI final');
+        await plan.fill('Rencana survei ulang dan dokumentasi bukti.');
+        await page.getByRole('button',{name:'Simpan draf & lanjut',exact:true}).click();
+        assert.equal(await page.getByTestId('check-correction-verify-surveyor').count(),0);
+        await page.getByRole('button',{name:'Catat pengajuan',exact:true}).click();
       } else {
+        await page.getByRole("button",{name:"Lanjut ke usulan",exact:true}).click();
+        await page.getByRole("button",{name:"Lanjut ke keputusan",exact:true}).click();
         await page.getByTestId("check-correction-verify-balai").check();
         await page
           .getByTestId("input-case-review-note")
@@ -469,6 +543,9 @@ try {
       await context.close();
     }
 
+
+  });
+  await group("audit3-return",async()=>{
   {
     const custom = createDemoWorkflow("verval-finding");
     custom.project.id = "CP09-TEST";
@@ -487,17 +564,11 @@ try {
     ];
     const { page, context } = await setup(roles[1], custom);
     await page.setViewportSize({ width: 360, height: 844 });
-    await page.goto("http://127.0.0.1:5173/actions?testRoles=1");
+    await navigateReady(page, "http://127.0.0.1:5173/actions?testRoles=1");
     await openFilterPanels(page);
-    await page
-      .locator("tbody tr")
-      .filter({ hasText: "UI09-REVISION" })
-      .getByRole("button")
-      .first()
-      .click();
-    await page
-      .getByRole("button", { name: "Periksa Kasus & Bukti", exact: true })
-      .click();
+    await openCase(page,roles[1],"UI09-REVISION","Antrian Verifikasi");
+    await page.getByRole("button",{name:"Lanjut ke usulan",exact:true}).click();
+    await page.getByRole("button",{name:"Lanjut ke keputusan",exact:true}).click();
     await page
       .getByTestId("input-case-review-note")
       .fill("Lengkapi bukti usulan audit3");
@@ -529,21 +600,18 @@ try {
     await context.close();
   }
 
+
+  });
+  await group("calibration-persistence",async()=>{
   // Real source inputs remain readable/editable and retain their exact repository values.
   for (const width of [1440, 360, 390]) {
     const { page, context } = await setup(roles[0]);
     await page.setViewportSize({ width, height: 844 });
     await navigate(page, selections[1]);
-    await page.locator(".cp09-checklists > summary").click();
-    const source = catalog.find(
-      (d) => d.survey === "IRI" && d.phase === "calibration",
-    )!;
-    await page.locator(`[data-source-id="${source.id}"]`).click();
-    const form = page.locator(`[aria-label="Formulir terpilih ${source.id}"]`);
-    for (const details of await form.locator("details").all())
-      if ((await details.getAttribute("open")) === null)
-        await details.locator(":scope > summary").click();
-    const input = form.locator("input[type=text]:not([disabled])").first();
+    const source = catalog.find(d=>d.survey==="IRI"&&d.phase==="calibration")!;
+    const form=await openCalibrationForm(page);
+    assert.equal(await form.getAttribute('data-source-document-id'),source.id);
+    const input=form.locator('input[type=text]:not([disabled])').first();
     await input.fill("Bukti input UI final");
     await input.press("Tab");
     if (width < 780)
@@ -558,15 +626,9 @@ try {
       path: `${output}/screenshots/source-form-${width}.png`,
       animations: "disabled",
     });
-    await page.reload();
-    await page.locator(".cp09-checklists > summary").click();
-    await page.locator(`[data-source-id="${source.id}"]`).click();
-    const restored = page.locator(
-      `[aria-label="Formulir terpilih ${source.id}"]`,
-    );
-    for (const details of await restored.locator("details").all())
-      if ((await details.getAttribute("open")) === null)
-        await details.locator(":scope > summary").click();
+    await reloadReady(page);
+    const restored=await openCalibrationForm(page);
+    assert.equal(await restored.getAttribute('data-source-document-id'),source.id);
     assert.equal(
       await restored
         .locator("input[type=text]:not([disabled])")
@@ -584,40 +646,81 @@ try {
     await context.close();
   }
 
-  // Every operational source remains accessible, including inactive PCI and supplementary forms.
-  if (!process.env.CP09_INTERACTIONS_ONLY) {
-    const { page, context } = await setup(roles[0]);
-    const seen = new Set<string>();
-    for (const i of [1, 4, 5, 6, 7]) {
-      await navigate(page, selections[i]);
-      await page.locator(".cp09-checklists > summary").click();
-      for (const button of await page
-        .locator(".cp09-checklist-list button")
-        .all()) {
-        seen.add((await button.getAttribute("data-source-id"))!);
-      }
-      await page
-        .getByLabel("Cari checklist sumber", { exact: true })
-        .fill("tidak-ada-checklist-ini");
-      await page
-        .getByText("Tidak ada checklist yang cocok.", { exact: false })
-        .waitFor();
-      await page.getByLabel("Cari checklist sumber", { exact: true }).fill("");
-      const first = page.locator(".cp09-checklist-list button").first();
-      await first.click();
-      await page.locator('[aria-label^="Formulir terpilih"]').waitFor();
+
+  });
+  await group("source-index-coverage",async()=>{
+    if (process.env.CP09_INTERACTIONS_ONLY && !sourceCoverageOnly) return;
+    const ids=catalog.map(d=>d.id);
+    assert.equal(new Set(ids).size,ids.length);
+    assert.equal(ids.length,55);
+    // Each identity is exercised at its owning workspace, never via the removed generic index.
+    // A synthetic prior-stage snapshot is validated in checklistCoverageFixture for the periodic Balai view.
+    // One failure does not stop the remaining identities. No sourceId PASS is recorded on a failed group.
+    for (const [index,doc] of catalog.entries()) {
+      await group(`source-${doc.id}`,async()=>{
+        const {custom,sourceAnswers,type}=checklistCoverageFixture(doc);
+        const level=('auditLevel' in doc && typeof doc.auditLevel==='number')?doc.auditLevel:1;
+        const role=doc.phase==='audit'?roles[level-1]:['periodic14','staged','acceptance'].includes(doc.phase)?roles[1]:roles[0];
+        const {page,context}=await setup(role,custom,sourceAnswers);
+        const width=index%2===0?1440:360;
+        await page.setViewportSize({width,height:900});
+        const stage=doc.phase==='calibration'?1:['consistency','internal','periodic14'].includes(doc.phase)?4:doc.phase==='staged'?5:doc.phase==='audit'?6:7;
+        await navigate(page,selections[stage]);
+        if(doc.phase==='calibration') {
+          await page.locator('.stage1-inspection > summary').click();
+        } else if(['consistency','internal','periodic14'].includes(doc.phase)) {
+          const label=doc.phase==='consistency'?'Konsistensi':doc.phase==='internal'?'V&V Internal':'Pemeriksaan Bersama';
+          await page.getByRole('navigation',{name:'Pekerjaan Tahap 3B'}).getByRole('button',{name:label,exact:true}).click();
+          if(doc.phase==='periodic14')await page.getByTestId('select-periodic-review-survey').selectOption(type);
+        } else if(doc.phase==='staged') {
+          await page.getByTestId('stage4-tab-bertahap').click();
+        } else if(doc.phase==='audit') {
+          await page.getByTestId(`button-audit-level-${level}`).click();
+          await page.getByTestId('stage5-tab-formulir').click();
+        } else if(doc.phase==='acceptance') {
+          await page.getByTestId('stage6-tab-criteria').click();
+        } else throw new Error(`Unknown checklist phase ${doc.phase}`);
+        if(doc.id==='ba-audit-lendutan'){
+          // Supplementary general audit reference: download only, not a second editable form.
+          const link=page.locator(`[data-source-reference-id="${doc.id}"]`);
+          await link.waitFor({state:'visible'});
+          assert.equal(await page.locator(`[data-source-document-id="${doc.id}"]`).count(),0);
+          const mainDoc=sourceDocument(type,'audit',true,level)!;
+          assert.notEqual(mainDoc.id,doc.id);
+          await page.locator(`[data-source-document-id="${mainDoc.id}"]`).waitFor({state:'visible'});
+          const [download]=await Promise.all([page.waitForEvent('download'),link.click()]);
+          const saved=`${output}/ba-samples/checklist-${doc.id}.docx`;
+          await download.saveAs(saved);
+          assert.equal(createHash('sha256').update(fs.readFileSync(saved)).digest('hex'),doc.sha256);
+          await noOverflow(page,`source-${doc.id}`);
+          await link.scrollIntoViewIfNeeded();
+        } else {
+          const form=page.locator(`.source-exact-checklist[data-source-document-id="${doc.id}"]`);
+          await form.waitFor({state:'visible'});
+          assert.equal(await form.count(),1,`${doc.id}: source identity must not be duplicated`);
+          assert.ok(await form.locator('[data-source-field],[data-source-table]').count()>0,`${doc.id}: form has no mapped source fields/tables`);
+          const response=await context.request.get(`http://127.0.0.1:5173/${doc.asset}`);
+          assert.ok(response.ok(),`${doc.id}: original asset HTTP ${response.status()}`);
+          assert.equal(createHash('sha256').update(await response.body()).digest('hex'),doc.sha256,`${doc.id}: original asset mismatch`);
+          await noOverflow(page,`source-${doc.id}`);
+          await form.locator('.wf-panel-head').first().scrollIntoViewIfNeeded();
+        }
+        await page.screenshot({path:`${output}/screenshots/source-${doc.id}-${width}.png`,animations:'disabled'});
+        results.push({result:'pass',sourceId:doc.id,survey:doc.survey,phase:doc.phase,role,width,
+          check:doc.id==='ba-audit-lendutan'?'supplementary download and separate main audit form':'actual owning workspace renders exact source ID; original asset SHA256 matches',fixture:'isolated synthetic prior-stage data'});
+        await context.close();
+      });
     }
-    assert.deepEqual([...seen].sort(), catalog.map((d) => d.id).sort());
-    results.push({
-      result: "pass",
-      check:
-        "all 55 original source IDs in stage indices; actual selected form renders",
-    });
-    await context.close();
-  }
+    const reached=results.filter(r=>r.sourceId).map(r=>r.sourceId);
+    const missing=ids.filter(id=>!reached.includes(id));
+    if(missing.length)pending.push(`Unverified checklist IDs: ${missing.join(', ')}`);
+    assert.deepEqual([...reached].sort(),[...ids].sort(),'55 checklist identities must all be reached exactly once');
+  });
+  await group("seven-ba-drafts",async()=>{
   // All seven BA drafts survive reload and download through real buttons (no official signing).
   for (const t of BA_TEMPLATES)
     for (const width of [1440, 360, 390]) {
+      await group(`ba-${t.id}-${width}`, async()=>{
       console.log("BA", t.id, width);
       const role = ["kalibrasi", "konsistensi", "internal", "audit"].includes(
         t.id,
@@ -632,24 +735,25 @@ try {
       await page
         .getByRole("button", { name: "Lengkapi isian template", exact: true })
         .click();
-      for (const section of await page.locator(".ba-form-section").all())
-        if ((await section.getAttribute("open")) === null)
-          await section.locator(":scope > summary").click();
-      const field = page.locator(".ba-field-row textarea").first();
-      await field.fill("Isian uji Checkpoint 09");
-      await page.reload();
+      const marker = 'Isian uji Checkpoint 09';
+      let sectionName = '', fieldLabel = '';
+      assert.ok(await visitBaSections(page, async () => {
+        const field = page.locator('.ba-field-row textarea:not([disabled])').first();
+        if (!(await field.count())) return false;
+        sectionName = await page.getByRole('combobox',{name:'Bagian formulir',exact:true}).inputValue();
+        fieldLabel = await field.locator('..').locator('label').innerText();
+        await field.fill(marker);
+        return true;
+      }), 'No editable text field in BA '+t.id);
+      await reloadReady(page);
       await page.getByText("Ganti konteks dokumen", { exact: true }).click();
       await page.getByLabel("Format BA", { exact: true }).selectOption(t.id);
       await page
         .getByRole("button", { name: "Lengkapi isian template", exact: true })
         .click();
-      for (const section of await page.locator(".ba-form-section").all())
-        if ((await section.getAttribute("open")) === null)
-          await section.locator(":scope > summary").click();
-      assert.equal(
-        await page.locator(".ba-field-row textarea").first().inputValue(),
-        "Isian uji Checkpoint 09",
-      );
+      await page.getByRole('combobox',{name:'Bagian formulir',exact:true}).selectOption(sectionName);
+      const restored = page.locator('.ba-field-row').filter({has:page.getByText(fieldLabel,{exact:true})}).locator('textarea').first();
+      assert.equal(await restored.inputValue(), marker);
       if (t.id === "penerimaan")
         await page
           .getByLabel("Tahun pelaksanaan BA", { exact: true })
@@ -677,17 +781,48 @@ try {
         check: "real draft persistence, responsive editor and DOCX download",
       });
       await context.close();
+      });
     }
+
+  });
+  await group("ba-decision-history",async()=>{
   // BA decision history follows real UI; empty source blocks approval even if legacy technical flags pass.
   {
     const custom = structuredClone(fixture);
     custom.project.surveyTypes = ["IRI"];
-    const { page, context } = await setup(roles[0], custom);
+    custom.project.surveyStartDate = "2027-01-01";
+    custom.project.surveyEndDate = "2027-12-31";
+    custom.activeCyclePeriod = 1;
+    const sourceAnswers: Record<string,string> = {};
+    custom.dailyRecords = custom.dailyRecords.filter(record => record.surveyType === "IRI")
+      .map(record => withCompleteDailyRecord({ ...record, date: "2027-01-07", state: "Tercatat" }));
+    custom.cycle = { ...custom.cycle, selectedTypes: ["IRI"], periodCompleted: false,
+      submittedRecordIds: undefined, certificateId: "", userReview: "Belum Diperiksa",
+      surveyReviews: {}, reviewPendingTypes: [], requiresReview: false };
+    const doc = sourceDocument("IRI", "calibration")!;
+    sourceAnswers[sourceDocumentKey(custom.project.id, doc.id)] = JSON.stringify(sourceFormFixture(doc, custom.project));
+    const previousStorage = Object.getOwnPropertyDescriptor(globalThis, 'localStorage');
+    Object.defineProperty(globalThis, 'localStorage', { configurable: true, value: { getItem: (key: string) => sourceAnswers[key] ?? null } });
+    try {
+      const section = {
+        result: 'Sesuai' as const, reviewer: roles[1], reviewedAt: custom.simulationDate,
+        note: 'Kalibrasi IRI diperiksa untuk skenario BA', evidenceReference: 'BA-KAL-IRI-UJI',
+        sourceSignature: calibrationSourceSignature(custom, 'IRI'),
+      };
+      custom.calibrationReviews = { IRI: { ...section, subject: CALIBRATION_REVIEW_SUBJECTS[0],
+        sections: Object.fromEntries(CALIBRATION_REVIEW_SUBJECTS.map(subject => [subject, section])),
+      } };
+      assert.equal(evaluateStageGate(custom, 'Tahap 2').readyToComplete, true);
+    } finally {
+      if (previousStorage) Object.defineProperty(globalThis, 'localStorage', previousStorage);
+      else Reflect.deleteProperty(globalThis, 'localStorage');
+    }
+    const { page, context } = await setup(roles[0], custom, sourceAnswers);
     const url =
       "http://127.0.0.1:5173/documents?testRoles=1&submodule=" +
       encodeURIComponent("/documents:BA & dokumen workflow");
     async function openDocument() {
-      await page.goto(url);
+      await navigateReady(page, url);
       await openFilterPanels(page);
       await page.getByText("Ganti konteks dokumen", { exact: true }).click();
       await page
@@ -710,21 +845,15 @@ try {
     await page
       .getByRole("button", { name: "Lengkapi isian template", exact: true })
       .click();
-    for (const section of await page.locator(".ba-form-section").all())
-      if ((await section.getAttribute("open")) === null)
-        await section.locator(":scope > summary").click();
-    for (const input of await page
-      .locator(".ba-field-row textarea:not([disabled])")
-      .all())
-      await input.fill("Isian pengujian pemeriksaan BA");
-    for (const input of await page
-      .locator(".ba-field-row input[type=date]:not([disabled])")
-      .all())
-      await input.fill("2027-01-14");
-    for (const input of await page
-      .locator(".ba-field-row select:not([disabled])")
-      .all())
-      await input.selectOption({ index: 1 });
+    await visitBaSections(page, async () => {
+      for (const input of await page.locator('.ba-field-row textarea:not([disabled])').all())
+        await input.fill('Isian pengujian pemeriksaan BA');
+      for (const input of await page.locator('.ba-field-row input[type=date]:not([disabled])').all())
+        await input.fill('2027-01-14');
+      for (const input of await page.locator('.ba-field-row select:not([disabled])').all())
+        await input.selectOption({index:1});
+      return false;
+    });
     await page
       .getByRole("button", { name: "Ajukan pemeriksaan BA", exact: true })
       .click();
@@ -749,6 +878,9 @@ try {
       .getByRole("button", { name: "Minta revisi BA", exact: true })
       .click();
     await prepareIriPeriod(page, actor);
+    const submitted = await page.evaluate(key => JSON.parse(localStorage.getItem(key)!).packages['CP09-TEST'].cycle, PACKAGE_STORE_KEY);
+    assert.deepEqual(submitted.submittedRecordIds, ['IRI-001'], 'Actual UI handover must record the eligible IRI record');
+    assert.equal(submitted.periodCompleted,true);
     await actor(roles[0]);
     await page
       .getByRole("button", { name: "Ajukan pemeriksaan BA", exact: true })
@@ -761,7 +893,7 @@ try {
       .getByText("Pemeriksaan selesai", { exact: true })
       .first()
       .waitFor();
-    await page.reload();
+    await reloadReady(page);
     await page.getByText("Ganti konteks dokumen", { exact: true }).click();
     await page
       .getByLabel("Format BA", { exact: true })
@@ -801,10 +933,13 @@ try {
     await context.close();
   }
 
+
+  });
+  await group("document-filters",async()=>{
   // Real filtered document graph, including live notifications after draft edits.
   {
     const { page, context } = await setup(roles[1]);
-    await page.goto("http://127.0.0.1:5173/documents?testRoles=1");
+    await navigateReady(page, "http://127.0.0.1:5173/documents?testRoles=1");
     await openFilterPanels(page);
     await page
       .getByText("Grafik status & cakupan dokumen", { exact: true })
@@ -837,7 +972,7 @@ try {
       }
       dispatchEvent(new Event("jala-ba-document-changed"));
     });
-    await page.reload();
+    await reloadReady(page);
     await page
       .getByText("Grafik status & cakupan dokumen", { exact: true })
       .click();
@@ -878,6 +1013,9 @@ try {
     });
     await context.close();
   }
+
+  });
+  await group("directorate-retest",async()=>{
   // Regression: Directorate can now retest its own audit-3 correction through the actual detail screen.
   for (const result of ["Lulus", "Gagal"]) {
     const custom = withProductionReferences(
@@ -889,6 +1027,7 @@ try {
       {
         ...custom.corrections[0],
         id: "CP09-CASE",
+        source: "Penolakan audit tingkat 3",
         blockedStage: "Audit tingkat 3",
         returnStage: "Audit tingkat 3",
         status: "Dilaksanakan",
@@ -901,22 +1040,9 @@ try {
       },
     ];
     const { page, context } = await setup(roles[2], custom);
-    await page.goto("http://127.0.0.1:5173/actions?testRoles=1");
+    await navigateReady(page, "http://127.0.0.1:5173/actions?testRoles=1");
     await openFilterPanels(page);
-    await page.evaluate(() =>
-      localStorage.setItem("jala-correction-selection:CP09-TEST", "CP09-CASE"),
-    );
-    await page
-      .getByRole("button", { name: "Pilih", exact: true })
-      .first()
-      .click();
-    const open = page
-      .locator("button")
-      .filter({
-        hasText: /Lihat Detail Kasus|Periksa|Lihat Kasus|Lihat tindak lanjut/,
-      })
-      .first();
-    await open.click();
+    await openCase(page,roles[2],"CP09-CASE","Verifikasi Ulang");
     await page
       .getByRole("button", { name: "Simpan hasil pemeriksaan", exact: true })
       .waitFor();
@@ -962,13 +1088,19 @@ try {
     await context.close();
   }
 
+
+  });
   assert.deepEqual(errors, []);
+  assert.deepEqual(failures, []);
+  assert.deepEqual(pending, [], "Unverified replacement coverage remains");
+  if(baHistoryOnly){assert.deepEqual(executedGroups,["ba-decision-history"]);assert.ok(results.some(r=>r.check?.includes("immutable unsigned history")));}
+  if(sourceCoverageOnly){assert.equal(executedGroups.length,56);assert.equal(results.filter(r=>r.sourceId).length,55);}
 } finally {
   fs.writeFileSync(
     output + "/results.json",
-    JSON.stringify({ browser: browser.version(), errors, results }, null, 2),
+    JSON.stringify({ scope:runScope, executedGroups, browser: browser.version(), errors, results, failures, pending }, null, 2),
   );
   await browser.close();
   await server.close();
 }
-console.log(`PASS ${results.length} browser checks; no page errors`);
+console.log(`PASS ${results.length} browser checks; scope=${runScope} (scoped checks are not full Ui09); no page errors`);

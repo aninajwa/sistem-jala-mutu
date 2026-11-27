@@ -206,7 +206,7 @@ export default function Dashboard({
   filter,
   open,
 }: {
-  data: Record<ReportKind, ReportRow[]>;
+  data: Record<Exclude<ReportKind, "stages">, ReportRow[]>;
   role: string;
   packages: ReportSnapshot["packages"];
   filter: ReportFilter;

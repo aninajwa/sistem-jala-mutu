@@ -221,7 +221,6 @@ function CorrectionDashboardContent(p: CorrectionPageProps) {
         eyebrow="TINDAKAN PERBAIKAN"
         title={currentTab}
         description={tabDescriptions[currentTab] ?? headingByRole[role]}
-        action={<details className="corr-mode-local"><summary>Mode lokal</summary><p>Data dan lampiran tersimpan di perangkat ini, belum dikirim ke server atau pemeriksa lain.</p></details>}
       />
 
       {(

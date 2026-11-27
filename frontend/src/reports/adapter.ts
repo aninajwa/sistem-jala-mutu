@@ -4,7 +4,7 @@ import { isValidReviewDate } from '../pages/reviewDateValidation';
 import type { ReportRow, ReportSnapshot } from './model';
 /** Adapter for the current LOCAL package store. No network or fabricated API contract. */
 export function readLocalReports(input:Record<string,OperationalWorkflowState>, principal:Principal):ReportSnapshot {
- const result:ReportSnapshot={packages:{},rows:{activities:[],reviews:[],corrections:[]},warnings:[],denied:principal.role==='Admin'};
+ const result:ReportSnapshot={packages:{},rows:{activities:[],reviews:[],corrections:[],stages:[]},warnings:[],denied:principal.role==='Admin'};
  if(result.denied || !['Penyedia Jasa / Ketua Tim','PIC Balai / Pengguna Jasa','Direktorat / Pusat'].includes(principal.role)) {result.denied=true;return result;}
  for(const [id,p] of Object.entries(input)) {
   if(id!==p.project.id || !principal.packageIds.includes(id)) continue;
@@ -31,6 +31,19 @@ export function readLocalReports(input:Record<string,OperationalWorkflowState>, 
   addReview('Verval berkala',p.cycle.surveyReviews,p.cycle.reviewPendingTypes);
   addReview('V&V bertahap',p.submission.stagedReviews);
   append('reviews',reviews);
+  // Current workflow state; no inferred decision dates or cross-stage approvals.
+  const stages:ReportRow[]=[];
+  const addStage=(stage:string, ref:string, status:string, survey='—', date='', context=stage)=>stages.push({...base,key:JSON.stringify([id,'stage',stage,ref,survey]),survey,date:isValidReviewDate(date)?date:'',dateBasis:isValidReviewDate(date)?'Tanggal keputusan tercatat':'Status terkini (tanpa tanggal keputusan)',status,reference:ref,context:context===stage?stage:`${stage} · ${context}`});
+  addStage('Tahap 0','Persetujuan persiapan',p.project.preparation.reportApproval);
+  for(const survey of p.project.surveyTypes){
+   const review=p.calibrationReviews?.[survey];
+   for(const [subject,entry] of Object.entries(review?.sections??{})) if(entry) addStage('Tahap 1',subject,entry.result,survey,entry.reviewedAt,'Kalibrasi · keputusan tercatat, bukan validitas bukti terkini');
+   if(!Object.keys(review?.sections??{}).length) addStage('Tahap 1',review?.subject??'Kalibrasi',review?.result??'Belum diperiksa',survey,review?.reviewedAt??'','Kalibrasi · keputusan tercatat, bukan validitas bukti terkini');
+  }
+  addStage('Tahap 2','Persetujuan produksi',p.productionApproval,'—','',p.productionApprovalBa||'Validasi produksi');
+  for(const audit of p.audits) addStage('Tahap 5',`Audit Tingkat ${audit.level}`,audit.requiresReview?'Perlu pemeriksaan ulang':audit.status,'—','',audit.baNumber||'Audit QA/QC');
+  addStage('Tahap 6','Penerimaan akhir',p.acceptance.acceptanceDecision??'Belum Diperiksa','—','',p.acceptance.finalAcceptanceBa||'Penerimaan data');
+  append('stages',stages);
   append('corrections',p.corrections.filter(c=>!!c.id).map(c=>({...base,key:JSON.stringify([id,'correction',c.id]),survey:c.surveyType,date:isValidReviewDate(c.dueDate)?c.dueDate:'',dateBasis:'Tenggat tindakan (bukan tanggal temuan)',status:c.status,reference:c.id,context:c.blockedStage||c.source})));
  }
  for(const rows of Object.values(result.rows)) rows.sort((a,b)=>b.date.localeCompare(a.date)||a.key.localeCompare(b.key));

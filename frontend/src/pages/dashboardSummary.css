@@ -139,3 +139,40 @@
 
 /* Decision provenance on the survey review matrix */
 .ds-review-item{margin:4px 0 9px;font-size:12px;line-height:1.5}.ds-review-item small{display:block;color:#65788b}.ds-review-months{display:grid;gap:8px;margin:12px 0}.ds-review-months>div{display:flex;justify-content:space-between;gap:16px;padding:9px 12px;border:1px solid #e3ebf1;border-radius:8px;flex-wrap:wrap}
+
+.bi-filter-toolbar{display:flex;align-items:flex-end;flex-wrap:wrap;gap:10px;padding:12px 16px;background:white;border:1px solid #dce7eb;border-radius:10px;margin-bottom:10px}
+.bi-filter-toolbar .b-filter-strip{display:flex;flex:1;flex-wrap:wrap;gap:10px;align-items:flex-end;padding:0;background:transparent;border:0}
+.bi-filter-toolbar label{flex:1 1 130px;min-width:0;font-size:12px}
+.bi-filter-toolbar select{width:100%;max-width:100%;min-height:34px}
+.bi-scope-note{font-size:12px;color:#526a78;margin:0 0 12px}
+.bi-visuals{margin-top:16px;align-items:stretch}
+
+.bi-record-detail{max-height:240px;overflow:auto;border:1px solid #dce7eb;border-radius:8px;padding:4px 10px}.bi-record-detail .b-data-line{gap:10px;flex-wrap:wrap}
+.bi-region-status{display:grid;grid-template-columns:repeat(auto-fit,minmax(190px,1fr));gap:8px;padding:12px 16px}.bi-region-status button{text-align:left;display:grid;gap:5px;background:#f3f8f9;border:1px solid #d6e5e9;border-radius:8px;padding:10px;color:#173b60;cursor:pointer}.bi-region-status button[aria-pressed=true]{border-color:#148e98;background:#dff0ef}.bi-region-status button span{font-size:11px;color:#456678}.bi-record-detail{max-height:280px;overflow:auto;padding:6px 0}.bi-record-detail .b-data-line{padding:8px;border-bottom:1px solid #e4edf0}
+.bi-volume-filter{display:flex;gap:8px;align-items:center;font-size:12px}.bi-volume-filter select{max-width:160px}.bi-volume-list{display:grid;gap:12px;max-height:420px;overflow:auto}.bi-volume-row{border:1px solid #dbe8eb;border-radius:10px;padding:12px;display:grid;gap:7px}.bi-volume-head{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;font-size:13px}.bi-volume-row small{color:#56717e}.bi-volume-track{height:10px;background:#e3ecef;border-radius:6px;overflow:hidden}.bi-volume-track span{display:block;height:100%;background:#148b91;border-radius:6px}
+.bi-kpi-shell>div{min-width:0;flex:1}
+.bi-kpi-detail{margin-top:10px;font-size:11px;color:#116c73;overflow-wrap:anywhere}
+.bi-kpi-detail summary{cursor:pointer;font-weight:600}
+.bi-kpi-detail summary:focus-visible{outline:2px solid #168c94;outline-offset:3px}
+.bi-kpi-detail .bi-record-detail{max-height:260px;overflow:auto;margin-top:8px}
+.bi-kpi-detail .b-data-line{flex-wrap:wrap;gap:6px;min-width:0}
+
+/* Shared BI palette: muted teal, navy, amber for attention. */
+.b-dashboard .ds-column-fill{background:#56999C;min-height:0}
+.b-dashboard .ds-bar-fill{background:#56999C}
+.b-dashboard .ds-chart-control.is-selected .ds-column-fill,.b-dashboard .ds-chart-control.is-selected .ds-bar-fill{background:#286C76;filter:none}
+.b-dashboard .ds-chart-detail{background:#EFF6F5;border-color:#C8DEDC}
+.b-dashboard .bi-visuals{align-items:start}
+.b-dashboard .bi-full-panel{grid-column:1/-1}
+.b-dashboard .b-metrics{align-items:stretch}
+.b-dashboard .bi-kpi-shell{min-height:118px}
+.b-dashboard .bi-table-scroll{overflow-x:auto;padding:12px}
+.b-dashboard .bi-more{margin:0 12px 12px}
+.b-dashboard .bi-decision-list{padding:16px;display:grid;gap:14px}
+.b-dashboard .bi-decision-list>div{display:grid;gap:6px}
+.b-dashboard .bi-decision-list .bi-decision-legend{display:flex;gap:15px;font-size:12px}
+.bi-decision-legend span{display:flex;gap:6px;align-items:center}
+.bi-decision-legend i{width:10px;height:10px;border-radius:3px}
+.bi-decision-bar{display:flex;height:13px;border-radius:5px;overflow:hidden;background:#E1EBED}
+.bi-decision-bar span{min-width:0}.bi-ok{background:#398D85}.bi-finding{background:#C49A59}
+.b-dashboard .bi-decision-list small{color:#526A78}

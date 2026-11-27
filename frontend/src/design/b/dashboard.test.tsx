@@ -9,10 +9,10 @@ vi.mock("./geo/DirectorateMap", () => ({
   DirectorateMap: () => <div aria-label="Peta Indonesia" />,
 }));
 const titles = [
-  "Pekerjaan survei saya",
-  "Antrean pemeriksaan",
-  "Pengawasan mutu survei",
-  "Administrasi sistem",
+  "Dashboard Pekerjaan",
+  "Dashboard Pengawasan",
+  "Dashboard Nasional",
+  "Dashboard Sistem",
 ];
 afterEach(() => {
   cleanup();
@@ -54,7 +54,7 @@ for (const [index, role] of WORKFLOW_ROLE_OPTIONS.entries())
       expect(JSON.stringify(packages)).toBe(before);
       expect(document.querySelectorAll(".b-metrics>.b-metric")).toHaveLength(4);
       if (role === "Admin") {
-        expect(screen.getByText("Usulan akun sesi ini")).toBeTruthy();
+        expect(screen.getByText("Usulan penugasan")).toBeTruthy();
         expect(screen.queryByText("Pengguna aktif")).toBeNull();
         expect(screen.queryByRole("button", { name: "Setujui" })).toBeNull();
       }

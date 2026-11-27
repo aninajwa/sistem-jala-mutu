@@ -11,6 +11,9 @@ export type RecordType = 'survey' | 'finding' | 'doc' | 'master';
 export type StatusRecordType = 'survey' | 'finding' | 'doc';
 
 export type PageProps = {
+  /** Optional contract-volume feed; no inferred targets from session distances. */
+  biVolumes?: readonly import("./pages/volumeProgress").VolumeRow[];
+  biGeography?: import("./design/b/geo/adapter").BalaiGeographyAdapter;
   store: DemoStore;
   workflow: OperationalWorkflowState;
   packages: Record<string, OperationalWorkflowState>;

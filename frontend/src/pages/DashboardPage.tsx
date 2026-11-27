@@ -1,3 +1,7 @@
+import { projectDecisionHistory } from "./biDecisionHistory";
+import { VolumeProgressPanel } from "./VolumeProgressPanel";
+import ProviderWorkHome from "./ProviderWorkHome";
+import { projectBI } from "./biProjection";
 import { FilterPanel } from "../design/b/FilterPanel";
 import { DirectorateMap } from "../design/b/geo/DirectorateMap";
 import {
@@ -11,11 +15,11 @@ import { ArrowRight, Clock3, Users } from "lucide-react";
 import { balaiReviewQueue } from "../workflow/balaiReviewQueue";
 import { directorateAuditRows } from "../workflow/monitoringProjection";
 import { dashboardWorkQueue } from "./dashboardWorkQueue";
-import { derivePackageStage, packageStatus } from "../workflow/packageStore";
+import { derivePackageStage } from "../workflow/packageStore";
 import { ACCOUNT_DRAFT_KEY, parseAccountDrafts } from "../admin/accountDrafts";
 import { demoStoreSeed } from "../lib/demoData";
 import { Feedback } from "../design/Feedback";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { Link } from "wouter";
 import {
   AlertTriangle,
@@ -74,9 +78,11 @@ function ChartDetail({
 function Columns({
   rows,
   unit = "rekaman",
+  detail,
 }: {
   rows: ChartRow[];
   unit?: string;
+  detail?: (name: string) => ReactNode;
 }) {
   const [selected, setSelected] = useState<string | null>(null);
   if (!rows.length) return empty;
@@ -114,13 +120,14 @@ function Columns({
           onClose={() => setSelected(null)}
         />
       )}
+      {active && detail && <div className="bi-record-detail">{detail(active.name)}</div>}
       <p className="ds-chart-note">
         Pilih kolom untuk melihat rincian jumlah {unit}.
       </p>
     </div>
   );
 }
-function Bars({ rows, unit = "rekaman" }: { rows: ChartRow[]; unit?: string }) {
+function Bars({ rows, unit = "rekaman", detail }: { rows: ChartRow[]; unit?: string; detail?: (name: string) => ReactNode }) {
   const [selected, setSelected] = useState<string | null>(null);
   if (!rows.length) return empty;
   const max = Math.max(1, ...rows.map((r) => r.value));
@@ -156,11 +163,12 @@ function Bars({ rows, unit = "rekaman" }: { rows: ChartRow[]; unit?: string }) {
           onClose={() => setSelected(null)}
         />
       )}
+      {active && detail && <div className="bi-record-detail">{detail(active.name)}</div>}
       <p className="ds-chart-note">Pilih kategori untuk melihat rincian.</p>
     </div>
   );
 }
-function Trend({ rows }: { rows: { label: string; records: number }[] }) {
+function Trend({ rows, detail, label = "Rekaman survei" }: { rows: { label: string; records: number }[]; detail?: (month: string) => ReactNode; label?: string }) {
   const [selected, setSelected] = useState<string | null>(null);
   if (!rows.length) return empty;
   const max = Math.max(1, ...rows.map((r) => r.records));
@@ -184,7 +192,7 @@ function Trend({ rows }: { rows: { label: string; records: number }[] }) {
       <svg
         viewBox={`0 0 ${width} ${height}`}
         role="img"
-        aria-label="Tren rekaman survei per bulan"
+        aria-label={`${label} per bulan`}
       >
         {[0, 0.5, 1].map((t) => (
           <g key={t}>
@@ -211,7 +219,7 @@ function Trend({ rows }: { rows: { label: string; records: number }[] }) {
           <polyline
             points={points}
             fill="none"
-            stroke="#1686c6"
+            stroke="#438B96"
             strokeWidth="3"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -223,12 +231,12 @@ function Trend({ rows }: { rows: { label: string; records: number }[] }) {
               cx={x(i)}
               cy={y(r.records)}
               r="5"
-              fill={selected === r.label ? "#ef9b42" : "#1686c6"}
+              fill={selected === r.label ? "#C49A59" : "#438B96"}
               stroke="white"
               strokeWidth="2"
             >
               <title>
-                {r.label}: {r.records} rekaman
+                {r.label}: {r.records}
               </title>
             </circle>
             <text
@@ -273,14 +281,15 @@ function Trend({ rows }: { rows: { label: string; records: number }[] }) {
           onClose={() => setSelected(null)}
         />
       )}
+      {active && detail && <div className="bi-record-detail">{detail(active.label)}</div>}
       <p className="ds-chart-note">
-        Rekaman tercatat per bulan, bukan tren tingkat kelulusan. Pilih bulan
+        Rekaman tercatat per bulan. Pilih bulan
         untuk rincian.
       </p>
     </div>
   );
 }
-function Donut({ open, closed }: { open: number; closed: number }) {
+function Donut({ open, closed, detail }: { open: number; closed: number; detail?: (status: "Terbuka" | "Ditutup") => ReactNode }) {
   const [selected, setSelected] = useState<"Terbuka" | "Ditutup" | null>(null);
   const total = open + closed;
   if (!total) return empty;
@@ -292,7 +301,7 @@ function Donut({ open, closed }: { open: number; closed: number }) {
         role="img"
         aria-label={`${closed} ditutup dari ${total} kasus`}
         style={{
-          background: `conic-gradient(#159c90 0 ${pct}%,#ef9b42 ${pct}% 100%)`,
+          background: `conic-gradient(#398D85 0 ${pct}%,#C49A59 ${pct}% 100%)`,
         }}
       >
         <div className="ds-donut-hole">
@@ -303,8 +312,8 @@ function Donut({ open, closed }: { open: number; closed: number }) {
       <div className="ds-donut-legend">
         {(
           [
-            { name: "Terbuka", value: open, color: "#ef9b42" },
-            { name: "Ditutup", value: closed, color: "#159c90" },
+            { name: "Terbuka", value: open, color: "#C49A59" },
+            { name: "Ditutup", value: closed, color: "#398D85" },
           ] as const
         ).map((r) => (
           <button
@@ -331,6 +340,7 @@ function Donut({ open, closed }: { open: number; closed: number }) {
             unit="kasus"
             onClose={() => setSelected(null)}
           />
+          {detail && <div className="bi-record-detail">{detail(selected)}</div>}
         </div>
       )}
     </div>
@@ -346,7 +356,7 @@ function StatusStack({
   const [selected, setSelected] = useState<string | null>(null);
   const total = rows.reduce((n, r) => n + r.value, 0);
   if (!total) return empty;
-  const palette = ["#ef9b42", "#139f96", "#1686c6", "#a785c8"];
+  const palette = ["#C49A59", "#398D85", "#438B96", "#708C9C"];
   const active = rows.find((r) => r.name === selected);
   return (
     <div className="panel-body ds-stack">
@@ -367,7 +377,7 @@ function StatusStack({
               onClick={() => setSelected(selected === r.name ? null : r.name)}
               style={{
                 width: `${(r.value / total) * 100}%`,
-                background: palette[i % palette.length],
+                background: palette[rows.indexOf(r) % palette.length],
               }}
               className="ds-stack-segment"
             />
@@ -610,8 +620,8 @@ function SurveyInspectionPanel({
                                   </small>
                                   <small>
                                     {r.evidenceReferences.length
-                                      ? `Referensi bukti tercatat (${r.evidenceReferences.length}) · status lokal ditampilkan di bawah; keabsahan dan server belum diverifikasi`
-                                      : "Status bukti: belum ada referensi eksplisit pada keputusan review"}
+                                      ? `${r.evidenceReferences.length} referensi bukti`
+                                      : "Belum ada referensi bukti"}
                                   </small>
                                   {r.evidenceReferences.map((ref) => (
                                     <ReviewEvidenceLocalStatus
@@ -744,11 +754,12 @@ function AttentionList({
   );
 }
 
-export default function DashboardPage(p: PageProps) {
+export default function DashboardPage(p: PageProps & { onOpenCorrection?: (packageId: string, correctionId: string) => void }) {
   const role = p.workflow.role,
     provider = role === "Penyedia Jasa / Ketua Tim",
     balai = role === "PIC Balai / Pengguna Jasa",
     admin = role === "Admin";
+  const [recordLimit, setRecordLimit] = useState(8);
   const [showAll, setShowAll] = useState(false),
     [attention, setAttention] = useState("Semua kondisi"),
     [balaiLimit, setBalaiLimit] = useState("10");
@@ -764,6 +775,12 @@ export default function DashboardPage(p: PageProps) {
         (region === "Semua Balai" || s.project.balai === region),
     ),
   );
+  const bi = projectBI(packages, survey, period);
+  const currentCases = projectBI(packages, currentCaseSurvey()).cases;
+  function currentCaseSurvey(){ return p.activeTab === "Perlu perhatian" || admin ? "Semua" : survey; }
+  const sessionDetail = (name: string, byDate = false) => bi.sessions.filter(r => byDate ? r.date === name && Number.isFinite(r.lengthKm) && r.lengthKm > 0 : r.surveyType === name).map(r => <div className="b-data-line" key={`${r.packageId}:${r.id}`}><span>{r.date} · {r.road}<small>{r.packageName} · {r.id}{byDate ? ` · ${r.lengthKm} km sesi` : ''}</small></span><WorkLink onClick={() => p.openPackageReview(r.packageId, "/entry:Survei harian")}>Buka survei</WorkLink></div>);
+  const biSurveyRows = Array.from(new Set(bi.sessions.map(r=>r.surveyType))).sort().map(name=>({name,value:bi.sessions.filter(r=>r.surveyType===name).length}));
+  const biTrendRows = Array.from(new Set(bi.sessions.map(r=>r.date.slice(0,7)).filter(d=>/^\d{4}-\d{2}$/.test(d)))).sort().map(label=>({label,records:bi.sessions.filter(r=>r.date.slice(0,7)===label).length}));
   const allMetrics = aggregateDashboard(p.packages, role);
   const metrics = aggregateDashboard(
       packages,
@@ -774,7 +791,14 @@ export default function DashboardPage(p: PageProps) {
     ),
     queue = dashboardWorkQueue(packages, role),
     reviews = balaiReviewQueue(packages),
-    audits = directorateAuditRows(packages);
+    audits = directorateAuditRows(packages).filter(a => {
+      const stage = derivePackageStage(a.state);
+      const central = a.state.audits.find(x => x.level === 3);
+      return stage === "Tahap 5" || stage === "Tahap 6" || stage === "Selesai" || Boolean(central && (central.status !== "Belum Dimulai" || central.requiresReview)) || currentCases.some(c => c.packageId === a.state.project.id && c.status !== "Ditutup");
+    }).map(a => {
+      const stage = derivePackageStage(a.state);
+      return ["Tahap 5", "Tahap 6", "Selesai"].includes(stage) ? a : {...a, reason: `${stage} · Tindak lanjut temuan atau pemeriksaan yang tercatat`};
+    });
   const entries = Object.values(packages),
     all = Object.values(p.packages),
     currentTab = p.activeTab;
@@ -783,9 +807,21 @@ export default function DashboardPage(p: PageProps) {
   const activityMonths = all.flatMap((state) => state.dailyRecords
     .filter((record) => record.state === "Tercatat" && /^\d{4}-\d{2}-\d{2}$/.test(record.date))
     .map((record) => record.date.slice(0, 7)));
-  const reviewMonths = allMetrics.surveyReviews.map((review) => review.reviewedAt.slice(0, 7));
-  const months = [...new Set(currentTab === "Kepatuhan" ? reviewMonths : [...activityMonths, ...reviewMonths])]
+  const reviewMonths = [...allMetrics.surveyReviews.map((review) => review.reviewedAt.slice(0, 7)), ...projectDecisionHistory(p.packages).map(e=>e.month)];
+  const months = [...new Set(currentTab === "Kepatuhan" ? (provider ? activityMonths : reviewMonths) : [...activityMonths, ...reviewMonths])]
     .sort().reverse();
+  const decisionGroups = (groupBy: (r: (typeof metrics.surveyReviews)[number]) => string) => Array.from(new Set(metrics.surveyReviews.map(groupBy))).sort().map(name=>({name, sesuai:metrics.surveyReviews.filter(r=>groupBy(r)===name&&r.decision==="Sesuai").length, temuan:metrics.surveyReviews.filter(r=>groupBy(r)===name&&r.decision==="Temuan").length}));
+  const decisionMatrix = (byRegion: boolean) => decisionGroups(r=>byRegion?(packages[r.packageId]?.project.balai||"Belum ditentukan"):r.packageName);
+  const decisionMonths = decisionGroups(r=>r.reviewedAt.slice(0,7));
+  const packageDetail = (matches: (state: typeof entries[number]) => boolean) => entries.filter(matches).map(state => <div className="b-data-line" key={state.project.id}><span>{state.project.packageName}<small>{state.project.balai}</small></span><WorkLink onClick={()=>p.openPackage(state.project.id)}>Buka paket</WorkLink></div>);
+  const caseDetail = (matches: (item: typeof currentCases[number]) => boolean) => currentCases.filter(matches).map(c => <div className="b-data-line" key={`${c.packageId}:${c.id}`}><span>{c.id} · {c.surveyType}<small>{c.packageName} · {c.status} · {c.severity}</small></span><WorkLink onClick={()=>p.onOpenCorrection ? p.onOpenCorrection(c.packageId,c.id) : p.openPackage(c.packageId)}>Lihat kasus</WorkLink></div>);
+  const monthDetail = (month: string) => bi.sessions.filter(r=>r.date.slice(0,7)===month).map(r=><div className="b-data-line" key={`${r.packageId}:${r.id}`}><span>{r.date} · {r.surveyType}<small>{r.packageName} · {r.id}</small></span><WorkLink onClick={()=>p.openPackageReview(r.packageId,"/entry:Survei harian")}>Buka survei</WorkLink></div>);
+  const reviewDetail = (decision: string) => metrics.surveyReviews.filter(r=>r.decision===decision).map(r=><div className="b-data-line" key={`${r.packageId}:${r.surveyType}:${r.stage}:${r.period ?? ''}`}><span>{r.packageName} · {r.surveyType}<small>{r.stage} · {r.reviewedAt}</small></span><WorkLink onClick={()=>p.openPackage(r.packageId)}>Buka paket</WorkLink></div>);
+  const decisionPanel = (rows: {name:string;sesuai:number;temuan:number}[], groupBy: (r: (typeof metrics.surveyReviews)[number])=>string) => rows.length ? <div className="bi-decision-list"><div className="bi-decision-legend"><span><i className="bi-ok"/>Sesuai</span><span><i className="bi-finding"/>Temuan</span></div>{rows.map(r=><div key={r.name}><strong>{r.name}</strong><div className="bi-decision-bar" aria-label={`${r.name}: ${r.sesuai} sesuai, ${r.temuan} temuan`}><span className="bi-ok" style={{flex:r.sesuai}}/><span className="bi-finding" style={{flex:r.temuan}}/></div><small>{r.sesuai} sesuai · {r.temuan} temuan</small><details><summary>Lihat keputusan</summary><div className="bi-record-detail">{metrics.surveyReviews.filter(x=>groupBy(x)===r.name).map((x,i)=><div className="b-data-line" key={i}><span>{x.packageName} · {x.surveyType}<small>{x.stage} · {x.decision} · {x.reviewedAt}</small></span><WorkLink onClick={()=>p.openPackage(x.packageId)}>Buka paket</WorkLink></div>)}</div></details></div>)}</div> : empty;
+
+  const historicalDecisions = projectDecisionHistory(packages,period).filter(e=>balai ? e.actor === "PIC Balai / Pengguna Jasa" : !provider && !admin);
+  const historyRows = Array.from(new Set(historicalDecisions.map(e=>e.month))).sort().map(label=>({label,records:historicalDecisions.filter(e=>e.month===label).length}));
+  const historyPanel = survey === "Semua" ? <><Trend label="Keputusan paket" rows={historyRows} detail={month=>historicalDecisions.filter(e=>e.month===month).map(e=><div className="b-data-line" key={`${e.packageId}:${e.id}`}><span>{e.packageName}<small>{e.stage} · {e.status} · {e.recordedAt.slice(0,10)}</small></span><WorkLink onClick={()=>p.openPackage(e.packageId)}>Buka paket</WorkLink></div>)}/><p className="ds-chart-note">Jumlah keputusan paket yang tercatat, bukan persentase kelulusan.</p></> : <p className="ds-chart-note">Pilih semua jenis survei untuk melihat keputusan tingkat paket.</p>;
   const drafts = (() => {
     try {
       return parseAccountDrafts(sessionStorage.getItem(ACCOUNT_DRAFT_KEY));
@@ -798,24 +834,24 @@ export default function DashboardPage(p: PageProps) {
   const titles = provider
     ? [
         "PELAKSANAAN SURVEI",
-        "Pekerjaan survei saya",
+        "Dashboard Pekerjaan",
         "Kelola bukti, pengajuan, dan tindak lanjut pada paket penugasan.",
       ]
     : balai
       ? [
           "PEMERIKSAAN BALAI",
-          "Antrean pemeriksaan",
+          "Dashboard Pengawasan",
           "Tinjau pengajuan, periksa bukti, lalu catat hasil sesuai kewenangan.",
         ]
       : admin
         ? [
             "ADMINISTRASI",
-            "Administrasi sistem",
+            "Dashboard Sistem",
             "Siapkan akun dan penugasan, kelola referensi, telusuri aktivitas.",
           ]
         : [
             "PENGAWASAN LINTAS BALAI",
-            "Pengawasan mutu survei",
+            "Dashboard Nasional",
             "Pantau data dalam cakupan akses dan prioritas Audit Tingkat 3.",
           ];
   const empty = (
@@ -880,7 +916,7 @@ export default function DashboardPage(p: PageProps) {
     >
       <WorkspaceHeading
         eyebrow={titles[0]}
-        title={provider && currentTab === "Kepatuhan" ? "Hasil per survei" : provider && currentTab === "Tren" ? "Tren pencatatan" : titles[1]}
+        title={currentTab === "Kepatuhan" ? (provider ? "Progres Survei" : "Ringkasan Pemeriksaan") : currentTab === "Perlu perhatian" ? "Paket Perlu Perhatian" : currentTab === "Tren" ? "Tren Pencatatan" : titles[1]}
         description={titles[2]}
         art
         action={
@@ -898,12 +934,7 @@ export default function DashboardPage(p: PageProps) {
         }
       />
       {!admin && (
-        <FilterPanel
-          title="Filter ringkasan"
-          initiallyOpen={false}
-          activeCount={activeFilters}
-          onReset={reset}
-        >
+        <div className="bi-filter-toolbar">
           <div className="b-filter-strip" aria-label="Filter ringkasan QA/QC">
             {!provider && (
               <label>
@@ -923,7 +954,7 @@ export default function DashboardPage(p: PageProps) {
                 </select>
               </label>
             )}
-            {(provider || balai) && (
+            {(provider || balai || !admin) && (
               <label>
                 Paket
                 <select
@@ -945,7 +976,7 @@ export default function DashboardPage(p: PageProps) {
                 </select>
               </label>
             )}
-            <label>
+            {currentTab !== "Perlu perhatian" && <><label>
               Jenis survei
               <select
                 aria-label="Jenis survei"
@@ -978,6 +1009,7 @@ export default function DashboardPage(p: PageProps) {
                 ))}
               </select>
             </label>
+            </>}
             {currentTab === "Perlu perhatian" && (
               <label>
                 Prioritas
@@ -993,13 +1025,22 @@ export default function DashboardPage(p: PageProps) {
               </label>
             )}
           </div>
-        </FilterPanel>
+          <button className="btn sm" onClick={reset}>Reset filter{activeFilters ? ` (${activeFilters})` : ""}</button>
+        </div>
       )}
-      {currentTab === "Kepatuhan" && !admin ? (
+      {!admin && currentTab !== "Perlu perhatian" && <p className="bi-scope-note">Periode memfilter aktivitas dan keputusan pemeriksaan; status paket, audit dan kasus ditampilkan terkini.</p>}
+      {currentTab === "Perlu perhatian" && !provider && !balai && !admin ? (
+        <WorkPanel title="Paket yang membutuhkan tindak lanjut"><div className="panel-body ds-attention-list">{audits.filter(a=>{
+          const open=currentCases.some(c=>c.packageId===a.state.project.id && c.status!=="Ditutup");
+          return attention==="Ada koreksi terbuka" ? open : attention==="Menunggu tindak lanjut" ? a.status!=="riwayat" : open || a.status!=="riwayat";
+        }).map(a=><div className="ds-attention-row" key={a.state.project.id}><div><strong>{a.state.project.packageName}</strong><span>{a.state.project.balai}</span><small>{a.reason}</small><small>{currentCases.filter(c=>c.packageId===a.state.project.id && c.status!=="Ditutup").length} kasus belum ditutup</small></div><button className="btn sm" onClick={()=>p.openPackage(a.state.project.id)}>Lihat paket</button></div>)}{!audits.some(a=>{const open=currentCases.some(c=>c.packageId===a.state.project.id&&c.status!=="Ditutup");return attention==="Ada koreksi terbuka"?open:attention==="Menunggu tindak lanjut"?a.status!=="riwayat":open||a.status!=="riwayat";}) && empty}</div></WorkPanel>
+      ) : currentTab === "Kepatuhan" && provider ? (
+        <div className="b-grid"><WorkPanel title="Aktivitas survei menurut jenis"><Columns rows={biSurveyRows} detail={sessionDetail} /></WorkPanel><WorkPanel title="Volume sesi survei harian (km)">{survey === "Semua" ? <p className="panel-body subtle">Pilih satu jenis survei untuk melihat jarak sesi.</p> : <Columns rows={bi.distance} unit="km sesi" detail={name=>sessionDetail(name,true)} />}</WorkPanel><WorkPanel title="Tren aktivitas survei"><Trend rows={biTrendRows} detail={monthDetail}/></WorkPanel><WorkPanel title="Rekaman pelaksanaan" className="bi-full-panel"><div className="bi-table-scroll"><table className="ds-inspection-table"><thead><tr><th>Tanggal</th><th>Jenis survei</th><th>Paket / ruas</th><th>Rincian</th></tr></thead><tbody>{bi.sessions.slice(0,recordLimit).map(r=><tr key={`${r.packageId}:${r.id}`}><td>{r.date}</td><td>{r.surveyType}</td><td>{r.packageName}<small>{r.road}</small></td><td><WorkLink onClick={()=>p.openPackageReview(r.packageId,"/entry:Survei harian")}>Buka survei</WorkLink></td></tr>)}</tbody></table></div>{!bi.sessions.length && empty}{bi.sessions.length>recordLimit && <button className="btn sm bi-more" onClick={()=>setRecordLimit(n=>n+8)}>Tampilkan lainnya ({bi.sessions.length-recordLimit})</button>}</WorkPanel></div>
+      ) : currentTab === "Kepatuhan" && !admin ? (
         <WorkPanel title="Hasil pemeriksaan per jenis survei">
           <SurveyInspectionPanel
             surveyTypes={types}
-            records={metrics.bySurvey}
+            records={biSurveyRows.map(x=>({name:x.name,records:x.value}))}
             role={role}
             surveyFilter={survey}
             reviews={metrics.surveyReviews}
@@ -1034,16 +1075,16 @@ export default function DashboardPage(p: PageProps) {
             />
             <MetricTile
               icon={ShieldCheck}
-              label="Log aktivitas lokal"
-              value={p.store.logs.length}
-              note="Catatan pada perangkat ini"
+              label="Aktivitas tercatat"
+              value={logs.length}
+              note="Catatan administratif"
               tone="amber"
             />
             <MetricTile
               icon={Settings}
-              label="Integrasi backend"
-              value="Belum aktif"
-              note="Belum ada autentikasi server"
+              label="Usulan penugasan"
+              value={drafts.reduce((n,d)=>n+d.assignments.length,0)}
+              note="Penugasan yang diusulkan"
               tone="violet"
             />
           </div>
@@ -1133,16 +1174,10 @@ export default function DashboardPage(p: PageProps) {
                 <Feedback
                   kind="empty"
                   title="Belum ada aktivitas tercatat"
-                  description="Aktivitas contoh tidak ditampilkan sebagai audit trail nyata."
+                  description=""
                 />
               )}
-              <details className="b-note">
-                <summary>Status integrasi</summary>
-                <p>
-                  Identitas, audit trail server dan telemetri belum terhubung.
-                  Tidak ada klaim uptime atau akun aktif.
-                </p>
-              </details>
+
             </WorkPanel>
           </div>
         </>
@@ -1158,14 +1193,14 @@ export default function DashboardPage(p: PageProps) {
             <MetricTile
               icon={BarChart3}
               label="Rekaman survei"
-              value={metrics.dailyRecords}
+              value={bi.sessions.length}
               note="Rekaman tercatat"
               tone="blue"
             />
             <MetricTile
               icon={AlertTriangle}
               label="Koreksi terbuka"
-              value={metrics.correctionsOpen}
+              value={currentCases.filter(c=>c.status!=="Ditutup").length}
               note="Belum ditutup"
               tone="amber"
             />
@@ -1176,81 +1211,7 @@ export default function DashboardPage(p: PageProps) {
               note="Penerimaan final tercatat"
             />
           </div>
-          <div className="b-grid b-provider-layout">
-            <WorkPanel
-              title="Paket & pekerjaan berikutnya"
-              kicker="PILIH PAKET UNTUK MELANJUTKAN"
-            >
-              <div className="b-segmented">
-                {["Semua", "Perlu tindakan", "Menunggu"].map((t) => (
-                  <button
-                    key={t}
-                    aria-pressed={category === t}
-                    onClick={() => setCategory(t)}
-                  >
-                    {t}
-                    {t === "Perlu tindakan"
-                      ? ` (${queue.filter((r) => r.priority === "action").length})`
-                      : t === "Menunggu"
-                        ? ` (${queue.filter((r) => r.priority === "waiting").length})`
-                        : ""}
-                  </button>
-                ))}
-              </div>
-              {queue
-                .filter(
-                  (r) =>
-                    category === "Semua" ||
-                    r.priority ===
-                      (category === "Perlu tindakan" ? "action" : "waiting"),
-                )
-                .slice(0, showAll ? undefined : 3)
-                .map(packageRow)}
-              {!queue.filter(
-                (r) =>
-                  category === "Semua" ||
-                  r.priority ===
-                    (category === "Perlu tindakan" ? "action" : "waiting"),
-              ).length && empty}
-              {queue.length > 3 && (
-                <button
-                  className="b-text-action"
-                  onClick={() => setShowAll(!showAll)}
-                >
-                  {showAll
-                    ? "Tampilkan prioritas"
-                    : `Lihat semua ${queue.length} paket`}
-                </button>
-              )}
-            </WorkPanel>
-            <div className="b-stack">
-              <Link href="/actions" className="c-work-shortcut">
-                <AlertTriangle size={22} />
-                <span>
-                  <strong>Tindakan Perbaikan</strong>
-                  <small>Tanggapi temuan dan lengkapi bukti.</small>
-                </span>
-                <ArrowRight size={17} />
-              </Link>
-              <Link href="/documents" className="c-work-shortcut">
-                <FileText size={22} />
-                <span>
-                  <strong>Dokumen Mutu</strong>
-                  <small>Siapkan dokumen atau tanggapi revisi.</small>
-                </span>
-                <ArrowRight size={17} />
-              </Link>
-              <details className="b-note">
-                <summary>Aktivitas survei tercatat</summary>
-                <Columns
-                  rows={metrics.bySurvey.map((s) => ({
-                    name: s.name,
-                    value: s.records,
-                  }))}
-                />
-              </details>
-            </div>
-          </div>
+
         </>
       ) : balai ? (
         <>
@@ -1263,22 +1224,22 @@ export default function DashboardPage(p: PageProps) {
             />
             <MetricTile
               icon={ClipboardCheck}
-              label="Audit dalam review"
-              value={metrics.auditPending}
-              note="Dalam review / klarifikasi"
+              label="Pengajuan siap diperiksa"
+              value={reviews.filter(r=>r.status==="Perlu Review").length}
+              note="Dalam kewenangan Balai"
               tone="blue"
             />
             <MetricTile
               icon={AlertTriangle}
               label="Koreksi terbuka"
-              value={metrics.correctionsOpen}
+              value={currentCases.filter(c=>c.status!=="Ditutup").length}
               note="Perlu pemantauan"
               tone="amber"
             />
             <MetricTile
               icon={BarChart3}
               label="Rekaman tercatat"
-              value={metrics.dailyRecords}
+              value={bi.sessions.length}
               note="Paket dalam cakupan"
             />
           </div>
@@ -1393,14 +1354,14 @@ export default function DashboardPage(p: PageProps) {
             <MetricTile
               icon={AlertTriangle}
               label="Koreksi terbuka"
-              value={metrics.correctionsOpen}
+              value={currentCases.filter(c=>c.status!=="Ditutup").length}
               note="Belum ditutup"
               tone="amber"
             />
             <MetricTile
               icon={ClipboardCheck}
-              label="Audit dalam review"
-              value={metrics.auditPending}
+              label="Audit Tingkat 3 dalam review"
+              value={entries.filter(s=>s.audits.some(a=>a.level===3 && (a.requiresReview || a.status==="Dalam Review" || a.status==="Klarifikasi"))).length}
               note="Dalam review / klarifikasi"
               tone="violet"
             />
@@ -1412,12 +1373,17 @@ export default function DashboardPage(p: PageProps) {
             >
               <DirectorateMap
                 balais={allMetrics.byBalai}
+                adapter={p.biGeography}
+                statusByBalai={Object.fromEntries(allMetrics.byBalai.map(b=>[b.name,{active:projectBI(p.packages).cases.filter(c=>c.status!=="Ditutup"&&p.packages[c.packageId]?.project.balai===b.name).length,passed:Object.values(p.packages).filter(s=>s.project.balai===b.name&&s.audits.some(a=>a.level===3&&a.status==="Lulus"&&!a.requiresReview)).length,packages:b.packages}]))}
                 selected={region}
                 onSelect={(value) => {
                   setRegion(value);
                   setPackageId("Semua paket");
                 }}
               />
+              <div className="bi-region-status" aria-label="Status QA/QC per Balai">
+                {metrics.byBalai.map(b=>{const scoped=entries.filter(s=>s.project.balai===b.name);const findings=currentCases.filter(c=>c.status!=="Ditutup"&&packages[c.packageId]?.project.balai===b.name).length;const passed=scoped.filter(s=>s.audits.some(a=>a.level===3&&a.status==="Lulus"&&!a.requiresReview)).length;return <button type="button" key={b.name} aria-pressed={region===b.name} onClick={()=>{setRegion(region===b.name?"Semua Balai":b.name);setPackageId("Semua paket");}}><strong>{b.name}</strong><span>{b.packages} paket · {findings} kasus aktif · {passed} audit 3 lulus</span></button>})}
+              </div>
               <details className="b-note b-region-distribution">
                 <summary>Sebaran paket lintas Balai</summary>
                 <BalaiRanking
@@ -1487,102 +1453,32 @@ export default function DashboardPage(p: PageProps) {
               )}
             </WorkPanel>
           </div>
-          <details className="c-review-analysis">
-            <summary>Analisis review dan tindak lanjut</summary>
-            <div className="b-grid">
-              <WorkPanel title="Riwayat keputusan review">
-                <TrendQualityNotice reviews={metrics.surveyReviews} />
-              </WorkPanel>
-              <WorkPanel title="Komposisi tindak lanjut">
-                <Donut
-                  open={metrics.correctionsOpen}
-                  closed={metrics.correctionsClosed}
-                />
-              </WorkPanel>
-            </div>
-          </details>
+
         </>
       )}
 
-      <details className="b-analysis-details">
-        <summary>
-          {admin
-            ? "Monitoring data workflow"
-            : "Grafik aktivitas & tindak lanjut"}
-        </summary>
-        <div className="b-grid">
-          <WorkPanel title="Aktivitas survei menurut jenis">
-            <Columns
-              rows={metrics.bySurvey.map((x) => ({
-                name: x.name,
-                value: x.records,
-              }))}
-            />
-          </WorkPanel>
-          <WorkPanel title="Tren pencatatan per bulan">
-            <Trend rows={metrics.trend} />
-          </WorkPanel>
-          {admin ? (
-            <>
-              <WorkPanel title="Paket menurut Balai">
-                <Columns
-                  rows={metrics.byBalai.map((x) => ({
-                    name: x.name,
-                    value: x.packages,
-                  }))}
-                  unit="paket"
-                />
-              </WorkPanel>
-              <WorkPanel title="Kesiapan aliran data">
-                <div className="quality-check">
-                  <span>Data paket yang dapat dibaca</span>
-                  <strong>{metrics.packages}</strong>
-                </div>
-                <div className="quality-check">
-                  <span>Catatan aktivitas lokal</span>
-                  <strong>{p.store.logs.length}</strong>
-                </div>
-                <div className="quality-check">
-                  <span>API dan autentikasi</span>
-                  <strong>Belum diverifikasi</strong>
-                </div>
-              </WorkPanel>
-            </>
-          ) : (
-            <>
-              <WorkPanel title="Komposisi kasus koreksi">
-                <Donut
-                  open={metrics.correctionsOpen}
-                  closed={metrics.correctionsClosed}
-                />
-              </WorkPanel>
-              <WorkPanel title="Koreksi terbuka menurut paket">
-                <Bars
-                  rows={metrics.attention
-                    .filter((x) => x.open > 0)
-                    .map((x) => ({ name: x.name, value: x.open }))}
-                  unit="koreksi terbuka"
-                />
-              </WorkPanel>
-              <WorkPanel title="Progres tindak lanjut">
-                <ProgressSummary metrics={metrics} role={role} />
-              </WorkPanel>
-              <WorkPanel title="Paket perlu perhatian">
-                <AttentionList
-                  items={metrics.attention.filter(
-                    (item) =>
-                      attention === "Semua kondisi" ||
-                      (attention === "Ada koreksi terbuka"
-                        ? item.open > 0
-                        : item.pending > 0),
-                  )}
-                  onOpen={p.openPackage}
-                />
-              </WorkPanel>
-            </>
-          )}
-        </div>
-      </details>
+      {!admin && (currentTab === "Semua" || (provider && currentTab === "Kepatuhan")) && <VolumeProgressPanel rows={p.biVolumes ?? []} packages={Object.fromEntries(entries.map(s=>[s.project.id,s.project.packageName]))} survey={survey} onOpen={p.openPackage}/> }
+      {currentTab === "Semua" && <div className="b-grid bi-visuals">
+        {admin ? <>
+          <WorkPanel title="Distribusi paket menurut Balai"><Columns rows={metrics.byBalai.map(x=>({name:x.name,value:x.packages}))} unit="paket" detail={name=>packageDetail(s=>s.project.balai===name)}/></WorkPanel>
+          <WorkPanel title="Usulan penugasan per organisasi"><Bars rows={Array.from(new Set(drafts.map(d=>d.organization))).map(name=>({name,value:drafts.filter(d=>d.organization===name).reduce((n,d)=>n+d.assignments.length,0)}))} unit="penugasan"/></WorkPanel>
+        </> : provider ? <>
+          <WorkPanel title="Aktivitas survei menurut jenis"><Columns rows={biSurveyRows} detail={sessionDetail}/></WorkPanel>
+          <WorkPanel title="Tren pelaksanaan survei"><Trend rows={biTrendRows} detail={monthDetail}/></WorkPanel>
+          <WorkPanel title="Tahapan pekerjaan saat ini"><Bars rows={Array.from(new Set(entries.map(derivePackageStage))).map(name=>({name,value:entries.filter(s=>derivePackageStage(s)===name).length}))} unit="paket" detail={name=>packageDetail(s=>derivePackageStage(s)===name)}/></WorkPanel>
+          <WorkPanel title="Status tindakan perbaikan"><Donut open={currentCases.filter(c=>c.status!=="Ditutup").length} closed={currentCases.filter(c=>c.status==="Ditutup").length} detail={status=>caseDetail(c=>status==="Ditutup"?c.status==="Ditutup":c.status!=="Ditutup")}/></WorkPanel>
+        </> : balai ? <>
+          <WorkPanel title="Keputusan pemeriksaan tercatat"><Columns rows={["Sesuai","Temuan"].map(name=>({name,value:metrics.surveyReviews.filter(r=>r.decision===name).length}))} unit="keputusan" detail={reviewDetail}/></WorkPanel>
+          <WorkPanel title="Temuan aktif menurut tingkat"><Bars rows={["Kritis","Mayor","Minor"].map(name=>({name,value:currentCases.filter(c=>c.status!=="Ditutup" && c.severity===name).length}))} unit="kasus" detail={name=>caseDetail(c=>c.status!=="Ditutup"&&c.severity===name)}/></WorkPanel>
+          <WorkPanel title="Hasil pemeriksaan antar-paket">{decisionPanel(decisionMatrix(false),r=>r.packageName)}</WorkPanel><WorkPanel title="Keputusan terkini menurut bulan">{decisionPanel(decisionMonths,r=>r.reviewedAt.slice(0,7))}</WorkPanel><WorkPanel title="Riwayat keputusan paket">{historyPanel}</WorkPanel>
+        </> : <>
+          <WorkPanel title="Temuan aktif menurut Balai"><Bars rows={metrics.byBalai.map(x=>({name:x.name,value:currentCases.filter(c=>c.status!=="Ditutup" && packages[c.packageId]?.project.balai===x.name).length}))} unit="kasus" detail={name=>caseDetail(c=>c.status!=="Ditutup"&&packages[c.packageId]?.project.balai===name)}/></WorkPanel>
+          <WorkPanel title="Status Audit Tingkat 3"><Columns rows={["Belum Dimulai","Dalam Review","Klarifikasi","Lulus","Ditolak"].map(name=>({name,value:entries.filter(s=>s.audits.some(a=>a.level===3 && (a.requiresReview ? "Klarifikasi" : a.status)===name)).length}))} unit="paket" detail={name=>packageDetail(s=>s.audits.some(a=>a.level===3&&(a.requiresReview?"Klarifikasi":a.status)===name))}/></WorkPanel>
+          <WorkPanel title="Komposisi tindak lanjut"><Donut open={currentCases.filter(c=>c.status!=="Ditutup").length} closed={currentCases.filter(c=>c.status==="Ditutup").length} detail={status=>caseDetail(c=>status==="Ditutup"?c.status==="Ditutup":c.status!=="Ditutup")}/></WorkPanel>
+          <WorkPanel title="Hasil pemeriksaan lintas Balai">{decisionPanel(decisionMatrix(true),r=>packages[r.packageId]?.project.balai||"Belum ditentukan")}</WorkPanel><WorkPanel title="Keputusan terkini menurut bulan">{decisionPanel(decisionMonths,r=>r.reviewedAt.slice(0,7))}</WorkPanel><WorkPanel title="Riwayat keputusan paket">{historyPanel}</WorkPanel><WorkPanel title="Keputusan pemeriksaan per jenis survei" className="bi-full-panel"><SurveyInspectionPanel surveyTypes={types} records={biSurveyRows.map(x=>({name:x.name,records:x.value}))} role={role} surveyFilter={survey} reviews={metrics.surveyReviews} onOpenReview={p.openPackageReview} allowedPackageIds={new Set(Object.keys(packages))}/></WorkPanel>
+        </>}
+      </div>}
+      {provider && currentTab === "Semua" && <ProviderWorkHome {...p} packages={packages} embedded onOpenCorrection={p.onOpenCorrection ?? ((id) => p.openPackage(id))} />}
     </div>
   );
 }

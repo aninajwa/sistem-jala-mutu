@@ -46,6 +46,14 @@ export const CATALOG = [
     reviewers: ["Balai"],
   },
 ];
+export const CONTRACT_DRAFTS = [
+ {id:"contract-intro",name:"Laporan Pendahuluan",period:"Awal kontrak",sections:["Survei pendahuluan", "Peralatan, kalibrasi dan validasi", "Uji coba jembatan dan rencana validasi per 200 km", "Metodologi dan format survei", "Sumber daya dan jadwal kerja", "Quality Management Plan"]},
+ {id:"contract-sem1",name:"Laporan Hasil Survei Semester I",period:"Semester I",sections:["IRI", "PCI dan data kerusakan", "Jembatan dan dokumen V&V", "Survei lainnya sesuai lingkup kontrak", "Referensi data valid dan BA"]},
+ {id:"contract-sem2",name:"Laporan Hasil Survei Semester II",period:"Semester II",sections:["IRI semester II", "PCI dan data kerusakan yang belum selesai pada semester I", "Referensi hasil dan dokumen pemeriksaan"]},
+ {id:"contract-final",name:"Laporan Akhir Pekerjaan",period:"Keseluruhan kontrak",sections:["Kalibrasi, verifikasi dan validasi", "Survei lapangan, backup dan arsip", "Statistik survei dan waktu kerusakan", "Permasalahan dan tindakan", "Statistik panjang survei harian", "Pembelajaran dan rekomendasi"]},
+];
+export const ALL_REPORT_TYPES = [...CATALOG, ...CONTRACT_DRAFTS];
+export const reportSections = (kind:string) => ALL_REPORT_TYPES.find(c=>c.id===kind)?.sections ?? [];
 export type Attachment = { name: string; type: string; data: string };
 export type Draft = {
   id: string;
@@ -69,12 +77,12 @@ export function canEdit(p: Principal, d: Draft) {
   );
 }
 export function validateDraft(d: Draft) {
-  return !CATALOG.some((c) => c.id === d.kind) ||
+  return !ALL_REPORT_TYPES.some((c) => c.id === d.kind) ||
     !d.packageId ||
     !d.start ||
     !d.end ||
     !!filterError({ ...EMPTY_FILTER, start: d.start, end: d.end }) ||
-    d.content.length !== 4 ||
+    d.content.length !== reportSections(d.kind).length ||
     d.content.some((s) => !s.trim())
     ? "Lengkapi paket, periode yang valid, dan seluruh bagian laporan."
     : "";

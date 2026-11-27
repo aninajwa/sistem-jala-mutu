@@ -1,0 +1,10 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {projectBI} from '../src/pages/biProjection.ts';
+const rec=(id,date,surveyType,lengthKm,state='Tercatat')=>({id,date,surveyType,lengthKm,state});
+const p={project:{packageName:'Paket A'},dailyRecords:[rec('1','2026-01-01','IRI',5),rec('1','2026-01-01','IRI',5),rec('2','2026-02-01','IRI',7),rec('3','2026-01-01','PCI',10),rec('4','2026-01-01','IRI',2,'Draf')],corrections:[{id:'c1',surveyType:'IRI',status:'Terbuka'},{id:'c1',surveyType:'IRI',status:'Terbuka'},{id:'c2',surveyType:'PCI',status:'Ditutup'}]};
+test('scope, dedup, survey and activity date',()=>{const r=projectBI({a:p},'IRI','Bulan 2026-01');assert.equal(r.sessions.length,1);assert.deepEqual(r.distance,[{name:'2026-01-01',value:5}]);assert.equal(r.cases.length,1)});
+test('mixed surveys do not yield a misleading distance total',()=>{const r=projectBI({a:p});assert.equal(r.sessions.length,3);assert.deepEqual(r.distance,[]);assert.equal(r.cases.length,2)});
+test('no package scope yields no data',()=>assert.deepEqual(projectBI({}),{sessions:[],cases:[],distance:[]}));
+import {buildReportHtml} from '../src/reports/reportHtml.ts';
+test('printable report escapes markup and preserves draft status',()=>{const html=buildReportHtml({name:'QA/QC',packageName:'<script>alert(1)</script>',start:'2026-01-01',end:'2026-01-31',sections:['Kegiatan'],content:['A & B'],attachments:['bukti.pdf']});assert.match(html,/DRAF — BELUM DISAHKAN/);assert.match(html,/&lt;script&gt;/);assert.match(html,/A &amp; B/);assert.doesNotMatch(html,/<script>/);assert.match(html,/bukti\.pdf/)});

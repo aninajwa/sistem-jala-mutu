@@ -1,7 +1,7 @@
 import type { OperationalWorkflowState } from '../workflow/model';
-export type ReportKind = 'activities' | 'reviews' | 'corrections';
+export type ReportKind = 'activities' | 'reviews' | 'corrections' | 'stages';
 export const REPORT_NAMES: Record<ReportKind,string> = {
- activities:'Rekap aktivitas survei', reviews:'Rekap pemeriksaan terkini', corrections:'Rekap tindakan perbaikan',
+ activities:'Rekap aktivitas survei', reviews:'Rekap pemeriksaan terkini', corrections:'Rekap tindakan perbaikan', stages:'Rekap status tahapan QA/QC',
 };
 export type ReportRow = {
  key:string; packageId:string; packageName:string; balai:string; survey:string;

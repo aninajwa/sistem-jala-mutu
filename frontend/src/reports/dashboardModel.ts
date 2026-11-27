@@ -84,7 +84,7 @@ export function splitRows(
 }
 export function dashboardModel(
   role: string,
-  source: Record<ReportKind, ReportRow[]>,
+  source: Record<Exclude<ReportKind, "stages">, ReportRow[]>,
   packages: ReportSnapshot["packages"],
   filter: ReportFilter,
 ) {

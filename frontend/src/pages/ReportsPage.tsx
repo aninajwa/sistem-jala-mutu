@@ -21,8 +21,7 @@ import { createReportCsv, downloadReport } from "../reports/export";
 export default function ReportsPage(p: PageProps & { principal: Principal }) {
   const [search, setSearch] = useState("");
   const [page, setPage] = useState(1);
-  const dashboard =
-    p.activeTab === "Semua" || p.activeTab === "Dashboard Operasional";
+  const dashboard = false;
   const periodic = p.activeTab === "Laporan periodik";
   const [kind, setKind] = useState<ReportKind>("activities");
   const [filter, setFilter] = useState<ReportFilter>({ ...EMPTY_FILTER });
@@ -80,7 +79,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
     return (
       <>
         <PageHeading
-          label="Dashboard & Laporan"
+          label="Pelaporan"
           detail="Akses pelaporan teknis"
         />
         <div className="notice rv-admin-access" role="status">
@@ -101,7 +100,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
   return (
     <div className="rv-workspace">
       <PageHeading
-        label={dashboard ? "Dashboard Operasional" : periodic ? "Laporan periodik" : "Rekap & Ekspor"}
+        label={periodic ? p.principal.role === "Penyedia Jasa / Ketua Tim" ? "Laporan Periodik" : "Monitoring Laporan" : "Rekap & Ekspor"}
         detail={roleHint}
         action={
           !dashboard && !periodic ? (
@@ -139,7 +138,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
         }
       />
       {periodic ? (
-        <PeriodicReports {...p} />
+        <PeriodicReports key={p.principal.id} {...p} onOpenRecap={(packageId,start,end,balai)=>{setFilter({...EMPTY_FILTER,packageId,start,end,balai:balai??""});setPage(1);setSelected("");setSearch("");p.setActiveTab("Rekap & Ekspor");}} />
       ) : (
         <>
           <ReportFilters
@@ -151,6 +150,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
             change={change}
             setKind={(k) => {
               setKind(k);
+              setFilter(f => ({...f,status:"",survey:""}));
               setPage(1);
               setSelected("");
               setMessage("");
@@ -187,7 +187,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
                   setSearch(e.target.value);
                   setPage(1);
                 }}
-                placeholder="Cari tampilan (CSV mengikuti filter global)"
+                placeholder="Cari rekap"
               />
             </div>
           )}
@@ -206,8 +206,7 @@ export default function ReportsPage(p: PageProps & { principal: Principal }) {
                   : "Belum ada rekaman yang dapat ditampilkan pada filter ini."}
               </strong>
               <p className="subtle">
-                Jumlah dihitung dari baris unik yang ditampilkan. Tidak
-                menunjukkan kelengkapan data API atau seluruh kewajiban paket.
+                Jumlah rekaman sesuai filter.
               </p>
               <div className="toolbar" style={{ flexWrap: "wrap" }}>
                 {summary.statuses.map((s) => (

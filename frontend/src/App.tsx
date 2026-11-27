@@ -1,4 +1,3 @@
-import ProviderWorkHome from "./pages/ProviderWorkHome";
 import { localPrincipal } from "./workflow/access/packageAccess";
 import "./design/v2.css";
 import { useResponsiveTables } from "./design/b/useResponsiveTables";
@@ -658,9 +657,7 @@ function App() {
               ) : (
                 <Switch>
                   <Route path="/">
-                    {principal.role === "Penyedia Jasa / Ketua Tim" && activeTab === "Semua"
-                      ? <ProviderWorkHome {...pageProps} onOpenCorrection={openCorrection} />
-                      : <DashboardPage {...pageProps} />}
+                    <DashboardPage {...pageProps} onOpenCorrection={openCorrection} />
                   </Route>
 
                   <Route path="/data-master">

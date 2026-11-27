@@ -9,8 +9,8 @@ import "./providerWorkHome.css";
 import { getNextWorkflowAction } from "../workflow/WorkflowNextAction";
 
 export default function ProviderWorkHome({
-  packages, openPackage, openPackageReview, onOpenCorrection,
-}: PageProps & { onOpenCorrection: (packageId: string, correctionId: string) => void }) {
+  packages, openPackage, openPackageReview, onOpenCorrection, embedded = false,
+}: PageProps & { onOpenCorrection: (packageId: string, correctionId: string) => void; embedded?: boolean }) {
   const [query, setQuery] = useState("");
   const [priority, setPriority] = useState<QueuePriority | "cases" | "">("");
   const queue = dashboardWorkQueue(packages, "Penyedia Jasa / Ketua Tim");
@@ -26,12 +26,12 @@ export default function ProviderWorkHome({
   const cases = caseTasks.length;
 
   return (
-    <div className="b-dashboard v2-work-home" data-testid="dashboard-work-queue">
-      <header>
+    <div className="b-dashboard v2-work-home" data-testid={embedded ? "provider-work-queue" : "dashboard-work-queue"}>
+      {!embedded && <header>
         <h1>Pekerjaan survei saya</h1>
         <p>Lihat pekerjaan dan pengajuan pada paket penugasan Anda.</p>
-      </header>
-      <div className="v2-work-totals" aria-label="Ringkasan pekerjaan">
+      </header>}
+      {!embedded && <div className="v2-work-totals" aria-label="Ringkasan pekerjaan">
         <Link href="/packages"><strong>{queue.length}</strong>Paket saya</Link>
         <button type="button" aria-pressed={priority === "action"} onClick={() => setPriority(priority === "action" ? "" : "action")}>
           <strong>{action}</strong>Paket perlu tindakan
@@ -42,7 +42,7 @@ export default function ProviderWorkHome({
         <button type="button" aria-pressed={priority === "cases"} onClick={() => setPriority(priority === "cases" ? "" : "cases")}>
           <strong>{cases}</strong>Kasus belum ditutup
         </button>
-      </div>
+      </div>}
       <section className="v2-work-cases" aria-labelledby="v2-work-cases-title" data-testid="provider-case-task-queue">
         <div className="v2-work-cases-header">
           <h2 id="v2-work-cases-title">Tindakan Perbaikan saya</h2>

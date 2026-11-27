@@ -1,5 +1,6 @@
 import {
-  CATALOG,
+  ALL_REPORT_TYPES,
+  reportSections,
   draftKey,
   canEdit,
   validateDraft,
@@ -28,12 +29,12 @@ export function readDraftHistory(
       !["id", "owner", "packageId", "start", "end", "updated"].every(
         (k) => typeof d[k] === "string" && !!d[k],
       ) ||
-      !CATALOG.some((c) => c.id === d.kind) ||
+      !ALL_REPORT_TYPES.some((c) => c.id === d.kind) ||
       !Number.isFinite(Date.parse(d.updated)) ||
       !Number.isInteger(d.version) ||
       d.version < 1 ||
       !Array.isArray(d.content) ||
-      d.content.length !== 4 ||
+      d.content.length !== reportSections(d.kind).length ||
       d.content.some((v: unknown) => typeof v !== "string") ||
       !Array.isArray(d.attachments) ||
       d.attachments.some(

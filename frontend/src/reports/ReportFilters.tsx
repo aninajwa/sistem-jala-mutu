@@ -36,7 +36,7 @@ export default function ReportFilters({
     string,
   ][];
   return (
-    <FilterPanel title="Filter laporan" activeCount={entries.length}>
+    <div className="bi-report-filters">
       <section className="rv-filters" aria-label="Filter laporan">
         <div className="rv-filter-heading">
           <h3>
@@ -158,14 +158,13 @@ export default function ReportFilters({
                 ? "Periode berdasarkan tanggal kegiatan; status sumber bukan keputusan kelulusan."
                 : kind === "reviews"
                   ? "Periode berdasarkan tanggal keputusan terkini; bukan seluruh histori audit. Review lama yang menunggu ulang tidak memakai tanggal keputusan lama."
-                  : "Periode berdasarkan tenggat tindakan, bukan tanggal pembukaan atau penutupan."}{" "}
+                  : kind === "stages" ? "Status tahapan terkini; tanggal hanya digunakan jika keputusan bertanggal tersedia. Filter tanggal mengeluarkan status tanpa tanggal." : "Periode berdasarkan tenggat tindakan, bukan tanggal pembukaan atau penutupan."}{" "}
             Batas tanggal inklusif; tanpa tanggal dikeluarkan saat filter
-            tanggal aktif. CSV mengikuti filter global; pencarian hanya
-            tampilan.
+            tanggal aktif. Ekspor mengikuti filter dan pencarian.
           </p>
         </details>
         {error && <p role="alert">{error}</p>}
       </section>
-    </FilterPanel>
+    </div>
   );
 }

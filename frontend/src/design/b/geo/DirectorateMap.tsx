@@ -14,11 +14,13 @@ export function DirectorateMap({
   selected,
   onSelect,
   adapter = unavailableGeography,
+  statusByBalai,
 }: {
   balais: readonly { name: string; packages: number }[];
   selected: string;
   onSelect: (balai: string) => void;
   adapter?: BalaiGeographyAdapter;
+  statusByBalai?: Record<string,{active:number;passed:number;packages:number}>;
 }) {
   const target = useRef<HTMLDivElement>(null),
     map = useRef<L.Map | null>(null),
@@ -103,15 +105,17 @@ export function DirectorateMap({
     if (!map.current || !layer.current) return;
     layer.current.clearLayers();
     for (const location of locations) {
+      const status = statusByBalai?.[location.balai];
+      const color = status?.active ? "#C49A59" : status && status.packages > 0 && status.passed === status.packages ? "#398D85" : "#8FA5AE";
       const point = L.circleMarker([location.latitude, location.longitude], {
         radius: selected === location.balai ? 8 : 6,
         color: "#0d697d",
-        fillColor: "#148e98",
+        fillColor: color,
         fillOpacity: 0.85,
         weight: 2,
       });
       const label = document.createElement("span");
-      label.textContent = location.label;
+      label.textContent = location.label + (status ? ` · ${status.packages} paket · ${status.active} kasus aktif · ${status.passed} audit 3 lulus` : "");
       point.bindTooltip(label);
       point.on("click", () => callback.current(location.balai));
       point.addTo(layer.current);
@@ -124,7 +128,7 @@ export function DirectorateMap({
         ),
         { maxZoom: 11, padding: [30, 30], animate: false },
       );
-  }, [locations, selected]);
+  }, [locations, selected, statusByBalai]);
   useEffect(() => {
     country.current?.setStyle({ fillOpacity: tiles && !tileError ? 0.12 : 1 });
   }, [tiles, tileError]);
@@ -225,6 +229,7 @@ export function DirectorateMap({
           lokal.
         </p>
       )}
+      <p className="subtle">Penanda: jingga = kasus aktif; teal = semua paket lulus Audit 3 tanpa kasus aktif; abu-abu = kondisi lainnya. Bukan keputusan penerimaan data.</p>
       <div className="b-map-selection">
         <label>
           Balai pada peta / cakupan
@@ -278,8 +283,7 @@ export function DirectorateMap({
               Peta dasar Natural Earth 1:110m v5.1.2 (Public Domain), bukan
               batas administratif operasional atau indikator kelulusan. Pilihan
               Balai mengikuti paket dalam akses. Lokasi hanya tampil dengan
-              koordinat dan referensi sumber yang sah; data lokasi Balai belum
-              tersedia.
+              koordinat dan referensi sumber yang sah.
             </p>
           </section>
         </div>

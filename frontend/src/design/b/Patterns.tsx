@@ -65,7 +65,9 @@ export function MetricTile({
   value,
   note,
   tone = "teal",
+  children,
 }: {
+  children?: ReactNode;
   icon?: LucideIcon;
   label: string;
   value: ReactNode;
@@ -73,7 +75,7 @@ export function MetricTile({
   tone?: string;
 }) {
   return (
-    <article className={`b-metric tone-${tone}`}>
+    <article className={`b-metric tone-${tone}${children ? " bi-kpi-shell" : ""}`}>
       <span className="b-metric-symbol">
         <Icon size={23} />
       </span>
@@ -81,6 +83,7 @@ export function MetricTile({
         <span>{label}</span>
         <strong>{value}</strong>
         {note && <small>{note}</small>}
+        {children && <details className="bi-kpi-detail"><summary>Lihat rincian {label.toLowerCase()}</summary><div className="bi-record-detail">{children}</div></details>}
       </div>
     </article>
   );
