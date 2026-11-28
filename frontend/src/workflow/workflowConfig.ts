@@ -74,7 +74,7 @@ export const ROLE_ROUTE_ACCESS: Record<WorkflowRole, string[]> = {
   'Penyedia Jasa / Ketua Tim': ['/', '/packages', '/entry', '/verification', '/actions', '/reports', '/documents', '/notifications'],
   'PIC Balai / Pengguna Jasa': ['/', '/packages', '/entry', '/verification', '/actions', '/compliance', '/reports', '/documents', '/notifications'],
   'Direktorat / Pusat': ['/', '/packages', '/entry', '/verification', '/actions', '/compliance', '/reports', '/documents', '/notifications'],
-  Admin: ['/', '/data-master', '/packages', '/entry', '/verification', '/actions', '/compliance', '/reports', '/documents', '/notifications', '/audit'],
+  Admin: ['/', '/data-master', '/packages', '/entry', '/verification', '/actions', '/reports', '/documents', '/notifications', '/audit'],
 };
 
 export const ROLE_HOME_LABELS: Record<WorkflowRole, string> = {

@@ -1,3 +1,4 @@
+import {stagedDecisionProjection} from '../ba/stagedDecisionProjection';
 import { evaluateSubmissionReadiness } from '../submissionReadiness';
 import {DocumentAttachments} from '../DocumentAttachments';
 import {Stage3BSourceEvidenceIndex} from '../Stage3BSourceEvidenceIndex';
@@ -15,7 +16,8 @@ import {
   Wrench,
 } from "lucide-react";
 import { useCorrectionSelection } from "./useCorrectionSelection";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import type {SurveyType} from "../model";
 import "./stage4-redesign.css";
 
 import { fieldReadiness, workflowDocumentReferences } from "../flowRules";
@@ -48,6 +50,20 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
   const [caseId, setCaseId] = useCorrectionSelection(state.project.id);
   type Stage4Tab = 'paket' | 'mutu' | 'penyerahan' | 'dokumen' | 'hasil' | 'bertahap' | 'keputusan' | 'ba' | 'monitor' | 'administrasi';
   const [currentTab, setCurrentTab] = useState<Stage4Tab | null>(null);
+  const [sourceSurvey, setSourceSurvey] = useState<SurveyType>();
+  const [sourceDetailsOpen, setSourceDetailsOpen] = useState(false);
+  useEffect(() => {
+    const key=`jala-stage4-review-survey:${state.project.id}`;
+    const requested=sessionStorage.getItem(key);
+    if(!requested)return;
+    sessionStorage.removeItem(key);
+    const survey=state.project.surveyTypes.find(type=>type===requested);
+    setSourceSurvey(survey);
+    if(survey){
+      if(state.role==='PIC Balai / Pengguna Jasa')setCurrentTab('bertahap');
+      if(state.role==='Direktorat / Pusat'){setCurrentTab('monitor');setSourceDetailsOpen(true);}
+    }
+  },[state.project.id,state.role]);
 
   const lrs = evaluateLrsGate(state.submission, state.simulationDate);
 
@@ -305,7 +321,7 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
     <>
       {stagedSourceTypes.length>0&&<SourceAlignmentChecklist
         pciManual={pciManual} projectInfo={state.project} packageId={state.project.id}
-        phase="staged" surveyTypes={stagedSourceTypes} role={state.role}
+        phase="staged" surveyTypes={stagedSourceTypes} role={state.role} defaultSurvey={sourceSurvey} onSurveyChange={setSourceSurvey}
         editableRoles={["PIC Balai / Pengguna Jasa"]} title="Checklist Verifikasi Data"
       />}
       {stagedFallbackTypes.map(type=>{
@@ -325,9 +341,10 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
         const hasSource = stagedHasSource(type);
         const complete = stagedTypeReady(type);
         const fallbackDecision = state.submission.stagedReviews?.[type]?.decision;
+        const projected=hasSource?stagedDecisionProjection(state,type):undefined;
         return <div className="stage4-summary-row" key={type}>
-          <span>{type}<small>{hasSource ? "Formulir pemeriksaan sumber" : "Pemeriksaan Balai tercatat"}</small></span>
-          <Badge tone={complete ? 'good' : 'warn'}>{hasSource ? (complete ? 'Formulir lengkap' : 'Belum lengkap') : (fallbackDecision ?? 'Belum diperiksa')}</Badge>
+          <span>{type}<small>{hasSource ? (projected?.detail||"Formulir pemeriksaan sumber") : "Pemeriksaan Balai tercatat"}</small></span>
+          <Badge tone={hasSource?(projected?.status==='Sesuai'?'good':'warn'):complete?'good':'warn'}>{hasSource ? (projected&&projected.status!=='Belum diputuskan'?projected.status:complete?'Formulir lengkap · belum diputuskan':'Belum lengkap') : (fallbackDecision ?? 'Belum diperiksa')}</Badge>
         </div>;
       })}
       {state.project.surveyTypes.length===0&&<p className="stage4-feedback">Belum ada jenis survei pada paket.</p>}
@@ -457,8 +474,8 @@ export function Stage4DataPreparationWorkspace(props: WorkflowStageProps) {
         {state.role==='Direktorat / Pusat' && tab==='monitor' && <>
           {sourceStatus}
           {stagedResultsSummary}
-          <details className="stage4-prior-evidence"><summary>Detail formulir V&V bertahap</summary>
-            {stagedSourceTypes.length > 0 && <SourceAlignmentChecklist pciManual={pciManual} projectInfo={state.project} packageId={state.project.id} phase="staged" surveyTypes={stagedSourceTypes} role={state.role} editableRoles={["PIC Balai / Pengguna Jasa"]} title="Hasil pemeriksaan Balai" />}
+          <details className="stage4-prior-evidence" open={sourceDetailsOpen} onToggle={e=>setSourceDetailsOpen(e.currentTarget.open)}><summary>Detail formulir V&V bertahap</summary>
+            {stagedSourceTypes.length > 0 && <SourceAlignmentChecklist pciManual={pciManual} projectInfo={state.project} packageId={state.project.id} phase="staged" surveyTypes={stagedSourceTypes} role={state.role} defaultSurvey={sourceSurvey} onSurveyChange={setSourceSurvey} editableRoles={["PIC Balai / Pengguna Jasa"]} title="Hasil pemeriksaan Balai" />}
             {stagedFallbackTypes.map(type=><div key={type} className="stage4-summary-row"><span>{type}</span><Badge tone={stagedFallbackReviewReady(state,type)?'good':'warn'}>{stagedFallbackReviewReady(state,type)?'Sesuai':'Belum diperiksa'}</Badge></div>)}
           </details>
           <details className="stage4-prior-evidence"><summary>Kesiapan paket dan hasil RNI/LRS</summary>

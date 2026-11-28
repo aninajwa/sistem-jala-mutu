@@ -286,17 +286,10 @@ export function buildRoleNavigation(
         ],
       },
       {
-        path: "/compliance",
-        label: "Analisis & Kepatuhan",
-        icon: BarChart3,
+        path: "/compliance", label: "Analisis & Kepatuhan", icon: BarChart3,
         children: [
-          { label: "Evaluasi paket", href: "/compliance", tab: "Semua" },
-          { label: "Tren rekaman", href: "/compliance", tab: "Tren" },
-          {
-            label: "Perbandingan Paket",
-            href: "/compliance",
-            tab: "Peringkat",
-          },
+          { label: "Evaluasi Mutu Paket", href: "/compliance", tab: "Semua" },
+          { label: "Analisis Ketidaksesuaian", href: "/compliance", tab: "Ketidaksesuaian" },
         ],
       },
       {
@@ -414,21 +407,11 @@ export function buildRoleNavigation(
         ],
       },
       {
-        path: "/compliance",
-        label: "Analisis & Kepatuhan",
-        icon: BarChart3,
+        path: "/compliance", label: "Analisis & Kepatuhan", icon: BarChart3,
         children: [
-          {
-            label: "Pengawasan lintas Balai",
-            href: "/compliance",
-            tab: "Semua",
-          },
-          { label: "Tren rekaman", href: "/compliance", tab: "Tren" },
-          {
-            label: "Perbandingan Balai",
-            href: "/compliance",
-            tab: "Peringkat",
-          },
+          { label: "Kepatuhan per Jenis Survei", href: "/compliance", tab: "Semua" },
+          { label: "Kepatuhan per Balai", href: "/compliance", tab: "Peringkat" },
+          { label: "Tren Mutu QA/QC", href: "/compliance", tab: "Tren" },
         ],
       },
       {
@@ -540,15 +523,6 @@ export function buildRoleNavigation(
           tab: "Pemantauan Tenggat",
         },
         { label: "Riwayat", href: "/actions", tab: "Riwayat" },
-      ],
-    },
-    {
-      path: "/compliance",
-      label: "Analisis & Kepatuhan",
-      icon: BarChart3,
-      children: [
-        { label: "Ketersediaan bukti", href: "/compliance", tab: "Semua" },
-        { label: "Perbandingan Balai", href: "/compliance", tab: "Peringkat" },
       ],
     },
     {

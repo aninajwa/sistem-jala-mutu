@@ -33,6 +33,18 @@ export function documentQuestions(document:SourceDocument):SourceQuestion[]{
   const options=block.text.split(/[□☐]/).slice(1).map(value=>value.trim()).filter(Boolean);
   if(options.length>1)questions.push({id:`paragraph:${block.id}`,number:'',label:block.heading??'Hasil pemeriksaan',options,table:-1,row:0,paragraph:block.id});
  }
+ // Two reviewed source formats express an overall decision outside table choices.
+ // Keep the original document immutable and anchor controls to its actual paragraphs.
+ if(document.phase==='staged'&&document.survey==='RNI'){
+  const ids=['p36','p37','p38'];
+  const blocks=ids.map(id=>document.blocks?.find(b=>b.id===id));
+  if(blocks.every(b=>b?.text&&/^[□☐]/.test(b.text)))questions.push({id:'paragraph:p36',number:'',label:'Keputusan V&V bertahap',options:blocks.map(b=>clean(b!.text!)),table:-1,row:0,paragraph:'p36'});
+ }
+ if(document.phase==='staged'&&document.survey==='PCI AI'){
+  const block=document.blocks?.find(b=>b.id==='p62');
+  const options=['DITERIMA','DITERIMA DENGAN CATATAN','TIDAK DITERIMA'];
+  if(block?.text?.includes(options.join(' / ')))questions.push({id:'paragraph:p62',number:'',label:'Kesimpulan hasil V&V tahap ini',options,table:-1,row:0,paragraph:'p62'});
+ }
  return questions;
 }
 export function sourceDocument(survey:string,phase:string,pciManual=true,auditLevel=1):SourceDocument|undefined{

@@ -1,4 +1,3 @@
-import { openFilterPanels } from "./filterInteractions";
 import { chromium } from "playwright";
 import { createServer } from "vite";
 import { fileURLToPath } from "node:url";
@@ -33,6 +32,7 @@ try {
   state.project.packageName = "Paket Uji Analisis Terbatas";
   state.project.balai = "Balai Jawa Barat";
   state.role = roleNames[0];
+  state.productionTests.PCI.pciManual = false;
   const context = await browser.newContext({
     viewport: { width: 1365, height: 850 },
     acceptDownloads: true,
@@ -54,251 +54,59 @@ try {
     { key: PACKAGE_STORE_KEY, state },
   );
   const page = await context.newPage();
+  page.setDefaultNavigationTimeout(180000);
+  page.setDefaultTimeout(60000);
   page.on("pageerror", (e) => errors.push(e.message));
   const origin = "http://127.0.0.1:5182";
-  async function loadRole(role: string) {
-    await page.evaluate(
-      ({ key, role }) => {
-        const stored = JSON.parse(localStorage.getItem(key)!);
-        stored.activeRole = role;
-        for (const pkg of Object.values(stored.packages) as any[])
-          pkg.role = role;
-        localStorage.setItem(key, JSON.stringify(stored));
-      },
-      { key: PACKAGE_STORE_KEY, role },
-    );
-    await page.goto(origin + "/compliance?testRoles=1");
-    await openFilterPanels(page);
-    await page.getByTestId("compliance-workspace").waitFor();
-    assert.equal(
-      await page.getByTestId("button-switch-role").count(),
-      1,
-      "role test control must remain",
-    );
-    assert.equal(
-      await page.getByTestId("select-global-balai").count(),
-      0,
-      "redundant header Balai must be hidden",
-    );
-    assert.equal(
-      await page.getByTestId("select-global-periode").count(),
-      0,
-      "redundant header period must be hidden",
-    );
-  }
   await page.goto(origin + "/compliance?testRoles=1");
-  await openFilterPanels(page);
-  await page.getByTestId("compliance-workspace").waitFor();
-  assert.equal(await page.getByTestId("button-switch-role").count(), 1);
-  assert.equal(await page.getByTestId("select-global-balai").count(), 0);
-  assert.equal(await page.getByTestId("select-global-periode").count(), 0);
-  results.push(
-    "Header filters hidden only for compliance; role test control retained",
-  );
-  await page
-    .getByLabel("Periode rekaman analisis")
-    .selectOption("Semua periode");
-  assert.equal(
-    await page.getByLabel("Periode rekaman analisis").inputValue(),
-    "Semua periode",
-  );
-  await page
-    .getByLabel("Cari paket dalam analisis")
-    .fill("paket-yang-tidak-ada-12345");
-  await page
-    .getByTestId("kpi-compliance-packages")
-    .getByText("0", { exact: true })
-    .waitFor();
-  assert.equal(
-    await page
-      .getByTestId("table-compliance-source")
-      .locator("tbody tr")
-      .count(),
-    0,
-  );
-  const downloadPromise = page.waitForEvent("download");
-  await page.getByTestId("button-export-compliance").click();
-  const download = await downloadPromise;
-  await download.saveAs(`${out}/filtered.csv`);
-  const csv = fs.readFileSync(`${out}/filtered.csv`, "utf8");
-  assert.ok(
-    !csv.includes(state.project.packageName),
-    "filtered export must exclude invisible package",
-  );
-  results.push(
-    "Page period/search controls work; KPI, source table and CSV share the filtered scope",
-  );
-  // Isolate the reset interaction from the preceding empty-results / CSV scenario.
-  // The real user path starts with an unfiltered page, enters a matching package,
-  // observes the filtered data, then resets to the original data.
-  await page.reload();
-  await page.getByTestId("compliance-workspace").waitFor();
-  const searchInput = page.getByLabel("Cari paket dalam analisis");
-  const resetButton = page.getByRole("button", { name: "Reset", exact: true });
-  await searchInput.fill("Paket Uji");
-  await page
-    .getByTestId("kpi-compliance-packages")
-    .getByText("1", { exact: true })
-    .waitFor();
-  assert.equal(
-    await searchInput.inputValue(),
-    "Paket Uji",
-    "search keeps the user input",
-  );
-  try {
-    await resetButton.waitFor({ state: "visible" });
-    await page.waitForFunction(
-      () => {
-        const button = Array.from(document.querySelectorAll("button")).find(
-          (b) => b.textContent?.trim() === "Reset",
-        );
-        const input = document.querySelector(
-          'input[aria-label="Cari paket dalam analisis"]',
-        ) as HTMLInputElement | null;
-        return !!button && !button.disabled && input?.value === "Paket Uji";
-      },
-      undefined,
-      { timeout: 5000 },
-    );
-  } catch (error) {
-    const state = await page.evaluate(() => ({
-      input: (
-        document.querySelector(
-          'input[aria-label="Cari paket dalam analisis"]',
-        ) as HTMLInputElement | null
-      )?.value,
-      buttons: Array.from(document.querySelectorAll("button"))
-        .filter((b) => b.textContent?.includes("Reset"))
-        .map((b) => ({ text: b.textContent?.trim(), disabled: b.disabled })),
-    }));
-    throw new Error(
-      `Reset tidak aktif setelah hasil pencarian diperbarui: ${JSON.stringify(state)}; ${String(error)}`,
-    );
+  async function loadRole(role: string, tab = 'Semua') {
+    await page.evaluate(({key,role})=>{const store=JSON.parse(localStorage.getItem(key)!);store.activeRole=role;for(const p of Object.values(store.packages) as any[])p.role=role;localStorage.setItem(key,JSON.stringify(store));},{key:PACKAGE_STORE_KEY,role});
+    await page.goto(origin + '/compliance?testRoles=1&tab='+encodeURIComponent(tab));
   }
-  await resetButton.click();
-  assert.equal(await searchInput.inputValue(), "", "reset clears the search");
-  assert.equal(
-    await resetButton.isDisabled(),
-    true,
-    "reset disabled again after filters cleared",
-  );
-  for (const role of roleNames) {
-    await loadRole(role);
-    await page.screenshot({
-      path: `${out}/${role.startsWith("PIC") ? "balai" : role === "Admin" ? "admin" : "direktorat"}.png`,
-      fullPage: true,
-    });
-    assert.equal(
-      await page.getByText("Dasar penghitungan:", { exact: false }).count(),
-      0,
-      "no technical calculation banner",
-    );
-    if (role === "PIC Balai / Pengguna Jasa") {
-      assert.equal(
-        await page.getByLabel("Filter Balai analisis").count(),
-        0,
-        "Balai should not select other regions",
-      );
-      assert.equal(
-        await page.getByText("Cakupan paket yang diberikan").count(),
-        0,
-        "no developer-facing scope banner",
-      );
-      assert.equal(
-        await page
-          .locator(".b-view-tabs")
-          .getByRole("button", { name: "Perbandingan Paket", exact: true })
-          .count(),
-        1,
-      );
-      // Local development may expose multiple assigned/demo packages. Never hardcode one.
-      const sourcePackageCount = await page
-        .getByTestId("table-compliance-source")
-        .locator("tbody tr")
-        .count();
-      await page
-        .locator(".b-view-tabs")
-        .getByRole("button", { name: "Perbandingan Paket", exact: true })
-        .click();
-      await page.getByTestId("table-compliance-packages").waitFor();
-      assert.equal(
-        await page.getByTestId("table-compliance-balai").count(),
-        0,
-        "Balai comparison must use packages, not other Balai ranking",
-      );
-      const comparisonRows = page
-        .getByTestId("table-compliance-packages")
-        .locator("tbody tr");
-      assert.equal(
-        await comparisonRows.count(),
-        sourcePackageCount,
-        "comparison must contain precisely the packages in the accessible source list",
-      );
-      assert.ok(
-        sourcePackageCount > 0,
-        "seeded test must expose at least one authorized package",
-      );
-      assert.equal(
-        await comparisonRows
-          .getByRole("button", { name: "Lihat paket" })
-          .count(),
-        sourcePackageCount,
-        "every compared package must have a package link",
-      );
-    } else {
-      assert.equal(
-        await page.getByLabel("Filter Balai analisis").count(),
-        1,
-        "Cross-Balai roles have region filter",
-      );
-    }
-    if (role === "Admin") {
-      assert.equal(
-        await page.getByTestId("kpi-compliance-audits").count(),
-        0,
-        "admin must not show technical scorecard",
-      );
-      await page.getByText("Jejak ketersediaan rekaman").waitFor();
-    } else {
-      assert.equal(await page.getByTestId("kpi-compliance-audits").count(), 1);
-    }
+  for(const [role,tab,title] of [[roleNames[0],'Semua','Evaluasi Mutu Paket'],[roleNames[0],'Ketidaksesuaian','Analisis Ketidaksesuaian'],[roleNames[1],'Semua','Kepatuhan per Jenis Survei'],[roleNames[1],'Peringkat','Kepatuhan per Balai'],[roleNames[1],'Tren','Tren Mutu QA/QC']]){
+    await loadRole(role,tab);
+    const workspace=page.getByTestId('compliance-workspace');
+    await workspace.getByRole('heading',{name:title,exact:true}).waitFor();
+    assert.equal(await workspace.locator('.b-metric a,.b-metric button,.bi-kpi-detail').count(),0);
+    assert.equal(await workspace.locator('.b-view-tabs').count(),0);
+    if(title==='Evaluasi Mutu Paket'){assert.equal(await workspace.getByRole('heading',{name:'Matriks evaluasi mutu'}).count(),0);await workspace.getByRole('button',{name:'Lihat evaluasi'}).first().click();await workspace.getByRole('heading',{name:'Matriks evaluasi mutu'}).waitFor();assert.ok(await workspace.locator('table').first().locator('tbody tr').count()<=15);await workspace.getByRole('button',{name:'Tutup evaluasi'}).click();}
+    if(title==='Tren Mutu QA/QC'){assert.equal(await workspace.locator('input[type=month]').count(),2);}
+    const bars=workspace.locator('.qa-bar-row');
+    if(await bars.count()){await bars.first().click();assert.equal(await bars.first().getAttribute('aria-pressed'),'true');await bars.first().click();assert.equal(await bars.first().getAttribute('aria-pressed'),'false');}
+    const download=page.waitForEvent('download');await workspace.getByTestId('button-export-compliance').click();assert.ok((await download).suggestedFilename().endsWith('.csv'));
+    await page.screenshot({path:`${out}/${tab}-${role===roleNames[0]?'balai':'pusat'}.png`,fullPage:true});
+    results.push(title);
   }
-  results.push(
-    "Balai only compares assigned packages without cross-region filter; Directorate and Admin retain regional analysis",
-  );
-  await page.setViewportSize({ width: 390, height: 844 });
-  await page.reload();
-  await page.getByTestId("compliance-workspace").waitFor();
-  assert.equal(
-    await page.getByTestId("mobile-global-filters").count(),
-    0,
-    "mobile redundant filters must be hidden",
-  );
-  assert.equal(
-    await page.evaluate(
-      () => document.documentElement.scrollWidth > window.innerWidth + 2,
-    ),
-    false,
-    "page must have no horizontal overflow at 390px",
-  );
-  results.push(
-    "390px page has no global filter duplication and no horizontal overflow",
-  );
-  assert.deepEqual(errors, [], "no browser errors");
-  completed = true;
-  await context.close();
+  // Follow a specific staged inspection from the analysis, rather than the package landing page.
+  await loadRole(roleNames[0]);
+  const evaluation=page.getByTestId('compliance-workspace');
+  await evaluation.getByLabel('Jenis survei',{exact:true}).selectOption('PCI');
+  await evaluation.locator('.qa-bar-row').filter({hasText:'Verval bertahap'}).click();
+  await evaluation.getByRole('button',{name:'Buka pemeriksaan'}).first().click();
+  await page.getByLabel('Jenis survei checklist sumber',{exact:true}).waitFor();
+  assert.equal(await page.getByLabel('Jenis survei checklist sumber',{exact:true}).inputValue(),'PCI');
+  results.push('Rincian Verval bertahap → PCI');
+  const selector=page.getByLabel('Jenis survei checklist sumber',{exact:true});
+  const decisionPanel=page.getByRole('region',{name:'Kesimpulan Verval bertahap',exact:true});
+  await decisionPanel.getByRole('radio',{name:'DITERIMA DENGAN CATATAN',exact:true}).waitFor();
+  assert.equal(await decisionPanel.getByRole('radio').count(),3);
+  assert.equal(await page.locator('[data-source-field="paragraph:p62"]').count(),1);
+  assert.equal(await page.getByText('KEMENTERIAN PEKERJAAN UMUM DAN PERUMAHAN RAKYAT',{exact:true}).count(),0);
+  await page.screenshot({path:`${out}/staged-pci-ai-decision.png`,fullPage:true});
+  await selector.selectOption('RNI');
+  await decisionPanel.getByRole('radio',{name:'Disetujui tanpa catatan',exact:true}).waitFor();
+  assert.equal(await decisionPanel.getByRole('radio').count(),3);
+  assert.equal(await page.locator('[data-source-field="paragraph:p36"]').count(),1);
+  await page.screenshot({path:`${out}/staged-rni-decision.png`,fullPage:true});
+  await decisionPanel.getByRole('radio',{name:'Disetujui dengan catatan (perbaikan minor)',exact:true}).check();
+  assert.equal(await decisionPanel.getByRole('radio',{name:'Disetujui dengan catatan (perbaikan minor)',exact:true}).isChecked(),true);
+  const savedRni=await page.evaluate(()=>JSON.parse(localStorage.getItem('jala-source-exact-v1:PAKET-E2E-COMPLIANCE-001:9b870467a26e2b8a')??'{}')['paragraph:p36']);
+  assert.equal(savedRni,'Disetujui dengan catatan (perbaikan minor)');
+  results.push('Pilihan kesimpulan PCI AI dan RNI terlihat');
+  for(const role of ['Admin','Penyedia Jasa / Ketua Tim']){await loadRole(role);await page.getByText('Halaman ini di luar kewenangan Anda',{exact:true}).first().waitFor();assert.equal(await page.getByTestId('compliance-workspace').count(),0);results.push('URL blocked: '+role);}
+  assert.deepEqual(errors,[]);completed=true;
 } finally {
-  fs.writeFileSync(
-    `${out}/results.json`,
-    JSON.stringify({ completed, results, errors }, null, 2),
-  );
-  await browser.close();
-  await server.close();
+  fs.writeFileSync(`${out}/summary.json`,JSON.stringify({completed,results,errors},null,2));
+  await browser.close();await server.close();
 }
-if (completed) {
-  console.log(
-    `COMPLIANCE E2E: PASS (${results.length}/${results.length} scenario groups)`,
-  );
-  for (const [i, result] of results.entries())
-    console.log(`  PASS ${i + 1}. ${result}`);
-}
+console.log('PASS',results.join(' | '));

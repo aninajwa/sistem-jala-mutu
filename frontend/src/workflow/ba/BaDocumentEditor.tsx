@@ -385,7 +385,7 @@ export function BaDocumentEditor({
           {latest?.status === "submitted-local" &&
             actors.reviewer === state.role && (
               <label className="wf-field">
-                Catatan pemeriksaan (wajib jika meminta revisi atau menolak)
+                {identity.kind === "bertahap" ? "Catatan pemeriksaan dan tindak lanjut (wajib untuk hasil dengan temuan atau catatan)" : "Catatan pemeriksaan (wajib jika meminta revisi atau menolak)"}
                 <textarea
                   aria-label="Catatan pemeriksaan BA"
                   rows={3}

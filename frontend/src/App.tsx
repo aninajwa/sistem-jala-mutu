@@ -290,6 +290,8 @@ function App() {
         `jala-notification-audit:${id}`,
         String(context.auditLevel),
       );
+    if (selection === "/entry:Gerbang RNI/LRS" && context?.survey && scopedPackages[id].project.surveyTypes.some(type => type === context.survey))
+      sessionStorage.setItem(`jala-stage4-review-survey:${id}`, context.survey);
     navigateSubmodule(selection);
   };
 
@@ -447,6 +449,7 @@ function App() {
     workflow,
     packages: scopedPackages,
     openPackage,
+    openCorrection,
     openPackageReview,
     openPackageBA,
     balai,

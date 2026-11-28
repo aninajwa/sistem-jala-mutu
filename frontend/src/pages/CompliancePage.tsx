@@ -1,524 +1,86 @@
-import { FilterPanel } from "../design/b/FilterPanel";
-import { useMemo, useState } from "react";
-import {
-  ArrowDownToLine,
-  BarChart3,
-  ClipboardCheck,
-  FileWarning,
-  ShieldCheck,
-  TrendingUp,
-  RotateCcw,
-} from "lucide-react";
-import { KPI, PageHeading, Section } from "../components/app/AppComponents";
-import type { PageProps } from "../types";
-import { complianceCsv, summarizeCompliance } from "./complianceMetrics";
-import "./complianceWorkspace.css";
+import { useState } from 'react';
+import { ArrowDownToLine, ClipboardCheck, FileWarning, ShieldCheck, Layers3 } from 'lucide-react';
+import { WorkspaceHeading, MetricTile } from '../design/b/Patterns';
+import type { PageProps } from '../types';
+import { canAnalyze, validScope, qualityRows, qualityCases, qualityCaseConflicts, qualityHistory, countQuality, qualityCsv, caseClosureDays, QUALITY_CATEGORIES, type Category, type QualityRow } from './qualityAnalysis';
+import { listPackageDocuments } from '../workflow/documents/documentCatalog';
+import { CALIBRATION_REVIEW_SUBJECTS } from '../workflow/calibrationReview';
+import './complianceWorkspace.css';
 
-type Workspace = "balai" | "directorate" | "admin";
-const workspaceFor = (role: string): Workspace =>
-  role === "Admin"
-    ? "admin"
-    : role === "Direktorat / Pusat"
-      ? "directorate"
-      : "balai";
-const viewFor = (role: Workspace, tab: string) =>
-  role === "admin"
-    ? tab === "Peringkat"
-      ? "comparison"
-      : "evidence"
-    : tab === "Tren"
-      ? "trend"
-      : tab === "Peringkat"
-        ? "comparison"
-        : role === "balai"
-          ? "followup"
-          : "overview";
-const emptyMessage = (
-  <p className="cm-empty">Belum ada data pada filter ini.</p>
-);
+const colors=['#398D85','#C49A59','#B9CAD2','#6689AB','#A58BA9','#769E9A','#AA926D','#B96565'];
+const statuses=['Sesuai','Temuan','Belum diputuskan','Perlu pemeriksaan ulang','Klarifikasi','Diterima dengan catatan','Diterima bersyarat','Ditolak sebagian'] as const;
+const values=(rows:QualityRow[])=>statuses.map(s=>rows.filter(r=>r.status===s).length);
+function Legend({labels=Array.from(statuses),palette=colors}:{labels?:string[];palette?:string[]}){return <div className="qa-keys">{labels.map((l,i)=><span key={l}><i style={{background:palette[i%palette.length]}}/>{l}</span>)}</div>}
+function Pager({total,limit,setLimit}:{total:number;limit:number;setLimit:(n:number)=>void}){return <div className="qa-pager"><span>Menampilkan {Math.min(limit,total)} dari {total}</span>{total>limit&&<button className="btn sm" onClick={()=>setLimit(limit+15)}>Tampilkan 15 lainnya</button>}{limit>15&&<button className="btn sm" onClick={()=>setLimit(15)}>Ringkas</button>}</div>}
+function openSource(p:PageProps,r:QualityRow){const route=r.category==='Kalibrasi'?'/documents:Kalibrasi & personel':r.category==='Persetujuan produksi'?'/entry:Validasi produksi':r.category==='Verval berkala'?'/verification:Verval 14 hari':r.category==='Verval bertahap'?'/entry:Gerbang RNI/LRS':r.category==='Penerimaan akhir'?'/reports:Penerimaan & termin':'/verification:Audit tingkat 1–3';p.openPackageReview(r.packageId,route,{period:r.period,auditLevel:r.auditLevel,survey:r.survey});}
 
-export default function CompliancePage(p: PageProps) {
-  const role = p.workflow.role;
-  const [balai, setBalai] = useState("Semua Balai");
-  const [search, setSearch] = useState("");
-  const initialPeriod = /^Semester (I|II) \d{4}$/.test(p.periode)
-    ? p.periode
-    : "Semua periode";
-  const [period, setPeriod] = useState(initialPeriod);
-  const periods = useMemo(() => {
-    const years = new Set(
-      Object.values(p.packages)
-        .flatMap((pkg) =>
-          pkg.dailyRecords.map((record) => record.date.slice(0, 4)),
-        )
-        .filter((value) => /^\d{4}$/.test(value)),
-    );
-    const headerYear = /^Semester (?:I|II) (\d{4})$/.exec(initialPeriod)?.[1];
-    if (headerYear) years.add(headerYear);
-    return [...years]
-      .sort()
-      .reverse()
-      .flatMap((year) => [`Semester I ${year}`, `Semester II ${year}`]);
-  }, [p.packages, initialPeriod]);
-  const kind = workspaceFor(role);
-  const view = viewFor(kind, p.activeTab);
-  // p.packages is already authorized by usePackageStore; filters can only narrow it.
-  const choices = useMemo(
-    () => summarizeCompliance(p.packages).byBalai.map((b) => b.name),
-    [p.packages],
-  );
-  const scope = useMemo(() => {
-    const keyword = search.trim().toLocaleLowerCase("id-ID");
-    return Object.fromEntries(
-      Object.entries(p.packages).filter(
-        ([id, state]) =>
-          (kind === "balai" ||
-            balai === "Semua Balai" ||
-            state.project.balai === balai) &&
-          (!keyword ||
-            [id, state.project.packageName].some((value) =>
-              (value || "").toLocaleLowerCase("id-ID").includes(keyword),
-            )),
-      ),
-    );
-  }, [p.packages, kind, balai, search]);
-  const summary = useMemo(
-    () => summarizeCompliance(scope, period),
-    [scope, period],
-  );
-  const packageRows = summary.rows.filter((r) => r.survey === "Seluruh paket");
-  const titles = {
-    balai: "Evaluasi Mutu Paket Balai",
-    directorate: "Pengawasan Mutu Lintas Balai",
-    admin: "Analisis Kelengkapan Bukti",
-  };
-  const explanations = {
-    balai:
-      "Analisis pemeriksaan dan tindak lanjut pada paket dalam kewenangan Balai.",
-    directorate:
-      "Perbandingan hasil pemeriksaan lintas Balai berdasarkan rekaman yang tersedia.",
-    admin:
-      "Analisis ketersediaan rekaman dan temuan agregat, tanpa keputusan teknis atau antrean workflow.",
-  };
-  const download = () => {
-    const csv = complianceCsv(summary, role, period);
-    const url = URL.createObjectURL(
-      new Blob([csv], { type: "text/csv;charset=utf-8" }),
-    );
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "jejak-analisis-kepatuhan.csv";
-    a.click();
-    setTimeout(() => URL.revokeObjectURL(url), 1000);
-  };
-  if (role === "Penyedia Jasa / Ketua Tim")
-    return (
-      <main className="cm-workspace">
-        <PageHeading
-          label="Analisis & Kepatuhan"
-          detail="Analisis lintas paket bukan tugas Penyedia"
-        />
-        <p>
-          Gunakan Ringkasan QA/QC, Paket, Tindakan Perbaikan, dan Laporan untuk
-          paket dalam kewenangan Anda.
-        </p>
-      </main>
-    );
-  const tableSurvey = (
-    <Section title="Pemeriksaan menurut jenis survei" icon={ClipboardCheck}>
-      <div className="cm-table-scroll">
-        <table data-testid="table-compliance">
-          <thead>
-            <tr>
-              <th>Jenis survei</th>
-              <th>Rekaman pada periode</th>
-              <th>Review berkala</th>
-              <th>V&V bertahap</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summary.survey.map((s) => (
-              <tr key={s.name}>
-                <th scope="row">{s.name}</th>
-                <td>{s.records}</td>
-                <td>
-                  {s.periodic.sesuai} sesuai dari {s.periodic.total} keputusan
-                </td>
-                <td>
-                  {s.staged.sesuai} sesuai dari {s.staged.total} keputusan
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!summary.survey.length && emptyMessage}
-      </div>
-    </Section>
-  );
-  const tableBalai = (
-    <Section
-      title="Perbandingan cakupan dan temuan antar-Balai"
-      icon={BarChart3}
-    >
-      <div className="cm-table-scroll">
-        <table data-testid="table-compliance-balai">
-          <thead>
-            <tr>
-              <th>Balai</th>
-              <th>Paket</th>
-              <th>Audit lulus / keputusan</th>
-              <th>Koreksi terbuka (terkini)</th>
-            </tr>
-          </thead>
-          <tbody>
-            {summary.byBalai.map((b) => (
-              <tr key={b.name}>
-                <th scope="row">{b.name}</th>
-                <td>{b.packages}</td>
-                <td>
-                  {b.audit.total
-                    ? `${b.audit.sesuai} / ${b.audit.total}`
-                    : "Belum ada keputusan"}
-                </td>
-                <td>{b.open}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!summary.byBalai.length && emptyMessage}
-      </div>
-    </Section>
-  );
-  const tablePackages = (
-    <Section title="Perbandingan paket dalam kewenangan" icon={BarChart3}>
-      <div className="cm-table-scroll">
-        <table data-testid="table-compliance-packages">
-          <thead>
-            <tr>
-              <th>Paket</th>
-              <th>Wilayah penugasan</th>
-              <th>Rekaman pada periode</th>
-              <th>Audit lulus / keputusan</th>
-              <th>Koreksi terbuka</th>
-              <th>Akses</th>
-            </tr>
-          </thead>
-          <tbody>
-            {packageRows.map((r) => (
-              <tr key={r.packageId}>
-                <th scope="row">{r.packageName}</th>
-                <td>{r.balai}</td>
-                <td>{r.dailyRecords}</td>
-                <td>
-                  {r.audit.total
-                    ? `${r.audit.sesuai} / ${r.audit.total}`
-                    : "Belum ada keputusan"}
-                </td>
-                <td>{r.openCorrections}</td>
-                <td>
-                  <button
-                    className="btn sm"
-                    type="button"
-                    onClick={() => p.openPackage(r.packageId)}
-                  >
-                    Lihat paket
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!packageRows.length && emptyMessage}
-      </div>
-    </Section>
-  );
-  const tableDecisions = (
-    <Section title="Keputusan QA/QC terkini" icon={ShieldCheck}>
-      <div className="cm-table-scroll">
-        <table data-testid="table-compliance-decisions">
-          <thead>
-            <tr>
-              <th>Tahap</th>
-              <th>Sesuai / Lulus</th>
-              <th>Temuan / Ditolak</th>
-              <th>Keputusan tercatat</th>
-            </tr>
-          </thead>
-          <tbody>
-            {(
-              [
-                ["Review berkala", summary.periodic],
-                ["V&V bertahap", summary.staged],
-                ["Audit tingkat 1–3", summary.audit],
-              ] as const
-            ).map(([label, c]) => (
-              <tr key={label}>
-                <th scope="row">{label}</th>
-                <td>{c.sesuai}</td>
-                <td>{c.temuan}</td>
-                <td>{c.total}</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </Section>
-  );
-  const months = (
-    <Section
-      title="Volume rekaman survei berdasarkan periode"
-      icon={TrendingUp}
-    >
-      <div className="cm-months">
-        {summary.byMonth.length
-          ? summary.byMonth.map((m) => (
-              <div className="cm-month" key={m.month}>
-                <span>{m.month}</span>
-                <div
-                  className="cm-bar"
-                  aria-label={`${m.records} rekaman pada ${m.month}`}
-                >
-                  <div
-                    style={{
-                      width: `${Math.round((100 * m.records) / Math.max(...summary.byMonth.map((v) => v.records)))}%`,
-                    }}
-                  />
-                </div>
-                <strong>{m.records} rekaman</strong>
-              </div>
-            ))
-          : emptyMessage}
-      </div>
-    </Section>
-  );
-  const source = (
-    <Section
-      title={
-        kind === "admin"
-          ? "Jejak ketersediaan rekaman"
-          : "Paket dan sumber keputusan"
-      }
-      icon={ClipboardCheck}
-    >
-      <div className="cm-table-scroll">
-        <table data-testid="table-compliance-source">
-          <thead>
-            <tr>
-              <th>Paket</th>
-              <th>Balai</th>
-              <th>Rekaman pada periode</th>
-              <th>Audit terkini</th>
-              <th>Koreksi terbuka</th>
-              <th>Akses</th>
-            </tr>
-          </thead>
-          <tbody>
-            {packageRows.map((r) => (
-              <tr key={r.packageId}>
-                <th scope="row">{r.packageName}</th>
-                <td>{r.balai}</td>
-                <td>{r.dailyRecords}</td>
-                <td>
-                  {r.audit.total
-                    ? `${r.audit.sesuai} / ${r.audit.total}`
-                    : "Belum ada keputusan"}
-                </td>
-                <td>{r.openCorrections}</td>
-                <td>
-                  <button
-                    className="btn sm"
-                    type="button"
-                    onClick={() => p.openPackage(r.packageId)}
-                  >
-                    Lihat paket
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-        {!packageRows.length && emptyMessage}
-      </div>
-    </Section>
-  );
-  return (
-    <main className="cm-workspace" data-testid="compliance-workspace">
-      <PageHeading
-        label={titles[kind]}
-        detail="Telusuri keputusan, sumber bukti, dan tindak lanjut pada cakupan akses."
-        action={
-          <button
-            className="btn"
-            type="button"
-            onClick={download}
-            data-testid="button-export-compliance"
-          >
-            <ArrowDownToLine size={15} />
-            Ekspor CSV
-          </button>
-        }
-      />
-      <details className="b-note">
-        <summary>Definisi & batas analisis</summary>
-        <p>{explanations[kind]}</p>
-      </details>
-      <nav className="b-view-tabs" aria-label="Bagian analisis kepatuhan">
-        {[
-          ["Semua", kind === "admin" ? "Ketersediaan bukti" : "Ringkasan"],
-          ...(kind === "admin" ? [] : [["Tren", "Tren rekaman"]]),
-          [
-            "Peringkat",
-            kind === "balai" ? "Perbandingan Paket" : "Perbandingan Balai",
-          ],
-        ].map(([tab, label]) => (
-          <button
-            key={tab}
-            aria-current={p.activeTab === tab ? "page" : undefined}
-            onClick={() => p.setActiveTab(tab)}
-          >
-            {label}
-          </button>
-        ))}
-      </nav>
-      <FilterPanel
-        title="Filter analisis"
-        activeCount={
-          Number(balai !== "Semua Balai") +
-          Number(!!search) +
-          Number(period !== initialPeriod)
-        }
-      >
-        <div
-          className="cm-filters"
-          role="group"
-          aria-label="Filter Analisis dan Kepatuhan"
-        >
-          {kind !== "balai" && (
-            <label>
-              Wilayah Balai
-              <select
-                value={balai}
-                onChange={(e) => setBalai(e.target.value)}
-                aria-label="Filter Balai analisis"
-              >
-                <option>Semua Balai</option>
-                {choices.map((v) => (
-                  <option key={v}>{v}</option>
-                ))}
-              </select>
-            </label>
-          )}
-          <label>
-            Temukan paket
-            <input
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              aria-label="Cari paket dalam analisis"
-              placeholder="Cari nama atau ID paket"
-            />
-          </label>
-          <label className="cm-period">
-            Periode rekaman
-            <select
-              value={period}
-              onChange={(e) => setPeriod(e.target.value)}
-              aria-label="Periode rekaman analisis"
-            >
-              <option value="Semua periode">Semua periode</option>
-              {periods.map((v) => (
-                <option key={v} value={v}>
-                  {v}
-                </option>
-              ))}
-            </select>
-          </label>
-          <button
-            type="button"
-            className="btn sm"
-            onClick={() => {
-              setBalai("Semua Balai");
-              setSearch("");
-              setPeriod(initialPeriod);
-            }}
-            disabled={
-              balai === "Semua Balai" && !search && period === initialPeriod
-            }
-          >
-            <RotateCcw size={14} />
-            Reset
-          </button>
-        </div>
-      </FilterPanel>
-      <div className="cm-kpis" aria-label="Ringkasan analisis">
-        <KPI
-          icon={ClipboardCheck}
-          label="Paket tercakup"
-          value={String(summary.packages)}
-          note={`${summary.balais} Balai dalam akses aktif`}
-          testId="kpi-compliance-packages"
-        />
-        {kind !== "admin" && (
-          <KPI
-            icon={ShieldCheck}
-            label="Audit lulus / keputusan"
-            value={
-              summary.audit.total
-                ? `${summary.audit.sesuai} / ${summary.audit.total}`
-                : "Belum ada keputusan"
-            }
-            note="Hasil final yang masih berlaku"
-            testId="kpi-compliance-audits"
-            tone="green"
-          />
-        )}
-        <KPI
-          icon={FileWarning}
-          label="Koreksi terbuka"
-          value={String(summary.openCorrections)}
-          note={`${summary.closedCorrections} koreksi ditutup · status terkini`}
-          testId="kpi-compliance-rework"
-          tone="amber"
-        />
-        <KPI
-          icon={BarChart3}
-          label="Rekaman pada periode"
-          value={String(summary.dailyRecords)}
-          note="Jumlah rekaman, bukan panjang jalan"
-          testId="kpi-compliance-records"
-        />
-      </div>
-      {kind === "admin" ? (
-        <div className="cm-layout">
-          <div className="cm-wide">
-            {view === "comparison" ? tableBalai : source}
-          </div>
-          {view === "comparison" ? tableSurvey : months}
-        </div>
-      ) : view === "trend" ? (
-        <div className="cm-layout">
-          <div className="cm-wide">{months}</div>
-          {tableSurvey}
-        </div>
-      ) : view === "comparison" ? (
-        <div className="cm-layout">
-          <div className="cm-wide">
-            {kind === "balai" ? tablePackages : tableBalai}
-          </div>
-          {tableSurvey}
-        </div>
-      ) : kind === "balai" ? (
-        <div className="cm-layout">
-          <div className="cm-wide">{source}</div>
-          {tableDecisions}
-          {tableSurvey}
-        </div>
-      ) : (
-        <div className="cm-layout">
-          <div className="cm-wide">{tableBalai}</div>
-          {tableDecisions}
-          {source}
-        </div>
-      )}
-    </main>
-  );
+function downloadCsv(name:string,csv:string){const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'}));const a=document.createElement('a');a.href=url;a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(url),1000);}
+function Empty(){return <p className="cm-empty">Belum ada data pada cakupan ini.</p>;}
+function Bars({rows,onPick,selected,palette=colors,labels,proportional=false}:{palette?:string[];labels?:readonly string[];proportional?:boolean;rows:{name:string;values:number[]}[];onPick:(name:string)=>void;selected:string}){
+ const max=Math.max(1,...rows.map(r=>r.values.reduce((a,b)=>a+b,0)));
+ return rows.length?<div className="qa-bars">{rows.map(r=><button type="button" key={r.name} className="qa-bar-row" aria-pressed={selected===r.name} onClick={()=>onPick(selected===r.name?'':r.name)}><span>{r.name}</span><span className="qa-track">{r.values.map((v,i)=><span key={i} style={{width:`${100*v/(proportional?Math.max(1,r.values.reduce((a,b)=>a+b,0)):max)}%`,background:palette[i%palette.length]}} title={`${labels?.[i]??"Jumlah"}: ${v}`}/>)}</span><strong>{r.values.reduce((a,b)=>a+b,0)} <small>{proportional&&r.values[0]+r.values[1]>0?` · ${(100*r.values[0]/(r.values[0]+r.values[1])).toLocaleString('id-ID',{maximumFractionDigits:1})}% sesuai`:proportional?' · belum ada keputusan':''}</small></strong></button>)}</div>:<Empty/>;
+}
+export default function CompliancePage(p:PageProps){
+ const role=p.workflow.role;
+ const central=role==='Direktorat / Pusat';
+ const view=central?(p.activeTab==='Tren'?'trend':p.activeTab==='Peringkat'?'balai':'survey'):(p.activeTab==='Ketidaksesuaian'?'cases':'package');
+ return canAnalyze(role)?<Analysis key={`${role}:${view}`} p={p} view={view}/>:<p>Halaman ini di luar kewenangan Anda.</p>;
+}
+type View='trend'|'balai'|'survey'|'cases'|'package';
+function Analysis({p,view}:{p:PageProps;view:View}){
+ const role=p.workflow.role,central=role==='Direktorat / Pusat';
+ const [balai,setBalai]=useState(''),[pkg,setPkg]=useState(''),[survey,setSurvey]=useState(''),[category,setCategory]=useState<Category>(view==='trend'?'Verval berkala':'Kalibrasi'),[month,setMonth]=useState(''),[endMonth,setEndMonth]=useState(''),[detailPkg,setDetailPkg]=useState(''),[limit,setLimit]=useState(15),[docLimit,setDocLimit]=useState(15),[selected,setSelected]=useState(''),[status,setStatus]=useState(''),[subject,setSubject]=useState<string>('Hasil kalibrasi'),[caseGroup,setCaseGroup]=useState<'source'|'severity'|'rootCause'|'status'|'surveyType'>('source');
+ const all=validScope(p.packages);const entries=Object.entries(all);
+ const scoped=Object.fromEntries(entries.filter(([id,s])=>(!balai||s.project.balai===balai)&&(!pkg||id===pkg)));
+ const surveys=[...new Set(Object.values(scoped).flatMap(s=>s.project.surveyTypes))].sort();
+ const packageLevel=['Persetujuan produksi','Audit Tingkat 1','Audit Tingkat 2','Audit Tingkat 3','Penerimaan akhir'].includes(category);
+ const categories=QUALITY_CATEGORIES.filter(c=>(central||c!=='Audit Tingkat 3')&&(view!=='survey'||!['Persetujuan produksi','Audit Tingkat 1','Audit Tingkat 2','Audit Tingkat 3','Penerimaan akhir'].includes(c))&&(view!=='trend'||!['Kalibrasi','Verval bertahap'].includes(c)));
+ const quality=view==='cases'||view==='trend'?[]:qualityRows(scoped,role).filter(r=>(view==='package'||r.category===category)&&(!survey||r.survey===survey)&&(view==='package'||category!=='Kalibrasi'||r.object===subject));
+ const documents=view==='package'?Object.values(scoped).flatMap(s=>listPackageDocuments(s).filter(d=>!survey||d.identity.survey===survey).map(d=>({...d,packageName:s.project.packageName}))):[];
+ const conflicts=view==='cases'?qualityCaseConflicts(scoped,role):[];
+ const cases=view==='cases'?qualityCases(scoped,role).filter(r=>!survey||r.surveyType===survey):[];
+ const history=view==='trend'?qualityHistory(scoped,role).filter(r=>r.category===category&&(!survey||r.survey===survey)&&(!month||r.month>=month)&&(!endMonth||r.month<=endMonth)):[];
+ const titles={package:'Evaluasi Mutu Paket',cases:'Analisis Ketidaksesuaian',survey:'Kepatuhan per Jenis Survei',balai:'Kepatuhan per Balai',trend:'Tren Mutu QA/QC'};
+ const label=(r:typeof quality[number])=>view==='survey'?r.survey:view==='balai'?r.balai:r.category;
+ const groupNames=[...new Set(quality.map(label))];
+ const qualityGroups=groupNames.map(name=>{return {name,values:values(quality.filter(r=>label(r)===name))};});
+ const caseName=(r:typeof cases[number])=>r[caseGroup]||'Belum dicatat';
+ const caseGroups=[...new Set(cases.map(caseName))].map(name=>({name,values:[cases.filter(r=>caseName(r)===name&&r.status!=='Ditutup').length,cases.filter(r=>caseName(r)===name&&r.status==='Ditutup').length]}));
+ const historyGroups=[...new Set(history.map(r=>r.month))].sort().map(name=>({name,values:[history.filter(r=>r.month===name&&r.result==='Sesuai').length,history.filter(r=>r.month===name&&r.result==='Temuan').length]}));
+ const rows=quality.filter(r=>(view!=='package'||!detailPkg||r.packageId===detailPkg)&&(!selected||label(r)===selected)&&(!status||r.status===status));
+ const caseRows=cases.filter(r=>!selected||caseName(r)===selected);
+ const histRows=history.filter(r=>!selected||r.month===selected);
+ const count=countQuality(rows);
+ const visibleDocs=documents.filter(d=>!detailPkg||d.identity.packageId===detailPkg);
+ const packageIds=Object.keys(scoped);
+ const durations=caseRows.flatMap(r=>{const days=caseClosureDays(scoped[r.packageId],r.id);return days===null?[]:[days];});
+ const choose=(name:string)=>{setSelected(name);setLimit(15);};
+ const resetDetail=()=>{setSelected('');setStatus('');setDetailPkg('');setLimit(15);setDocLimit(15);};
+ const csv=()=>{
+ if(view==='cases')return qualityCsv(['Paket','Balai','ID kasus','Survei','Sumber','Tingkat','Akar penyebab','Status'],caseRows.map(r=>[r.packageName,r.balai,r.id,r.surveyType,r.source,r.severity,r.rootCause,r.status]));
+ if(view==='trend')return qualityCsv(['Paket','Balai','ID kejadian','Tanggal','Kategori','Survei','Keputusan tercatat','Peran'],histRows.map(r=>[r.packageName,r.balai,r.id,r.recordedAt,r.category,r.survey,r.status,r.actor]));
+ return qualityCsv(['Paket','Balai','Survei','Kategori','Objek','Status terkini','Bukti / catatan','Tanggal keputusan'],[...rows.map(r=>[r.packageName,r.balai,r.survey,r.category,r.object,r.status,r.detail,r.date]),...(view==='package'?visibleDocs.map(d=>[d.packageName,'',d.identity.survey??'','Dokumen mutu',d.title,d.stale?'Sumber berubah':d.status,String(d.missing),'']):[])]);
+ };
+ const showSurvey=view==='package'||view==='cases'||view==='survey'||!packageLevel;
+ return <main className="cm-workspace b-dashboard" data-testid="compliance-workspace">
+ <WorkspaceHeading eyebrow="Analisis & Kepatuhan" title={titles[view]} description={view==='trend'?'Perkembangan keputusan yang tercatat menurut bulan.':view==='cases'?'Pola temuan teknis dan penyelesaian kasus.':'Evaluasi hasil pemeriksaan menurut cakupan yang dipilih.'} action={<button type="button" className="btn" data-testid="button-export-compliance" onClick={()=>downloadCsv(`analisis-${view}.csv`,csv())}><ArrowDownToLine size={15}/> Ekspor CSV</button>}/>
+ <div className="cm-filters">
+ {central&&<label>Balai<select value={balai} onChange={e=>{setBalai(e.target.value);setPkg('');setSurvey('');resetDetail();}}><option value="">Semua Balai</option>{[...new Set(entries.map(([,s])=>s.project.balai))].sort().map(v=><option key={v}>{v}</option>)}</select></label>}
+ <label>Paket<select value={pkg} onChange={e=>{setPkg(e.target.value);setSurvey('');resetDetail();}}><option value="">Semua paket</option>{entries.filter(([,s])=>!balai||s.project.balai===balai).map(([id,s])=><option value={id} key={id}>{s.project.packageName}</option>)}</select></label>
+ {view!=='package'&&view!=='cases'&&<label>Jenis pemeriksaan<select value={category} onChange={e=>{setCategory(e.target.value as Category);setSurvey('');resetDetail();}}>{categories.map(c=><option key={c}>{c}</option>)}</select></label>}
+ {view!=='package'&&view!=='cases'&&category==='Kalibrasi'&&<label>Bagian kalibrasi<select value={subject} onChange={e=>{setSubject(e.target.value);resetDetail();}}>{CALIBRATION_REVIEW_SUBJECTS.map(s=><option key={s}>{s}</option>)}</select></label>}
+ {showSurvey&&<label>Jenis survei<select aria-label="Jenis survei" value={survey} onChange={e=>{setSurvey(e.target.value);resetDetail();}}><option value="">Semua survei</option>{surveys.map(s=><option key={s}>{s}</option>)}</select></label>}
+ {view==='trend'&&<><label>Dari bulan<input type="month" value={month} max={endMonth||undefined} onChange={e=>{setMonth(e.target.value);resetDetail();}}/></label><label>Sampai bulan<input type="month" value={endMonth} min={month||undefined} onChange={e=>{setEndMonth(e.target.value);resetDetail();}}/></label></>}
+ {view==='cases'&&<label>Kelompok temuan<select value={caseGroup} onChange={e=>{setCaseGroup(e.target.value as typeof caseGroup);resetDetail();}}><option value="source">Sumber pemeriksaan</option><option value="severity">Tingkat temuan</option><option value="rootCause">Akar penyebab</option><option value="status">Status kasus</option><option value="surveyType">Jenis survei</option></select></label>}
+ <button className="btn sm" type="button" onClick={()=>{setBalai('');setPkg('');setSurvey('');setMonth('');setEndMonth('');setCategory(view==='trend'?'Verval berkala':'Kalibrasi');setCaseGroup('source');setSubject('Hasil kalibrasi');resetDetail();}}>Reset</button></div>
+ {view==='cases'&&conflicts.length>0&&<section className="qa-panel"><h2>Data kasus perlu dikonfirmasi</h2><p>{conflicts.length} ID kasus memiliki rekaman yang berbeda dan tidak dihitung dalam indikator.</p>{conflicts.map(c=><p key={`${c.packageId}:${c.id}`}>{c.packageName} · {c.id}</p>)}</section>}
+ {view==='cases'?<><div className="b-metrics"><MetricTile label="Kasus teknis" value={caseRows.length} icon={FileWarning}/><MetricTile label="Belum ditutup" value={caseRows.filter(r=>r.status!=='Ditutup').length} tone="amber"/><MetricTile label="Ditutup" value={caseRows.filter(r=>r.status==='Ditutup').length} tone="green"/><MetricTile label="Temuan kritis aktif" value={caseRows.filter(r=>r.severity==='Kritis'&&r.status!=='Ditutup').length} tone="blue"/></div><section className="qa-panel"><h2>Pola ketidaksesuaian</h2><Legend labels={["Belum ditutup","Ditutup"]} palette={["#C49A59","#398D85"]}/><Bars labels={["Belum ditutup","Ditutup"]} palette={['#C49A59','#398D85']} rows={caseGroups} selected={selected} onPick={choose}/></section><div className="qa-two">{(['severity','surveyType','rootCause'] as const).map(group=><section className="qa-panel" key={group}><h2>{group==='severity'?'Tingkat ketidaksesuaian':group==='surveyType'?'Jenis survei':'Akar penyebab'}</h2><Legend labels={['Jumlah kasus']} palette={['#56999C']}/>{[...new Set(cases.map(r=>r[group]||'Belum dicatat'))].map(name=>{const matching=cases.filter(r=>(r[group]||'Belum dicatat')===name);return <button type="button" className="qa-mini qa-mini-button" key={name} aria-pressed={caseGroup===group&&selected===name} onClick={()=>{setCaseGroup(group);choose(caseGroup===group&&selected===name?'':name);}}><span>{name}</span><div className="qa-track"><span style={{width:`${100*matching.length/Math.max(1,cases.length)}%`,background:'#56999C'}}/></div><strong>{matching.length}</strong></button>})}{!cases.length&&<Empty/>}</section>)}</div><section className="qa-panel"><h2>Durasi penyelesaian kasus</h2>{durations.length?<p className="qa-legend">Rata-rata {(durations.reduce((a,b)=>a+b,0)/durations.length).toLocaleString('id-ID',{maximumFractionDigits:1})} hari · {durations.length} kasus dengan riwayat lengkap.</p>:<Empty/>}</section><section className="qa-panel"><h2>Kasus pembentuk indikator</h2><div className="cm-table-scroll"><table><thead><tr>{['Paket','ID kasus','Survei','Sumber','Tingkat','Akar penyebab','Status','Akses'].map(t=><th key={t}>{t}</th>)}</tr></thead><tbody>{caseRows.slice(0,limit).map(r=><tr key={`${r.packageId}:${r.id}`}><td>{r.packageName}</td><td>{r.id}</td><td>{r.surveyType}</td><td>{r.source}</td><td>{r.severity}</td><td>{r.rootCause||'Belum dicatat'}</td><td>{r.status}</td><td><button className="btn sm" onClick={()=>p.openCorrection?.(r.packageId,r.id)}>Buka kasus</button></td></tr>)}</tbody></table>{!caseRows.length&&<Empty/>}</div><Pager total={caseRows.length} limit={limit} setLimit={setLimit}/></section></>:view==='trend'?<><div className="b-metrics"><MetricTile label="Keputusan tercatat" value={histRows.length} icon={ClipboardCheck}/><MetricTile label="Sesuai / lulus" value={histRows.filter(r=>r.result==='Sesuai').length} tone="green"/><MetricTile label="Temuan / ditolak" value={histRows.filter(r=>r.result==='Temuan').length} tone="amber"/><MetricTile label="Paket dengan keputusan" value={new Set(histRows.map(r=>r.packageId)).size}/></div><section className="qa-panel"><h2>Keputusan per bulan</h2><p className="qa-legend">Sesuai / Temuan · kejadian historis, bukan status terkini</p><Bars labels={["Sesuai","Temuan"]} rows={historyGroups} selected={selected} onPick={choose}/></section><section className="qa-panel"><h2>Riwayat keputusan</h2><div className="cm-table-scroll"><table><thead><tr>{['Tanggal','Paket','Balai','Survei','Keputusan','Akses'].map(t=><th key={t}>{t}</th>)}</tr></thead><tbody>{histRows.slice(0,limit).map(r=><tr key={`${r.packageId}:${r.id}`}><td>{r.recordedAt.slice(0,10)}</td><td>{r.packageName}</td><td>{r.balai}</td><td>{r.survey}</td><td>{r.status}</td><td><button className="btn sm" onClick={()=>p.openPackage(r.packageId)}>Buka paket</button></td></tr>)}</tbody></table>{!histRows.length&&<Empty/>}</div><Pager total={histRows.length} limit={limit} setLimit={setLimit}/></section></>:<>
+ {view==='package'&&<><div className="b-metrics"><MetricTile label="Paket tercakup" value={packageIds.length}/><MetricTile label="Paket dengan keputusan temuan" value={new Set(quality.filter(r=>r.status==='Temuan').map(r=>r.packageId)).size} tone="amber"/><MetricTile label="Perlu pemeriksaan ulang (paket)" value={new Set(quality.filter(r=>r.status==='Perlu pemeriksaan ulang').map(r=>r.packageId)).size} tone="blue"/><MetricTile label="Paket diterima akhir" value={new Set(quality.filter(r=>r.category==='Penerimaan akhir'&&r.status==='Sesuai').map(r=>r.packageId)).size} tone="green"/></div><section className="qa-panel"><h2>Hasil evaluasi berdasarkan pemeriksaan</h2><p className="qa-legend">Jumlah komponen evaluasi, bukan jumlah alat atau pemeriksaan selesai.</p><Legend/><Bars labels={statuses} rows={qualityGroups} selected={selected} onPick={choose}/></section><section className="qa-panel"><h2>Evaluasi per paket</h2>{packageIds.map(id=>{const q=quality.filter(r=>r.packageId===id);return <div className="qa-package-line" key={id}><div><strong>{scoped[id].project.packageName}</strong><p>{q.filter(r=>r.status==='Temuan').length} temuan · {q.filter(r=>r.status==='Perlu pemeriksaan ulang').length} perlu pemeriksaan ulang · {q.filter(r=>r.status==='Belum diputuskan').length} belum diputuskan</p></div><button className="btn sm" aria-expanded={detailPkg===id} onClick={()=>{setDetailPkg(detailPkg===id?'':id);setSelected('');setStatus('');setLimit(15);setDocLimit(15);}}> {detailPkg===id?'Tutup evaluasi':'Lihat evaluasi'}</button></div>})}{!packageIds.length&&<Empty/>}</section></>}
+ {view!=='package'&&<div className="b-metrics"><MetricTile label="Hasil sesuai" value={count.sesuai} icon={ShieldCheck} tone="green"/><MetricTile label="Temuan" value={count.temuan} icon={FileWarning} tone="amber"/><MetricTile label="Belum / ulang / lainnya" value={count.other} note={`${rows.filter(r=>r.status==='Belum diputuskan').length} belum · ${rows.filter(r=>r.status==='Perlu pemeriksaan ulang').length} ulang · ${rows.filter(r=>!['Sesuai','Temuan','Belum diputuskan','Perlu pemeriksaan ulang'].includes(r.status)).length} lainnya`} icon={Layers3}/><MetricTile label="Proporsi sesuai" value={count.ratio===null?'—':`${(count.ratio*100).toLocaleString('id-ID',{maximumFractionDigits:1})}%`} note="Sesuai / (sesuai + temuan)" icon={ClipboardCheck}/></div>}
+ {view!=='package'&&<section className="qa-panel"><h2>{view==='survey'?'Perbandingan jenis survei':'Perbandingan Balai'}</h2><p className="qa-legend">{category} · jumlah pemeriksaan; proporsi sesuai hanya dari keputusan sesuai dan temuan.</p><Legend/><Bars labels={statuses} proportional={view==='balai'} rows={qualityGroups} selected={selected} onPick={choose}/></section>}
+ {(view!=='package'||detailPkg||selected)&&<section className="qa-panel"><div className="qa-panel-head"><h2>{view==='package'?'Matriks evaluasi mutu':'Rincian hasil pemeriksaan'}</h2><label>Status <select value={status} onChange={e=>{setStatus(e.target.value);setLimit(15);}}><option value="">Semua status</option>{statuses.map(s=><option key={s}>{s}</option>)}</select></label></div>
+ <div className="cm-table-scroll"><table><thead><tr>{['Paket','Survei','Pemeriksaan','Objek','Status','Bukti / catatan','Akses'].map(t=><th key={t}>{t}</th>)}</tr></thead><tbody>{rows.slice(0,limit).map(r=><tr key={r.id}><td>{r.packageName}</td><td>{r.survey}</td><td>{r.category}</td><td>{r.object}</td><td><span className={`qa-status ${r.status==='Sesuai'?'good':r.status==='Temuan'?'warn':''}`}>{r.status}</span></td><td>{r.detail||'—'}</td><td><button className="btn sm" onClick={()=>openSource(p,r)}>Buka pemeriksaan</button></td></tr>)}</tbody></table>{!rows.length&&<Empty/>}</div><Pager total={rows.length} limit={limit} setLimit={setLimit}/></section>}</>}
+ {view==='package'&&detailPkg&&<section className="qa-panel"><h2>Dokumen mutu tercatat</h2><div className="cm-table-scroll"><table><thead><tr>{['Paket','Dokumen','Survei','Status','Isian perlu dilengkapi','Akses'].map(t=><th key={t}>{t}</th>)}</tr></thead><tbody>{visibleDocs.slice(0,docLimit).map(d=><tr key={d.id}><td>{d.packageName}</td><td>{d.title}</td><td>{d.identity.survey}</td><td>{d.stale?'Sumber berubah':d.status}</td><td>{d.missing}</td><td><button className="btn sm" onClick={()=>p.openPackageBA(d.identity.packageId,d.identity.kind,{survey:d.identity.survey,period:d.identity.period,auditLevel:d.identity.auditLevel})}>Buka dokumen</button></td></tr>)}</tbody></table>{!visibleDocs.length&&<Empty/>}</div><Pager total={visibleDocs.length} limit={docLimit} setLimit={setDocLimit}/></section>}
+ {selected&&<button className="btn sm qa-clear" onClick={()=>setSelected('')}>Hapus pilihan grafik: {selected}</button>}
+ </main>;
 }

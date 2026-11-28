@@ -1,7 +1,8 @@
 import {periodRange} from '../stages/periodSchedule';
 import {sourceInspectionStatus} from '../repository/sourceChecklistRepository';
 import {sourceDocument} from '../sourceDocumentModel';
-import {stagedFallbackReviewReady} from '../stagedReviewPolicy';
+import {stagedConclusion} from '../stagedConclusion';
+import {baValuePresent} from './fieldValidation';
 import type {SurveyType} from '../model';
 import {documentIdentityErrors,documentReviewContext} from './documentContext09';
 import {documentSourceSnapshot} from './documentSourceSnapshot';
@@ -58,12 +59,30 @@ export function documentActionErrors(state:OperationalWorkflowState,identity:BaI
   const range=identity.period?periodRange(state.project.id,identity.period,state.project.surveyStartDate,state.project.surveyEndDate):undefined;
   const sourceInfo=range?{...state.project,periodStart:range.start,periodEnd:range.end}:state.project;
   const sourceStatus=source||identity.survey==='Lendutan'&&['internal','periodic14'].includes(phase)?sourceInspectionStatus(sourceScope,identity.survey,phase,state.productionTests.PCI.pciManual!==false,sourceInfo):undefined;
-  const errors=baDecisionErrors(documentReviewContext(state,identity),identity.kind,identity.auditLevel as 1|2|3);
-  if(sourceStatus&&(!sourceStatus.complete||sourceStatus.concerns.length)){
+  // A staged BA records an inspection outcome, including adverse findings. It is
+  // not a stage-completion action, formal signature, or source-system validation.
+  const staged=identity.kind==='bertahap';
+  const errors=staged?[]:baDecisionErrors(documentReviewContext(state,identity),identity.kind,identity.auditLevel as 1|2|3);
+  if(staged){
+   const narrative=latest.fields?.['word/document.xml:p356:m0'];
+   if(!baValuePresent(narrative))errors.push('Kesimpulan status V&V pada BA wajib diisi.');
+   if(source){
+    const snapshot=documentSourceSnapshot(state,identity);
+    const conclusion=stagedConclusion(source,snapshot.answers as Record<string,string>);
+    // PCI Manual has no categorical overall control in its source form.
+    if(source.survey!=='PCI Manual'&&!conclusion)errors.push('Pilih kesimpulan pemeriksaan pada checklist sumber.');
+    if(conclusion?.status==='Sesuai'&&sourceStatus?.concerns.length)errors.push('Kesimpulan sesuai tidak dapat dicatat ketika checklist masih menunjukkan temuan.');
+    if((sourceStatus?.concerns.length||conclusion?.status!=='Sesuai')&&!note.trim())errors.push('Catatan pemeriksa dan tindak lanjut wajib diisi untuk hasil yang belum sepenuhnya sesuai.');
+   }else{
+    const review=state.submission.stagedReviews?.[identity.survey as SurveyType];
+    if(!review||review.decision==='Belum Diperiksa'||!review.reviewedAt)errors.push('Hasil pemeriksaan bertahap Balai belum tercatat.');
+    if(review?.decision==='Temuan'&&(!review.note.trim()||!note.trim()))errors.push('Catatan temuan dan tindak lanjut pemeriksa wajib diisi.');
+   }
+  }
+  if(sourceStatus&&(!sourceStatus.complete||(!staged&&sourceStatus.concerns.length))){
    const details=[sourceStatus.reason,...sourceStatus.concerns].filter(Boolean).join(' ');
    errors.push(`Checklist atau evaluasi sumber belum lengkap/memenuhi; periksa tahap sumber ${identity.survey}${identity.period?` periode ${identity.period}`:''}. ${details}`.trim());
   }
-  if(identity.kind==='bertahap'&&!source&&!stagedFallbackReviewReady(state,identity.survey as SurveyType))errors.push('Pemeriksaan bertahap jenis survei ini belum tercatat.');
   if(latest.sourceFingerprint!==documentFingerprint(state,identity))errors.push('Data pemeriksaan berubah setelah pengajuan; minta revisi dan ajukan ulang.');
   if(missing)errors.push('Masih ada isian template yang belum dilengkapi.');
   return errors;
